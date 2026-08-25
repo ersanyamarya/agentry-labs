@@ -8,3 +8,5 @@ Repository maintenance and installation scripts.
 | [`utils.sh`](utils.sh) | Shared colorized logging helpers sourced by executable scripts. | Source from another script; do not run directly. |
 
 Use `./scripts/install.sh --help` for the complete selector syntax and examples.
+Installations target the current project's `./.claude` directory by default;
+pass `--global` to target `~/.claude`.

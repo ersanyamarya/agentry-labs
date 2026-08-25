@@ -3,9 +3,8 @@
 # ------------------------------------------------------------------------------
 # install.sh
 #
-# Install all or selected Agentry Labs components into a global agent directory.
-# Choose whole component types or individual skills, rules, agents, and Claude
-# guidance templates.
+# Install all or selected Agentry Labs components into the current project's
+# .claude directory, or install globally when requested.
 #
 # Usage:
 #   ./install.sh [options] [selector ...]
@@ -20,7 +19,8 @@
 #   -c, --component ITEM    Install TYPE/NAME; may be repeated
 #   -a, --all               Install every available component
 #   -l, --list              List available component selectors and exit
-#       --target DIR        Install under DIR instead of ~/.claude
+#   -g, --global            Install globally under ~/.claude
+#       --target DIR        Install under a custom directory
 #   -h, --help              Show this help message and exit
 #
 # Available types:
@@ -30,24 +30,27 @@
 #   ./install.sh
 #   ./install.sh --list
 #   ./install.sh skills
+#   ./install.sh --global skills
 #   ./install.sh --type skills --type rules
 #   ./install.sh skills/run-fallow
 #   ./install.sh --component agents/super-planner.agent.md
 #   ./install.sh rules agents/super-planner.agent.md
 #   ./install.sh claude-md-files/BASIC_CLAUDE.md
 #   ./install.sh --all
+#   ./install.sh --global --all
 #   ./install.sh all --target "$HOME/.config/my-agent"
 #   curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash
 #   curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- skills/run-fallow
-#   curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- --type rules --target "$HOME/.claude"
+#   curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- --global --type rules
 #
 # Notes:
+#   - The default target is ./.claude in the current working directory.
 #   - With no selectors, an interactive terminal shows a chooser. In a
 #     non-interactive environment, skills are installed.
 #   - Selectors may be singular or plural: skill and skills are equivalent.
 #   - A missing .md suffix is accepted for an individual Markdown component.
 #   - Existing matching files are updated; unrelated installed files remain.
-#   - AGENTRY_LABS_HOME sets the default target directory.
+#   - --global and --target cannot be used together.
 # ------------------------------------------------------------------------------
 
 set -euo pipefail
@@ -98,9 +101,11 @@ print_help() {
 # =========================
 
 COMPONENT_TYPES="skills rules agents claude-md-files"
-TARGET_DIR="${AGENTRY_LABS_HOME:-$HOME/.claude}"
+TARGET_DIR="$PWD/.claude"
 INSTALL_ALL="false"
 LIST_ONLY="false"
+GLOBAL_INSTALL="false"
+CUSTOM_TARGET="false"
 SELECTORS=()
 
 while [[ $# -gt 0 ]]; do
@@ -117,6 +122,10 @@ while [[ $# -gt 0 ]]; do
       LIST_ONLY="true"
       shift
       ;;
+    -g|--global)
+      GLOBAL_INSTALL="true"
+      shift
+      ;;
     -t|--type|-c|--component|--target)
       if [[ $# -lt 2 || -z $2 ]]; then
         log_error "$1 requires a value."
@@ -126,7 +135,10 @@ while [[ $# -gt 0 ]]; do
       case $1 in
         -t|--type) SELECTORS+=("$2") ;;
         -c|--component) SELECTORS+=("$2") ;;
-        --target) TARGET_DIR="$2" ;;
+        --target)
+          TARGET_DIR="$2"
+          CUSTOM_TARGET="true"
+          ;;
       esac
       shift 2
       ;;
@@ -145,6 +157,16 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ $GLOBAL_INSTALL == "true" && $CUSTOM_TARGET == "true" ]]; then
+  log_error "--global and --target cannot be used together."
+  print_help
+  exit 1
+fi
+
+if [[ $GLOBAL_INSTALL == "true" ]]; then
+  TARGET_DIR="$HOME/.claude"
+fi
 
 # =========================
 # MAIN LOGIC

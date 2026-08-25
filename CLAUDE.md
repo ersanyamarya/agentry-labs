@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Agentry Labs** is a collection of reusable, framework-agnostic AI agent components — Claude Code skills and guidance files, GitHub Copilot agents, Cursor rules, and MCP configurations. Designed for reuse across projects. The repo installs selected components globally via a one-line installer.
+**Agentry Labs** is a collection of reusable, framework-agnostic AI agent components — Claude Code skills and guidance files, GitHub Copilot agents, Cursor rules, and MCP configurations. Designed for reuse across projects. The repo installs selected components into the current project by default, with global installation available explicitly.
 
 ## Repository Structure
 
@@ -26,11 +26,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Common Commands
 
 ```bash
-# Install components globally
+# Install components into the current project's .claude directory
 curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash
 
-# Manual install
-cp -r skills/* ~/.claude/skills/
+# Install components globally
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- --global
+
+# Manual local install
+mkdir -p .claude/skills
+cp -r skills/* .claude/skills/
 
 # Run skills in Claude Code
 claude -p "/skill list"

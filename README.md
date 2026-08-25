@@ -13,8 +13,10 @@ A collection of framework-agnostic AI agent components — Claude Code skills an
 curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash
 ```
 
-The installer opens a chooser when run in an interactive terminal. Select a
-whole component type, an individual component, or everything:
+By default, the installer writes to `./.claude` in the current project. Pass
+`--global` to write to `~/.claude` instead. The installer opens a chooser when
+run in an interactive terminal; select a whole component type, an individual
+component, or everything:
 
 ```bash
 # See every available selector
@@ -25,6 +27,9 @@ whole component type, an individual component, or everything:
 
 # Install only one skill
 ./scripts/install.sh skills/run-fallow
+
+# Install one skill globally
+./scripts/install.sh --global skills/run-fallow
 
 # Mix component types and individual components
 ./scripts/install.sh skills/run-fallow rules agents/super-planner.agent.md
@@ -37,15 +42,19 @@ whole component type, an individual component, or everything:
 
 # Select components through the one-line installer
 curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- skills/run-fallow
+
+# Install globally through the one-line installer
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- --global skills/run-fallow
 ```
 
 Run `./scripts/install.sh --help` for all selectors, options, and examples.
 
 ### Manual Copy
 1. Clone this repo
-2. Copy skills to your Claude Code directory:
+2. Copy skills to the current project's Claude Code directory:
    ```bash
-   cp -r skills/* ~/.claude/skills/
+   mkdir -p .claude/skills
+   cp -r skills/* .claude/skills/
    ```
 
 ## Usage
