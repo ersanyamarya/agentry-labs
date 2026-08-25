@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check SKILL.md files
         run: |
-          for file in skills/**/SKILL.md workflows/**/WORKFLOW.md;
+          for file in skills/**/SKILL.md;
           do
             if ! yq -e '.name | test("^[a-z0-9-]+$")' "$file" >/dev/null;
             then echo "Invalid frontmatter in $file"; exit 1;

@@ -1,6 +1,6 @@
 ---
 name: "[Bug Report]"
-about: Report a broken skill or workflow in Agentry Labs
+about: Report a broken component in Agentry Labs
 title: "[Bug]:"
 labels: bug
 ---
@@ -15,5 +15,5 @@ What happened? What should have happened?
 
 ## Environment
 - Agent framework: [e.g., Claude Code]
-- Skill/workflow name: [...]
+- Component name: [...]
 - Repo version: [...]

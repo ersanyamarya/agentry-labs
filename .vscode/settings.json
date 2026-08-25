@@ -1,0 +1,12 @@
+{
+	"editor.formatOnPaste": true,
+	"editor.formatOnSave": true,
+	"chat.agentSkillsLocations": {
+		".claude/skills": true
+	},
+	"chat.useClaudeHooks": true,
+	"chat.useClaudeMdFile": true,
+	"chat.instructionsFilesLocations": {
+		".claude/rules": true
+	}
+}
