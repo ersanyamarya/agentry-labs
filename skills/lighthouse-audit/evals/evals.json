@@ -1,0 +1,23 @@
+{
+  "skill_name": "lighthouse-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run a lighthouse audit on my portfolio site at https://www.sanyamarya.com and tell me what to fix.",
+      "expected_output": "Runs mobile+desktop lighthouse against the URL, summarizes the JSON reports with the bundled script (not raw Read), diagnoses at least the LCP/unused-JS findings against actual source files in this repo (cites file:line), writes lighthouse-fix-report-plan.md at repo root following the template, and asks whether to fix now or later before editing any source.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Here are lighthouse reports I already ran (lighthouse-mobile.json and lighthouse-desktop.json in the repo root). Can you tell me what's wrong with my site and how to fix it?",
+      "expected_output": "Recognizes it doesn't need to re-run lighthouse since reports already exist, goes straight to summarizing/diagnosing them with the script, traces findings to real source files, and produces lighthouse-fix-report-plan.md.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "my portfolio site feels really sluggish when I open it on my phone, especially the hero section taking forever to show up. can you figure out what's going on? it's deployed at sanyamarya.com",
+      "expected_output": "Recognizes this as a performance-audit task even without the word 'lighthouse', runs the mobile+desktop audits, identifies the LCP/hero-image root cause specifically (not generic advice), traces it to the actual component/image in src/, and writes the fix plan.",
+      "files": []
+    }
+  ]
+}
