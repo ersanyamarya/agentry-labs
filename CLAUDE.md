@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ├── skills/              # Claude Code skills (self-contained, runnable via /skill <name>)
 │   ├── image-artifact-setup/   # Scaffold OG/social card generator using Playwright
 │   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, produce fix plan
-│   ├── no-ai-slop/             # Edit/detect AI-slop patterns in writing
+│   ├── humanize-and-unslop/             # Edit/detect AI-slop patterns in writing
 │   └── run-fallow/             # Run fallow CLI for dead code, dupes, complexity, security
 ├── agents/              # Custom agent definitions
 │   └── super-planner.agent.md
@@ -62,7 +62,7 @@ Remember, before writing any code:
 |-------|---------|-----------|
 | `image-artifact-setup` | Scaffold reproducible image generators (OG cards, social previews, thumbnails) via Playwright | `SKILL.md`, `references/`, `assets/card-renderer.ts` |
 | `lighthouse-audit` | Run Lighthouse (mobile+desktop), cross-reference findings with source, write fix plan | `SKILL.md`, `scripts/summarize_report.py` |
-| `no-ai-slop` | Edit drafts to remove AI patterns while preserving voice, or detect without rewriting | `SKILL.md` |
+| `humanize-and-unslop` | Edit drafts to remove AI patterns while preserving voice, or detect without rewriting | `SKILL.md` |
 | `run-fallow` | Run fallow CLI (dead code, duplication, complexity, security) with JSON output | `SKILL.md` |
 
 ## Development Conventions
