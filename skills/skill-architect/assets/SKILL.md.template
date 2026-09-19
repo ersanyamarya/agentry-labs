@@ -1,0 +1,14 @@
+---
+name: [skill-name-kebab-case]
+description: [What it does. Use when the user asks to "specific phrase 1", "specific phrase 2".]
+---
+
+[Brief summary of the skill's purpose]
+
+1. **[Step 1 Action]**
+   - [Instruction detail]
+   - Read `references/[filename].md` to validate...
+
+2. **[Step 2 Action]**
+   - Execute `scripts/[scriptname].mjs` with [arguments].
+   - Analyze the `stdout` output...

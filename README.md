@@ -74,6 +74,7 @@ Run `./scripts/install.sh --help` for all selectors, options, and examples.
 | `lighthouse-audit` | Run Lighthouse against a live URL, diagnose findings against actual source, produce prioritized fix plan |
 | `humanize-and-unslop` | Edit drafts into sharper human writing while preserving voice, or detect AI-slop patterns |
 | `run-fallow` | Run the `fallow` CLI to analyze codebase for dead code, duplication, complexity, and security candidates |
+| `skill-architect` | Analyze workflows and scaffold optimized, agentskills.io-compliant skills |
 
 ### Agents (`.claude/agents/`)
 | Agent | Description |
