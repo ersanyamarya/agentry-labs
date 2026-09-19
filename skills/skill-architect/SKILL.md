@@ -11,7 +11,13 @@ Analyze the requested workflow to build a highly optimized, agentskills.io-compl
 
 2. **Scaffold the Skill Directory:**
    - Determine a concise, kebab-case name for the new skill, such as `github-pr-reviewer`.
-   - Execute `scripts/scaffold.mjs` with the chosen skill name from the directory that should contain the generated skill. Let the script create `SKILL.md`, `scripts/`, `references/`, and `assets/` safely.
+   - Resolve the installation scope from the request:
+     - Treat "local", "project", or "project-local" as local scope.
+     - Treat "global", "user", or "user-wide" as global scope.
+     - Ask whether to create a local or global skill when the request does not specify a scope. Present local as the default and recommended choice.
+     - Choose local scope when no answer is available.
+   - State the resolved destination before creating files. Use `<project>/.claude/skills/<skill-name>` for local scope and `~/.claude/skills/<skill-name>` for global scope.
+   - Execute `scripts/scaffold.mjs <skill-name> --local` from the project root for local scope, or execute `scripts/scaffold.mjs <skill-name> --global` for global scope. Let the script create `SKILL.md`, `scripts/`, `references/`, and `assets/` safely.
 
 3. **Draft Scripts and Assets When Applicable:**
    - Read `assets/script-mjs.template` when the routing analysis identifies a need for a local script.
@@ -27,4 +33,5 @@ Analyze the requested workflow to build a highly optimized, agentskills.io-compl
 5. **Review the Skill:**
    - Validate that code and MCPs perform the heavy lifting.
    - Reserve LLM instructions for decision-making and creative synthesis.
+   - Confirm that the generated skill exists in the resolved local or global destination.
    - Confirm that the generated skill contains no `README.md`.
