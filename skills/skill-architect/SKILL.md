@@ -1,6 +1,7 @@
 ---
 name: skill-architect
 description: Evaluates workflows and builds optimized, token-efficient Claude Code skills. Use when the user asks to "create a skill", "generate a skill", "build a meta-skill", or "write a new skill".
+argument-hint: "[workflow-description] [--local|--global]"
 ---
 
 Analyze the requested workflow to build a highly optimized, agentskills.io-compliant skill. Aggressively outsource logic to external Model Context Protocol (MCP) servers or local `.mjs`/Bash scripts to preserve the LLM context window.

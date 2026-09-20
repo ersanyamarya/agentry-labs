@@ -1,6 +1,7 @@
 ---
 name: image-artifact-setup
-description: Set up a reproducible image-artifact generator in a project — Open Graph / social cards, link-preview art, project or product tiles, README banners, store screenshots — by rendering HTML/CSS in headless Chromium with Playwright and screenshotting it. Use this whenever the user wants to generate, standardize, regenerate, or automate images built from project data: og:image cards, social previews, thumbnails, marketing cards, tile art. Also use when the user says their og images or preview images are inconsistent / hand-made / a mess, wants images that follow their design system, wants images generated per page or per route, or asks to script image creation instead of doing it in Figma. Works in any stack — React, Next.js, Gatsby, Astro, Vite, SvelteKit, Remix, Flutter, Swift/iOS, Android — scaffolding `scripts/image-gen-tools/` and wiring a runnable script.
+description: "Set up a reproducible image-artifact generator in a project — Open Graph / social cards, link-preview art, project or product tiles, README banners, store screenshots — by rendering HTML/CSS in headless Chromium with Playwright and screenshotting it. Use this whenever the user wants to generate, standardize, regenerate, or automate images built from project data: og:image cards, social previews, thumbnails, marketing cards, tile art. Also use when the user says their og images or preview images are inconsistent / hand-made / a mess, wants images that follow their design system, wants images generated per page or per route, or asks to script image creation instead of doing it in Figma. Works in any stack — React, Next.js, Gatsby, Astro, Vite, SvelteKit, Remix, Flutter, Swift/iOS, Android — scaffolding `scripts/image-gen-tools/` and wiring a runnable script."
+argument-hint: "[artifact-type] [project-or-app]"
 ---
 
 # Image Artifact Setup
@@ -58,8 +59,10 @@ Copy exact values. If the project defines `oklch(0.16 0.01 250)`, put `oklch(0.1
 Note the **icon library**, because reusing the project's own icon for a thing is what makes a generated card feel native rather than templated. If icons are React components, they can be rendered to static SVG:
 
 ```ts
-import { renderToStaticMarkup } from 'react-dom/server';
-renderToStaticMarkup(React.createElement(Icon, { width: 44, strokeWidth: 1.5 }));
+import { renderToStaticMarkup } from "react-dom/server";
+renderToStaticMarkup(
+  React.createElement(Icon, { width: 44, strokeWidth: 1.5 }),
+);
 ```
 
 Then colour them by setting `color` on the container, since most icon sets stroke with `currentColor`.
@@ -133,7 +136,9 @@ bunx playwright-core install chromium
 3. **Inline every asset** as a data URI. Embedded images, cropped photos, icons — the page is rendered from a string, so a relative path has nothing to resolve against. Google Fonts over the network is the practical exception.
 4. **Compress if the art is photographic or screenshot-heavy.** A dark card with flat type quantizes essentially losslessly and gets several times smaller:
    ```ts
-   await sharp(shot).png({ palette: true, quality: 90, effort: 8 }).toFile(target);
+   await sharp(shot)
+     .png({ palette: true, quality: 90, effort: 8 })
+     .toFile(target);
    ```
    Skip it for source art the project's own pipeline will re-encode.
 
@@ -145,7 +150,9 @@ try {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 } catch (e) {
   console.error(`Cannot reach ${DEV_SERVER} (${(e as Error).message}).`);
-  console.error('These cards are shot from the live app. Start it first:\n\n  bun run dev\n');
+  console.error(
+    "These cards are shot from the live app. Start it first:\n\n  bun run dev\n",
+  );
   process.exit(1);
 }
 ```
@@ -173,7 +180,8 @@ Make the footprint predictable:
 
 - **Step the title size by length** rather than letting it wrap to a third line:
   ```ts
-  const titleSize = (t: string) => (t.length <= 18 ? '78px' : t.length <= 26 ? '68px' : '60px');
+  const titleSize = (t: string) =>
+    t.length <= 18 ? "78px" : t.length <= 26 ? "68px" : "60px";
   ```
 - **Clamp descriptions** to a fixed line count (`-webkit-line-clamp: 2`) so every card occupies the same space. If the truncation reads badly, that's a signal the _source_ copy is too long for a card — tell the user, since shortening it there usually improves the page too.
 - **Set `text-wrap: balance` and `hyphens: none`** on headings. Default hyphenation produces breaks like `in-` / `editor`.

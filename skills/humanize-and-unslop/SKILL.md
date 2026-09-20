@@ -1,6 +1,7 @@
 ---
 name: humanize-and-unslop
-description: 'Edit drafts into sharp, opinionated, human writing by ruthlessly stripping out AI slop, filler, and formulaic patterns. Can also be used to detect AI tells without rewriting.'
+description: "Edit drafts into sharp, opinionated, human writing by ruthlessly stripping out AI slop, filler, and formulaic patterns. Can also be used to detect AI tells without rewriting."
+argument-hint: "[draft-or-file] [--detect]"
 ---
 
 <persona>

@@ -1,6 +1,7 @@
 ---
 name: [skill-name-kebab-case]
 description: [What it does. Use when the user asks to "specific phrase 1", "specific phrase 2".]
+argument-hint: "[expected-input]"
 ---
 
 [Brief summary of the skill's purpose]

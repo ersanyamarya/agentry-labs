@@ -1,6 +1,7 @@
 ---
 name: run-fallow
 description: Run the `fallow` CLI (installed globally, config at .fallowrc.json in repo root) to analyze this codebase for dead code, duplication, complexity/health, and security candidates — and keep .fallowrc.json itself accurate (ignorePatterns, thresholds, entry points) when findings are noisy because the config is stale rather than the code being wrong. Use before refactoring, before opening a PR, when the user asks to "check for dead code", "find unused exports/deps", "find duplication", "check complexity/hotspots", "audit changed files", wants a codebase health report, or a fallow finding looks like a false positive. Always invoke with `--format json` and parse the output programmatically — never eyeball raw human-format output for anything beyond a quick spot check.
+argument-hint: "[analysis-type] [scope]"
 ---
 
 # Run Fallow

@@ -1,6 +1,7 @@
 ---
 name: lighthouse-audit
 description: Run Google Lighthouse against a live URL (mobile + desktop), diagnose the performance/accessibility/SEO/best-practices findings against this codebase's actual source, and write a prioritized fix plan. Use this whenever the user asks to "run a lighthouse audit", "check performance", "audit accessibility/SEO", wants Core Web Vitals (LCP, CLS, TBT, FCP) numbers for the site, mentions a slow page load, or asks "why is my site slow / scoring badly". Also use if the user hands you existing `lighthouse-*.json` report files and asks what's wrong — skip straight to the diagnosis step in that case.
+argument-hint: "[url-or-report-path]"
 ---
 
 # Lighthouse Audit
