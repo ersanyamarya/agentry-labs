@@ -1,77 +1,55 @@
 ---
 name: humanize-and-unslop
-description: "Edit drafts into sharp, opinionated, human writing by ruthlessly stripping out AI slop, filler, and formulaic patterns. Can also be used to detect AI tells without rewriting."
+description: Edit drafts into plain, specific, human-sounding writing by removing AI tells (banned vocabulary, em dashes, curly quotes, puffery, chatbot phrases, formulaic structures), or detect those tells without rewriting. A bundled scanner finds the mechanical tells with line numbers; the model handles judgment calls and the rewrite. Use when the user asks to "humanize this", "unslop this", "remove AI slop", "make this sound less like AI", "edit this draft", "does this sound AI-written", "check for AI tells", or passes --detect.
 argument-hint: "[draft-or-file] [--detect]"
 ---
 
-<persona>
-You are a sharp, ruthless, and deeply human editor. Your job is to strip out generic, robotic "AI slop" and replace it with concrete, alive, and distinctly human prose. You preserve the original author's intent and edge, but you refuse to let voiceless, sterile, or sycophantic writing pass.
-</persona>
+# Humanize and unslop
 
-<primary_tasks> Perform one of two jobs based on the user's prompt:
+Strip AI tells from prose while keeping the author's claims and voice. The model reads and rewrites. `scripts/scan.mjs` is a precise checker for words, phrases, and punctuation, used to confirm the result is clean.
 
-1. **Edit (Default):** The user shares a draft. Apply the rules below to rewrite it. Make the minimum effective edit to fix slop, but ensure the final piece has "soul."
-2. **Detect:** The user asks to audit or flag a piece. Do not rewrite. Return a structured report naming the specific pattern found, quoting the exact line, and offering a quick fix in a few words.
+## Rules that always apply
 
-_Note: If context (audience, format, goal) is missing, briefly ask for it before proceeding._ </primary_tasks>
+- Keep every claim. Never change facts, numbers, severity, scope, or meaning, since this is a style edit.
+- Leave code blocks, inline code, URLs, commands, and quoted material untouched. The scanner already skips them.
+- Use straight quotes (`"` and `'`), never curly quotes.
+- Use no em dashes and no spaced en dashes. Use a period or comma instead, not parentheses.
+- Use colons only to introduce a list or example, never as a lead-in ("The result: ...").
+- Use sentence case for headings. Keep emojis and decorative bold out of headings, bullets, and body text.
+- Return text that is already clean unchanged.
 
-<process>
-1. **Scan:** Identify all banned words, punctuation tells, and formulaic AI structures.
-2. **Strip & Replace:** Remove puffery, abstract jargon, and filler. Replace with concrete facts and active verbs.
-3. **Add Soul:** Inject human cadence (see `Adding Soul` section).
-4. **Self-Audit:** Ask yourself, "What makes this still look AI-generated?" and fix the remaining tells before outputting.
-</process>
+When rules pull in different directions, apply this order: preserve meaning, then fix scan findings, then make the smallest edit that works, then add soul.
 
-<adding_soul> Removing slop is only half the job. Sterile writing is just as obvious as AI writing.
+## Workflow
 
-- **Have opinions:** React to facts instead of neutrally listing pros and cons.
-- **Vary rhythm:** Use short sentences. Then use longer ones that take their time. Mix it up.
-- **Acknowledge complexity:** "Impressive but also kind of unsettling" beats just "impressive."
-- **Let some mess in:** Perfect, symmetrical structure looks machine-made.
-- **Be hyper-specific:** "There's something unsettling about agents churning away at 3am" beats "This is concerning."
-- **Use "I" or "We":** First-person isn't unprofessional; it’s human. </adding_soul>
+1. **Resolve mode and input**
+   - Use Detect mode when the request says `--detect`, "audit", "check", or "flag". Otherwise use Edit mode.
+   - Count words. Under about 150 words, skip the scanner in steps 2 and 5 and check by reading.
+   - For longer pasted text, write it to a temp file (`${TMPDIR:-/tmp}/unslop-draft.md`) so the scanner can read it. For a file path, scan the file directly.
+   - In Edit mode, ask for audience and format only when the register is unclear and a person can answer. Otherwise infer the register from the draft.
 
-<strict_constraints>
+2. **Scan**
+   - Execute `node ${CLAUDE_SKILL_DIR}/scripts/scan.mjs <file>`.
+   - Treat `fix` findings as required changes. Treat `review` findings as terms with a possible literal or technical sense (`primitive`, `surface`, `vector`); keep them when that sense applies.
 
-- **NO EM DASHES:** Avoid em dashes entirely. Use periods or commas. Do not substitute with parentheses or en dashes.
-- **NO MID-SENTENCE COLONS:** Colons are for lists/examples only. Do not use them as transitional crutches (e.g., "The result: a faster app"). Just write the sentence.
-- **STRICT SENTENCE CASE:** Use sentence case for all headings and titles.
-- **NO DECORATIVE EMOJIS:** Remove emojis from headings, bullets, and body text.
-- **NO STRAIGHT QUOTES:** Use straight quotes (" "), never curly/smart quotes.
-- **NO BOLDING SLOP:** Do not bold every proper noun. Do not use inline-header lists that just restate the line (e.g., "**Performance:** Performance improved..."). </strict_constraints>
+3. **Judge**
+   - Read `references/judgment-patterns.md` and check the draft for everything the scan does not cover: Title Case headings, colon lead-ins, bold-label bullets, binary contrasts, forced triads, synonym cycling, passive voice hiding the actor, uniform rhythm, unsourced claims.
+   - Decide the register. Apply the "adding soul" section only to personal or opinion writing, never to docs, specs, READMEs, or third-person reports.
 
-<banned_vocabulary> Ruthlessly delete or replace these words with plain English: delve, foster, leverage, utilize, facilitate, empower, streamline, robust, cutting-edge, paradigm shift, game changer, tapestry, realm, beacon, multifaceted, meticulous, intricate, paramount, transformative, elevate, embark, supercharge, harness, ever-evolving, crucial, enduring, enhance, garner, interplay, landscape, pivotal, showcase, testament, underscore, vibrant. </banned_vocabulary>
+4. **Edit (Edit mode only)**
+   - Read `references/examples.md` before the first edit in a session to calibrate edit depth.
+   - Rewrite to clear every `fix` finding and each confirmed judgment finding.
+   - For a file input, edit the file in place. Keep the change summary in the reply, never in the file.
 
-<banned_jargon> Replace abstract technical metaphors with concrete words: Substrate (base), wedge (add), vector (way/method), locus, vantage, nexus, primitive, surface (API surface), bedrock, scaffolding, modality, gold-plating (over-engineering), ratchet, evacuate (move out), endgame (last phase). </banned_jargon>
+5. **Verify**
+   - Re-run `scan.mjs` on the edited text. Repeat step 4 until zero `fix` findings remain.
+   - Reread once and fix whatever still reads as generated, usually rhythm or a summary ending.
 
-<patterns_to_destroy> **1. Content & Framing**
+## Output
 
-- **Puffery & Importance:** "Stands as a testament," "plays a vital role," "indelible mark." State the fact and let the reader judge.
-- **Superficial -ing phrases:** "highlighting...", "showcasing...", "fostering...". Delete or expand with real sources.
-- **Faux-insight setups:** "What most people get wrong," "The part everyone misses."
-- **Binary contrasts:** "This is not X. It's Y." -> Just state Y directly.
-- **Rule of Three:** Forcing ideas into groups of three. Use the natural number.
-- **False ranges:** "From X to Y" where X and Y aren't on a meaningful scale.
-- **Weasel attribution:** "Experts agree," "many argue." Name the source or cut it.
+- **Edit mode:** the edited draft (or a note that the file was edited), then a `## What changed` list of 3 to 6 bullets covering structural, tonal, and wording changes. Mention any `review` findings deliberately kept, and why.
+- **Detect mode:** do not rewrite. List findings as `line: [pattern] "exact quote" -> brief fix`, scan findings first, then judgment findings, then a one-line count per pattern. No paragraphs of feedback.
 
-**2. Style & Syntax**
+## Reuse
 
-- **Fancy ways to say "is":** "serves as", "stands as", "boasts", "features". Just say "is" or "has".
-- **Synonym cycling:** Protagonist, main character, central figure, hero all in one paragraph. Pick one, repeat it.
-- **Passive Voice:** "Queries are validated" -> "The compiler validates queries."
-- **Adverb-propped verbs:** "Runs quickly" -> "Is fast." "Significantly improves" -> [Give the measured delta].
-- **Throat-clearing:** "Here's the thing," "Let me be clear," "It is important to note that."
-
-**3. Chatbot Artifacts (Kill on sight)**
-
-- "I hope this helps!", "Let me know if...", "Of course!", "Certainly!"
-- Cutoff disclaimers: "While specific details are limited..."
-- Sycophantic tone: "Great question! You're absolutely right!"
-- Summary-recap endings: "In conclusion," "Ultimately," "The future looks bright." End on the last concrete point instead. </patterns_to_destroy>
-
-<output_format>
-
-- **If Edit:**
-  1. Output the fully edited draft.
-  2. Add a `## What changed` section at the bottom: a concise, bulleted list of structural, tonal, and stylistic modifications made.
-- **If Detect:** Output a structured list of bullet points: `[Pattern Name]: "Exact quote" -> Suggested brief fix`. Do not write paragraphs of feedback. </output_format>
+Other skills and agents that need these rules should read `references/patterns.json` and `references/judgment-patterns.md` or call `scripts/scan.mjs --json`, rather than copying the word lists.

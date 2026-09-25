@@ -1,0 +1,428 @@
+{
+  "_about": "Single source of truth for mechanically detectable AI tells: high-precision word, phrase, and punctuation checks only. Structural tells (contrasts, colon lead-ins, title case, bold labels) live in judgment-patterns.md. scripts/scan.mjs reads this file. Severity 'fix' means always rewrite; 'review' means the term has a legitimate literal or technical sense, so decide in context.",
+  "words": [
+    {
+      "term": "delve",
+      "fix": "dig into, look at"
+    },
+    {
+      "term": "foster",
+      "fix": "build, encourage"
+    },
+    {
+      "term": "leverage",
+      "fix": "use"
+    },
+    {
+      "term": "utilize",
+      "fix": "use"
+    },
+    {
+      "term": "facilitate",
+      "fix": "help, run"
+    },
+    {
+      "term": "empower",
+      "fix": "let, allow"
+    },
+    {
+      "term": "streamline",
+      "fix": "simplify, speed up"
+    },
+    {
+      "term": "robust",
+      "fix": "reliable, solid, or say what it survives"
+    },
+    {
+      "term": "cutting-edge",
+      "fix": "new, or name the thing"
+    },
+    {
+      "term": "paradigm shift",
+      "fix": "say what changed"
+    },
+    {
+      "term": "game changer",
+      "fix": "say what changed"
+    },
+    {
+      "term": "game-changer",
+      "fix": "say what changed"
+    },
+    {
+      "term": "tapestry",
+      "fix": "mix, or cut"
+    },
+    {
+      "term": "realm",
+      "fix": "area, field"
+    },
+    {
+      "term": "beacon",
+      "fix": "example, or cut"
+    },
+    {
+      "term": "multifaceted",
+      "fix": "name the parts"
+    },
+    {
+      "term": "meticulous",
+      "fix": "careful"
+    },
+    {
+      "term": "intricate",
+      "fix": "detailed, complex"
+    },
+    {
+      "term": "paramount",
+      "fix": "most important"
+    },
+    {
+      "term": "transformative",
+      "fix": "say what changed"
+    },
+    {
+      "term": "elevate",
+      "fix": "improve, raise"
+    },
+    {
+      "term": "embark",
+      "fix": "start"
+    },
+    {
+      "term": "supercharge",
+      "fix": "speed up"
+    },
+    {
+      "term": "harness",
+      "fix": "use"
+    },
+    {
+      "term": "ever-evolving",
+      "fix": "changing"
+    },
+    {
+      "term": "crucial",
+      "fix": "important, key, or cut"
+    },
+    {
+      "term": "enduring",
+      "fix": "lasting"
+    },
+    {
+      "term": "enhance",
+      "fix": "improve"
+    },
+    {
+      "term": "garner",
+      "fix": "get, win"
+    },
+    {
+      "term": "interplay",
+      "fix": "interaction"
+    },
+    {
+      "term": "landscape",
+      "fix": "field, market",
+      "severity": "review"
+    },
+    {
+      "term": "pivotal",
+      "fix": "key"
+    },
+    {
+      "term": "showcase",
+      "fix": "show"
+    },
+    {
+      "term": "testament",
+      "fix": "proof, sign"
+    },
+    {
+      "term": "underscore",
+      "fix": "show, stress"
+    },
+    {
+      "term": "vibrant",
+      "fix": "lively, or cut"
+    },
+    {
+      "term": "seamless",
+      "fix": "smooth, or cut"
+    },
+    {
+      "term": "profound",
+      "fix": "deep, or cut"
+    },
+    {
+      "term": "iconic",
+      "fix": "famous, or cut"
+    },
+    {
+      "term": "timeless",
+      "fix": "lasting, or cut"
+    },
+    {
+      "term": "captivate",
+      "fix": "hold, interest"
+    },
+    {
+      "term": "unwavering",
+      "fix": "steady, firm"
+    },
+    {
+      "term": "resonate",
+      "fix": "connect with, matter to",
+      "severity": "review"
+    },
+    {
+      "term": "galvanize",
+      "fix": "rally, push"
+    },
+    {
+      "term": "indomitable",
+      "fix": "cut, or show it"
+    },
+    {
+      "term": "remarkable",
+      "fix": "say what is notable",
+      "severity": "review"
+    }
+  ],
+  "jargon": [
+    {
+      "term": "substrate",
+      "fix": "base"
+    },
+    {
+      "term": "wedge",
+      "fix": "add, entry point",
+      "severity": "review"
+    },
+    {
+      "term": "vector",
+      "fix": "way, method",
+      "severity": "review"
+    },
+    {
+      "term": "locus",
+      "fix": "center"
+    },
+    {
+      "term": "vantage",
+      "fix": "view"
+    },
+    {
+      "term": "nexus",
+      "fix": "link, center"
+    },
+    {
+      "term": "primitive",
+      "fix": "building block",
+      "severity": "review"
+    },
+    {
+      "term": "surface",
+      "fix": "API, expose, show",
+      "severity": "review"
+    },
+    {
+      "term": "bedrock",
+      "fix": "base"
+    },
+    {
+      "term": "scaffolding",
+      "fix": "setup, structure",
+      "severity": "review"
+    },
+    {
+      "term": "modality",
+      "fix": "mode"
+    },
+    {
+      "term": "gold-plating",
+      "fix": "over-engineering"
+    },
+    {
+      "term": "ratchet",
+      "fix": "tighten, raise",
+      "severity": "review"
+    },
+    {
+      "term": "evacuate",
+      "fix": "move out"
+    },
+    {
+      "term": "endgame",
+      "fix": "last phase"
+    }
+  ],
+  "phrases": [
+    {
+      "category": "chatbot",
+      "text": "i hope this helps",
+      "fix": "delete"
+    },
+    {
+      "category": "chatbot",
+      "text": "let me know if",
+      "fix": "delete"
+    },
+    {
+      "category": "chatbot",
+      "text": "of course!",
+      "fix": "delete"
+    },
+    {
+      "category": "chatbot",
+      "text": "certainly!",
+      "fix": "delete"
+    },
+    {
+      "category": "chatbot",
+      "text": "great question",
+      "fix": "delete"
+    },
+    {
+      "category": "chatbot",
+      "text": "you're absolutely right",
+      "fix": "delete"
+    },
+    {
+      "category": "chatbot",
+      "text": "while specific details are limited",
+      "fix": "delete, or state what is known"
+    },
+    {
+      "category": "chatbot",
+      "text": "as of my last",
+      "fix": "delete"
+    },
+    {
+      "category": "throat-clearing",
+      "text": "here's the thing",
+      "fix": "delete"
+    },
+    {
+      "category": "throat-clearing",
+      "text": "let me be clear",
+      "fix": "delete"
+    },
+    {
+      "category": "throat-clearing",
+      "text": "it is important to note that",
+      "fix": "delete"
+    },
+    {
+      "category": "throat-clearing",
+      "text": "it's important to note that",
+      "fix": "delete"
+    },
+    {
+      "category": "throat-clearing",
+      "text": "it's worth noting that",
+      "fix": "delete"
+    },
+    {
+      "category": "throat-clearing",
+      "text": "it is worth noting that",
+      "fix": "delete"
+    },
+    {
+      "category": "recap-ending",
+      "text": "in conclusion",
+      "fix": "end on the last concrete point"
+    },
+    {
+      "category": "recap-ending",
+      "text": "in summary",
+      "fix": "end on the last concrete point"
+    },
+    {
+      "category": "recap-ending",
+      "text": "the future looks bright",
+      "fix": "delete"
+    },
+    {
+      "category": "recap-ending",
+      "text": "ultimately,",
+      "fix": "delete",
+      "severity": "review"
+    },
+    {
+      "category": "puffery",
+      "text": "stands as a testament",
+      "fix": "state the fact"
+    },
+    {
+      "category": "puffery",
+      "text": "indelible mark",
+      "fix": "state the fact"
+    },
+    {
+      "category": "fancy-is",
+      "text": "stands as",
+      "fix": "is"
+    },
+    {
+      "category": "fancy-is",
+      "text": "boasts",
+      "fix": "has",
+      "severity": "review"
+    },
+    {
+      "category": "faux-insight",
+      "text": "what most people get wrong",
+      "fix": "state the point"
+    },
+    {
+      "category": "faux-insight",
+      "text": "the part everyone misses",
+      "fix": "state the point"
+    },
+    {
+      "category": "faux-insight",
+      "text": "here's what nobody tells you",
+      "fix": "state the point"
+    },
+    {
+      "category": "weasel",
+      "text": "studies show",
+      "fix": "cite the study or cut",
+      "severity": "review"
+    },
+    {
+      "category": "puffery",
+      "text": "stand the test of time",
+      "fix": "state how long it has lasted"
+    },
+    {
+      "category": "puffery",
+      "text": "stood the test of time",
+      "fix": "state how long it has lasted"
+    },
+    {
+      "category": "puffery",
+      "text": "generations to come",
+      "fix": "cut, or give a real timeframe"
+    }
+  ],
+  "regexes": [
+    {
+      "category": "weasel",
+      "pattern": "\\b(?:(?:many|some|most) (?:scholars|experts|critics|people|researchers|historians|observers)|experts|critics|scholars|many) (?:argue|agree|believe|say|suggest|claim)\\b",
+      "fix": "name the source or cut"
+    },
+    {
+      "category": "puffery",
+      "pattern": "\\bplay(?:s|ed|ing)? an? (?:vital|crucial|key|pivotal|critical|significant|major|central) role\\b",
+      "fix": "say what it did"
+    },
+    {
+      "category": "fancy-is",
+      "pattern": "\\bserv(?:e|es|ed|ing) as\\b",
+      "fix": "is, was (keep for real roles: served as prime minister)",
+      "severity": "review"
+    }
+  ]
+}
