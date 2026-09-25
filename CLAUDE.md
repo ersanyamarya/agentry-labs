@@ -64,6 +64,7 @@ Remember, before writing any code:
 | `lighthouse-audit` | Run Lighthouse (mobile+desktop) on any web stack, trace findings to source, write fix plan | `SKILL.md`, `scripts/summarize-report.mjs`, `references/framework-hints.md`, `assets/fix-plan-template.md` |
 | `humanize-and-unslop` | Edit drafts to remove AI patterns while preserving voice, or detect without rewriting | `SKILL.md`, `scripts/scan.mjs`, `references/patterns.json` |
 | `run-fallow` | Run fallow CLI (dead code, duplication, complexity, security) on any JS/TS project, condense JSON output | `SKILL.md`, `scripts/preflight.mjs`, `scripts/summarize.mjs`, `references/` |
+| `skill-architect` | Create, improve, or review skills; scaffold, validate against the spec, test on a sample | `SKILL.md`, `scripts/scaffold.mjs`, `scripts/validate.mjs`, `references/` |
 
 ## Development Conventions
 

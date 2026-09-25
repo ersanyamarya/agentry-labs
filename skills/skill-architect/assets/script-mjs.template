@@ -1,26 +1,24 @@
 #!/usr/bin/env node
-import fs from 'node:fs/promises';
-import path from 'node:path';
+// [One line: what this script checks or produces.]
+// Usage: node [script-name].mjs <input> [--limit N]
+import fs from 'node:fs';
+import { parseArgs } from 'node:util';
 
-const args = process.argv.slice(2);
-if (args.length === 0) {
-  console.error('Error: Missing required arguments.');
+const { values, positionals } = parseArgs({
+  allowPositionals: true,
+  options: { limit: { type: 'string', default: '10' } },
+});
+
+if (positionals.length !== 1) {
+  console.error('Usage: node [script-name].mjs <input> [--limit N]');
   process.exit(1);
 }
 
-async function main() {
-  try {
-    const targetPath = path.resolve(args[0]);
-    // TODO: Implement deterministic logic (fetch, parse, transform).
+const input = fs.readFileSync(positionals[0], 'utf8');
+const limit = Number(values.limit);
 
-    const result = { status: 'success', data: 'Condense the output here' };
+// TODO: deterministic logic (parse, transform, exact checks).
+const items = [];
 
-    // Output only what the LLM needs to stdout.
-    console.log(JSON.stringify(result, null, 2));
-  } catch (error) {
-    console.error(`Error processing request: ${error.message}`);
-    process.exit(1);
-  }
-}
-
-main();
+// Print only what the model needs, capped so output stays small.
+console.log(JSON.stringify({ total: items.length, top: items.slice(0, limit) }, null, 2));

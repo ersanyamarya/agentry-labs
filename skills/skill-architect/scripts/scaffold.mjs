@@ -1,117 +1,54 @@
 #!/usr/bin/env node
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+// Scaffolds a new skill folder (SKILL.md from the template, plus scripts/, references/, assets/).
+// Usage: node scaffold.mjs <skill-name> [--local | --global | --target <skills-dir>]
+//   --local   <cwd>/.claude/skills (default)
+//   --global  ~/.claude/skills
+//   --target  any skills directory, e.g. a catalog repo's skills/
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 
-const kebabCasePattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const validScopes = new Set(["local", "global"]);
+const fail = (message) => {
+  console.error(`Error: ${message}`);
+  process.exit(1);
+};
 
-function parseArguments(args) {
-  let skillName;
-  let scope = "local";
-  let explicitScope;
-
-  for (let index = 0; index < args.length; index += 1) {
-    const argument = args[index];
-
-    if (argument === "--local" || argument === "--global") {
-      const requestedScope = argument.slice(2);
-      if (explicitScope && explicitScope !== requestedScope) {
-        throw new Error("Choose either local or global scope, not both.");
-      }
-      scope = requestedScope;
-      explicitScope = requestedScope;
-      continue;
-    }
-
-    if (argument === "--scope") {
-      const requestedScope = args[index + 1];
-      if (!validScopes.has(requestedScope)) {
-        throw new Error("Scope must be either local or global.");
-      }
-      if (explicitScope && explicitScope !== requestedScope) {
-        throw new Error("Choose either local or global scope, not both.");
-      }
-      scope = requestedScope;
-      explicitScope = requestedScope;
-      index += 1;
-      continue;
-    }
-
-    if (argument.startsWith("-")) {
-      throw new Error(`Unknown option: ${argument}`);
-    }
-
-    if (skillName) {
-      throw new Error("Provide exactly one skill name.");
-    }
-    skillName = argument;
-  }
-
-  if (!skillName) {
-    throw new Error("Provide exactly one skill name.");
-  }
-
-  return { scope, skillName };
-}
-
-let parsedArguments;
+let parsed;
 try {
-  parsedArguments = parseArguments(process.argv.slice(2));
+  parsed = parseArgs({
+    allowPositionals: true,
+    options: { local: { type: 'boolean' }, global: { type: 'boolean' }, target: { type: 'string' } },
+  });
 } catch (error) {
-  console.error(`Error: ${error.message}`);
-  process.exit(1);
+  fail(error.message);
 }
 
-const { scope, skillName } = parsedArguments;
+const { values, positionals } = parsed;
+const [skillName] = positionals;
+if (positionals.length !== 1) fail('Provide exactly one skill name.');
+if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skillName)) fail('Skill name must use kebab-case.');
+if ([values.local, values.global, values.target].filter(Boolean).length > 1) fail('Choose one of --local, --global, or --target.');
 
-if (!kebabCasePattern.test(skillName)) {
-  console.error("Error: Skill name must use kebab-case.");
-  process.exit(1);
-}
-
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const templatePath = path.resolve(scriptDir, "../assets/SKILL.md.template");
-const skillsDir =
-  scope === "global"
-    ? path.join(os.homedir(), ".claude", "skills")
-    : path.resolve(process.cwd(), ".claude", "skills");
+const skillsDir = values.target
+  ? path.resolve(values.target)
+  : values.global
+    ? path.join(os.homedir(), '.claude', 'skills')
+    : path.resolve('.claude', 'skills');
 const targetDir = path.join(skillsDir, skillName);
-let targetCreated = false;
+const templatePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '../assets/SKILL.md.template');
 
-async function scaffold() {
-  try {
-    await fs.mkdir(skillsDir, { recursive: true });
-    await fs.mkdir(targetDir);
-    targetCreated = true;
-
-    await Promise.all([
-      fs.mkdir(path.join(targetDir, "scripts")),
-      fs.mkdir(path.join(targetDir, "references")),
-      fs.mkdir(path.join(targetDir, "assets")),
-    ]);
-
-    const template = await fs.readFile(templatePath, "utf8");
-    const skillDocument = template.replaceAll(
-      "[skill-name-kebab-case]",
-      skillName,
-    );
-    await fs.writeFile(path.join(targetDir, "SKILL.md"), skillDocument, {
-      flag: "wx",
-    });
-
-    console.log(
-      `Successfully scaffolded ${scope} agent skill at: ${targetDir}`,
-    );
-  } catch (error) {
-    if (targetCreated) {
-      await fs.rm(targetDir, { recursive: true, force: true });
-    }
-
-    console.error(`Scaffolding failed: ${error.message}`);
-    process.exit(1);
-  }
+let created = false;
+try {
+  await fs.mkdir(skillsDir, { recursive: true });
+  await fs.mkdir(targetDir);
+  created = true;
+  await Promise.all(['scripts', 'references', 'assets'].map((dir) => fs.mkdir(path.join(targetDir, dir))));
+  const template = await fs.readFile(templatePath, 'utf8');
+  await fs.writeFile(path.join(targetDir, 'SKILL.md'), template.replaceAll('[skill-name-kebab-case]', skillName), { flag: 'wx' });
+  console.log(`Scaffolded skill at: ${targetDir}`);
+} catch (error) {
+  if (created) await fs.rm(targetDir, { recursive: true, force: true });
+  fail(error.code === 'EEXIST' ? `${targetDir} already exists. Improve it instead of scaffolding.` : `Scaffolding failed: ${error.message}`);
 }
-
-scaffold();

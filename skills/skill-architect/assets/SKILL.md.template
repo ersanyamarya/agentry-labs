@@ -1,15 +1,23 @@
 ---
 name: [skill-name-kebab-case]
-description: [What it does. Use when the user asks to "specific phrase 1", "specific phrase 2".]
+description: [What it does, in one sentence. Use when the user asks to "specific phrase 1", "specific phrase 2", or [situation].]
 argument-hint: "[expected-input]"
 ---
 
-[Brief summary of the skill's purpose]
+# [Skill title in sentence case]
 
-1. **[Step 1 Action]**
-   - [Instruction detail]
-   - Read `references/[filename].md` to validate...
+[One or two sentences: what the skill produces and which parts code handles.]
 
-2. **[Step 2 Action]**
-   - Execute `scripts/[scriptname].mjs` with [arguments].
-   - Analyze the `stdout` output...
+1. **[Check or resolve inputs]**
+   - [Detect project facts or required tools; ask only when a person must decide.]
+
+2. **[Run the deterministic part]**
+   - Execute `node ${CLAUDE_SKILL_DIR}/scripts/[script-name].mjs [arguments]`.
+   - [How to read its condensed output.]
+
+3. **[Apply judgment]**
+   - Read `references/[filename].md` when [condition].
+   - [Decision the model makes.]
+
+4. **[Verify and report]**
+   - [Re-run the script or check the result; state what the report contains.]

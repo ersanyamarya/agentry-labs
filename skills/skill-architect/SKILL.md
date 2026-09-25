@@ -1,38 +1,47 @@
 ---
 name: skill-architect
-description: Evaluates workflows and builds optimized, token-efficient Claude Code skills. Use when the user asks to "create a skill", "generate a skill", "build a meta-skill", or "write a new skill".
-argument-hint: "[workflow-description] [--local|--global]"
+description: Create, improve, or review Claude Code skills so they are portable, token-efficient, and spec-compliant, with scripts doing the exact work and the model doing the judgment. Use when the user asks to "create a skill", "build a skill", "write a new skill", "improve this skill", "review/analyze this skill", "make this skill generic", or wants to turn a repeated workflow into a skill.
+argument-hint: "[workflow-or-skill-path] [--local|--global|--target <dir>]"
 ---
 
-Analyze the requested workflow to build a highly optimized, agentskills.io-compliant skill. Aggressively outsource logic to external Model Context Protocol (MCP) servers or local `.mjs`/Bash scripts to preserve the LLM context window.
+# Skill architect
 
-1. **Analyze and Route Workflow Steps:**
-   - Break down the requested workflow into discrete steps.
-   - Read `references/mcp-router.md` to determine which steps require an MCP, which require a local `.mjs` script, and which require LLM reasoning.
+Build or improve a skill in three passes: route each step to code or the model, write the skill, then prove it works on a realistic sample. `scripts/validate.mjs` checks the mechanical spec rules; the model checks portability and design.
 
-2. **Scaffold the Skill Directory:**
-   - Determine a concise, kebab-case name for the new skill, such as `github-pr-reviewer`.
-   - Resolve the installation scope from the request:
-     - Treat "local", "project", or "project-local" as local scope.
-     - Treat "global", "user", or "user-wide" as global scope.
-     - Ask whether to create a local or global skill when the request does not specify a scope. Present local as the default and recommended choice.
-     - Choose local scope when no answer is available.
-   - State the resolved destination before creating files. Use `<project>/.claude/skills/<skill-name>` for local scope and `~/.claude/skills/<skill-name>` for global scope.
-   - Execute `scripts/scaffold.mjs <skill-name> --local` from the project root for local scope, or execute `scripts/scaffold.mjs <skill-name> --global` for global scope. Let the script create `SKILL.md`, `scripts/`, `references/`, and `assets/` safely.
+1. **Pick the mode**
+   - **Create**: the request describes a workflow with no existing skill.
+   - **Improve**: the request names an existing skill folder. Skip scaffolding.
+   - **Review only**: the request says to analyze or not change anything. Run steps 2 and 6, report findings ranked by impact with time estimates, and stop.
 
-3. **Draft Scripts and Assets When Applicable:**
-   - Read `assets/script-mjs.template` when the routing analysis identifies a need for a local script.
-   - Write the deterministic logic into a new `.mjs` file in the generated skill's `scripts/` directory. Condense output to `stdout`.
-   - Write static context, such as brand guidelines, into the generated skill's `references/` directory.
+2. **Understand and route the workflow**
+   - For Improve or Review, read the skill's `SKILL.md` and every bundled file, and run `node ${CLAUDE_SKILL_DIR}/scripts/validate.mjs <skill-dir>`.
+   - Break the workflow into discrete steps. Read `references/mcp-router.md` and assign each step to an MCP, a `.mjs` script, or the model.
+   - Script only precise checks. Leave anything a pattern match would get noisy or incomplete to the model.
 
-4. **Finalize the Generated `SKILL.md`:**
-   - Read `references/agentskills-spec.md` to ensure strict compliance.
-   - Read `assets/SKILL.md.template` for the frontmatter structure.
-   - Replace the scaffolded placeholders and write the final instructions using imperative form, such as "Read the file..." rather than "You should read...".
-   - Implement progressive disclosure: specify when to read reference files or execute scripts instead of loading everything upfront.
+3. **Resolve the destination (Create only)**
+   - Use `--target <dir>` when the current repo is a skills catalog (a top-level `skills/` folder whose subfolders contain `SKILL.md`), and recommend `--target skills`.
+   - Otherwise treat "local" or "project" as local scope (`<project>/.claude/skills/`) and "global" or "user" as global scope (`~/.claude/skills/`). Ask when unclear, recommending local.
+   - State the destination, then execute `node ${CLAUDE_SKILL_DIR}/scripts/scaffold.mjs <skill-name> [--local|--global|--target <dir>]`.
 
-5. **Review the Skill:**
-   - Validate that code and MCPs perform the heavy lifting.
-   - Reserve LLM instructions for decision-making and creative synthesis.
-   - Confirm that the generated skill exists in the resolved local or global destination.
-   - Confirm that the generated skill contains no `README.md`.
+4. **Write scripts and references**
+   - Read `assets/script-mjs.template` before writing a script. Use standard-library imports only, and cap the output.
+   - Run each script on real input and check its output before relying on it.
+   - Put static material (rule lists, templates, examples, per-framework notes) in `references/` or `assets/`.
+
+5. **Write `SKILL.md`**
+   - Read `references/agentskills-spec.md` and `assets/SKILL.md.template`.
+   - Write imperative steps, invoke scripts through `${CLAUDE_SKILL_DIR}`, and state the step at which to read each reference.
+   - Remove anything specific to the project the workflow came from (framework files, URLs, runtimes, one team's thresholds), and detect those facts at run time instead.
+
+6. **Validate**
+   - Execute `node ${CLAUDE_SKILL_DIR}/scripts/validate.mjs <skill-dir>` and fix every FAIL. Fix each WARN or state why it stays.
+   - Read the skill once more against the portability section of `references/agentskills-spec.md`, which the script cannot check.
+
+7. **Test on a realistic sample (Create and Improve)**
+   - Build one or two inputs that resemble real use, and run the skill's workflow on them step by step.
+   - Record what the scripts missed or flagged wrongly and fix it, then re-run until the output is right. Show the user the before and after.
+   - Write the tested prompts and expected behavior to `evals/evals.json`.
+
+8. **Report**
+   - List what changed, the validator result, what the test showed, and anything left unverified.
+   - Confirm the skill folder has no `README.md` and is in the stated destination.

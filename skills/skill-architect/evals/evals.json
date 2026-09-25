@@ -1,0 +1,23 @@
+{
+  "skill_name": "skill-architect",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "create a skill that checks our changelog entries follow keep-a-changelog format",
+      "expected_output": "Routes exact format checks (headings, version/date pattern, allowed section names) to a .mjs script and wording judgment to the model; resolves the destination (recommends --target skills in a skills catalog repo, otherwise asks local vs global); scaffolds with scaffold.mjs; writes SKILL.md invoking the script via ${CLAUDE_SKILL_DIR}; runs validate.mjs with no FAIL; tests on a sample changelog and records the prompt in evals/evals.json.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "improve skills/run-fallow, it looks copied from another project",
+      "expected_output": "Uses Improve mode and does not scaffold; reads every bundled file and runs validate.mjs first; removes project-specific assumptions (framework entry points, existing config, one repo's thresholds) and replaces them with run-time detection; re-runs validate.mjs; tests the skill on a real run before reporting.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "just give me an analysis of skills/image-artifact-setup, don't change anything yet",
+      "expected_output": "Uses Review only mode: reads the skill, runs validate.mjs, and reports findings ranked by impact with time estimates. Edits no files.",
+      "files": []
+    }
+  ]
+}
