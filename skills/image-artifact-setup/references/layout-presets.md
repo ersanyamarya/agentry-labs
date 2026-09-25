@@ -131,6 +131,6 @@ Two panels stacked — one behind and higher at ~0.6 opacity, one in front and l
 
 - **One rotation angle** across every card. Varying it per card is what made the hand-made versions look inconsistent.
 - **One aspect ratio** for embedded art. If the source art and the frame share a ratio, `object-fit: cover` never actually crops anything.
-- **One vertical rhythm.** Constrain title and description line counts (see SKILL.md) so every card's content block occupies the same box.
+- **One vertical rhythm.** Constrain title and description line counts (see `rendering-guide.md`) so every card's content block occupies the same box.
 - **Distinct art per card.** If identity comes from an icon, check for collisions first — two pages sharing an icon produce two near-identical cards, which defeats the purpose. Count distinct icons against the number of artifacts and raise it with the user if they don't match.
 - **Harmonise borrowed colour.** If a card embeds third-party art (a real `og:image`, a logo in someone else's brand colour), it will fight the palette. Recolour a logo to the accent, or accept the clash deliberately — but decide, and tell the user which you chose and why.

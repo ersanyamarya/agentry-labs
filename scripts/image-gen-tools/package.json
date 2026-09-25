@@ -1,0 +1,13 @@
+{
+  "name": "agentry-labs-image-gen-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cover": "bun generate-cover.ts",
+    "postinstall": "bunx playwright-core install chromium"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0",
+    "sharp": "^0.35.4"
+  }
+}

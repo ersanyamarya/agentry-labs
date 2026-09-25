@@ -36,6 +36,9 @@ curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scrip
 mkdir -p .claude/skills
 cp -r skills/* .claude/skills/
 
+# Regenerate the README cover (.github/assets/cover.jpg) after adding components
+cd scripts/image-gen-tools && bun install && bun run cover
+
 # Run skills in Claude Code
 claude -p "/skill list"
 claude -p "/skill run-fallow"
@@ -74,6 +77,16 @@ Remember, before writing any code:
 - Scripts go in `scripts/`
 - Skills are self-contained — they should run via `/skill <name>` after installation
 
+### README cover
+`.github/assets/cover.jpg` is generated from the repo: the README title and tagline, the skill names in `skills/*/SKILL.md`, and the counts of skills, agents, rules, and guidance files. Regenerate it in the same change whenever you add, remove, or rename anything in `skills/`, `agents/`, `rules/`, or `claude-md-files/`, or edit the README title or tagline:
+
+```bash
+cd scripts/image-gen-tools && bun install && bun run cover
+node ../../skills/image-artifact-setup/scripts/verify-images.mjs ../../.github/assets --expect 1 --width 1280 --height 640
+```
+
+The `bun run cover` log prints the counts it used; check they match the change, then view the image before committing it.
+
 ### MCP Configuration
 The `.mcp.json` defines servers available in this repo:
 - **context7** — Library documentation lookup (requires API key)
@@ -85,7 +98,8 @@ The `.mcp.json` defines servers available in this repo:
 
 1. Fork the repo
 2. Add skill to `skills/<name>/` with `SKILL.md`
-3. Submit PR
+3. Regenerate the README cover (see "README cover" above)
+4. Submit PR
 
 ## Testing Skills Locally
 

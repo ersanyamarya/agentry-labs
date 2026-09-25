@@ -1,5 +1,7 @@
 # Agentry Labs
 
+![Agentry Labs: reusable skills, rules, agents, and tooling for AI agents](.github/assets/cover.jpg)
+
 Reusable skills, rules, agents, Claude guidance, and tooling for AI agents
 
 ## What is Agentry Labs?

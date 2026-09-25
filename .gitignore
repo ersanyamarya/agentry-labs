@@ -3,3 +3,6 @@
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
 **/graft*.cjs
+
+# README cover generator dependencies (run `bun install` in scripts/image-gen-tools)
+scripts/image-gen-tools/node_modules/
