@@ -324,6 +324,11 @@ if [[ $INSTALL_ALL == "true" ]]; then
   read -r -a SELECTORS <<< "$COMPONENT_TYPES"
 fi
 
+# Strip trailing slashes: macOS `cp -R dir/ dest/` copies dir's contents, not dir.
+for i in "${!SELECTORS[@]}"; do
+  SELECTORS[i]="${SELECTORS[i]%/}"
+done
+
 for selector in "${SELECTORS[@]}"; do
   validate_selector "$selector"
 done
