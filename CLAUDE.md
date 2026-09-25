@@ -63,7 +63,7 @@ Remember, before writing any code:
 | `image-artifact-setup` | Scaffold reproducible image generators (OG cards, social previews, thumbnails) via Playwright | `SKILL.md`, `references/`, `assets/card-renderer.ts` |
 | `lighthouse-audit` | Run Lighthouse (mobile+desktop), cross-reference findings with source, write fix plan | `SKILL.md`, `scripts/summarize_report.py` |
 | `humanize-and-unslop` | Edit drafts to remove AI patterns while preserving voice, or detect without rewriting | `SKILL.md` |
-| `run-fallow` | Run fallow CLI (dead code, duplication, complexity, security) with JSON output | `SKILL.md` |
+| `run-fallow` | Run fallow CLI (dead code, duplication, complexity, security) on any JS/TS project, condense JSON output | `SKILL.md`, `scripts/preflight.mjs`, `scripts/summarize.mjs`, `references/` |
 
 ## Development Conventions
 
