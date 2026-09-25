@@ -1,203 +1,95 @@
 ---
 name: image-artifact-setup
-description: "Set up a reproducible image-artifact generator in a project — Open Graph / social cards, link-preview art, project or product tiles, README banners, store screenshots — by rendering HTML/CSS in headless Chromium with Playwright and screenshotting it. Use this whenever the user wants to generate, standardize, regenerate, or automate images built from project data: og:image cards, social previews, thumbnails, marketing cards, tile art. Also use when the user says their og images or preview images are inconsistent / hand-made / a mess, wants images that follow their design system, wants images generated per page or per route, or asks to script image creation instead of doing it in Figma. Works in any stack — React, Next.js, Gatsby, Astro, Vite, SvelteKit, Remix, Flutter, Swift/iOS, Android — scaffolding `scripts/image-gen-tools/` and wiring a runnable script."
+description: "Set up a reproducible image generator in a project (Open Graph and social cards, link previews, project or product tiles, README banners, store screenshots) by rendering HTML/CSS in headless Chromium with Playwright. Use when the user wants to generate, standardize, regenerate, or automate images built from project data: og:image cards, social previews, thumbnails, marketing cards, tile art. Also use when the user says their preview images are inconsistent, hand-made, or a mess, wants images that follow their design system or one per page or route, or wants to script image creation instead of using Figma. Works in any stack (React, Next.js, Gatsby, Astro, Vite, SvelteKit, Remix, Flutter, iOS, Android), scaffolding scripts/image-gen-tools/ with a runnable script."
 argument-hint: "[artifact-type] [project-or-app]"
 ---
 
-# Image Artifact Setup
+# Image artifact setup
 
-Scaffold a generator that turns project data into images, committed into the repo and runnable on demand.
+Scaffold a generator that turns project data into images, committed to the repo and runnable on demand. Hand-made images drift from the page copy, get inconsistent, and go missing for new pages. A generator that reads the project's own data cannot drift.
 
-The reason to build this instead of exporting from a design tool is that hand-made images rot. They drift from the copy on the page, they get inconsistent as they accumulate, and one always ends up missing. A generator that reads the project's own data can't drift, and covers a new page the next time it runs.
+The generator is a small TypeScript program that reads the project's own data (route config, nav config, content collection, frontmatter), composes each image as HTML/CSS/SVG in the project's real design tokens, screenshots it in headless Chromium at a fixed size, and writes it where the project already expects images.
 
-## What you are building
+| Flavor | What's in the image | Needs a dev server? |
+| --- | --- | --- |
+| **Composed** (default) | Type, icons, generated SVG motifs | No |
+| **Live showcase** | Screenshots of the running app, framed in 3D | Yes, plus a fill recipe per route |
 
-A small TypeScript program, run with `bun`, that:
+Offer live showcase when the images sell a UI (tool pages, dashboards). Read `references/capture-pitfalls.md` before attempting it; live captures fail silently in several ways.
 
-1. Reads the project's **own** data (route config, nav config, content collection, frontmatter) — never a hand-copied list.
-2. Composes each image as HTML/CSS/SVG in the project's real design tokens.
-3. Renders it in headless Chromium at a fixed size and screenshots it.
-4. Writes it where the project already expects images to be.
+Phases 1 to 4 are reading and asking. Write no generator code until the artifacts, data source, and destination are agreed.
 
-Two flavors, and the choice changes the amount of work substantially:
+## 1. Identify the project
 
-| Flavor            | What's in the image                                       | Needs a dev server?               |
-| ----------------- | --------------------------------------------------------- | --------------------------------- |
-| **Composed**      | Type, icons, generated SVG motifs — art you author in CSS | No                                |
-| **Live showcase** | Screenshots of the actual running app, framed in 3D       | Yes, plus a fill recipe per route |
+- Read `references/project-detection.md` for per-stack signals, image destinations, token locations, and the runtime table.
+- Check for a root `package.json`:
+  - **Present (JS/TS project):** add dev dependencies to it with the lockfile's package manager, put the generator in `scripts/image-gen-tools/`, and add a root script.
+  - **Absent (Flutter, Swift, Android, Go, Rust):** make `scripts/image-gen-tools/` a self-contained sub-project and tell the user the command includes the `cd`.
+- Pick the runtime: bun when the project uses bun, otherwise `tsx`. Confirm it is installed before relying on it.
+- Report what was found. When detection is ambiguous (monorepo, several apps, a tooling-only `package.json`), ask which app the images are for.
 
-Composed is the default. Offer live showcase when the artifacts are meant to sell a UI (tool pages, product features, dashboards) — it's far more convincing, but it needs the app running and a per-route script to drive each screen into a state worth showing. Read `references/capture-pitfalls.md` before attempting it; a live capture that looks easy will silently produce garbage in about five different ways.
+## 2. Extract the design system
 
-## Workflow
+Read, in priority order:
 
-Work through these in order. Each phase feeds the next, and phases 1–4 are mostly reading and asking — don't start writing the generator until you know what you're generating.
+1. A design-system or brand doc (`docs/design-system.md`, `BRANDING.md`, Storybook docs).
+2. The token source: CSS custom properties, Tailwind `@theme`, `tailwind.config`, a theme object, Flutter `ThemeData`, iOS asset catalog colors.
+3. Where fonts are declared and how they load (Google Fonts link, self-hosted `@font-face`, `next/font`).
+4. The icon library in use.
 
-### 1. Identify the project
+Copy exact values. Keep `oklch(0.16 0.01 250)` as `oklch(0.16 0.01 250)`; Chromium supports modern color spaces, and approximating to hex is how cards end up off-brand.
 
-Detect the stack before assuming anything about file layout. Read `references/project-detection.md` for the per-stack signals, where generated images belong, and where design tokens usually live.
+Show the user the palette, fonts, and icon set, and say which the cards will use. This catches a wrong-theme misread before any code exists.
 
-The one distinction that changes the plan: **does the repo already have a `package.json` at the root?**
+## 3. Agree on the artifacts
 
-- **Yes (JS/TS project)** — add dev dependencies to the root `package.json`, put the generator in `scripts/image-gen-tools/`, add a root script.
-- **No (Flutter, Swift, Android, Go, Rust…)** — the generator is a self-contained sub-project. `cd scripts/image-gen-tools && bun init -y`, install there, and add the run script to _that_ `package.json`. Tell the user the command is `cd scripts/image-gen-tools && bun run <name>`, since there's no root package to hang it off.
+Read `references/layout-presets.md` for the preset layouts and dimension table, then ask with the question tool, giving real options:
 
-Report what you found before moving on. If detection is ambiguous (a monorepo, several apps, a `package.json` that's only for tooling), ask which app the artifacts are for rather than picking.
+- **Which artifacts:** one per route, per content item, or a single brand card. Name the actual set found ("14 tool pages plus a default").
+- **Dimensions:** the standard for the purpose (1200x630 for Open Graph, 1280x640 for a README banner). Never invent a size.
+- **Layout:** 2 or 3 presets with a one-line sketch each, plus a recommendation and the reason.
+- **Composed or live showcase**, per the table above.
 
-### 2. Extract the design system
+## 4. Confirm the data source and destination
 
-The images have to look like they belong to the product, which means reading the real tokens rather than eyeballing a screenshot.
+State the data source explicitly and get agreement:
 
-Find and read, in priority order:
+> "Titles, descriptions and icons will come from `<file found>`, so the cards can't drift from the site and a new page gets one automatically."
 
-1. A design-system or brand doc in the repo (`docs/design-system.md`, `BRANDING.md`, Storybook docs)
-2. The actual token source — CSS custom properties, Tailwind `@theme`, `tailwind.config`, a theme object, Flutter `ThemeData`, iOS asset catalog colors
-3. Where fonts are declared, and **how they're loaded** (this matters: see phase 5)
-4. The icon library already in use
+Search hard for a single source of truth (nav config, route manifest, content collection, registry array). When none exists, offer (a) a small shared data module both the app and the generator import, or (b) reading frontmatter or the filesystem. Recommend (a); a list copied into the generator goes stale.
 
-Copy exact values. If the project defines `oklch(0.16 0.01 250)`, put `oklch(0.16 0.01 250)` in the card CSS — Chromium supports modern color spaces, so there's no reason to approximate it as a hex. Approximating is how generated images end up subtly off-brand.
+For the destination, reuse an existing image folder and its filenames so references keep working. Ask when there is no obvious home. Then check how the images are served, since it sets the render scale:
 
-Note the **icon library**, because reusing the project's own icon for a thing is what makes a generated card feel native rather than templated. If icons are React components, they can be rendered to static SVG:
+- Served raw (a `publicURL`, a `static/` copy, a direct path): render at the exact size, scale 1.
+- Re-processed by an image pipeline (`gatsby-plugin-image`, `next/image`, an Astro image integration): render at scale 2.
 
-```ts
-import { renderToStaticMarkup } from "react-dom/server";
-renderToStaticMarkup(
-  React.createElement(Icon, { width: 44, strokeWidth: 1.5 }),
-);
-```
-
-Then colour them by setting `color` on the container, since most icon sets stroke with `currentColor`.
-
-Show the user the palette, fonts, and icon set you extracted, and say which you'll use for the cards. This is a cheap checkpoint that catches a wrong-theme misread before any code exists.
-
-### 3. Agree on the artifacts
-
-Present concrete options and let the user pick. Read `references/layout-presets.md` for the preset layouts and the dimension table, then ask about:
-
-- **Which artifacts** — one per route? per content item? a single brand card? Name the actual set you found (e.g. "14 tool pages plus a default").
-- **Dimensions** — offer the standard for the purpose. 1200×630 for Open Graph, 1280×640 for a README banner, and so on. Don't invent a size.
-- **Layout** — offer 2–3 presets with a one-line sketch of each, and a recommendation with a reason.
-- **Composed vs live showcase** — per the table above.
-
-Use the ask-the-user tool with real options rather than a paragraph of prose questions. Anything the user leaves ambiguous, offer choices plus "or describe your own" — guessing on layout wastes a full generate-and-review cycle.
-
-### 4. Confirm data source and destination
-
-**Data source** is the most important decision in the whole skill, so state it explicitly and get agreement:
-
-> "Titles, descriptions and icons will come from `<the file you found>`, so the cards can't drift from the site and a newly added page gets one automatically."
-
-Search hard for an existing single source of truth — a nav config, a route manifest, a content collection, a registry array. If genuinely none exists, say so and offer either (a) creating a small shared data module the app _and_ the generator both import, or (b) reading frontmatter/filesystem directly. Prefer (a): duplicating the list into the generator guarantees it goes stale.
-
-**Destination**: if the project already has a folder of these images, write there with the same filenames — existing references keep working. If there's no obvious home, ask. Also check how the images are _served_, because it changes the correct output resolution:
-
-- Served raw (a `publicURL`, a `static/` copy, a direct path) → render at the exact canonical size, scale 1.
-- Re-processed by an image pipeline (`gatsby-plugin-image`, `next/image`, an Astro image integration) → render at 2× so it has resolution to downsample from.
-
-Getting this backwards means either blurry cards or scrapers downloading a needlessly huge PNG.
-
-### 5. Generate the tool
-
-Layout:
+## 5. Generate the tool
 
 ```
 scripts/image-gen-tools/
 ├── generate-<artifact>.ts     # one per artifact family
 └── lib/
-    ├── card-renderer.ts       # shared frame + Chromium runner
-    └── ...                    # e.g. author-card.ts, capture.ts, recipes.ts
+    └── card-renderer.ts       # shared frame + Chromium runner
 ```
 
-Copy `assets/card-renderer.ts` into `lib/` as the starting point and adapt its `Theme` to the tokens from phase 2. It already handles the parts that are easy to get wrong. Keep the shared frame in one module even for a single artifact family — the moment there's a second one, they must not drift apart.
+- Copy `assets/card-renderer.ts` into `lib/`. Replace its example `THEME` with the tokens from phase 2. Keep one shared frame even for a single artifact family.
+- Read `references/rendering-guide.md` for font loading, asset inlining, encoding choice, icons, failing loudly, and variable-length text.
+- Add `playwright-core`, `sharp`, and (unless using bun) `tsx` as dev dependencies explicitly, even if they already resolve transitively. Install Chromium, preferably from a `postinstall` so a fresh clone works. The runtime table in `references/project-detection.md` has the exact commands per package manager.
+- Add a script to the right `package.json`, for example `"og": "tsx scripts/image-gen-tools/generate-og-images.ts"` (or `bun ...` in a bun project).
 
-**Dependencies.** Add explicitly, as dev dependencies, even if they already resolve:
+## 6. Verify by running it
 
-```bash
-bun add -d playwright-core sharp
-```
-
-`playwright-core` is often present transitively (some doc/diagram plugins pull it in). Relying on that means the generator breaks when an unrelated dependency changes. Also ensure the browser binary is installed, and prefer a `postinstall` so a fresh clone works:
-
-```bash
-bunx playwright-core install chromium
-```
-
-`sharp` is only needed if you compress output (phase 5's size note) — skip it otherwise.
-
-**Script wiring.** Add to the appropriate `package.json`:
-
-```json
-"scripts": { "og": "bun scripts/image-gen-tools/generate-og-images.ts" }
-```
-
-**Rendering essentials** — these four cause most bad output:
-
-1. **Wait for fonts.** `await page.evaluate(() => document.fonts.ready)` plus a short pause, before every screenshot. Without it the capture can land before webfonts swap in and the type silently falls back to a system serif.
-2. **Set `deviceScaleFactor` deliberately** per the phase-4 decision.
-3. **Inline every asset** as a data URI. Embedded images, cropped photos, icons — the page is rendered from a string, so a relative path has nothing to resolve against. Google Fonts over the network is the practical exception.
-4. **Compress if the art is photographic or screenshot-heavy.** A dark card with flat type quantizes essentially losslessly and gets several times smaller:
-   ```ts
-   await sharp(shot)
-     .png({ palette: true, quality: 90, effort: 8 })
-     .toFile(target);
-   ```
-   Skip it for source art the project's own pipeline will re-encode.
-
-**Fail loudly.** If the generator needs something external — a dev server, a font, an env var — check it up front and exit with the fix, rather than emitting fourteen blank images:
-
-```ts
-try {
-  const res = await fetch(DEV_SERVER, { signal: AbortSignal.timeout(5000) });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-} catch (e) {
-  console.error(`Cannot reach ${DEV_SERVER} (${(e as Error).message}).`);
-  console.error(
-    "These cards are shot from the live app. Start it first:\n\n  bun run dev\n",
-  );
-  process.exit(1);
-}
-```
-
-Log one line per artifact written, and a summary of anything that degraded — a silent fallback is how a broken card ships.
-
-### 6. Verify by running it
-
-Not optional, and not satisfied by "the script exited 0":
+Exiting 0 is not enough:
 
 1. Run the script.
-2. Confirm the expected **count** of files landed in the destination.
-3. Confirm **dimensions** are what was agreed (`sips -g pixelWidth -g pixelHeight`, or `sharp(f).metadata()`).
-4. **Look at two or three images.** Read them back as images — text is the thing that breaks (wrapping to an extra line, hyphen-splitting mid-word, overflowing its column, falling back to the wrong font), and none of that shows up in a file listing.
-5. Run the project's typecheck and build if it has them, to confirm nothing regressed.
-6. If any image is referenced by a page, confirm the reference still resolves after the build.
+2. Execute `node ${CLAUDE_SKILL_DIR}/scripts/verify-images.mjs <destination> --expect <count> --width <w> --height <h> --scale <scale>`. It checks the file count, the pixel dimensions of every PNG, JPEG, and WebP, and flags suspiciously small files. Add `--max-kb <k>` when there is a size budget.
+3. Look at two or three images, including the longest title. Text is what breaks: an extra wrapped line, a mid-word hyphen, overflow, or a fallback font.
+4. Run the project's typecheck and build scripts, and confirm any page referencing the images still resolves after the build.
 
-Then show the user a few of the generated images and say what you'd tune.
+Show the user a few images and say what to tune.
 
-## Handling variable-length content
+## When to ask and when to decide
 
-The single most common defect in generated cards is text of unpredictable length, and it's worth designing against from the start rather than discovering per-card. Real titles range from 11 to 30+ characters; real descriptions from 28 to 98.
-
-Make the footprint predictable:
-
-- **Step the title size by length** rather than letting it wrap to a third line:
-  ```ts
-  const titleSize = (t: string) =>
-    t.length <= 18 ? "78px" : t.length <= 26 ? "68px" : "60px";
-  ```
-- **Clamp descriptions** to a fixed line count (`-webkit-line-clamp: 2`) so every card occupies the same space. If the truncation reads badly, that's a signal the _source_ copy is too long for a card — tell the user, since shortening it there usually improves the page too.
-- **Set `text-wrap: balance` and `hyphens: none`** on headings. Default hyphenation produces breaks like `in-` / `editor`.
-- **Centre content vertically** so short and long cards both sit right, and reserve space for anything pinned to an edge.
-
-## When to ask rather than decide
-
-Ask, with options: layout choice, dimensions, which artifacts, destination when there's no existing home, whether to screenshot the live app, and any copy you'd otherwise be inventing.
-
-Decide yourself: file organisation, how to read the tokens, which locator strategy to use, compression settings, and every implementation detail. These are reversible and the user has no useful input on them.
-
-If you hit a genuine conflict — the user asks for something the stack can't do — say so in a sentence, explain the constraint, and offer the nearest thing that works. One concrete example worth knowing: **a clipping ancestor (`overflow: hidden`) forces `transform-style` back to `flat`**, so layered `translateZ` parallax inside a rounded card silently does nothing. Reach for a different effect rather than shipping code that appears to work.
-
-## Reference files
-
-- `references/project-detection.md` — per-stack detection signals, image destinations, token locations
-- `references/layout-presets.md` — layout presets, dimension table, the card CSS frame
-- `references/capture-pitfalls.md` — **read before any live-app screenshotting**; dev-server overlays, consent banners, scroll clamping, locator failures
-- `assets/card-renderer.ts` — copy into `lib/` as the shared frame and Chromium runner
+- **Ask, with options:** layout, dimensions, which artifacts, a destination with no existing home, whether to screenshot the live app, and any copy that would otherwise be invented.
+- **Decide:** file organization, how to read the tokens, locator strategy, encoding, and every implementation detail.
+- **Constraint conflicts:** when the user asks for something the stack cannot do, say so in one sentence, explain the constraint, and offer the nearest thing that works.

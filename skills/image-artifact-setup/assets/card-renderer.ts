@@ -7,8 +7,9 @@
  * moment there are two frames they start to drift, which is the whole problem
  * this tool exists to solve.
  *
- * Requires: bun add -d playwright-core sharp
- *           bunx playwright-core install chromium
+ * Requires playwright-core, sharp, and a Chromium build. Install them with the
+ * project's package manager (see references/project-detection.md, "Runtime and
+ * package manager"). Runs under bun or tsx.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -44,6 +45,7 @@ export type Theme = {
   readonly fontsHref: string;
 };
 
+// EXAMPLE VALUES from one project. Replace every field with the target project's tokens.
 export const THEME: Theme = {
   primary: '#c9754a',
   background: 'oklch(0.16 0.01 250)',
@@ -120,7 +122,7 @@ ${body}
 </body></html>`;
 
 export type CardJob = {
-  /** Output filename stem — written as `<slug>.png`. */
+  /** Output filename stem, written as `<slug>.png` or `<slug>.jpg`. */
   readonly slug: string;
   readonly html: string;
 };
@@ -133,9 +135,16 @@ export type RenderOptions = {
    */
   readonly scale?: number;
   /**
-   * Quantize the PNG. A dark card with flat type compresses several times
-   * smaller with no visible loss. Leave off for source art the project's own
-   * image pipeline will re-encode, where the source should stay pristine.
+   * Output encoding. 'jpeg' (quality 88, no chroma subsampling) keeps glows and
+   * gradients smooth at about 40% of the PNG size, and suits Open Graph cards.
+   * 'png' is lossless; use it for source art the project's own image pipeline
+   * re-encodes, or when transparency is needed.
+   */
+  readonly format?: 'png' | 'jpeg';
+  /**
+   * Quantize a PNG to a 256-colour palette. Only for flat art (solid fills, type,
+   * icons): it bands blurred glows and gradients, including this frame's
+   * `.glow` layers, into visible rings.
    */
   readonly optimize?: boolean;
 };
@@ -167,7 +176,7 @@ export const imageDataUri = async (file: string): Promise<string> => {
  * plausible — just generic.
  */
 export const renderCards = async (jobs: readonly CardJob[], outDir: string, options: RenderOptions = {}): Promise<void> => {
-  const { scale = 2, optimize = false } = options;
+  const { scale = 2, format = 'png', optimize = false } = options;
   fs.mkdirSync(outDir, { recursive: true });
 
   const browser = await chromium.launch();
@@ -181,10 +190,11 @@ export const renderCards = async (jobs: readonly CardJob[], outDir: string, opti
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(600);
 
-    const target = path.join(outDir, `${job.slug}.png`);
+    const target = path.join(outDir, `${job.slug}.${format === 'jpeg' ? 'jpg' : 'png'}`);
     const shot = await page.screenshot({ type: 'png' });
 
-    if (optimize) await sharp(shot).png({ palette: true, quality: 90, effort: 8 }).toFile(target);
+    if (format === 'jpeg') await sharp(shot).jpeg({ quality: 88, mozjpeg: true, chromaSubsampling: '4:4:4' }).toFile(target);
+    else if (optimize) await sharp(shot).png({ palette: true, quality: 90, effort: 8 }).toFile(target);
     else fs.writeFileSync(target, shot);
 
     console.log(`wrote ${path.relative(process.cwd(), target)}`);

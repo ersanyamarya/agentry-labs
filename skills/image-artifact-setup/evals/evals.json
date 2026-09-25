@@ -1,0 +1,23 @@
+{
+  "skill_name": "image-artifact-setup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "our og images are all hand-made in figma and half the blog posts don't have one. can you set up something that generates them?",
+      "expected_output": "Detects the stack and package manager, extracts real design tokens and shows them, asks which artifacts/dimensions/layout with real options, confirms the data source (the content collection or frontmatter, not a copied list) and destination, copies card-renderer.ts and replaces the example THEME, installs deps with the lockfile's package manager (tsx unless the project uses bun), runs the generator, and verifies with verify-images.mjs plus a visual check of the longest title.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "generate 1280x640 README banner images for each package in this pnpm monorepo",
+      "expected_output": "Asks which app or package owns the images or confirms the repo root when tokens and data are shared, uses pnpm add -D with tsx rather than bun, renders at the agreed size, and verifies count and dimensions with verify-images.mjs.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "make store screenshot tiles for our Flutter app using the brand colors",
+      "expected_output": "Treats it as a non-JS project: creates scripts/image-gen-tools as a self-contained sub-project, transcribes tokens from ThemeData into one theme file with a comment naming the source, writes into a folder declared in pubspec.yaml assets, and tells the user the run command includes the cd.",
+      "files": []
+    }
+  ]
+}

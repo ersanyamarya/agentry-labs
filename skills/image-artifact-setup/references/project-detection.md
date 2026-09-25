@@ -5,6 +5,7 @@ How to identify the stack, where generated images belong, and where the design t
 ## Contents
 
 - [Detection signals](#detection-signals)
+- [Runtime and package manager](#runtime-and-package-manager)
 - [Where images belong, per stack](#where-images-belong-per-stack)
 - [Where design tokens live](#where-design-tokens-live)
 - [Finding the data source](#finding-the-data-source)
@@ -31,7 +32,18 @@ Check for these files before reading `package.json` dependencies — a config fi
 | Rust                 | `Cargo.toml`                                          |
 | Go                   | `go.mod`                                              |
 
-Also note the **package manager** so the install command matches the project: `bun.lock`/`bun.lockb` → bun, `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, `package-lock.json` → npm. The generator itself always runs under `bun`, but dependencies should be installed with whatever the repo uses, so the lockfile stays coherent.
+## Runtime and package manager
+
+Install with the package manager the lockfile names, so the lockfile stays coherent. Run the TypeScript generator with bun when the project uses bun, and with `tsx` otherwise. Both run TypeScript directly, resolve `tsconfig.json` `paths` aliases, and import `.tsx` config files.
+
+| Lockfile | Install dev deps | Script command | Install Chromium |
+| --- | --- | --- | --- |
+| `bun.lock` / `bun.lockb` | `bun add -d playwright-core sharp` | `bun scripts/image-gen-tools/<file>.ts` | `bunx playwright-core install chromium` |
+| `pnpm-lock.yaml` | `pnpm add -D playwright-core sharp tsx` | `tsx scripts/image-gen-tools/<file>.ts` | `pnpm exec playwright-core install chromium` |
+| `yarn.lock` | `yarn add -D playwright-core sharp tsx` | `tsx scripts/image-gen-tools/<file>.ts` | `yarn playwright-core install chromium` |
+| `package-lock.json` or none | `npm i -D playwright-core sharp tsx` | `tsx scripts/image-gen-tools/<file>.ts` | `npx playwright-core install chromium` |
+
+Check the runtime exists before choosing it (`command -v bun`). Drop `sharp` only when every artifact is written as an uncompressed PNG.
 
 ## Where images belong, per stack
 
@@ -84,28 +96,29 @@ ls src/content 2>/dev/null; ls content 2>/dev/null
 
 A navigation config is often the real source of truth, because it already has the title, description, category and icon for every page — everything a card needs.
 
-**Importing a `.tsx` config from a bun script works** even when it imports UI libraries, as long as the script only reads the exported data and never renders the components. Bun resolves `tsconfig.json` `paths` aliases, so `@/components/...` imports resolve without extra config. Verify with a one-line probe before building on it:
+**Importing a `.tsx` config from the generator works** even when it imports UI libraries, as long as the script only reads the exported data and never renders the components. Bun and `tsx` both resolve `tsconfig.json` `paths` aliases, so `@/components/...` imports resolve without extra config. Verify with a one-line probe before building on it:
 
 ```bash
 bun -e "import { NAV } from './src/components/nav'; console.log(NAV.length)"
+npx tsx -e "import { NAV } from './src/components/nav'; console.log(NAV.length)"
 ```
 
 If the config holds React elements (an `icon: <Calculator />` field), the component type is reachable as `(el as React.ReactElement).type` and can be re-rendered at any size with `renderToStaticMarkup`.
 
 ## Non-JS projects
 
-There's no root `package.json` to extend, so the generator is self-contained:
+There's no root `package.json` to extend, so the generator is self-contained. Use bun when it is installed, otherwise npm with `tsx`:
 
 ```bash
 mkdir -p scripts/image-gen-tools && cd scripts/image-gen-tools
-bun init -y
-bun add -d playwright-core sharp
-bunx playwright-core install chromium
+bun init -y && bun add -d playwright-core sharp && bunx playwright-core install chromium
+# or, without bun:
+npm init -y && npm i -D playwright-core sharp tsx && npx playwright-core install chromium
 ```
 
 Add the run script to `scripts/image-gen-tools/package.json`, and tell the user the invocation includes the `cd`. Add `node_modules/` under that path to `.gitignore` if the repo's ignore file doesn't already cover it.
 
-Design tokens have to be transcribed rather than imported — you can't import `ThemeData` from Dart or a `.colorset` from Swift into TypeScript. Put them in one `theme.ts` in the generator with a comment naming the file they were copied from, so a future reader knows where to re-sync from. Flag to the user that this is the one place where drift is possible, and that the comment is the mitigation.
+Design tokens have to be transcribed rather than imported. There is no way to import `ThemeData` from Dart or a `.colorset` from Swift into TypeScript. Put them in one `theme.ts` in the generator with a comment naming the file they were copied from, so a future reader knows where to re-sync from. Flag to the user that this is the one place where drift is possible, and that the comment is the mitigation.
 
 ## Monorepos
 
