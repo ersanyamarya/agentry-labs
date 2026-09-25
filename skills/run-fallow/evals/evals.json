@@ -1,0 +1,23 @@
+{
+  "skill_name": "run-fallow",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "check this repo for dead code and unused dependencies",
+      "expected_output": "Runs preflight.mjs first and relays its warnings (for example missing node_modules); runs fallow dead-code --format json to a temp file and condenses it with summarize.mjs instead of reading raw JSON; verifies deletions with --trace before recommending them; reports counts then top findings with file:line.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "fallow says half my Next.js app/ routes are unused files, is that right?",
+      "expected_output": "Treats it as a likely entry-point false positive: reads references/false-positives-and-config.md, compares fallow list --entry-points with the framework's conventions, checks the Next.js plugin is active (node_modules installed), and proposes a config fix via fallow config-schema / fallow recommend, asking before creating a new config file.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "run a complexity check before I open my PR",
+      "expected_output": "Uses the project's stated complexity limit from CLAUDE.md/AGENTS.md if preflight finds one, otherwise fallow defaults and says so; scopes to the change with fallow audit --base <base-branch> --format json; never claims a standard the repo does not state.",
+      "files": []
+    }
+  ]
+}

@@ -54,9 +54,15 @@ const validate = (dir) => {
   const secondPerson = prose.split('\n').filter((l) => /\b(you|your|you're|you'll)\b/i.test(l)).length;
   if (secondPerson) report('WARN', `${secondPerson} line(s) use second person; write imperative steps`);
 
-  if (/\.claude\/skills\/[a-z0-9-]+\//.test(text)) report('FAIL', 'hardcoded .claude/skills/<name>/ path breaks global installs; use ${CLAUDE_SKILL_DIR}');
-  for (const m of text.matchAll(/(?:node|python3?|bash|sh)\s+(scripts\/[\w./-]+)/g)) {
-    report('WARN', `"${m[0]}" runs relative to the cwd; use \${CLAUDE_SKILL_DIR}/${m[1]}`);
+  // Script calls must resolve from the skill's folder, not the user's cwd. Check SKILL.md and every bundled .md,
+  // since references and assets can also tell the model to run a script.
+  const docs = [['SKILL.md', text], ...['references', 'assets'].flatMap((sub) =>
+    listFiles(path.join(dir, sub)).filter((f) => f.endsWith('.md')).map((f) => [`${sub}/${f}`, fs.readFileSync(path.join(dir, sub, f), 'utf8')]))];
+  for (const [file, content] of docs) {
+    if (/\.claude\/skills\/[a-z0-9-]+\//.test(content)) report('FAIL', `${file}: hardcoded .claude/skills/<name>/ path breaks global installs; use \${CLAUDE_SKILL_DIR}`);
+    for (const m of content.matchAll(/(?<![\w/}])(?:node|python3?|bash|sh|bun)\s+(scripts\/[\w./-]+\.(?:mjs|js|py|sh))/g)) {
+      if (fs.existsSync(path.join(dir, m[1]))) report('FAIL', `${file}: "${m[0]}" runs relative to the cwd; use \${CLAUDE_SKILL_DIR}/${m[1]}`);
+    }
   }
 
   // Every referenced bundled file must exist; every bundled file should be referenced.

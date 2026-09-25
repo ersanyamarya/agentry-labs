@@ -1,0 +1,29 @@
+{
+  "skill_name": "humanize-and-unslop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "humanize this: # The Enduring Legacy Of Merlin ✨\n\nIn the vast tapestry of Arthurian legend, few figures loom as large as Merlin. More than just a wizard, Merlin stands as a testament to wisdom, magic, and destiny. Merlin isn't just a magician. He's a strategist. In conclusion, he will captivate audiences for generations to come. I hope this helps!",
+      "expected_output": "Writes the draft to a temp file and runs scan.mjs; fixes every fix finding (tapestry, stands as a testament, captivate, generations to come, In conclusion, I hope this helps, the emoji); catches the structural tells in the judgment pass (Title Case heading, 'more than just' and 'isn't just X. He's Y' contrasts, the forced triad, wizard/magician synonym cycling); keeps every factual claim; adds no first person since it is an explainer; re-scans to zero fix findings; ends with a short What changed list.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "/humanize-and-unslop README.md --detect",
+      "expected_output": "Detect mode: does not edit README.md; runs scan.mjs on the file; lists findings as 'line: [pattern] \"quote\" -> fix' with scan findings first, then judgment findings, then counts per pattern; leaves code blocks, inline code, and URLs unflagged.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "can you make this sound less like AI? 'Great question! Our API leverages a robust caching layer.'",
+      "expected_output": "Input is under 150 words, so it skips the scanner and edits by reading; removes the chatbot opener and 'leverages a robust'; keeps the claim about the caching layer; does not ask for audience context for a one-line edit.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "unslop docs/architecture.md, it's our system design doc",
+      "expected_output": "Edits the file in place and keeps the What changed summary in the reply, not the file; treats technical terms like primitive, surface, and vector as review findings to keep when literal; applies no 'adding soul' opinions or first person because it is documentation.",
+      "files": []
+    }
+  ]
+}

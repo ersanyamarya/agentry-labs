@@ -52,4 +52,4 @@ When rules pull in different directions, apply this order: preserve meaning, the
 
 ## Reuse
 
-Other skills and agents that need these rules should read `references/patterns.json` and `references/judgment-patterns.md` or call `scripts/scan.mjs --json`, rather than copying the word lists.
+Other skills and agents that need these rules should read `references/patterns.json` and `references/judgment-patterns.md` from this skill's installed folder (in the global or the project skills directory), or run `node <that folder>/scripts/scan.mjs --json <file>`, rather than copying the word lists.

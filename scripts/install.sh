@@ -49,7 +49,8 @@
 #     non-interactive environment, skills are installed.
 #   - Selectors may be singular or plural: skill and skills are equivalent.
 #   - A missing .md suffix is accepted for an individual Markdown component.
-#   - Existing matching files are updated; unrelated installed files remain.
+#   - Each installed component replaces its previous copy, so files removed
+#     upstream disappear too. Unrelated installed components remain.
 #   - --global and --target cannot be used together.
 # ------------------------------------------------------------------------------
 
@@ -250,6 +251,22 @@ validate_selector() {
   fi
 }
 
+# Copy one component into destination_dir, replacing any previous copy of it,
+# so files deleted upstream do not linger in old installs.
+copy_component() {
+  local source_path=$1
+  local destination_dir=$2
+  local name
+  name="$(basename "$source_path")"
+
+  if [[ -z $name || $name == "." || $name == ".." ]]; then
+    log_error "Refusing to install an unnamed component from $source_path"
+    return 1
+  fi
+  rm -rf "${destination_dir:?}/$name"
+  cp -R "$source_path" "$destination_dir/"
+}
+
 install_type() {
   local component_type=$1
   local source_dir="$TEMP_DIR/$component_type"
@@ -261,7 +278,9 @@ install_type() {
   fi
 
   mkdir -p "$destination_dir"
-  cp -R "$source_dir/." "$destination_dir/"
+  while IFS= read -r component_path; do
+    copy_component "$component_path" "$destination_dir"
+  done < <(find "$source_dir" -mindepth 1 -maxdepth 1 ! -name '.DS_Store' | sort)
   log_info "Installed all $component_type to $destination_dir"
 }
 
@@ -280,7 +299,7 @@ install_component() {
   fi
 
   mkdir -p "$destination_dir"
-  cp -R "$source_path" "$destination_dir/"
+  copy_component "$source_path" "$destination_dir"
   log_info "Installed $component_type/$(basename "$source_path") to $destination_dir"
 }
 

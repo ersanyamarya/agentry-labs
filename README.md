@@ -61,10 +61,10 @@ Run `./scripts/install.sh --help` for all selectors, options, and examples.
 
 ## Usage
 1. Install skills
-2. Invoke via Claude Code:
+2. Invoke a skill by name in Claude Code, interactively or with `-p`. Skills also trigger on their own when a request matches their description.
    ```bash
-   claude -p "/skill list"
-   claude -p "/skill run-fallow"
+   claude -p "/run-fallow"
+   claude -p "/humanize-and-unslop README.md --detect"
    ```
 
 ## Available Components
@@ -72,16 +72,19 @@ Run `./scripts/install.sh --help` for all selectors, options, and examples.
 ### Skills (`.claude/skills/`)
 | Skill | Description |
 |-------|-------------|
-| `image-artifact-setup` | Scaffold a reproducible image-artifact generator (OG cards, social previews, thumbnails) using Playwright |
-| `lighthouse-audit` | Run Lighthouse against a live URL, diagnose findings against actual source, produce prioritized fix plan |
-| `humanize-and-unslop` | Edit drafts into sharper human writing while preserving voice, or detect AI-slop patterns |
-| `run-fallow` | Run the `fallow` CLI to analyze codebase for dead code, duplication, complexity, and security candidates |
-| `skill-architect` | Analyze workflows and scaffold optimized, agentskills.io-compliant skills |
+| `image-artifact-setup` | Scaffold a reproducible image generator (OG cards, social previews, README banners) using Playwright, in any stack |
+| `lighthouse-audit` | Run Lighthouse (mobile and desktop) on any web stack, trace findings to the source, and write a prioritized fix plan |
+| `humanize-and-unslop` | Edit drafts into plain human writing while keeping the author's claims, or detect AI tells with line numbers |
+| `run-fallow` | Run the `fallow` CLI on any JS/TS project for dead code, duplication, complexity, and security candidates |
+| `skill-architect` | Create, improve, or review skills, validate them against the spec, and test them on a sample |
 
 ### Agents (`.claude/agents/`)
 | Agent | Description |
 |-------|-------------|
 | `super-planner` | Investigate a task and produce a verified, execution-ready plan without making changes |
+
+### Rules (`.claude/rules/`)
+None published yet. The installer already accepts `rules` and `rules/<name>` selectors.
 
 ### Claude MD files (`.claude/claude-md-files/`)
 | File | Description |
