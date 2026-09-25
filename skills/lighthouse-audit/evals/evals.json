@@ -3,20 +3,26 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Run a lighthouse audit on my portfolio site at https://www.sanyamarya.com and tell me what to fix.",
-      "expected_output": "Runs mobile+desktop lighthouse against the URL, summarizes the JSON reports with the bundled script (not raw Read), diagnoses at least the LCP/unused-JS findings against actual source files in this repo (cites file:line), writes lighthouse-fix-report-plan.md at repo root following the template, and asks whether to fix now or later before editing any source.",
+      "prompt": "Run a lighthouse audit on my site at https://www.example.com and tell me what to fix.",
+      "expected_output": "Checks lighthouse is installed and the URL responds, runs mobile and desktop audits writing JSON outside the repo, summarizes both reports with the bundled script (never a raw Read), diagnoses the worst findings against actual source files with file:line citations, writes lighthouse-fix-plan.md at the repo root following the template with the script's tables, and asks whether to fix now or later before editing any source.",
       "files": []
     },
     {
       "id": 2,
-      "prompt": "Here are lighthouse reports I already ran (lighthouse-mobile.json and lighthouse-desktop.json in the repo root). Can you tell me what's wrong with my site and how to fix it?",
-      "expected_output": "Recognizes it doesn't need to re-run lighthouse since reports already exist, goes straight to summarizing/diagnosing them with the script, traces findings to real source files, and produces lighthouse-fix-report-plan.md.",
+      "prompt": "I already ran lighthouse and saved mobile.json and desktop.json in reports/. Can you tell me what's wrong with my site and how to fix it?",
+      "expected_output": "Does not re-run lighthouse, summarizes the two provided reports with the bundled script in two-report mode, traces findings to real source files, and produces lighthouse-fix-plan.md.",
       "files": []
     },
     {
       "id": 3,
-      "prompt": "my portfolio site feels really sluggish when I open it on my phone, especially the hero section taking forever to show up. can you figure out what's going on? it's deployed at sanyamarya.com",
-      "expected_output": "Recognizes this as a performance-audit task even without the word 'lighthouse', runs the mobile+desktop audits, identifies the LCP/hero-image root cause specifically (not generic advice), traces it to the actual component/image in src/, and writes the fix plan.",
+      "prompt": "my site feels really sluggish on my phone, especially the hero section taking forever to show up. can you figure out what's going on? it's deployed at www.example.com",
+      "expected_output": "Recognizes a performance-audit task without the word 'lighthouse', runs mobile and desktop audits, uses --full on the mobile report to get the LCP element and phase breakdown, traces the hero/LCP root cause to the actual component or image in source rather than generic advice, and writes the fix plan.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "audit http://localhost:3000 with lighthouse",
+      "expected_output": "Warns that a dev server skews performance numbers and suggests auditing a production build (build then start/preview) before or alongside the run; checks the URL responds before running lighthouse.",
       "files": []
     }
   ]

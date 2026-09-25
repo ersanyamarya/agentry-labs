@@ -61,7 +61,7 @@ Remember, before writing any code:
 | Skill | Purpose | Key Files |
 |-------|---------|-----------|
 | `image-artifact-setup` | Scaffold reproducible image generators (OG cards, social previews, thumbnails) via Playwright | `SKILL.md`, `references/`, `assets/card-renderer.ts` |
-| `lighthouse-audit` | Run Lighthouse (mobile+desktop), cross-reference findings with source, write fix plan | `SKILL.md`, `scripts/summarize_report.py` |
+| `lighthouse-audit` | Run Lighthouse (mobile+desktop) on any web stack, trace findings to source, write fix plan | `SKILL.md`, `scripts/summarize-report.mjs`, `references/framework-hints.md`, `assets/fix-plan-template.md` |
 | `humanize-and-unslop` | Edit drafts to remove AI patterns while preserving voice, or detect without rewriting | `SKILL.md`, `scripts/scan.mjs`, `references/patterns.json` |
 | `run-fallow` | Run fallow CLI (dead code, duplication, complexity, security) on any JS/TS project, condense JSON output | `SKILL.md`, `scripts/preflight.mjs`, `scripts/summarize.mjs`, `references/` |
 
