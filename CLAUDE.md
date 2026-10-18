@@ -23,8 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
 ├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
-├── .github/             # CI (validates every skill) and assets/cover.jpg
-└── .mcp.json            # Local MCP config, gitignored (holds an API key); not part of the repo
+└── .github/             # CI (validates every skill) and assets/cover.jpg
 ```
 
 ## Common Commands
@@ -99,11 +98,14 @@ node ../../skills/image-artifact-setup/scripts/verify-images.mjs ../../.github/a
 The `bun run cover` log prints the counts it used; check they match the change, then view the image before committing it.
 
 ### MCP Configuration
-`.mcp.json` is local and gitignored because it holds an API key, so each contributor keeps their own. The maintainer's copy defines:
-- **context7**: library documentation lookup (needs a Context7 API key)
-- **chrome-devtools**: browser automation, debugging, and Lighthouse runs
+This repo has no project MCP servers (`.mcp.json` stays gitignored for local experiments). It relies on the global ones:
+- **context7**: library documentation lookup (`CONTEXT7_API_KEY` exported from `~/.zshenv`, since GUI-launched Claude never reads `~/.zshrc`)
 - **graft**: prebuilt code graph for finding and tracing code
-- **context-mode**: sandboxed execution and indexing for large outputs
+- **context-mode**: plugin for sandboxed execution and indexing of large outputs
+
+`global/mcp.json` holds only these always-useful servers. Repo-specific ones (fallow, shadcn, chrome-devtools) go in that
+repo's tracked `.mcp.json`, started with `npx -y <pkg>@latest` so they work without a local install and secrets come from
+`${VAR}` expansion or the server's own `.env`.
 
 ## Adding New Components
 
