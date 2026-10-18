@@ -1,0 +1,127 @@
+/// The app's logging surface. This is the only file that imports
+/// `package:logging`, and the only place `print`/`debugPrint` is still legal —
+/// everywhere else logs through one of the named loggers below.
+///
+/// The ban is on *call sites*, not on the sink's implementation. Leaving this
+/// note here saves the next person from "fixing" the one legitimate use.
+///
+/// ## Level budget
+///
+/// Levels are a contract, not decoration. Picking one too high is how a log
+/// becomes noise nobody reads:
+///
+/// * [Level.SEVERE]  — a user action failed and did **not** recover; data may
+///   be lost. Rare, and must carry the error object and a stack trace.
+/// * [Level.WARNING] — degraded but recovered: the operation will retry, a
+///   fallback took over, or a peer refused it. Survives into release builds.
+/// * [Level.INFO]    — coarse lifecycle, once per *logical* operation. This is
+///   the ceiling for "leave it on", so it has to stay quiet enough to read.
+/// * [Level.FINE]    — per-operation detail, dev builds only.
+/// * [Level.FINER]   — per-row / per-message firehose.
+///
+/// The rule that keeps this honest: **if a line would print more than once per
+/// user action, it belongs at [Level.FINE] or below.** Never log inside
+/// `build()`, and never per frame.
+///
+/// When choosing between WARNING and SEVERE, the question is not how bad it
+/// feels — it is whether the operation *recovered*.
+///
+/// ## Cost
+///
+/// [Logger.log] checks `isLoggable` before it does anything else, so a call at
+/// a disabled level costs one comparison. Three consequences:
+///
+/// 1. Pass a **closure** for any message that interpolates. Dart evaluates
+///    arguments eagerly, so `log.fine('resolved $n')` builds that string even
+///    when the level is off; `log.fine(() => 'resolved $n')` does not. Plain
+///    strings are fine for `warning`/`severe`, which are rare and usually on.
+/// 2. Put work that exists *only* to build a message inside the closure too —
+///    a lookup or a count above the log call runs unconditionally.
+/// 3. Leave the package's top-level `recordStackTraceAtLevel` at its
+///    `Level.OFF` default. Lowering it makes every record at or above that
+///    level call `StackTrace.current`, which the package itself flags as
+///    expensive. Sites that have a stack pass it explicitly.
+///
+/// ## Never log
+///
+/// Credentials; certificate or key material; auth tokens and the headers
+/// carrying them (log method, path and status — never the whole header map);
+/// request or message payloads (log an endpoint and a byte length instead);
+/// user identifiers a human would recognise, such as email or display name;
+/// amounts, balances and account numbers in anything financial; and **free text
+/// the user typed** — notes, memos, payee or merchant names, custom labels.
+///
+/// That last one is the entry people miss. No field name marks it as sensitive,
+/// it reads as ordinary application data, and it is exactly what gets
+/// interpolated during debugging. Treat user-authored strings as personal.
+///
+/// Passing a caught exception as the `error` argument is fine — the rule is
+/// about not reaching into a model for a secret field, not about scrubbing
+/// exception text.
+///
+/// Also check what logs *around* these loggers: an HTTP client's own logging
+/// interceptor prints whole bodies and headers and never passes through here,
+/// so none of the above applies to it.
+library;
+
+import 'package:flutter/foundation.dart';
+import 'package:logging/logging.dart';
+
+// Replace `myapp` with the project name, and the children with this project's
+// actual subsystems. Choose them by where you would look during an incident,
+// not by folder layout — five or six is plenty. A logger per feature folder
+// produces names nobody remembers and no filtering benefit.
+
+/// The root of the app's hierarchy — for the global error handlers in `main()`,
+/// which catch things attributable to no single subsystem.
+final Logger appLog = Logger('myapp');
+
+/// Backend calls, transport, and retries.
+final Logger apiLog = Logger('myapp.api');
+
+/// Local persistence and cache lifecycle.
+final Logger storeLog = Logger('myapp.store');
+
+/// Sign-in, session, and token refresh.
+final Logger authLog = Logger('myapp.auth');
+
+bool _initialised = false;
+
+/// Sets the root level and attaches the single log sink.
+///
+/// Call this first in `main()`, ahead of every other bootstrap step. Bootstrap
+/// is where destructive recovery lives — cache resets, corrupt-store deletion —
+/// and those paths log the only explanation a user will ever get for missing
+/// data. A logger installed after them captures nothing.
+///
+/// Release builds keep [Level.WARNING] and above so a bug report captured from
+/// a real device (`adb logcat`, Console.app) still carries something useful;
+/// everything below is gated off and costs a comparison.
+///
+/// Safe to call more than once — a second call would otherwise attach a second
+/// listener and duplicate every line, which also makes this safe from tests.
+void initLogging() {
+  if (_initialised) return;
+  _initialised = true;
+
+  Logger.root.level = kReleaseMode ? Level.WARNING : Level.FINE;
+  Logger.root.onRecord.listen(_emit);
+}
+
+/// Writes a record via [debugPrint], which throttles output so Android's
+/// logcat does not drop lines under bursty logging — and which satisfies the
+/// `avoid_print` lint that most strict lint sets enable.
+///
+/// The three fields are formatted separately on purpose. [LogRecord.toString]
+/// renders only `[LEVEL] loggerName: message`, so a sink that interpolates the
+/// whole record — `debugPrint('$record')` — throws `error` and `stackTrace`
+/// away, and every exception passed correctly at a call site vanishes here.
+void _emit(LogRecord record) {
+  debugPrint('[${record.level.name}] ${record.loggerName}: ${record.message}');
+
+  final error = record.error;
+  if (error != null) debugPrint('  error: $error');
+
+  final stackTrace = record.stackTrace;
+  if (stackTrace != null) debugPrintStack(stackTrace: stackTrace, maxFrames: 8);
+}

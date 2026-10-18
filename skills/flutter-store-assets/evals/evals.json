@@ -1,0 +1,23 @@
+{
+  "skill_name": "flutter-store-assets",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Set up the image tool for this Flutter app so I can make store screenshots and website images.",
+      "expected_output": "Runs detect-project.mjs first. Lists the app ids and booted simulators it found. Asks which screens are ready and in what order before writing anything. Asks for the brand colours source rather than inventing colours. Writes the demo layer and shows it for confirmation before the first capture.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Regenerate the App Store and Play screenshots, I changed the broker form.",
+      "expected_output": "Checks that the captures exist and that a simulator is booted. Runs the capture for the booted devices, then the store set. Opens one generated image from each set and reports any overlap or clipped device. Does not run the website set unless asked.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Add the Play tablet screenshots too.",
+      "expected_output": "Uses the iPad captures for the android-tablet set, as the Android set reuses the iPhone captures. Keeps the set to 8 cards. Checks the output is 2064x2752 and reports that the Play Console limits came from third-party guides.",
+      "files": []
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "skill_name": "flutter-device-scripts-setup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Set up one-command run scripts for all my connected phones in this Flutter project.",
+      "expected_output": "Runs setup.mjs detection, shows the detected Android/iOS/macOS ids, writes scripts/lib.sh, run_all.sh and build_release.sh with those ids, runs bash -n on them, and asks before executing run_all.sh.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Add a build_release script like run_all to ./my_app. It has a debug applicationIdSuffix.",
+      "expected_output": "Detects androidDebugId as the id plus '.debug' and androidId as the plain id; the debug launch uses the suffixed id and the release launch the plain one.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Generate the device scripts again, scripts/ already has run_all.sh.",
+      "expected_output": "Does not overwrite existing files; reports them as skipped and asks the user before re-running with --force.",
+      "files": []
+    }
+  ]
+}

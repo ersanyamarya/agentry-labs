@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Builds, installs and launches a RELEASE build of {{APP_NAME}} on every
+# connected Android phone, iPhone, and this Mac. A release build runs
+# standalone, so unplug USB afterwards and use the app normally. macOS is
+# installed to ~/Applications, replacing any earlier copy.
+#
+# Usage: scripts/build_release.sh
+
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+source scripts/lib.sh
+
+android=()
+while IFS= read -r line; do [[ -n "$line" ]] && android+=("$line"); done < <(android_serials)
+ios=()
+while IFS= read -r line; do [[ -n "$line" ]] && ios+=("$line"); done < <(ios_udids)
+macos=false
+macos_available && macos=true
+
+if [[ ${#android[@]} -eq 0 && ${#ios[@]} -eq 0 && "$macos" == false ]]; then
+  die "No devices found (checked adb, xcrun devicectl, and this Mac)."
+fi
+
+[[ ${#android[@]} -gt 0 ]] && android_build_release
+[[ ${#ios[@]} -gt 0 ]] && ios_build_release
+[[ "$macos" == true ]] && macos_build_release
+
+for serial in ${android[@]+"${android[@]}"}; do
+  android_install_release "$serial"
+  android_launch_release "$serial"
+  log "Launched release build on Android device ${serial}"
+done
+
+for udid in ${ios[@]+"${ios[@]}"}; do
+  ios_install_release "$udid"
+  ios_launch_release "$udid"
+  log "Launched release build on iOS device ${udid}"
+done
+
+if [[ "$macos" == true ]]; then
+  macos_install_release
+  macos_launch_release
+  log "Launched release build on macOS (${MACOS_INSTALL_DIR}/${MACOS_APP_NAME}.app)"
+fi
+
+log "Done. Safe to disconnect USB and test manually."

@@ -1,0 +1,87 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "image-gen-tools",
+  "projectType": "application",
+  "sourceRoot": "tools/image-gen-tools",
+  "tags": ["type:tool"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "{workspaceRoot}/tsconfig.base.json"],
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.json",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "install-browser": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "playwright-core install chromium",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "capture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "node capture-auto.ts {args}"
+      }
+    },
+    "store": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "node generate-store-assets.ts {args}",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node generate-feature-graphic.ts",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node generate-store-icons.ts",
+            "forwardAllArgs": false
+          }
+        ],
+        "parallel": false
+      }
+    },
+    "website": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "node generate-website-shots.ts",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node generate-website-brand.ts",
+            "forwardAllArgs": false
+          }
+        ],
+        "parallel": false
+      }
+    },
+    "brand-icons": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          {
+            "command": "node generate-brand-icons.ts",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "node generate-store-icons.ts",
+            "forwardAllArgs": false
+          }
+        ],
+        "parallel": false
+      }
+    }
+  }
+}

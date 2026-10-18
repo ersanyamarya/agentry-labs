@@ -1,0 +1,72 @@
+{
+  "skill_name": "flutter-logging-strategy",
+  "evals": [
+    {
+      "id": 0,
+      "name": "migrate-from-logger",
+      "prompt": "This is our taskly app. We're using the logger package but honestly it's a mess — half the app still uses print and debugPrint, and last week a teammate spent a whole afternoon on a bug where a task just silently failed to push and there was nothing in the console at all. Can you sort out our logging properly? Also I'm a bit worried we might be printing stuff we shouldn't.",
+      "expected_output": "Runs the audit first. Installs package:logging. Creates a single sink module with a named hierarchy + initLogging guarded against double-init and level set from build mode. Moves initLogging to the top of main() ahead of initCache (which wipes the store on failure). Wires FlutterError.onError + PlatformDispatcher.onError. Migrates the print/debugPrint sites and maps logger's short-form levels with the e -> warning/severe split. Wraps interpolated gated messages in closures. Flags and fixes the plaintext password log. Flags the log inside build(). Fixes the stale docs claim and the scaffold template that emits debugPrint. Distinguishes the silent catch that should be logged from any that are fine as-is.",
+      "files": ["fixture_messy"],
+      "assertions": [
+        "Adds `logging` to pubspec.yaml dependencies",
+        "Removes the now-unused `logger` dependency from pubspec.yaml",
+        "Creates a single logger module that is the only file importing package:logging",
+        "Calls initLogging() before initCache() in main(), so the store-wipe log is captured",
+        "Wires FlutterError.onError",
+        "Wires PlatformDispatcher.instance.onError",
+        "Leaves no print( or debugPrint( anywhere outside the sink module",
+        "Logs the store-wipe in initCache at SEVERE (it destroys user data)",
+        "Removes or redacts the plaintext password in the login log",
+        "Makes the silently-swallowed push failure (catch (_)) log its error — this is the bug the user described",
+        "Wraps interpolated fine/finer messages in closures",
+        "Removes or demotes the log inside build()",
+        "Fixes the scaffold template that emits debugPrint",
+        "Corrects the stale logging claim in docs/CONVENTIONS.md",
+        "Does not lower recordStackTraceAtLevel from its OFF default"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "audit-sloppy-existing-logging",
+      "prompt": "our logs are useless. we already use the logging package but the console is a firehose during normal use and yet whenever something actually breaks there's nothing helpful in there. can you take a look and tell me what's wrong before changing anything? i want to see the list first",
+      "expected_output": "Produces a findings report BEFORE editing, since the user explicitly asked to see the list first. Identifies: recordStackTraceAtLevel lowered to INFO (expensive), Logger.root.level = Level.ALL in all builds, per-row and build() logging at INFO which is what makes it a firehose, the token logged in full, eagerly-interpolated fine() messages including a join computed only for the log, a SEVERE-worthy store wipe logged at fine (which is why real breakage is invisible), setupLogging() called AFTER openStore() so the wipe is never captured, inconsistent logger names ('net' missing the root prefix, an over-deep ui name), the print-based sink, stale docs, and the scaffold emitting print. Waits for approval before applying.",
+      "files": ["fixture_sloppy"],
+      "assertions": [
+        "Reports findings before editing any code, as the user explicitly asked",
+        "Identifies recordStackTraceAtLevel = Level.INFO as an expensive misconfiguration",
+        "Identifies Logger.root.level = Level.ALL applying to every build",
+        "Identifies the per-row sync loop logging at INFO as a cause of the firehose",
+        "Identifies the log inside build() as a cause of the firehose",
+        "Identifies the auth token being logged in full",
+        "Identifies the store-wipe logged at fine — why real breakage looks invisible",
+        "Identifies that setupLogging() runs after openStore(), so early failures are never captured",
+        "Identifies the eagerly-built interpolated fine() message, or the join computed only to feed it",
+        "Identifies inconsistent logger names (a name missing the root prefix, or an over-deep one)",
+        "Identifies the print-based sink",
+        "Identifies the scaffold template that emits print",
+        "Identifies the stale claim in docs/OBSERVABILITY.md"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "greenfield-no-logging-package",
+      "prompt": "Setting up logging for ledgerly before we ship the beta. Right now it's all print/debugPrint. I want something that gives us useful diagnostics from testers' devices without slowing the app down or leaking anyone's financial data into logs.",
+      "expected_output": "Installs package:logging. Creates the sink module with a small named hierarchy. initLogging() at the top of main(), explicitly ahead of migrateDb() which recreates the db on failure. Sets WARNING+ for release specifically because the user asked for diagnostics from testers' devices. Wires both global handlers. Assigns levels: the db-recreate to SEVERE, the rejected insert to WARNING, the per-entry sync loop to FINER with a closure. Applies redaction to the entry amount as financial data. Explains the closure rule and leaves recordStackTraceAtLevel alone. Adds a sink-capture test without introducing a mocking dependency.",
+      "files": ["fixture_greenfield"],
+      "assertions": [
+        "Adds `logging` to pubspec.yaml dependencies",
+        "Creates a single sink module with a small named logger hierarchy",
+        "Calls initLogging() before migrateDb(), which recreates the db on failure",
+        "Keeps WARNING and above in release rather than disabling logging, matching the tester-diagnostics requirement",
+        "Wires both FlutterError.onError and PlatformDispatcher.instance.onError",
+        "Logs the db recreate at SEVERE",
+        "Puts the per-entry sync loop at FINER using a closure",
+        "Does not log the entry amount, treating it as financial data",
+        "Guards initLogging() against attaching a duplicate listener",
+        "Leaves recordStackTraceAtLevel at its OFF default",
+        "Adds a test that captures the sink without introducing a mocking dependency",
+        "Leaves no print( or debugPrint( outside the sink module"
+      ]
+    }
+  ]
+}

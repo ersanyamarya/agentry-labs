@@ -1,0 +1,135 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:{{APP_PACKAGE}}/core/demo/demo_mode.dart';
+import 'package:{{APP_PACKAGE}}/core/providers/app_state_providers.dart';
+import 'package:{{APP_PACKAGE}}/core/router/app_router.dart';
+import 'package:{{APP_PACKAGE}}/features/broker/providers/mqtt_providers.dart';
+import 'package:{{APP_PACKAGE}}/main.dart' as app;
+import 'package:phosphor_icons/phosphor_icons.dart';
+
+/// Walks the demo data and saves one screenshot per screen. The names are the
+/// slugs in `tools/image-gen-tools/lib/shots.ts`, so the store-asset generators
+/// pick the files up unchanged.
+///
+/// Every screen is captured twice: light, then dark into `dark/`.
+///
+/// Run through `pnpm nx run image-gen-tools:capture`, which adds
+/// `--dart-define=DEMO=true`, picks the simulators and sets where the files go.
+/// Set by `tools/image-gen-tools/capture-auto.ts` for macOS, where the host script grabs the window.
+const bool _desktop = bool.fromEnvironment('CAPTURE_DESKTOP');
+
+void main() {
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('capture store screenshots', (tester) async {
+    expect(kDemoMode, isTrue, reason: 'Run with --dart-define=DEMO=true');
+
+    // Fixed waits, not pumpAndSettle: a live MQTT stream never goes idle.
+    Future<void> wait(int seconds) async {
+      for (var i = 0; i < seconds * 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    Future<void> go(String path, {int seconds = 2}) async {
+      // Two broker URLs share one route pattern, so going straight from one to
+      // the other would reuse the page's state and show the first broker's.
+      if (path.startsWith('/broker/') && !path.startsWith('/broker/form')) {
+        appRouter.go('/');
+        await wait(1);
+      }
+      appRouter.go(path);
+      await wait(seconds);
+    }
+
+    final failed = <String>[];
+    // Prefix for the screenshot names: '' for light, 'dark/' for dark.
+    var prefix = '';
+    Future<void> shot(String slug, Future<void> Function() setUp) async {
+      try {
+        await setUp();
+        if (_desktop) {
+          // takeScreenshot is mobile-only. On desktop, tell the host script
+          // which shot is up and hold still while it captures the window.
+          debugPrint('CAPTURE_SHOT $prefix$slug');
+          await wait(3);
+        } else {
+          await binding.takeScreenshot('$prefix$slug');
+        }
+      } catch (error) {
+        failed.add(slug);
+        debugPrint('capture failed: $slug: $error');
+      }
+    }
+
+    // main() is `void ... async`, so it can't be awaited; wait out its startup.
+    app.main();
+    await wait(6);
+
+    // Connect the live brokers up front so the dashboard shows them connected
+    // whichever screen the walk is on.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
+    for (final id in [demoGreenhouseBrokerId, 'demo-workshop', 'demo-garage']) {
+      final broker = container.read(brokersProvider.notifier).byId(id);
+      if (broker != null) {
+        await container
+            .read(mqttConnectionPhasesProvider.notifier)
+            .connect(broker);
+      }
+    }
+    await wait(2);
+
+    Future<void> walk() async {
+      await shot(
+        'broker_chat',
+        () => go('/broker/$demoGreenhouseBrokerId', seconds: 8),
+      );
+      await shot('broker_panel', () async {
+        await tester.tap(find.byIcon(PhosphorIconsRegular.gear).first);
+        await wait(2);
+      });
+      await shot(
+        'broker_form',
+        () => go('/broker/form/$demoGreenhouseBrokerId'),
+      );
+      await shot(
+        'workspace_brokers',
+        () => go('/workspace/$demoHomeWorkspaceId'),
+      );
+      await shot(
+        'team_members',
+        () => go('/workspace/$demoTeamWorkspaceId/members'),
+      );
+      await shot('templates_list', () => go('/templates'));
+      await shot(
+        'template_edit_plain',
+        () => go('/template/form/$demoPhoneTemplateId'),
+      );
+      await shot('sensor_keyboard', () async {
+        await tester.tap(find.byType(TextFormField).last);
+        await wait(1);
+        await tester.tap(find.text('Sensor keyboard').first);
+        await wait(2);
+      });
+      await shot('dashboard', () => go('/'));
+    }
+
+    final theme = container.read(themeModeProvider.notifier);
+    theme.themeMode = ThemeMode.light;
+    await wait(1);
+    await walk();
+
+    theme.themeMode = ThemeMode.dark;
+    prefix = 'dark/';
+    await wait(1);
+    await walk();
+    theme.themeMode = ThemeMode.light;
+
+    // Not an expect(): a failing test here leaves flutter drive hanging.
+    debugPrint(failed.isEmpty ? 'CAPTURE OK' : 'CAPTURE MISSED: $failed');
+  });
+}

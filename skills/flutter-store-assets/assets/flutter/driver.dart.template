@@ -1,0 +1,18 @@
+import 'dart:io';
+
+import 'package:integration_test/integration_test_driver_extended.dart';
+
+/// Host side of `integration_test/capture_test.dart`: writes each screenshot the
+/// test takes to `$CAPTURE_DIR/<name>.png`.
+Future<void> main() async {
+  final outDir = Directory(Platform.environment['CAPTURE_DIR'] ?? 'captures')
+    ..createSync(recursive: true);
+  await integrationDriver(
+    onScreenshot: (name, bytes, [args]) async {
+      File('${outDir.path}/$name.png')
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(bytes);
+      return true;
+    },
+  );
+}
