@@ -81,7 +81,23 @@ node scripts/apply-global.mjs          # prints the plan
 node scripts/apply-global.mjs --write  # applies it and saves backups
 ```
 
-The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (export it in `~/.zshrc`). Compare skill copies across projects with `node scripts/skill-drift.mjs`.
+The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (export it in `~/.zshenv`; the desktop app never reads `~/.zshrc`). Compare skill copies across projects with `node scripts/skill-drift.mjs`.
+
+### Skill shelf
+
+Every installed skill puts its name and description in every session, and past the listing budget Claude Code drops
+descriptions, so rarely used skills crowd out the useful ones. Rarely used groups live in `~/.claude/skill-shelf/<group>/`
+instead (currently `video`, `audit`, `flutter-assets`) and are symlinked in when needed:
+
+```bash
+node scripts/shelf.mjs list                       # groups, their skills, and where each is on
+node scripts/shelf.mjs on video                   # this project's .claude/skills (kept out of git via .git/info/exclude)
+node scripts/shelf.mjs on video --global          # ~/.claude/skills, every project
+node scripts/shelf.mjs off video [--global]
+```
+
+Claude Code watches skill folders, so a running session picks the change up. To shelve another group, move its skill
+folders into a new `~/.claude/skill-shelf/<group>/`. Leave `~/.claude/skills/synced/` alone: claude.ai manages it.
 
 ## Usage
 1. Install skills

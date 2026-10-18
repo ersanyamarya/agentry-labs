@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ├── rules/               # commit-attribution, context7
 ├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
-├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
+├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, shelf.mjs (skill groups on/off), image-gen-tools/ (README cover generator)
 └── .github/             # CI (validates every skill) and assets/cover.jpg
 ```
 
