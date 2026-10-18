@@ -59,6 +59,30 @@ Run `./scripts/install.sh --help` for all selectors, options, and examples.
    cp -r skills/* .claude/skills/
    ```
 
+### Bundles and syncing
+
+`bundles.tsv` tags each component `global`, `flutter`, `mongodb` or `web`. Install a bundle, or re-run the same command to sync it:
+
+```bash
+# Global bundle into ~/.claude (from a local checkout; omit --source to clone from GitHub)
+./scripts/install.sh --source . --global --bundle global
+
+# Flutter skills into the current project
+./scripts/install.sh --source /path/to/agentry-labs --bundle flutter
+
+# See what would change without writing
+./scripts/install.sh --source . --bundle flutter --dry-run
+```
+
+Global settings, hooks and MCP servers live in `global/`. Preview the merge into `~/.claude`, then apply it:
+
+```bash
+node scripts/apply-global.mjs          # prints the plan
+node scripts/apply-global.mjs --write  # applies it and saves backups
+```
+
+The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (export it in `~/.zshrc`). Compare skill copies across projects with `node scripts/skill-drift.mjs`.
+
 ## Usage
 1. Install skills
 2. Invoke a skill by name in Claude Code, interactively or with `-p`. Skills also trigger on their own when a request matches their description.
@@ -70,13 +94,48 @@ Run `./scripts/install.sh --help` for all selectors, options, and examples.
 ## Available Components
 
 ### Skills (`.claude/skills/`)
+
+**`global`** (any project; install once into `~/.claude`):
+
 | Skill | Description |
 |-------|-------------|
-| `image-artifact-setup` | Scaffold a reproducible image generator (OG cards, social previews, README banners) using Playwright, in any stack |
-| `lighthouse-audit` | Run Lighthouse (mobile and desktop) on any web stack, trace findings to the source, and write a prioritized fix plan |
-| `humanize-and-unslop` | Edit drafts into plain human writing while keeping the author's claims, or detect AI tells with line numbers |
-| `run-fallow` | Run the `fallow` CLI on any JS/TS project for dead code, duplication, complexity, and security candidates |
-| `skill-architect` | Create, improve, or review skills, validate them against the spec, and test them on a sample |
+| `generate-commit-message` | Write a Conventional Commit message in this repo's style (type(scope): Capitalized summary) from staged or unstaged changes. |
+| `humanize-and-unslop` | Edit drafts into plain, specific, human-sounding writing by removing AI tells (banned vocabulary, em dashes, curly quotes, puffery, chatbot phrases, formulaic structures) |
+| `image-artifact-setup` | Set up a reproducible image generator in a project (Open Graph and social cards, link previews, project or product tiles, README banners, store screenshots) by rendering  |
+| `lighthouse-audit` | Run Google Lighthouse against a URL (mobile and desktop), trace the performance, accessibility, SEO, and best-practices findings to the project's actual source, and write |
+| `run-fallow` | Run the `fallow` CLI on any JavaScript/TypeScript project to find dead code, unused dependencies, duplication, complexity hotspots, and security candidates, then report c |
+| `skill-architect` | Create, improve, or review Claude Code skills so they are portable, token-efficient, and spec-compliant, with scripts doing the exact work and the model doing the judgmen |
+| `sync-docs-from-diff` | Update repo documentation from a git diff. |
+| `write-project-readme` | Draft or refresh a project README from Product.md, Brand.md, and the repository structure. |
+
+**`flutter`** (Flutter and Dart projects):
+
+| Skill | Description |
+|-------|-------------|
+| `acquire-codebase-knowledge` | Use this skill when the user explicitly asks to map, document, or onboard into an existing Flutter/Dart codebase. |
+| `flutter-brand-icons` | Generate every app icon and native splash asset for a Flutter project from one single-color logo SVG, with colors taken from the project's brand doc, design doc, or Dart  |
+| `flutter-bundle-google-fonts` | Replaces the google_fonts package in a Flutter project with fonts bundled in the app. |
+| `flutter-device-scripts-setup` | Generate scripts/lib.sh, scripts/run_all.sh and scripts/build_release.sh for any Flutter project, with the app ids (Android applicationId, iOS bundle id, macOS app name,  |
+| `flutter-lib-refactor` | Audit and refactor a Flutter project's lib/ folder into a feature-first layered architecture. |
+| `flutter-logging-strategy` | Establish, audit, and enforce a consistent logging strategy in any Flutter/Dart project using package:logging — installs the dependency if missing, builds a named-logger  |
+| `flutter-quality-gate` | Run the Flutter quality checks (format, analyze, test) for a Flutter app and fix common issues. |
+| `flutter-store-assets` | Sets up and runs an image tool for a Flutter app that makes store screenshots (App Store iPhone and iPad, Mac App Store, Play phone and tablet), a Play feature graphic, s |
+| `theme-hardcoding-audit` | Audit the app for hardcoded theme values, local styling drift, and visual inconsistencies. |
+
+**`mongodb`** (MongoDB / Mongoose projects):
+
+| Skill | Description |
+|-------|-------------|
+| `mongodb-data-modeling` | Design new MongoDB/Mongoose schemas or audit existing ones against document-modeling best practices — embedding vs. referencing, unbounded arrays, compound index field or |
+| `mongoose-schema-docs` | Generate documentation and an entity-relationship diagram from a codebase's Mongoose schemas. |
+
+**`web`** (web UI projects):
+
+| Skill | Description |
+|-------|-------------|
+| `shadcn` | Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI, including chat interfaces. |
+
+Skills tied to gentlemans-stack layers, generators and libs (Nx workspace and package linking, `api-endpoints`, `service-handler-tests`, `domain-repository-tests` and similar) live in that repo's `.claude/skills` and reach projects through its sync, not from here.
 
 ### Agents (`.claude/agents/`)
 | Agent | Description |
@@ -84,7 +143,10 @@ Run `./scripts/install.sh --help` for all selectors, options, and examples.
 | `super-planner` | Investigate a task and produce a verified, execution-ready plan without making changes |
 
 ### Rules (`.claude/rules/`)
-None published yet. The installer already accepts `rules` and `rules/<name>` selectors.
+| Rule | Description |
+|------|-------------|
+| `commit-attribution` | No AI attribution lines in commits or pull requests |
+| `context7` | When and how to fetch current library docs with the Context7 MCP |
 
 ### Claude MD files (`.claude/claude-md-files/`)
 | File | Description |

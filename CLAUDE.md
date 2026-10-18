@@ -19,8 +19,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   └── super-planner.agent.md
 ├── claude-md-files/     # Reusable Claude Code project guidance
 │   └── BASIC_CLAUDE.md
-├── rules/               # Coding standards / Cursor rules (none published yet)
-├── scripts/             # install.sh, utils.sh, and image-gen-tools/ (README cover generator)
+├── rules/               # commit-attribution, context7
+├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs
+├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
+├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
 ├── .github/             # CI (validates every skill) and assets/cover.jpg
 └── .mcp.json            # Local MCP config, gitignored (holds an API key); not part of the repo
 ```
@@ -70,6 +72,8 @@ Remember, before writing any code:
 | `run-fallow` | Run fallow CLI (dead code, duplication, complexity, security) on any JS/TS project, condense JSON output | `SKILL.md`, `scripts/preflight.mjs`, `scripts/summarize.mjs`, `references/` |
 | `skill-architect` | Create, improve, or review skills; scaffold, validate against the spec, test on a sample | `SKILL.md`, `scripts/scaffold.mjs`, `scripts/validate.mjs`, `references/` |
 
+The table lists the original five. Every skill and its bundle is in `bundles.tsv` and the README.
+
 ## Development Conventions
 
 ### Skill Development
@@ -79,6 +83,10 @@ Remember, before writing any code:
 - Test prompts go in `evals/evals.json`
 - Run `node skills/skill-architect/scripts/validate.mjs skills/*/` before committing; CI runs the same check
 - Skills are self-contained — they should run via `/<skill-name>` after installation
+
+
+### Bundles
+Skills that assume gentlemans-stack layers or generators belong in that repo, not here. Every new skill, rule, or agent gets a line in `bundles.tsv` (`global`, `flutter`, `mongodb` or `web`). Check install changes with `./scripts/install.sh --source . --bundle <name> --dry-run`.
 
 ### README cover
 `.github/assets/cover.jpg` is generated from the repo: the README title and tagline, the skill names in `skills/*/SKILL.md`, and the counts of skills, agents, rules, and guidance files. Regenerate it in the same change whenever you add, remove, or rename anything in `skills/`, `agents/`, `rules/`, or `claude-md-files/`, or edit the README title or tagline:

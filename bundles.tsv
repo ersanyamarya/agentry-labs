@@ -1,0 +1,26 @@
+# bundle<TAB>selector. Install with: scripts/install.sh --bundle <name> (global, flutter, mongodb, web)
+# Skills tied to gentlemans-stack layers and generators live in that repo's .claude/skills, not here.
+flutter	skills/acquire-codebase-knowledge
+flutter	skills/flutter-brand-icons
+flutter	skills/flutter-bundle-google-fonts
+flutter	skills/flutter-device-scripts-setup
+flutter	skills/flutter-lib-refactor
+flutter	skills/flutter-logging-strategy
+flutter	skills/flutter-quality-gate
+flutter	skills/flutter-store-assets
+flutter	skills/theme-hardcoding-audit
+global	agents/super-planner.agent.md
+global	claude-md-files/BASIC_CLAUDE.md
+global	rules/commit-attribution.md
+global	rules/context7.md
+global	skills/generate-commit-message
+global	skills/humanize-and-unslop
+global	skills/image-artifact-setup
+global	skills/lighthouse-audit
+global	skills/run-fallow
+global	skills/skill-architect
+global	skills/sync-docs-from-diff
+global	skills/write-project-readme
+mongodb	skills/mongodb-data-modeling
+mongodb	skills/mongoose-schema-docs
+web	skills/shadcn

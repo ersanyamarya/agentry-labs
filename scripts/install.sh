@@ -20,6 +20,11 @@
 #   -a, --all               Install every available component
 #   -l, --list              List available component selectors and exit
 #   -g, --global            Install globally under ~/.claude
+#   -b, --bundle NAME       Install every component tagged NAME in bundles.tsv
+#                           (global, stack); may be repeated
+#       --source DIR        Use a local checkout as the catalog instead of
+#                           cloning from GitHub (re-run to sync)
+#   -n, --dry-run           Print what would be installed without writing
 #       --target DIR        Install under a custom directory
 #   -h, --help              Show this help message and exit
 #
@@ -38,6 +43,8 @@
 #   ./install.sh claude-md-files/BASIC_CLAUDE.md
 #   ./install.sh --all
 #   ./install.sh --global --all
+#   ./install.sh --source ~/ws/aryantriki/agentry-labs --global --bundle global
+#   ./install.sh --source ~/ws/aryantriki/agentry-labs --bundle stack --dry-run
 #   ./install.sh all --target "$HOME/.config/my-agent"
 #   curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash
 #   curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- skills/run-fallow
@@ -52,6 +59,8 @@
 #   - Each installed component replaces its previous copy, so files removed
 #     upstream disappear too. Unrelated installed components remain.
 #   - --global and --target cannot be used together.
+#   - Installs are idempotent: running the same command again leaves the
+#     target identical, so a re-run with --source syncs a project.
 # ------------------------------------------------------------------------------
 
 set -euo pipefail
@@ -108,6 +117,9 @@ LIST_ONLY="false"
 GLOBAL_INSTALL="false"
 CUSTOM_TARGET="false"
 SELECTORS=()
+BUNDLES=()
+SOURCE_DIR=""
+DRY_RUN="false"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -127,7 +139,11 @@ while [[ $# -gt 0 ]]; do
       GLOBAL_INSTALL="true"
       shift
       ;;
-    -t|--type|-c|--component|--target)
+    -n|--dry-run)
+      DRY_RUN="true"
+      shift
+      ;;
+    -t|--type|-c|--component|--target|-b|--bundle|--source)
       if [[ $# -lt 2 || -z $2 ]]; then
         log_error "$1 requires a value."
         print_help
@@ -136,6 +152,8 @@ while [[ $# -gt 0 ]]; do
       case $1 in
         -t|--type) SELECTORS+=("$2") ;;
         -c|--component) SELECTORS+=("$2") ;;
+        -b|--bundle) BUNDLES+=("$2") ;;
+        --source) SOURCE_DIR="$(cd "$2" && pwd)" ;;
         --target)
           TARGET_DIR="$2"
           CUSTOM_TARGET="true"
@@ -175,11 +193,16 @@ fi
 
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/agentry-labs.XXXXXX")"
 trap 'rm -rf "$TEMP_DIR" "$BOOTSTRAP_DIR"' EXIT
+CATALOG_DIR="$TEMP_DIR"
 
-command -v git >/dev/null 2>&1 || {
-  log_error "git is required. Install git and try again."
-  exit 1
-}
+if [[ -n $SOURCE_DIR ]]; then
+  CATALOG_DIR="$SOURCE_DIR"
+else
+  command -v git >/dev/null 2>&1 || {
+    log_error "git is required. Install git and try again."
+    exit 1
+  }
+fi
 
 normalize_type() {
   case $1 in
@@ -199,13 +222,13 @@ list_components() {
   for component_type in $COMPONENT_TYPES; do
     echo ""
     echo "  $component_type"
-    if [[ ! -d "$TEMP_DIR/$component_type" ]]; then
+    if [[ ! -d "$CATALOG_DIR/$component_type" ]]; then
       echo "    (none)"
       continue
     fi
     while IFS= read -r component_path; do
       echo "    $component_type/$(basename "$component_path")"
-    done < <(find "$TEMP_DIR/$component_type" -mindepth 1 -maxdepth 1 ! -name '.DS_Store' | sort)
+    done < <(find "$CATALOG_DIR/$component_type" -mindepth 1 -maxdepth 1 ! -name '.DS_Store' | sort)
   done
 }
 
@@ -263,13 +286,17 @@ copy_component() {
     log_error "Refusing to install an unnamed component from $source_path"
     return 1
   fi
+  if [[ $DRY_RUN == "true" ]]; then
+    echo "[dry-run] would install $source_path -> $destination_dir/$name"
+    return 0
+  fi
   rm -rf "${destination_dir:?}/$name"
   cp -R "$source_path" "$destination_dir/"
 }
 
 install_type() {
   local component_type=$1
-  local source_dir="$TEMP_DIR/$component_type"
+  local source_dir="$CATALOG_DIR/$component_type"
   local destination_dir="$TARGET_DIR/$component_type"
 
   if [[ ! -d "$source_dir" ]]; then
@@ -277,17 +304,17 @@ install_type() {
     return
   fi
 
-  mkdir -p "$destination_dir"
+  [[ $DRY_RUN == "true" ]] || mkdir -p "$destination_dir"
   while IFS= read -r component_path; do
     copy_component "$component_path" "$destination_dir"
   done < <(find "$source_dir" -mindepth 1 -maxdepth 1 ! -name '.DS_Store' | sort)
-  log_info "Installed all $component_type to $destination_dir"
+  [[ $DRY_RUN == "true" ]] || log_info "Installed all $component_type to $destination_dir"
 }
 
 install_component() {
   local component_type=$1
   local component_name=$2
-  local source_path="$TEMP_DIR/$component_type/$component_name"
+  local source_path="$CATALOG_DIR/$component_type/$component_name"
   local destination_dir="$TARGET_DIR/$component_type"
 
   if [[ ! -e "$source_path" && -f "$source_path.md" ]]; then
@@ -298,20 +325,34 @@ install_component() {
     return 1
   fi
 
-  mkdir -p "$destination_dir"
+  [[ $DRY_RUN == "true" ]] || mkdir -p "$destination_dir"
   copy_component "$source_path" "$destination_dir"
-  log_info "Installed $component_type/$(basename "$source_path") to $destination_dir"
+  [[ $DRY_RUN == "true" ]] || log_info "Installed $component_type/$(basename "$source_path") to $destination_dir"
 }
 
-log_info "Downloading the Agentry Labs catalog..."
-git clone --depth 1 https://github.com/ersanyamarya/agentry-labs.git "$TEMP_DIR" >/dev/null 2>&1
+if [[ -n $SOURCE_DIR ]]; then
+  log_info "Using the local catalog at $SOURCE_DIR"
+else
+  log_info "Downloading the Agentry Labs catalog..."
+  git clone --depth 1 https://github.com/ersanyamarya/agentry-labs.git "$TEMP_DIR" >/dev/null 2>&1
+fi
+
+# Expand --bundle NAME into TYPE/NAME selectors listed in bundles.tsv.
+for bundle in "${BUNDLES[@]+"${BUNDLES[@]}"}"; do
+  [[ -f "$CATALOG_DIR/bundles.tsv" ]] || { log_error "bundles.tsv is missing from the catalog."; exit 1; }
+  matched=0
+  while IFS=$'\t' read -r tag selector; do
+    [[ $tag == "$bundle" ]] && { SELECTORS+=("$selector"); matched=1; }
+  done < <(grep -v '^#' "$CATALOG_DIR/bundles.tsv")
+  [[ $matched -eq 1 ]] || { log_error "Unknown or empty bundle: $bundle"; exit 1; }
+done
 
 if [[ $LIST_ONLY == "true" ]]; then
   list_components
   exit 0
 fi
 
-if [[ $INSTALL_ALL == "false" && ${#SELECTORS[@]} -eq 0 ]]; then
+if [[ $INSTALL_ALL == "false" && ${#SELECTORS[@]} -eq 0 && ${#BUNDLES[@]} -eq 0 ]]; then
   if [[ -t 1 && -r /dev/tty && -w /dev/tty ]]; then
     add_interactive_selectors
   else
