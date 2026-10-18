@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Merges global/settings.fragment.json into ~/.claude/settings.json and global/mcp.json into ~/.claude.json.
-// Only adds what is missing and never removes anything. Prints the plan; pass --write to apply it.
+// Only adds what is missing (hooks, plugins, statusLine, MCP servers) and never removes anything. Prints the plan; pass --write to apply it.
 //
 // Usage: node scripts/apply-global.mjs [--write] [--home <dir>]
 
@@ -45,6 +45,12 @@ for (const key of ["enabledPlugins", "extraKnownMarketplaces"]) {
 		settings[key][name] = value;
 		actions.push(`settings.json: add ${key}.${name}`);
 	}
+}
+
+for (const key of ["statusLine", "subagentStatusLine"]) {
+	if (!fragment[key] || key in settings) continue;
+	settings[key] = fragment[key];
+	actions.push(`settings.json: add ${key}`);
 }
 
 const warnings = [];
