@@ -8,7 +8,12 @@ Reusable skills, rules, agents, Claude guidance, and tooling for AI agents
 
 A collection of framework-agnostic AI agent components — Claude Code skills and guidance files, GitHub Copilot agents, Cursor rules, and MCP configs. Designed for reuse across projects.
 
-## Installation
+## Requirements
+
+- Bash and Git. The installer clones this repo from GitHub unless `--source` points at a local checkout.
+- Node.js for the `.mjs` scripts in `scripts/`.
+
+## Getting started
 
 ### One-line Installer
 ```bash
@@ -101,13 +106,23 @@ are linked into `.claude/agents` with its skills. Claude Code watches skill fold
 start a new session if a linked agent doesn't show. To shelve another group, move its skill folders (and agents) into a new
 `~/.claude/skill-shelf/<group>/`. Leave `~/.claude/skills/synced/` alone: claude.ai manages it.
 
-## Usage
+## Commands
 1. Install skills
 2. Invoke a skill by name in Claude Code, interactively or with `-p`. Skills also trigger on their own when a request matches their description.
    ```bash
    claude -p "/run-fallow"
    claude -p "/humanize-and-unslop README.md --detect"
    ```
+
+## Project layout
+
+- `skills/`: Claude Code skills, one folder each
+- `agents/`: agent definitions
+- `rules/`: commit-attribution and context7 rules
+- `claude-md-files/`: reusable CLAUDE.md templates
+- `global/`: settings fragment and MCP config merged by `scripts/apply-global.mjs`
+- `scripts/`: installer, sync and shelf scripts
+- `bundles.tsv`: the bundle each component belongs to
 
 ## Available Components
 
