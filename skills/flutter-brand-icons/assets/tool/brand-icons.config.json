@@ -1,0 +1,17 @@
+{
+  "themeSource": ["<path the colors came from, e.g. docs/Brand.md>"],
+  "projectRoot": "<relative path from this folder to the Flutter project root, e.g. ../..>",
+  "mark": "assets/icon/source/logo.svg",
+  "wordmark": null,
+  "brandingImages": null,
+  "outputDir": "assets/icon",
+  "recolor": { "#000000": "mark" },
+  "roles": {
+    "mark": { "light": "#RRGGBB", "dark": "#RRGGBB" }
+  },
+  "tinted": "#999898",
+  "background": { "light": "#RRGGBB", "dark": "#RRGGBB" },
+  "platforms": { "android": true, "ios": true, "web": true, "macos": false, "windows": false },
+  "androidAdaptiveInset": 16,
+  "splash": { "fullscreen": false, "brandingBottomPadding": 24 }
+}

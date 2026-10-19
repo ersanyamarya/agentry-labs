@@ -1,0 +1,23 @@
+{
+  "skill_name": "flutter-quality-gate",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I changed a widget in my Flutter app, check it is fine before I commit",
+      "expected_output": "Finds the app from the changed pubspec.yaml, checks whether the repo uses Nx targets (nx show project) and otherwise runs dart format, flutter analyze and flutter test in that order, fixes errors and warnings without silencing lints, and reports each check's result.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "flutter analyze shows withOpacity is deprecated in several files",
+      "expected_output": "Replaces withOpacity(x) with withValues(alpha: x), reruns analyze, and does not touch generated *.g.dart files.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "the theme file generated from tokens has a wrong color, can you fix it quickly",
+      "expected_output": "Refuses to hand-edit the generated file, finds the source (token file named in CLAUDE.md), edits it, runs the repo's generator and its check, then runs analyze and test.",
+      "files": []
+    }
+  ]
+}

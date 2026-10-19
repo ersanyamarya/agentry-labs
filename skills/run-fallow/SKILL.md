@@ -22,7 +22,7 @@ Analyze a JS/TS codebase with `fallow` (docs: https://www.fallow.tools/docs/). F
 3. **Run and condense**
    - Write JSON to a temp file, then summarize it:
      ```bash
-     out="${TMPDIR:-/tmp}/fallow-$$.json"
+     out="$(mktemp -t fallow).json"
      fallow <command> --format json > "$out" 2>/dev/null
      node ${CLAUDE_SKILL_DIR}/scripts/summarize.mjs "$out" --top 10
      ```

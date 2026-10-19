@@ -1,0 +1,35 @@
+{
+  "skill_name": "flutter-brand-icons",
+  "evals": [
+    {
+      "id": "pasted-svg-with-brand-doc",
+      "prompt": "Here's our logo, generate all the app icons and the splash screen from it: <svg viewBox=\"0 0 960 960\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 0H960V960H0Z\" fill=\"black\"/></svg>",
+      "expected_output": "Runs inspect-project, saves the markup to assets/icon/source/logo.svg first, runs check-svg (ok). Finds docs/Brand.md as a theme candidate and asks the user to confirm it, runs extract-colors, maps primary light/dark and background colors per theme-mapping.md with file:line provenance, and asks for confirmation. Asks once before overwriting YAML/PNGs, copies only the config (not the generator) into the project, passes check-config, runs the generator in place from the skill folder with --config, passes check-config --outputs, views the PNGs, and reports the regenerate command. Does not write App Store or Play listing icons and points to the stack's image-gen-tools store target for them.",
+      "files": []
+    },
+    {
+      "id": "no-theme-source",
+      "prompt": "/flutter-brand-icons assets/logo.svg",
+      "expected_output": "In a Flutter project with no brand/design doc and no ThemeData/ColorScheme file, inspect-project returns empty themeSources; the skill asks the user for the location of the brand doc, design doc, or Dart theme file and does not invent colors.",
+      "files": []
+    },
+    {
+      "id": "bad-svg",
+      "prompt": "Make launcher icons from this: <svg width=\"100\" height=\"100\"><rect width=\"100\" height=\"100\" fill=\"white\"/><text x=\"10\" y=\"50\">Q</text></svg>",
+      "expected_output": "Saves the SVG, check-svg reports ok:false (no viewBox, white fill, live text), and the skill stops to ask for a corrected SVG with flat black shapes on transparent and text converted to outlines. It does not proceed to theme or generation.",
+      "files": []
+    },
+    {
+      "id": "not-flutter",
+      "prompt": "Generate app icons and a splash screen from logo.svg for this React Native app.",
+      "expected_output": "inspect-project reports flutter:false (no pubspec.yaml); the skill stops and says it supports Flutter projects only.",
+      "files": []
+    },
+    {
+      "id": "listing-icons-request",
+      "prompt": "Also make the App Store 1024 and Play 512 listing icons.",
+      "expected_output": "Does not generate listing icons itself. Says image-gen-tools owns them and points to `pnpm nx run image-gen-tools:store -- --app=<name>` (flutter-store-assets skill), which renders them from assets/icon/.",
+      "files": []
+    }
+  ]
+}

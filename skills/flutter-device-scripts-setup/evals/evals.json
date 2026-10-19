@@ -1,0 +1,23 @@
+{
+  "skill_name": "flutter-device-scripts-setup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run my Flutter app on all my connected phones.",
+      "expected_output": "Runs scripts/flutter/run-all.mjs <app> --dry-run, shows the ids it read and the device list, asks before the real run, then runs it and reports per device. Generates no shell files.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Build a release version and install it on all devices for unplugged testing. The app has a debug applicationIdSuffix.",
+      "expected_output": "Uses scripts/flutter/build-release.mjs; the release launch uses the plain applicationId. A debug run-all launch uses the id plus the .debug suffix.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Set up run_all for this Flutter repo that has no scripts/flutter folder.",
+      "expected_output": "Reports that the stack scripts are missing and need syncing from gentlemans-stack; does not write its own scripts.",
+      "files": []
+    }
+  ]
+}

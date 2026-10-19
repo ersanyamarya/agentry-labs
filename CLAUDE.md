@@ -6,7 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Agentry Labs** is a collection of reusable, framework-agnostic AI agent components — Claude Code skills and guidance files, GitHub Copilot agents, Cursor rules, and MCP configurations. Designed for reuse across projects. The repo installs selected components into the current project by default, with global installation available explicitly.
 
-## Repository Structure
+## Implementation principles
+
+Remember, before writing any code:
+
+1. Does this need to exist?   → no: skip it (YAGNI)
+2. Already in this codebase?  → reuse it, don't rewrite
+3. Standard library does it? → use it
+4. Native platform feature?   → use it
+5. Installed dependency?      → use it
+6. One line?                  → one line
+7. Only then: the minimum that works → If reusable, write it in a shared file/widget.
+
+
+## Architecture
 
 ```
 ├── skills/              # Claude Code skills (self-contained, invoked as /<skill-name>)
@@ -19,10 +32,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   └── super-planner.agent.md
 ├── claude-md-files/     # Reusable Claude Code project guidance
 │   └── BASIC_CLAUDE.md
-├── rules/               # Coding standards / Cursor rules (none published yet)
-├── scripts/             # install.sh, utils.sh, and image-gen-tools/ (README cover generator)
-├── .github/             # CI (validates every skill) and assets/cover.jpg
-└── .mcp.json            # Local MCP config, gitignored (holds an API key); not part of the repo
+├── rules/               # commit-attribution, context7
+├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs
+├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
+├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, shelf.mjs (skill groups on/off), image-gen-tools/ (README cover generator)
+└── .github/             # CI (validates every skill) and assets/cover.jpg
 ```
 
 ## Common Commands
@@ -47,30 +61,34 @@ claude -p "/lighthouse-audit https://example.com"
 claude -p "/image-artifact-setup"
 ```
 
-## Implementation principles
-
-Remember, before writing any code:
-
-1. Does this need to exist?   → no: skip it (YAGNI)
-2. Already in this codebase?  → reuse it, don't rewrite
-3. Standard library does it? → use it
-4. Native platform feature?   → use it
-5. Installed dependency?      → use it
-6. One line?                  → one line
-7. Only then: the minimum that works → If reusable, write it in a shared file/widget.
-
-
 ## Skills Quick Reference
 
-| Skill | Purpose | Key Files |
-|-------|---------|-----------|
-| `image-artifact-setup` | Scaffold reproducible image generators (OG cards, social previews, thumbnails) via Playwright | `SKILL.md`, `references/`, `assets/card-renderer.ts` |
-| `lighthouse-audit` | Run Lighthouse (mobile+desktop) on any web stack, trace findings to source, write fix plan | `SKILL.md`, `scripts/summarize-report.mjs`, `references/framework-hints.md`, `assets/fix-plan-template.md` |
-| `humanize-and-unslop` | Edit drafts to remove AI patterns while preserving voice, or detect without rewriting | `SKILL.md`, `scripts/scan.mjs`, `references/patterns.json` |
-| `run-fallow` | Run fallow CLI (dead code, duplication, complexity, security) on any JS/TS project, condense JSON output | `SKILL.md`, `scripts/preflight.mjs`, `scripts/summarize.mjs`, `references/` |
-| `skill-architect` | Create, improve, or review skills; scaffold, validate against the spec, test on a sample | `SKILL.md`, `scripts/scaffold.mjs`, `scripts/validate.mjs`, `references/` |
+| Skill | Bundle |
+|-------|--------|
+| `acquire-codebase-knowledge` | flutter |
+| `flutter-brand-icons` | flutter |
+| `flutter-bundle-google-fonts` | flutter |
+| `flutter-device-scripts-setup` | flutter |
+| `flutter-lib-refactor` | flutter |
+| `flutter-logging-strategy` | flutter |
+| `flutter-quality-gate` | flutter |
+| `flutter-store-assets` | flutter |
+| `generate-commit-message` | global |
+| `humanize-and-unslop` | global |
+| `image-artifact-setup` | global |
+| `lighthouse-audit` | global |
+| `mongodb-data-modeling` | mongodb |
+| `mongoose-schema-docs` | mongodb |
+| `run-fallow` | global |
+| `shadcn` | web |
+| `skill-architect` | global |
+| `sync-docs-from-diff` | global |
+| `theme-hardcoding-audit` | flutter |
+| `write-project-readme` | global |
 
-## Development Conventions
+Each skill's bundle is set in `bundles.tsv`; the README lists them all.
+
+## Conventions
 
 ### Skill Development
 - Each skill lives in `skills/<name>/` with a `SKILL.md` frontmatter + instructions
@@ -79,6 +97,10 @@ Remember, before writing any code:
 - Test prompts go in `evals/evals.json`
 - Run `node skills/skill-architect/scripts/validate.mjs skills/*/` before committing; CI runs the same check
 - Skills are self-contained — they should run via `/<skill-name>` after installation
+
+
+### Bundles
+Skills that assume gentlemans-stack layers or generators belong in that repo, not here. Every new skill, rule, or agent gets a line in `bundles.tsv` (`global`, `flutter`, `mongodb` or `web`). Check install changes with `./scripts/install.sh --source . --bundle <name> --dry-run`.
 
 ### README cover
 `.github/assets/cover.jpg` is generated from the repo: the README title and tagline, the skill names in `skills/*/SKILL.md`, and the counts of skills, agents, rules, and guidance files. Regenerate it in the same change whenever you add, remove, or rename anything in `skills/`, `agents/`, `rules/`, or `claude-md-files/`, or edit the README title or tagline:
@@ -91,11 +113,22 @@ node ../../skills/image-artifact-setup/scripts/verify-images.mjs ../../.github/a
 The `bun run cover` log prints the counts it used; check they match the change, then view the image before committing it.
 
 ### MCP Configuration
-`.mcp.json` is local and gitignored because it holds an API key, so each contributor keeps their own. The maintainer's copy defines:
-- **context7**: library documentation lookup (needs a Context7 API key)
-- **chrome-devtools**: browser automation, debugging, and Lighthouse runs
+This repo has no project MCP servers (`.mcp.json` stays gitignored for local experiments). It relies on the global ones:
+- **context7**: library documentation lookup (`CONTEXT7_API_KEY` exported from your shell profile, since GUI-launched Claude does not read shell rc files)
 - **graft**: prebuilt code graph for finding and tracing code
-- **context-mode**: sandboxed execution and indexing for large outputs
+- **context-mode**: plugin for sandboxed execution and indexing of large outputs
+
+`global/mcp.json` holds only these always-useful servers. Repo-specific ones (fallow, shadcn, chrome-devtools) go in that
+repo's tracked `.mcp.json`, started with `npx -y <pkg>@latest` so they work without a local install and secrets come from
+`${VAR}` expansion or the server's own `.env`.
+
+## Keeping the docs current
+
+| File | Update it when… |
+| --- | --- |
+| `CLAUDE.md` (this file) | A layer, convention or the skill list changes |
+| `README.md` | The installer, bundles or the component list changes |
+| `bundles.tsv` | A skill, rule or agent is added, removed or moved to another bundle |
 
 ## Adding New Components
 
@@ -106,7 +139,7 @@ The `bun run cover` log prints the counts it used; check they match the change, 
 
 ## Testing Skills Locally
 
-Before submitting a skill, test it by copying to `~/.claude/skills/` and invoking via Claude Code:
+Before submitting a skill, test it by copying it to `~/.claude/skills/` and invoking it via Claude Code:
 
 ```bash
 cp -r skills/my-new-skill ~/.claude/skills/

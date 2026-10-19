@@ -1,0 +1,43 @@
+# Shared by every gentlemans-stack project and kept identical by sync-from-stack (plan 5.1); edit it in the stack.
+# It mirrors what the formatters already enforce (Biome: tabs, 132 columns; dart format: 2 spaces), so editors match them.
+# Biome ignores this file by default, so it can never fight biome.shared.jsonc.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = tab
+indent_size = 2
+tab_width = 2
+max_line_length = 132
+
+[*.dart]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.{md,mdx}]
+# Two trailing spaces are a Markdown line break.
+trim_trailing_whitespace = false
+max_line_length = off
+
+[*.{kt,kts,gradle,swift,py,xml}]
+indent_style = space
+indent_size = 4
+
+[*.{sh,bash}]
+# Existing scripts mix 2- and 4-space indents; keep spaces and let each file decide the width.
+indent_style = space
+indent_size = unset
+
+[*.plist]
+indent_style = tab
+
+[Makefile]
+indent_style = tab

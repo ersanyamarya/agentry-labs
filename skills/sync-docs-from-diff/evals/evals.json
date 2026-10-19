@@ -1,0 +1,23 @@
+{
+  "skill_name": "sync-docs-from-diff",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I renamed the build script and added a new env var, update the docs",
+      "expected_output": "Diffs the branch against main, maps the change to README (commands, env vars) per the repo's doc table, re-reads the README and the changed package.json before editing, edits only the stale sentences, and verifies the new command exists.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "sync docs for the staged changes",
+      "expected_output": "Uses git diff --staged as the scope; if the staged diff is only generated or lock files, stops and says no docs need updates.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I changed the product positioning in the code comments, update the docs too",
+      "expected_output": "Does not rewrite Brand.md or Product.md; proposes the wording and asks before editing them.",
+      "files": []
+    }
+  ]
+}
