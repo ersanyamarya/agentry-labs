@@ -96,8 +96,10 @@ node scripts/shelf.mjs on video --global          # ~/.claude/skills, every proj
 node scripts/shelf.mjs off video [--global]
 ```
 
-Claude Code watches skill folders, so a running session picks the change up. To shelve another group, move its skill
-folders into a new `~/.claude/skill-shelf/<group>/`. Leave `~/.claude/skills/synced/` alone: claude.ai manages it.
+A group's agents sit in `~/.claude/skill-shelf/<group>/agents/*.md` (the `audit` group carries `slop-auditor-analyst`) and
+are linked into `.claude/agents` with its skills. Claude Code watches skill folders, so a running session picks skills up;
+start a new session if a linked agent doesn't show. To shelve another group, move its skill folders (and agents) into a new
+`~/.claude/skill-shelf/<group>/`. Leave `~/.claude/skills/synced/` alone: claude.ai manages it.
 
 ## Usage
 1. Install skills
