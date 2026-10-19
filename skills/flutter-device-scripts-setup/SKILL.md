@@ -22,5 +22,5 @@ The only implementation is the stack's `scripts/flutter/run-all.mjs` and `script
 
 4. **Caveats**
    - iOS debug keeps `flutter run` alive in the background (pid and log under `dist/<app>/run/`); stop it with `kill $(cat dist/<app>/run/<udid>.pid)`. Release builds install and launch directly, so unplug afterwards.
-   - macOS launches with `open`, never `flutter run` (camera and microphone permission would be denied). Release installs to `~/Applications`, replacing the old copy.
+   - macOS launches with `open`, never `flutter run` (camera and microphone permission would be denied). Release installs to the user's Applications folder, replacing the old copy.
    - Only iPhones with a connected tunnel are used. Android release signs with the debug key unless the app configures signing.

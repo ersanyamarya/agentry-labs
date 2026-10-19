@@ -26,4 +26,4 @@
 - Keep the skill generic. Remove anything copied from the project it was first written in: framework-specific file names presented as universal, one site's URL, a specific package manager or runtime, "this repo's CLAUDE.md" rules, hardcoded thresholds that belong to one team.
 - Detect project facts at run time (package manager from lockfiles, framework from dependencies, standards from `CLAUDE.md` / `AGENTS.md`) instead of assuming them.
 - Check required tools before using them, and ask before installing anything.
-- Ask before creating files in the user's repo that the user did not request. Write large intermediate output (reports, JSON dumps) to `${TMPDIR:-/tmp}` so it never gets committed.
+- Ask before creating files in the user's repo that the user did not request. Write large intermediate output (reports, JSON dumps) to a temporary folder (from `mktemp`) so it never gets committed.

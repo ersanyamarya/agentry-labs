@@ -2,34 +2,24 @@
 // Compares every skill across repos after normalising project names, so only real differences show.
 //
 // Usage: node scripts/skill-drift.mjs [--json] [--root <dir>]...
-// Default roots: this repo, the global ~/.claude, and the sibling projects under ~/ws.
+// Default root: this repo. Pass --root <dir> (repeatable) to compare other checkouts.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { homedir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..");
-const ws = join(homedir(), "ws");
 
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");
 const customRoots = args.flatMap((arg, i) => (arg === "--root" ? [resolve(args[i + 1])] : []));
 
-const defaultRoots = [
-	repoRoot,
-	homedir(),
-	join(ws, "aryantriki/gentlemans-stack"),
-	join(ws, "aryantriki/DeskMate"),
-	join(ws, "mqtizer/mqtizer5/mqtizermqtt_client"),
-	join(ws, "wemoveapp"),
-	join(ws, "arya-folio"),
-];
+const defaultRoots = [repoRoot];
 const roots = customRoots.length > 0 ? customRoots : defaultRoots;
 
-const labelFor = (root) => (root === repoRoot ? "labs" : root === homedir() ? "global" : basename(root));
+const labelFor = (root) => (root === repoRoot ? "labs" : basename(root));
 
 const skillDirsFor = (root) => {
 	const dirs = root === repoRoot ? [join(root, "skills")] : [join(root, ".claude/skills")];

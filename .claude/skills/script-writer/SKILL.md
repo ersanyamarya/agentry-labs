@@ -1,6 +1,6 @@
 ---
 name: script-writer
-description: "Generate a new shell script in .scripts/ following the repo's script conventions (help header, utils.sh sourcing, signal trap, argument parsing). Use when adding a new .scripts/*.sh script or asking how the existing scripts are structured."
+description: "Generate a new shell script in scripts/ following the repo's script conventions (help header, utils.sh sourcing, signal trap, argument parsing). Use when adding a new .scripts/*.sh script or asking how the existing scripts are structured."
 user-invocable: true
 ---
 
@@ -106,8 +106,8 @@ user-invocable: true
    - The header comment block (between the shebang and `set -euo pipefail`) _is_ the `--help` output — `print_help` extracts it verbatim via `awk`. Keep it accurate: every flag you parse must have a matching `Options:` line, every accepted usage a matching `Examples:` line. Don't put `#`-prefixed section dividers (`# ====`) inside the header — only the closing `# ---...` delimiter belongs there, matching the existing scripts.
    - Set path-related variables (`SCRIPT_DIR`, `REPO_ROOT`, `UTILS_SH`, and any other file paths the script needs) at the top of `# SOURCE UTILITIES`, before sourcing `utils.sh`. Keeping path constants at the top makes the script easy to inspect and avoids repeated `cd`/`dirname` calls later.
    - Indentation is 3 spaces per level (matches the existing scripts, not the shell default of 2 or 4).
-   - Use `log_info` / `log_warn` / `log_error` from [utils.sh](../../../.scripts/utils.sh) instead of raw `echo` for status/error output. Reserve raw `echo`/`printf` for the script's actual data output (e.g. generated markdown).
-   - Default a positional arg with a `HAS_POSITIONAL_ARG="false"` guard (see [get-git-diff.sh](../../../.scripts/get-git-diff.sh)) if the script accepts at most one — this gives a clear "too many arguments" error instead of silently overwriting.
+   - Use `log_info` / `log_warn` / `log_error` from the shared shell helpers instead of raw `echo` for status/error output. Reserve raw `echo`/`printf` for the script's actual data output (e.g. generated markdown).
+   - Default a positional arg with a `HAS_POSITIONAL_ARG="false"` guard (see the existing scripts) if the script accepts at most one — this gives a clear "too many arguments" error instead of silently overwriting.
    - `-*)` must come after every named flag in the `case`, so unknown flags are rejected instead of falling through to the positional-arg branch.
    - Exit 130 on `SIGINT` (via the trap, already in the template) and non-zero on any handled error path; rely on `set -euo pipefail` for everything else.
    - Only add flags/options the caller actually needs — don't pre-build options for hypothetical future use (YAGNI).
@@ -120,7 +120,7 @@ user-invocable: true
    shellcheck scripts/<name>.sh        # if shellcheck is installed
    ```
 
-5. **Update [.scripts/README.md](../../../.scripts/README.md)** — add a row to the script table with the name, one-line purpose, and usage.
+5. **Update the scripts README** — add a row to the script table with the name, one-line purpose, and usage.
 
 ## Critical Rules
 

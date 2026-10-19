@@ -86,7 +86,7 @@ node scripts/apply-global.mjs          # prints the plan
 node scripts/apply-global.mjs --write  # applies it and saves backups
 ```
 
-The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (export it in `~/.zshenv`; the desktop app never reads `~/.zshrc`). Compare skill copies across projects with `node scripts/skill-drift.mjs`.
+The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (export it from your shell profile; the desktop app does not read shell rc files). Compare skill copies across projects with `node scripts/skill-drift.mjs`.
 
 ### Skill shelf
 

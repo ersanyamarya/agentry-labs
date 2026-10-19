@@ -25,7 +25,7 @@ When rules pull in different directions, apply this order: preserve meaning, the
 1. **Resolve mode and input**
    - Use Detect mode when the request says `--detect`, "audit", "check", or "flag". Otherwise use Edit mode.
    - Count words. Under about 150 words, skip the scanner in steps 2 and 5 and check by reading.
-   - For longer pasted text, write it to a temp file (`${TMPDIR:-/tmp}/unslop-draft.md`) so the scanner can read it. For a file path, scan the file directly.
+   - For longer pasted text, write it to a temp file (from `mktemp`) so the scanner can read it. For a file path, scan the file directly.
    - In Edit mode, ask for audience and format only when the register is unclear and a person can answer. Otherwise infer the register from the draft.
 
 2. **Scan**

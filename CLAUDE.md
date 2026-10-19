@@ -114,7 +114,7 @@ The `bun run cover` log prints the counts it used; check they match the change, 
 
 ### MCP Configuration
 This repo has no project MCP servers (`.mcp.json` stays gitignored for local experiments). It relies on the global ones:
-- **context7**: library documentation lookup (`CONTEXT7_API_KEY` exported from `~/.zshenv`, since GUI-launched Claude never reads `~/.zshrc`)
+- **context7**: library documentation lookup (`CONTEXT7_API_KEY` exported from your shell profile, since GUI-launched Claude does not read shell rc files)
 - **graft**: prebuilt code graph for finding and tracing code
 - **context-mode**: plugin for sandboxed execution and indexing of large outputs
 
@@ -139,7 +139,7 @@ repo's tracked `.mcp.json`, started with `npx -y <pkg>@latest` so they work with
 
 ## Testing Skills Locally
 
-Before submitting a skill, test it by copying to `~/.claude/skills/` and invoking via Claude Code:
+Before submitting a skill, test it by copying it to `~/.claude/skills/` and invoking it via Claude Code:
 
 ```bash
 cp -r skills/my-new-skill ~/.claude/skills/

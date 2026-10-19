@@ -43,8 +43,8 @@
 #   ./install.sh claude-md-files/BASIC_CLAUDE.md
 #   ./install.sh --all
 #   ./install.sh --global --all
-#   ./install.sh --source ~/ws/aryantriki/agentry-labs --global --bundle global
-#   ./install.sh --source ~/ws/aryantriki/agentry-labs --bundle stack --dry-run
+#   ./install.sh --source /path/to/agentry-labs --global --bundle global
+#   ./install.sh --source /path/to/agentry-labs --bundle flutter --dry-run
 #   ./install.sh all --target "$HOME/.config/my-agent"
 #   curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash
 #   curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- skills/run-fallow
@@ -88,7 +88,7 @@ if [[ ! -f "$UTILS_SH" ]]; then
     echo "[ERROR] utils.sh is unavailable and curl is required to download it. Exiting." >&2
     exit 1
   }
-  BOOTSTRAP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/agentry-labs-bootstrap.XXXXXX")"
+  BOOTSTRAP_DIR="$(mktemp -d -t agentry-labs-bootstrap)"
   trap 'rm -rf "$BOOTSTRAP_DIR"' EXIT
   UTILS_SH="$BOOTSTRAP_DIR/utils.sh"
   curl -fsSL "$UTILS_URL" -o "$UTILS_SH"
@@ -191,7 +191,7 @@ fi
 # MAIN LOGIC
 # =========================
 
-TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/agentry-labs.XXXXXX")"
+TEMP_DIR="$(mktemp -d -t agentry-labs)"
 trap 'rm -rf "$TEMP_DIR" "$BOOTSTRAP_DIR"' EXIT
 CATALOG_DIR="$TEMP_DIR"
 

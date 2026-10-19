@@ -18,7 +18,7 @@ Run Lighthouse, condense the reports with `scripts/summarize-report.mjs`, diagno
    - Check the URL responds: `curl -sSIL -o /dev/null -w '%{http_code}' <URL>`. Stop and report anything other than 2xx.
    - Write reports outside the repo so the large JSON files never get committed:
      ```bash
-     out="${TMPDIR:-/tmp}/lighthouse-audit"; mkdir -p "$out"
+     out="$(mktemp -d -t lighthouse-audit)"; mkdir -p "$out"
      cats=performance,accessibility,best-practices,seo,agentic-browsing
      lighthouse <URL> --quiet --chrome-flags="--headless=new" --output=json --output-path="$out/mobile.json" --form-factor=mobile --only-categories=$cats
      lighthouse <URL> --quiet --chrome-flags="--headless=new" --output=json --output-path="$out/desktop.json" --preset=desktop --only-categories=$cats
