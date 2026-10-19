@@ -1,33 +1,26 @@
 ---
 name: flutter-device-scripts-setup
-description: Generate scripts/lib.sh, scripts/run_all.sh and scripts/build_release.sh for any Flutter project, with the app ids (Android applicationId, iOS bundle id, macOS app name, launch activity) read from the project itself. run_all builds, installs and launches a debug build on every connected Android phone, iPhone and this Mac; build_release does the same with release builds for unplugged testing. Use when the user asks to "set up run_all", "add device run scripts", "one command to install on all my phones", "build release on all devices", "copy the scripts setup to this project", or wants the debug/release install loop automated in a Flutter repo.
-argument-hint: "[project-dir] [--out scripts] [--force]"
+description: Build, install and launch a Flutter app on every connected Android phone, iPhone and this Mac, as a debug build (run-all) or a release build for unplugged testing (build-release), using the gentlemans-stack scripts in scripts/flutter/. Use when the user asks to "run on all my phones", "set up run_all", "build release on all devices", "one command to install on all devices", or wants the debug/release install loop in a Flutter repo.
+argument-hint: "[app] [--dry-run]"
 ---
 
-# Flutter device scripts setup
+# Flutter device scripts
 
-Generates three shell files in the target project. `scripts/setup.mjs` detects the identifiers and renders `assets/lib.sh.tmpl`, `assets/run_all.sh.tmpl` and `assets/build_release.sh.tmpl`; the model handles ambiguity and verification.
+The only implementation is the stack's `scripts/flutter/run-all.mjs` and `scripts/flutter/build-release.mjs` (shared code in `scripts/flutter/lib/`). This skill only runs them and checks the result; it generates no shell files.
 
-1. **Confirm the project**
-   - Use the given directory, else the current one. It must contain `pubspec.yaml` with a `flutter:` section; stop with a clear message otherwise.
-   - Check `flutter` is on PATH. Note which of `adb` and `xcrun` are missing; the generated scripts skip a platform whose tool is absent, so this is informational.
+1. **Find the scripts**
+   - Run from the repo root. Apps live under `apps/<app>`; the default app is `todo-mobile`.
+   - When `scripts/flutter/run-all.mjs` is missing, the repo has not synced the stack's `scripts/flutter/` (and `scripts/lib/help.mjs`). Say so and stop; do not recreate the logic.
 
-2. **Detect identifiers**
-   - Execute `node ${CLAUDE_SKILL_DIR}/scripts/setup.mjs <project-dir>` (no `--write`). It prints JSON: `androidId`, `androidDebugId` (id plus any `debug` build-type suffix), `androidActivity`, `iosBundleId`, `macosAppName`, per-platform enabled flags, `notes`, and `unresolved`.
-   - Exit code 2 or a non-empty `unresolved` means a value could not be read (computed `applicationId`, flavors, custom Xcode configs). Read the relevant file (`android/app/build.gradle*`, `ios/Runner.xcodeproj/project.pbxproj`, `macos/Runner/Configs/AppInfo.xcconfig`), then pass the override flags: `--android-id`, `--android-debug-id`, `--ios-id`, `--macos-name`, `--activity`.
-   - Show the user the detected values and every entry in `notes` (for example product flavors, multiple iOS bundle ids) before writing.
+2. **Check what they will touch**
+   - Run `node scripts/flutter/run-all.mjs <app> --dry-run` (or `build-release.mjs`). It prints every command and the ids it read from the app: Android `applicationId` (plus a debug `applicationIdSuffix`) and launch activity, iOS bundle id, macOS product name. A device list that is empty gets a placeholder so the plan still prints.
+   - Show the user the ids. A missing platform means its folder or id could not be read (computed `applicationId`, flavors, custom Xcode configs); read the file named in `docs/flutter-targets.md` and fix the app, not the script.
+   - `adb devices` and `xcrun devicectl list devices` show which real devices will be used.
 
-3. **Write the scripts**
-   - Existing `scripts/lib.sh`, `run_all.sh` or `build_release.sh` are never overwritten unless `--force` is passed. When any exist, ask the user before using `--force`.
-   - Execute `node ${CLAUDE_SKILL_DIR}/scripts/setup.mjs <project-dir> --write [--out <dir>] [overrides]`. The default output directory is `scripts`.
-   - The same command adds a "Running and testing on devices" section (from `assets/claude-md-section.md.tmpl`) to the project's `CLAUDE.md`, creating the file when missing and skipping it when the marker comment is already there. This is what makes later "run and test the app" requests use the scripts.
-   - Run `bash -n` on each written file.
+3. **Run**
+   - Running installs on real hardware and opens the app on this Mac, so ask first. On approval run the script without `--dry-run` and report the result per device. Through Nx: `pnpm nx run <app>:run-all` and `:build-release`.
 
-4. **Verify**
-   - List devices with `adb devices` and `xcrun devicectl list devices` and tell the user what `run_all.sh` will touch. Running it installs on real hardware and launches the app on this Mac, so ask before executing it.
-   - On approval, run `scripts/run_all.sh` and report the result per device.
-
-5. **Report**
-   - List the files written, whether `CLAUDE.md` was created, appended or already had the section, the detected values, and platforms disabled because their folder is missing.
-   - Recommend adding `scripts/.run/` to `.gitignore` (iOS debug logs and pid files go there) and ask before editing `.gitignore`.
-   - Read `references/platform-notes.md` and pass on the caveats that apply to the detected platforms.
+4. **Caveats**
+   - iOS debug keeps `flutter run` alive in the background (pid and log under `dist/<app>/run/`); stop it with `kill $(cat dist/<app>/run/<udid>.pid)`. Release builds install and launch directly, so unplug afterwards.
+   - macOS launches with `open`, never `flutter run` (camera and microphone permission would be denied). Release installs to `~/Applications`, replacing the old copy.
+   - Only iPhones with a connected tunnel are used. Android release signs with the debug key unless the app configures signing.

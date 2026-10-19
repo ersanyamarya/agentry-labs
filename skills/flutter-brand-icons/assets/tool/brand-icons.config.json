@@ -5,7 +5,6 @@
   "wordmark": null,
   "brandingImages": null,
   "outputDir": "assets/icon",
-  "storeIconsDir": "store-icons",
   "recolor": { "#000000": "mark" },
   "roles": {
     "mark": { "light": "#RRGGBB", "dark": "#RRGGBB" }

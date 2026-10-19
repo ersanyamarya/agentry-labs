@@ -133,7 +133,7 @@ start a new session if a linked agent doesn't show. To shelve another group, mov
 | `acquire-codebase-knowledge` | Use this skill when the user explicitly asks to map, document, or onboard into an existing Flutter/Dart codebase. |
 | `flutter-brand-icons` | Generate every app icon and native splash asset for a Flutter project from one single-color logo SVG, with colors taken from the project's brand doc, design doc, or Dart  |
 | `flutter-bundle-google-fonts` | Replaces the google_fonts package in a Flutter project with fonts bundled in the app. |
-| `flutter-device-scripts-setup` | Generate scripts/lib.sh, scripts/run_all.sh and scripts/build_release.sh for any Flutter project, with the app ids (Android applicationId, iOS bundle id, macOS app name,  |
+| `flutter-device-scripts-setup` | Run the stack's scripts/flutter run-all and build-release: debug or release build installed on every connected Android phone, iPhone and this Mac. Wrapper only; the logic lives in the stack. |
 | `flutter-lib-refactor` | Audit and refactor a Flutter project's lib/ folder into a feature-first layered architecture. |
 | `flutter-logging-strategy` | Establish, audit, and enforce a consistent logging strategy in any Flutter/Dart project using package:logging — installs the dependency if missing, builds a named-logger  |
 | `flutter-quality-gate` | Run the Flutter quality checks (format, analyze, test) for a Flutter app and fix common issues. |

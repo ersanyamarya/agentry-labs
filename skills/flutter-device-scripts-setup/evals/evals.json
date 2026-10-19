@@ -3,20 +3,20 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Set up one-command run scripts for all my connected phones in this Flutter project.",
-      "expected_output": "Runs setup.mjs detection, shows the detected Android/iOS/macOS ids, writes scripts/lib.sh, run_all.sh and build_release.sh with those ids, runs bash -n on them, and asks before executing run_all.sh.",
+      "prompt": "Run my Flutter app on all my connected phones.",
+      "expected_output": "Runs scripts/flutter/run-all.mjs <app> --dry-run, shows the ids it read and the device list, asks before the real run, then runs it and reports per device. Generates no shell files.",
       "files": []
     },
     {
       "id": 2,
-      "prompt": "Add a build_release script like run_all to ./my_app. It has a debug applicationIdSuffix.",
-      "expected_output": "Detects androidDebugId as the id plus '.debug' and androidId as the plain id; the debug launch uses the suffixed id and the release launch the plain one.",
+      "prompt": "Build a release version and install it on all devices for unplugged testing. The app has a debug applicationIdSuffix.",
+      "expected_output": "Uses scripts/flutter/build-release.mjs; the release launch uses the plain applicationId. A debug run-all launch uses the id plus the .debug suffix.",
       "files": []
     },
     {
       "id": 3,
-      "prompt": "Generate the device scripts again, scripts/ already has run_all.sh.",
-      "expected_output": "Does not overwrite existing files; reports them as skipped and asks the user before re-running with --force.",
+      "prompt": "Set up run_all for this Flutter repo that has no scripts/flutter folder.",
+      "expected_output": "Reports that the stack scripts are missing and need syncing from gentlemans-stack; does not write its own scripts.",
       "files": []
     }
   ]

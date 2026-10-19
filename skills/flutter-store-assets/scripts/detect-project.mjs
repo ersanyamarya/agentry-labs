@@ -48,9 +48,11 @@ const flutterApps = walk(root, 4, (name) => name === 'pubspec.yaml')
     return {
       androidApplicationId: androidId ?? null,
       captureSetup: {
-        driver: exists(path.join(dir, 'test_driver')),
-        integrationTest: exists(path.join(dir, 'integration_test')),
+        actions: exists(path.join(dir, 'integration_test/capture_actions.dart')),
+        captureTest: exists(path.join(dir, 'integration_test/capture_test.dart')),
+        driver: exists(path.join(dir, 'test_driver/integration_test.dart')),
       },
+      imageGenConfig: exists(path.join(dir, 'image-gen.config.json')),
       dir: rel(dir),
       iosBundleId: bundleId ?? null,
       macosProductName: macName ?? null,
@@ -101,7 +103,11 @@ if (tools.xcrun) {
 const report = {
   booted,
   flutterApps,
-  existingToolFolder: ['tools/image-gen-tools', 'scripts/image-gen-tools'].find((d) => exists(path.join(root, d))) ?? null,
+  // The stack tool is synced when its Nx project defines the capture, store and website targets.
+  imageGenToolSynced: (() => {
+    const project = read(path.join(root, 'tools/image-gen-tools/project.json'));
+    return ['capture', 'store', 'website'].every((t) => new RegExp(`"${t}"\\s*:`).test(project));
+  })(),
   monorepo: exists(path.join(root, 'nx.json')) ? 'nx' : exists(path.join(root, 'pnpm-workspace.yaml')) ? 'pnpm' : null,
   packageManager: exists(path.join(root, 'pnpm-lock.yaml')) ? 'pnpm' : exists(path.join(root, 'bun.lock')) ? 'bun' : exists(path.join(root, 'package-lock.json')) ? 'npm' : null,
   themeSources: themeSources.slice(0, limit * 3),

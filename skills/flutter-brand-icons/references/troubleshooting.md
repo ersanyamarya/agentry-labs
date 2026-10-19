@@ -2,7 +2,7 @@
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `Cannot find package 'sharp'` | Tool dependencies not installed | Run the project's install command in the tool folder (`bun install` or `npm install`) |
+| `Cannot find package 'sharp'` | `sharp` is not installed where the generator runs (it resolves from the current directory) | Run from a project that has `sharp`, or install it there (ask first) |
 | `sharp` install fails on Apple Silicon / Linux ARM | Prebuilt binary missing for the platform | `npm install --os=<os> --cpu=<cpu> sharp`, or upgrade Node to a current LTS |
 | `Could not find package "flutter_launcher_icons"` | Package not in `dev_dependencies` | `flutter pub add --dev flutter_launcher_icons flutter_native_splash` (ask first) |
 | Generated YAML is ignored | The package reads its own YAML file first, then falls back to a block in `pubspec.yaml`. A stale `pubspec.yaml` block is harmless but confusing | Offer to delete the `flutter_launcher_icons:` / `flutter_native_splash:` block from `pubspec.yaml` |

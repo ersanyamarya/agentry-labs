@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "Remove google_fonts from this Flutter app and bundle the fonts so nothing downloads at runtime.",
-      "expected_output": "Runs scan.mjs, lists families and weights, tells the user what will be downloaded before fetching, runs fetch-fonts.mjs per family into assets/fonts, replaces GoogleFonts.<family>() calls with TextStyle(fontFamily: ...), removes the dependency and imports, adds the fonts: block and LICENSES.txt asset to pubspec, registers the license in main(), and ends with scan.mjs --verify exiting 0 and flutter analyze clean.",
+      "expected_output": "Runs bundle-fonts.mjs scan, lists families and weights, tells the user what will be downloaded before fetching, runs bundle-fonts.mjs fetch per family into assets/fonts, replaces GoogleFonts.<family>() calls with TextStyle(fontFamily: ...), removes the dependency and imports, adds the fonts: block and LICENSES.txt asset to pubspec, registers the license in main(), and ends with bundle-fonts.mjs scan --verify exiting 0 and flutter analyze clean.",
       "files": []
     },
     {
@@ -16,7 +16,7 @@
     {
       "id": 3,
       "prompt": "Bundle Google Fonts into the app; the family we use only ships as a variable font.",
-      "expected_output": "fetch-fonts.mjs exits 2 asking for permission to install fonttools. The skill asks the user, and only then re-runs with --allow-install and gets static weight files.",
+      "expected_output": "bundle-fonts.mjs fetch exits 2 asking for permission to install fonttools. The skill asks the user, and only then re-runs with --allow-install and gets static weight files.",
       "files": []
     }
   ]

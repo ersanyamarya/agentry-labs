@@ -4,7 +4,7 @@ The config needs five colors. Pick each from the theme source, in this order of 
 
 | Config key | What it paints | Pick |
 |---|---|---|
-| `roles.mark.light` | The logo on light backgrounds (app icon, light splash, store icons) | The light-scheme **primary** or the documented logo color |
+| `roles.mark.light` | The logo on light backgrounds (app icon, light splash) | The light-scheme **primary** or the documented logo color |
 | `roles.mark.dark` | The logo on the dark splash and the iOS dark icon | The dark-scheme **primary** (the light tone of the same hue), not the light-mode value |
 | `background.light` | Icon background, light splash background | A light neutral surface or `primaryContainer`. A tinted neutral reads better on a home screen than pure white |
 | `background.dark` | Dark splash background | The darkest dark-scheme surface, or a very dark shade of the primary hue |

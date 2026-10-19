@@ -1,46 +1,38 @@
 ---
 name: flutter-store-assets
-description: Sets up and runs an image tool for a Flutter app that makes store screenshots (App Store iPhone and iPad, Mac App Store, Play phone and tablet), a Play feature graphic, store icons and website images (shots, favicons, share card). Captures every screen on booted simulators and this Mac with demo data, in light and dark, and renders them from HTML. Use when the user asks to "make store screenshots", "set up the image tool", "generate store assets", "capture the app with demo data", "regenerate the store images", "make website screenshots", or "set up image-gen-tools" for a Flutter project.
-argument-hint: "[project-root] [--tool-dir <dir>]"
+description: Operates the gentlemans-stack image tool (tools/image-gen-tools) for a Flutter app. Checks the tool is synced, drafts apps/<app>/image-gen.config.json with the user, runs capture on booted simulators and this Mac with demo data, then renders store cards (App Store iPhone, iPad, Mac; Play phone, tablet), the Play feature graphic, store listing icons and website images through the nx targets, and reports the outputs. Use when the user asks to "make store screenshots", "generate store assets", "capture the app with demo data", "regenerate the store images", "make website screenshots", or "set up the image config" for a Flutter app in the stack. Does not copy any tool code into projects.
+argument-hint: "[app-name]"
 ---
 
 # Flutter store assets
 
-Sets up a repeatable pipeline that turns a running Flutter app into store and website images. Code does the detection, the copying and the rendering. The model makes the decisions a person must make, and asks before installing anything or writing into the repo.
+Runs the stack's single image tool. The tool owns capture, store cards, the feature graphic, listing icons and website images. This skill detects the app, drafts the config with the user, runs the nx targets and reports. It never copies tool or harness code into a project.
 
-1. **Detect the project**
-   - Execute `node ${CLAUDE_SKILL_DIR}/scripts/detect-project.mjs <project-root>`. Use the current directory when no root is given.
-   - Stop when `flutterApps` is empty: this skill only supports Flutter apps.
-   - When there is more than one Flutter app, ask which one to use.
-   - Keep the report. Later steps use `flutterApps`, `booted`, `tools`, `themeSources`, `websites`, `existingToolFolder` and `packageManager`.
+1. **Detect and check the tool is synced**
+   - Execute `node ${CLAUDE_SKILL_DIR}/scripts/detect-project.mjs <repo-root>`. Use the current directory when no root is given.
+   - Stop when `flutterApps` is empty: this skill only supports Flutter apps. With more than one app, ask which one. The app name is its folder under `apps/`.
+   - Stop when `imageGenToolSynced` is false. Tell the user to sync `tools/image-gen-tools` from the stack (`sync-from-stack`); do not copy it.
+   - When `captureSetup` lacks `captureTest` or `driver`, the app predates the generated harness: tell the user to regenerate it with the `mobile-app` generator, and stop before capture. Screens that a route cannot reach need a named action in `integration_test/capture_actions.dart`; that is app code the user writes.
 
-2. **Check prerequisites and ask for what is missing**
-   - Read `references/prerequisites.md`, then check each item against the report.
-   - Ask for anything missing that cannot be discovered: the brand colours source, the logo SVG, a website folder to write into, or the simulators to boot. Ask one question at a time, and never guess colours.
-   - Ask the user to boot the iPhone and iPad simulators when `booted` is empty. Never boot them without asking.
+2. **Draft `apps/<app>/image-gen.config.json` with the user**
+   - Skip this when `imageGenConfig` is true and the user only wants a re-run; read the config and confirm the screens still match.
+   - Read `docs/opinions.md`, section "Store and website images", for the schema. Do not restate it here.
+   - Read the app's router files (`routerFiles`) and list each route with a one-line description. Ask which screens go in the store set, in order, and which are not ready to ship (leave those out). Give each a stable slug.
+   - Ask for the brand name, the card copy and the devices (`iphone`, `ipad`, `macos`) and targets. Colours and font are token names from `ui-libs/design-tokens/src/tokens.json`; never invent colours or hex values.
+   - Ask for the website folder only when a website image set is wanted (`websites` lists candidates); otherwise leave `website` out.
+   - Write the config and show it for confirmation before any capture.
 
-3. **Choose the tool folder and the screens**
-   - Use `existingToolFolder` when it is set, and offer to reuse it. Otherwise propose `tools/image-gen-tools/` and ask.
-   - Read `references/screens.md`, then list the screens that exist in the app's router. Ask the user which of them go in the store set, in order, and which are ready to ship. Never include a screen that is not ready.
+3. **Check demo data**
+   - Demo data is app code behind the `capture.dartDefines` flag (for example `DEMO=true`). Confirm with the user that the app has it and that it never touches real data. When it is missing, read `references/demo-data.md` and help write it as app code; the tool holds none.
 
-4. **Build the demo data layer**
-   - Read `references/demo-data.md`. Discover the app's models and repositories, then write a demo seed that fills them with made-up names, `example.com` emails and public test brokers.
-   - Write `lib/core/demo/demo_mode.dart` from `${CLAUDE_SKILL_DIR}/assets/flutter/demo_mode.dart.template`. Show the seed to the user and ask them to confirm it before the first capture.
-   - Make sure the demo mode blocks anything that would clear real data on a device, and never runs unless the `DEMO` define is set.
+4. **Capture**
+   - Ask the user to boot the iPhone and iPad simulators when `booted` is empty. Never boot them without asking. Mac capture needs Screen Recording and Accessibility permission.
+   - Run `node scripts/flutter/capture.mjs <app> [device...]` (or `pnpm nx run image-gen-tools:capture -- --app=<app>`). Add `--dry-run` to preview. Capture is `flutter drive` only.
 
-5. **Write the capture harness**
-   - Copy `${CLAUDE_SKILL_DIR}/assets/flutter/capture_test.dart.template` to `integration_test/capture_test.dart`, and `${CLAUDE_SKILL_DIR}/assets/flutter/driver.dart.template` to `test_driver/integration_test.dart`. Fill in the screen list from step 3 and the routes from `routerFiles`.
-   - Run `flutter analyze` on the new files and fix every issue.
+5. **Render**
+   - Store set: `node scripts/flutter/store-assets.mjs <app>` (or `pnpm nx run image-gen-tools:store -- --app=<app>`). Writes `dist/<app>/store/`, including the listing icons.
+   - Website set, only when asked and configured: `pnpm nx run image-gen-tools:website -- --app=<app>`.
+   - Open at least one image from each set. Look for overlapping text, clipped devices and demo-only data, and name the screen any problem came from.
 
-6. **Set up the image tool**
-   - Read `references/tool-setup.md`. Copy `${CLAUDE_SKILL_DIR}/assets/image-gen-tools/` into the tool folder. The copied files are `assets/image-gen-tools/capture-auto.ts`, `assets/image-gen-tools/generate-store-assets.ts`, `assets/image-gen-tools/generate-feature-graphic.ts`, `assets/image-gen-tools/generate-store-icons.ts`, `assets/image-gen-tools/generate-website-shots.ts`, `assets/image-gen-tools/generate-website-brand.ts`, `assets/image-gen-tools/theme.ts`, `assets/image-gen-tools/project.json.template`, and the files `assets/image-gen-tools/lib/app.ts`, `assets/image-gen-tools/lib/cards.ts`, `assets/image-gen-tools/lib/store-design.ts`, `assets/image-gen-tools/lib/device-frame.ts` and `assets/image-gen-tools/lib/mac-window.ts`.
-   - Fill the placeholders in `lib/app.ts` (app name, package, folder, macOS process) and the `{{...}}` placeholders in the Dart templates, from the report. Fill `project.json.template` and `theme.ts` with the colours confirmed in step 2. Apply `references/portability.md` to every file, because some copy is specific to one app.
-   - Add `playwright-core` and `sharp` with the package manager in the report, after asking.
-
-7. **Run it and check the output**
-   - Run the capture for the booted simulators, then the renders. Read `references/tool-setup.md` for the commands.
-   - Open at least one image from each set. Check for overlapping text, clipped devices and demo-only data. Report any problem with the screen it came from.
-
-8. **Report**
-   - State the tool folder, the commands to re-run, the screens in each set, the colours and where they came from, and anything the model could not verify.
-   - List what changed in the repo by folder, and note that nothing was committed.
+6. **Report**
+   - List the commands to re-run, the config path, the output folders and the screens in each set. Note what was skipped (a device not booted, no website) and what could not be verified. State that nothing was committed.

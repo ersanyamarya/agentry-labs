@@ -1,12 +1,12 @@
 ---
 name: flutter-brand-icons
-description: Generate every app icon and native splash asset for a Flutter project from one single-color logo SVG, with colors taken from the project's brand doc, design doc, or Dart app theme. Saves the SVG into the project, installs a small sharp-based generator script with a config file, writes flutter_launcher_icons.yaml and flutter_native_splash.yaml, then runs both packages and writes the App Store and Play Store listing icons. Use when the user asks to "generate app icons from an SVG", "set up the splash screen", "regenerate launcher icons", "make the icons match the brand colors", "set up flutter_launcher_icons / flutter_native_splash", or pastes a logo SVG in a Flutter repo. Flutter projects only.
+description: Generate every app icon and native splash asset for a Flutter project from one single-color logo SVG, with colors taken from the project's brand doc, design doc, or Dart app theme. Saves the SVG into the project, writes a small config file, runs the skill's own sharp-based generator in place, writes flutter_launcher_icons.yaml and flutter_native_splash.yaml, then runs both packages. Store listing icons are not made here; the stack's image-gen-tools store target owns them. Use when the user asks to "generate app icons from an SVG", "set up the splash screen", "regenerate launcher icons", "make the icons match the brand colors", "set up flutter_launcher_icons / flutter_native_splash", or pastes a logo SVG in a Flutter repo. Flutter projects only.
 argument-hint: "[logo.svg path or pasted <svg>] [--wordmark <svg>] [--theme <file>]"
 ---
 
 # Flutter brand icons
 
-Turns one logo SVG into the Android, iOS, web, macOS, and Windows launcher icons, the native splash for each platform (light, dark, and Android 12+), and both store-listing icons. Scripts inspect the project, check the SVG and config, and verify the outputs. The model chooses theme colors and asks the user wherever a person has to decide.
+Turns one logo SVG into the Android, iOS, web, macOS, and Windows launcher icons, and the native splash for each platform (light, dark, and Android 12+). It does not write App Store or Play listing icons: the stack's `image-gen-tools` `store` target (`pnpm nx run image-gen-tools:store -- --app=<name>`, via the `flutter-store-assets` skill) renders them from `assets/icon/`. Scripts inspect the project, check the SVG and config, and verify the outputs. The model chooses theme colors and asks the user wherever a person has to decide.
 
 1. **Confirm the project**
    - Execute `node ${CLAUDE_SKILL_DIR}/scripts/inspect-project.mjs <project-root>`.
@@ -27,10 +27,11 @@ Turns one logo SVG into the Android, iOS, web, macOS, and Windows launcher icons
    - Read `references/theme-mapping.md`, then pick the colors for `roles.mark.light`/`dark`, `background.light`/`dark`, and `tinted`. If an existing YAML config sets colors, compare them as the reference describes.
    - Show the chosen colors with the `file:line` each came from, and ask the user to confirm before continuing.
 
-4. **Install the generator into the project**
-   - Choose the folder. When `jsToolDirs` lists an existing image or asset tools folder, offer to reuse it. Otherwise propose `tool/brand_icons/` (Dart's convention for dev scripts). Ask when unclear.
-   - Choose the runtime from that folder's lockfile (`bun.lock`/`bun.lockb` → bun, `package-lock.json` → npm, `pnpm-lock.yaml` → pnpm). With no lockfile, use bun if `runtimes.bun` is set, else npm.
-   - Copy `assets/tool/generate-brand-icons.mjs` and `assets/tool/brand-icons.config.json` from `${CLAUDE_SKILL_DIR}` into the folder. Copy `assets/tool/package.json` only when the folder has none. Otherwise add `sharp` to its devDependencies and the `brand-icons` script to its scripts.
+4. **Write the config (the generator is not copied)**
+   - The generator `${CLAUDE_SKILL_DIR}/assets/tool/generate-brand-icons.mjs` runs from the skill folder. Never copy it into the project. Only the config lives in the project.
+   - Choose the config folder: the app folder itself, or `tool/brand_icons/` when the project keeps dev scripts there. Ask when unclear.
+   - Copy `assets/tool/brand-icons.config.json` from `${CLAUDE_SKILL_DIR}` to that folder.
+   - The generator loads `sharp` from the directory it is run in. In the gentlemans-stack it is already a root devDependency; elsewhere ask before installing it.
    - Fill the config:
      - `projectRoot` is relative to the tool folder.
      - `themeSource` lists the files from step 3.
@@ -41,21 +42,21 @@ Turns one logo SVG into the Android, iOS, web, macOS, and Windows launcher icons
      - replacing existing `flutter_launcher_icons.yaml` / `flutter_native_splash.yaml` (the generator overwrites both)
      - replacing the PNGs in `existingIconAssets`
      - running `flutter pub add --dev flutter_launcher_icons flutter_native_splash` when `packages` has either one missing
-     - installing `sharp` with the chosen package manager
+     - installing `sharp` when the project lacks it
 
 5. **Check the config**
    - Execute `node ${CLAUDE_SKILL_DIR}/scripts/check-config.mjs <tool-dir>/brand-icons.config.json`.
    - Fix every error. For a contrast failure, adjust the background as `references/theme-mapping.md` describes and re-confirm with the user. Mention each warning.
 
 6. **Generate**
-   - Run the package's `brand-icons` script (for example `bun run brand-icons` or `npm run brand-icons`) from the tool folder. Add `--skip-flutter` only when the user asked for PNGs without regenerating native files.
+   - Run `node ${CLAUDE_SKILL_DIR}/assets/tool/generate-brand-icons.mjs --config <config-folder>/brand-icons.config.json` from the project root (where `sharp` resolves). In the gentlemans-stack the Flutter step can instead be run with `node scripts/flutter/generate-assets.mjs <app>` after the PNGs exist. Add `--skip-flutter` only when the user asked for PNGs without regenerating native files.
    - On any failure, read `references/troubleshooting.md` and apply the matching fix.
 
 7. **Verify**
    - Execute `node ${CLAUDE_SKILL_DIR}/scripts/check-config.mjs <tool-dir>/brand-icons.config.json --outputs` and fix every error.
-   - Open `light.png`, `dark.png`, `android12_light.png`, and the 1024 store icon as images. Check that the colors match the theme and that nothing is clipped.
+   - Open `light.png`, `dark.png`, `android12_light.png`, and `assets/icon/light.png` as images. Check that the colors match the theme and that nothing is clipped.
 
 8. **Report**
-   - State what now exists: the regenerate command, the config path, the colors and where each came from, and the platforms covered.
+   - State what now exists: the regenerate command, the config path, that listing icons come from the stack `store` target, the colors and where each came from, and the platforms covered.
    - Summarize `git status` by folder rather than listing every file, and note that nothing was committed.
    - Offer, without applying: removing a leftover `pubspec.yaml` config block, and splash preserve/remove in `main()` (see `references/troubleshooting.md`).

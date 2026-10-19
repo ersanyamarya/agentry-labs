@@ -1,6 +1,6 @@
 # Rewrite rules: google_fonts to bundled fonts
 
-Apply after `fetch-fonts.mjs` has produced each family's files and pubspec block.
+Apply after `bundle-fonts.mjs fetch` has produced each family's files and pubspec block.
 
 ## Code patterns
 
@@ -12,7 +12,7 @@ Apply after `fetch-fonts.mjs` has produced each family's files and pubspec block
 | `GoogleFonts.config.allowRuntimeFetching = ...` | Delete the line. Nothing fetches anymore. |
 | `GoogleFonts.nunito` passed without a call (tear-off) | Replace by hand with a `TextStyle` factory. |
 
-- Use the family name that `fetch-fonts.mjs` printed (the file prefix, such as `FiraCode`), not the method name.
+- Use the family name that `bundle-fonts.mjs fetch` printed (the file prefix, such as `FiraCode`), not the method name.
 - Define each family once as a private top-level constant next to the theme (`const _uiFont = 'Nunito';`). A top-level constant is reachable from extensions on `TextTheme`, where a class-private static is not.
 - Keep every other argument (`fontSize`, `color`, `height`, `letterSpacing`) untouched. Drop nothing.
 - A call whose args are all constants can become `const TextStyle(...)`; run `dart fix --apply` and let the lint decide.

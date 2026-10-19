@@ -101,9 +101,6 @@ if (values.outputs && errors.length === 0) {
     expect(`${out}/${f}.png`, { width: 1152, height: 1152, alpha: true });
   }
   if (config.wordmark) for (const f of ['branding_light', 'branding_dark']) expect(`${out}/${f}.png`, { width: 800, height: 320 });
-  const store = path.join(toolDir, config.storeIconsDir ?? 'store-icons');
-  expect(path.join(store, 'app-store-icon-1024.png'), { width: 1024, height: 1024, alpha: false });
-  expect(path.join(store, 'play-store-icon-512.png'), { width: 512, height: 512, alpha: true });
   if (config.platforms.ios) {
     const set = path.join(root, 'ios/Runner/Assets.xcassets/AppIcon.appiconset');
     const big = fs.existsSync(set) && fs.readdirSync(set).find((f) => /1024/.test(f) && f.endsWith('.png') && !/dark|tint/i.test(f));

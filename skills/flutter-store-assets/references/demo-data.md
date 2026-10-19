@@ -11,4 +11,4 @@ Demo mode replaces the install's local data with made-up data before the first s
 4. **Make sign-in and sync inert.** Sign the demo user out, mark onboarding as seen, and stop any sync that would overwrite the seed with the account's data. Write the rule in a comment at the top of the file.
 5. **Confirm with the user.** Show the seed as a short list of entities. Ask the user to confirm the names, the endpoints and the amounts before the first capture.
 
-The template at `assets/flutter/demo_mode.dart.template` shows the shape. Replace its model and box names with the ones you discovered; keep the structure.
+This is app code, written in the app behind the `capture.dartDefines` flag. No template ships with the skill and the tool holds none.
