@@ -103,7 +103,7 @@ Project-scope servers need approval before they start; `claude mcp get` reports 
 | Approval | Where | Needs trust | Mark |
 |---|---|---|---|
 | `enableAllProjectMcpServers: true` | any settings file; probed in user `settings.json` | no (user settings) | [docs: settings] [probe] |
-| `enabledMcpjsonServers: ["name"]` | `.claude.json` project entry, `<repo>/.claude/settings.local.json`, `<cwd>/.claude/settings.local.json` | yes | [docs: settings] [probe] |
+| `enabledMcpjsonServers: ["name"]` | `.claude.json` project entry, `<top>/.claude/settings.local.json` (git root, probed outside a worktree), `<cwd>/.claude/settings.local.json` | yes | [docs: settings] [probe] |
 | `disabledMcpjsonServers: ["name"]` | same places | — | rejected, [docs: settings] |
 
 Readers report unapproved ones with state `pending-approval`, not as missing.
@@ -317,7 +317,10 @@ its frontmatter `description` in every session (`lib/tokens.mjs`).
 
 ## Reader contract (MCP, implemented in `lib/inventory/mcp.mjs`)
 
-`createMcpReader(paths, { platform } = {})` → `{ read({ cwd }) }` → `{ servers, errors }`.
+`createMcpReader(paths, { platform } = {})` → `{ read({ cwd }) }` → `{ servers, errors }`. Masking helpers live in
+`lib/mask.mjs` for the other readers (hook commands, settings `env`). Settings are read from `<top>` (the working-tree
+root, `paths.projectRoot`) and `<cwd>`; the `.claude.json` entry from `<repo>` (`paths.repoKey`). `loadsIn`: `cli` is
+the terminal `claude`, `desktop` the desktop app including its Code tab.
 
 Each server:
 
