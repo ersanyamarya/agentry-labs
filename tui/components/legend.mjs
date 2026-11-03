@@ -12,7 +12,6 @@ export const Legend = () => {
 	return h(
 		Text,
 		{ wrap: "truncate-end" },
-		h(Text, { dimColor: true }, "P project, G global  "),
 		...["on", "off", "partial"].map((state) => h(Text, { key: state, ...style({ ...stateStyle(state), bold: true }) }, `${badgeText(state)} `)),
 		h(Text, { dimColor: true }, " cost: "),
 		...COST_LEGEND.map(([text, base]) => word(`~${text}`, base)),

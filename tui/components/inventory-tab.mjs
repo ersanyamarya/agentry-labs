@@ -5,16 +5,23 @@ import React from "react";
 import { Box, useInput } from "ink";
 import { startMcpToggle } from "../mcp-flow.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
+import { mcpKeys } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { useFlow } from "../use-flow.mjs";
 import { Panes } from "./list.mjs";
 
 const h = React.createElement;
 
-export const InventoryTab = ({ data, api, dir, makeRows, active, height, layout, openFile, notify, reload, lock }) => {
+export const InventoryTab = ({ data, api, dir, makeRows, active, height, layout, openFile, notify, reload, lock, setKeys }) => {
 	const rows = React.useMemo(() => makeRows(data), [data, makeRows]);
 	const { cursor, row, move } = useCursor(rows);
 	const flow = useFlow({ lock, notify, reload });
+	const keys = setKeys ? mcpKeys(row) : [];
+	React.useEffect(() => {
+		if (active && setKeys) {
+			setKeys(keys);
+		}
+	}, [active, keys.join()]);
 	useInput(
 		(input, key) => {
 			if (flow.handleKey(input, key)) {

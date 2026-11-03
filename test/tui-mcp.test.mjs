@@ -35,7 +35,7 @@ describe("MCP tab: park and add back user-scope servers", () => {
 	test("space previews with secrets masked; n cancels and runs nothing", async () => {
 		await ui.moveTo(/^>\s*userdemo/);
 		await ui.press(KEYS.space);
-		await ui.until(/Park userdemo \(preview\)/);
+		await ui.until(/Turn off userdemo \(preview\)/);
 		assert.match(ui.frame(), /env API_KEY=<masked>/);
 		assert.match(ui.frame(), /claude mcp remove userdemo/);
 		assert.doesNotMatch(ui.frame(), new RegExp(SECRET));
@@ -45,25 +45,25 @@ describe("MCP tab: park and add back user-scope servers", () => {
 		assert.ok(servers().userdemo);
 	});
 
-	test("y parks it (○ parked row, config saved), a second space adds it back identical", async () => {
+	test("y parks it (○ off row, config saved), a second space adds it back identical", async () => {
 		await ui.moveTo(/^>\s*userdemo/);
 		await ui.press(KEYS.space);
-		await ui.until(/Park userdemo/);
+		await ui.until(/Turn off userdemo/);
 		await ui.press("y");
-		await ui.until(/userdemo is parked/);
+		await ui.until(/userdemo is turned off/);
 		assert.equal(servers().userdemo, undefined);
-		await ui.until(/userdemo\s+personal\s+○ parked/);
+		await ui.until(/userdemo\s+global\s+○ off/);
 		assert.doesNotMatch(ui.frame(), new RegExp(SECRET));
 
 		await ui.press(KEYS.up);
-		await ui.moveTo(/^>\s*userdemo\s+personal\s+○ parked/);
+		await ui.moveTo(/^>\s*userdemo\s+global\s+○ off/);
 		await ui.until(/adds it back/);
 		await ui.press(KEYS.space);
 		await ui.until(/Add back userdemo \(preview\)/);
 		await ui.press("y");
 		await ui.until(/userdemo is back in user scope/);
 		assert.deepEqual(servers().userdemo, USER_SERVER);
-		await ui.until(/userdemo\s+personal\s+● active/);
+		await ui.until(/userdemo\s+global\s+● active/);
 	});
 
 	test("a project .mcp.json server explains who manages it instead of toggling", async () => {

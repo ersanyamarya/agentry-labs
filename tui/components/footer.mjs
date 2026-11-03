@@ -6,7 +6,7 @@ import { Text } from "ink";
 
 const h = React.createElement;
 
-export const GLOBAL_KEYS = [["←/→", "tabs"], ["↑/↓", "rows"], ["r", "refresh"], ["p", "project"], ["?", "help"], ["q", "quit"]];
+export const GLOBAL_KEYS = [["←/→", "tabs"], ["↑/↓", "rows"], ["r", "refresh"], ["p", "switch project"], ["?", "help"], ["q", "quit"]];
 const CORE_KEYS = [["?", "help"], ["q", "quit"]];
 const SHORT_GLOBAL = [["←→", "tabs"], ["?", "help"], ["q", "quit"]];
 

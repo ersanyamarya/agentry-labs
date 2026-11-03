@@ -69,7 +69,7 @@ describe("rows carry the styles", () => {
 		assert.deepEqual(badgeOf([item("a", false, true), item("b", false, true)]), { project: off, global: on });
 		const group = skillRows(data([item("a", false, false)])).find((candidate) => candidate.kind === "group");
 		assert.deepEqual(group.cells.flatMap((one) => one.parts).find((part) => part.text.startsWith("~")).style, { color: "yellow" });
-		assert.match(group.note, /1 skills\s+~240\s+P ○ off\s+G ○ off/);
+		assert.match(group.note, /1 skills\s+~240\s+○ off\s+○ off/);
 	});
 
 	test("doctor rows use the severity icon and colour", () => {
@@ -106,7 +106,7 @@ describe("rendered with real escape codes", () => {
 		await ui.press(KEYS.enter);
 		assert.doesNotMatch(ui.frame(), COLOUR_CODE);
 		assert.match(stripAnsi(ui.frame()), /off/);
-		assert.match(stripAnsi(ui.frame()), /P project, G global {2}● on ○ off ◐ partial/);
+		assert.match(stripAnsi(ui.frame()), /● on ○ off ◐ partial/);
 		await ui.press("5");
 		await ui.until(/\[fake-bad\]/);
 		assert.doesNotMatch(ui.frame(), COLOUR_CODE);

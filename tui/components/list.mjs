@@ -35,7 +35,7 @@ export const ListPane = ({ rows, cursor, height, width: boxWidth }) => {
 			if (row.blank) {
 				return h(Text, { key: row.id }, " ");
 			}
-			if (row.header) {
+			if (row.header && !row.cells) {
 				return h(Text, { key: row.id, wrap: "truncate-end" }, h(Text, style({ bold: true, ...row.labelStyle }), row.label), h(Text, { dimColor: true }, ` ${"─".repeat(Math.max(3, Math.min(width, 40) - row.label.length - 1))}`));
 			}
 			if (start + index === cursor) {
@@ -46,7 +46,7 @@ export const ListPane = ({ rows, cursor, height, width: boxWidth }) => {
 			return h(
 				Text,
 				{ key: row.id, wrap: "truncate-end" },
-				h(Text, style(row.labelStyle), ` ${row.cells ? pad(middle(row.label, nameWidth), nameWidth) : end(row.label, nameWidth)}`),
+				h(Text, style(row.header ? { bold: true, ...row.labelStyle } : row.labelStyle), ` ${row.cells ? pad(middle(row.label, nameWidth), nameWidth) : end(row.label, nameWidth)}`),
 				...(row.cells ?? []).flatMap((cell, cellIndex) => {
 					const used = cell.parts.reduce((total, part) => total + [...part.text].length, 0);
 					const filler = Math.max(cell.width - used, 0);

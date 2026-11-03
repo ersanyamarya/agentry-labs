@@ -13,11 +13,12 @@ import { SkillsTab } from "./components/skills-tab.mjs";
 import { TAB_NAMES, TabBar } from "./components/tab-bar.mjs";
 import { openInEditor } from "./editor.mjs";
 import { colorEnabled, ThemeContext } from "./theme.mjs";
-import { DOCTOR_KEYS, hookRows, MCP_KEYS, mcpRows, pluginRows, PLUGINS_KEYS, SKILLS_KEYS } from "./rows.mjs";
+import { DOCTOR_KEYS, HOOKS_KEYS, hookRows, mcpRows, pluginRows, PLUGINS_KEYS } from "./rows.mjs";
 
 const h = React.createElement;
 
-const TAB_KEYS = [SKILLS_KEYS, MCP_KEYS, MCP_KEYS, PLUGINS_KEYS, DOCTOR_KEYS];
+// Skills and MCP report the keys of their selected row (setKeys); the others use a fixed list.
+const TAB_KEYS = [[], [], HOOKS_KEYS, PLUGINS_KEYS, DOCTOR_KEYS];
 
 // `size` ({ cols, rows }) overrides the terminal size, for tests.
 export const App = ({ api, startDir, recents, discover, env = process.env, spawn, size }) => {
@@ -36,6 +37,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		setLocked(value);
 	}, []);
 	const [message, setMessage] = React.useState("");
+	const [rowKeys, setRowKeys] = React.useState({ tab: -1, keys: [] });
 	const [picker, setPicker] = React.useState([]);
 	// Redraw with the new layout when the terminal is resized.
 	const [dims, setDims] = React.useState({ cols: stdout?.columns, rows: stdout?.rows });
@@ -119,9 +121,10 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 	const height = Math.max(6, (size?.rows ?? dims.rows ?? 30) - 12 - (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0));
 	const counts = !data ? {} : { Skills: data.status.skills.items.length, MCP: data.status.mcp.servers.length, Hooks: data.status.hooks.items.length, Plugins: data.status.plugins.items.length, Doctor: data.doctor.findings.length };
 	const shared = { data, api, dir, height, layout, notify: setMessage, reload, lock, openFile };
+	const keysFor = (index) => (keys) => setRowKeys((old) => (old.tab === index && old.keys.join() === keys.join() ? old : { tab: index, keys }));
 	const tabs = [
-		h(SkillsTab, { ...shared, active: tab === 0 && !overlay }),
-		h(InventoryTab, { ...shared, makeRows: mcpRows, active: tab === 1 && !overlay }),
+		h(SkillsTab, { ...shared, setKeys: keysFor(0), active: tab === 0 && !overlay }),
+		h(InventoryTab, { ...shared, makeRows: mcpRows, setKeys: keysFor(1), active: tab === 1 && !overlay }),
 		h(InventoryTab, { ...shared, makeRows: hookRows, active: tab === 2 && !overlay }),
 		h(InventoryTab, { ...shared, makeRows: pluginRows, active: tab === 3 && !overlay }),
 		h(DoctorTab, { ...shared, active: tab === 4 && !overlay }),
@@ -145,7 +148,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 				: h(Box, { flexDirection: "column", display: overlay ? "none" : "flex" }, ...tabs.map((content, index) => h(Box, { key: TAB_NAMES[index], flexDirection: "column", display: index === tab ? "flex" : "none" }, content))),
 			data?.status.errors.length > 0 || data?.doctor.errors.length > 0 ? h(Text, { color: theme.color ? "yellow" : undefined, wrap: "truncate-end" }, `warning: ${[...data.status.errors, ...data.doctor.errors][0].message}`) : null,
 			message ? h(Text, { color: theme.color ? "green" : undefined, wrap: "truncate-middle" }, message) : null,
-			h(Footer, { keys: TAB_KEYS[tab], cols: layout.cols }),
+			h(Footer, { keys: rowKeys.tab === tab ? rowKeys.keys : TAB_KEYS[tab], cols: layout.cols }),
 		),
 	);
 };

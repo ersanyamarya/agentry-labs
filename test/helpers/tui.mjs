@@ -70,7 +70,7 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols
 	};
 	// Tabs mount once data arrives and Ink subscribes to stdin in an effect after the frame; keys sent sooner are lost.
 	const ready = async () => {
-		await until(/Shelf ─/);
+		await until(/Shelf\s+Skills/);
 		await wait(60);
 	};
 	const press = async (...keys) => {

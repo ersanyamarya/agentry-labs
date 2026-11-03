@@ -33,7 +33,7 @@ for (const cols of [80, 100, 130]) {
 			const shelf = lines().filter((line) => /▸ (audit|video)/.test(line));
 			assert.equal(shelf.length, 2);
 			for (const line of shelf) {
-				assert.match(line, /P ○ off\s+G ○ off/);
+				assert.match(line, /○ off\s+○ off/);
 			}
 			assert.doesNotMatch(ui.frame(), /[PG] [●○◐] \w*…/);
 		});

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Box, Text, useInput } from "ink";
-import { skillRows } from "../rows.mjs";
+import { skillKeys, skillRows } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
 import { useFlow } from "../use-flow.mjs";
@@ -11,12 +11,19 @@ import { Legend } from "./legend.mjs";
 
 const h = React.createElement;
 
-export const SkillsTab = ({ data, api, dir, active, height, layout, notify, reload, lock }) => {
+export const SkillsTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile, setKeys }) => {
 	const [expanded, setExpanded] = React.useState(() => new Set());
 	const rows = React.useMemo(() => skillRows(data, expanded), [data, expanded]);
 	const { cursor, row, move } = useCursor(rows);
 
 	const flow = useFlow({ lock, notify, reload });
+	// The footer follows the selected row.
+	const keys = skillKeys(row);
+	React.useEffect(() => {
+		if (active) {
+			setKeys(keys);
+		}
+	}, [active, keys.join()]);
 
 	const badName = (name) => (name === "" || name.includes("/") || name.startsWith(".") || name === "agents" ? `Not a usable group name: "${name}" (no slash, no leading dot, not "agents")` : undefined);
 
@@ -46,7 +53,7 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 		flow.begin({ kind: "confirm", title: "Unshelve preview (dry run)", text: preview.text, appliable: preview.ok, apply: () => api.unshelveSkill({ dir, target }), done: `Unshelved ${target} into ~/.claude/skills.` });
 	};
 
-	// space toggles the row in this project, G (shift-g) globally; plugin rows toggle the plugin either way.
+	// space toggles the row in this project, g globally; plugin rows toggle the plugin either way.
 	const toggle = async (global = false) => {
 		if (row?.plugin) {
 			await startPluginToggle({ api, dir, flow, row });
@@ -81,7 +88,7 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 				if (row?.shelvable) {
 					startShelve();
 				} else {
-					notify(row?.kind === "personal" ? row.why : row?.kind === "skill" ? "Already on the shelf; press u to move it back to ~/.claude/skills." : "s shelves a personal skill: select one under Personal skills.");
+					notify(row?.kind === "global" ? row.why : row?.kind === "skill" ? "Already on the shelf; press u to move it back to ~/.claude/skills." : "s shelves a global skill: select one under Global skills.");
 				}
 			} else if (input === "u") {
 				row?.kind === "skill" ? startUnshelve() : notify("u unshelves a shelved skill: expand a group and select one.");
@@ -93,8 +100,10 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 				});
 			} else if (input === " ") {
 				toggle();
-			} else if (input === "G") {
+			} else if (input === "g") {
 				toggle(true);
+			} else if (input === "e") {
+				openFile(row?.file);
 			}
 		},
 		{ isActive: active },
