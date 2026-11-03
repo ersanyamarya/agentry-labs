@@ -57,9 +57,9 @@ with JSON output and ends with an Ink terminal UI built on the same functions.
 | [x] | Create `bin/agentry.mjs`: `parseArgs` router with subcommands, `help`/`--help`/`-h`/no arguments print usage with examples, unknown commands print an error plus usage and exit `2`, `--version` reads `package.json`. | Sonnet 5.5 |
 | [x] | Create `lib/paths.mjs` (config dir, shelf dir, project root via `git rev-parse --show-toplevel`, `CLAUDE_CONFIG_DIR` and `AGENTRY_HOME` overrides). | Sonnet 5.5 |
 | [x] | Move `shelf.mjs` logic into `lib/shelf.mjs` unchanged in behaviour; expose it as `agentry shelf list`, `on` and `off`. | Sonnet 5.5 |
-| [ ] | Turn `scripts/shelf.mjs` into a three-line wrapper that calls `lib/shelf.mjs`, so the documented command keeps working. | Haiku 5.5 |
+| [x] | Turn `scripts/shelf.mjs` into a three-line wrapper that calls `lib/shelf.mjs`, so the documented command keeps working. | Haiku 5.5 |
 | [x] | Add a test helper that builds a fixture `~/.claude` and git repo in a temp dir; cover today's `list`, `on`, `off` behaviour. | Sonnet 5.5 |
-| [ ] | Document setup in the README (`npm link` from the checkout, or `npm install -g <path>`), add `bin/`, `lib/`, `docs/` to "Project layout" and the CLAUDE.md tree. | Haiku 5.5 |
+| [x] | Document setup in the README (`npm link` from the checkout, or `npm install -g <path>`), add `bin/`, `lib/`, `docs/` to "Project layout" and the CLAUDE.md tree. | Haiku 5.5 |
 
 ## Phase 1: Shelf that fits daily use
 

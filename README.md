@@ -108,6 +108,21 @@ are linked into `.claude/agents` with its skills. Claude Code watches skill fold
 start a new session if a linked agent doesn't show. To shelve another group, move its skill folders (and agents) into a new
 `~/.claude/skill-shelf/<group>/`. Leave `~/.claude/skills/synced/` alone: claude.ai manages it.
 
+### agentry CLI
+
+`agentry` runs from any folder. It needs Node.js 22 or newer and no install step beyond linking the checkout:
+
+```bash
+cd /path/to/agentry-labs
+npm link                       # puts `agentry` on your PATH (or: npm install -g /path/to/agentry-labs)
+
+agentry --help                 # commands and options
+agentry shelf list             # same output as node scripts/shelf.mjs list
+agentry shelf on video         # also: off <group>, with --global for ~/.claude
+```
+
+Run tests with `npm test`.
+
 ## Commands
 1. Install skills
 2. Invoke a skill by name in Claude Code, interactively or with `-p`. Skills also trigger on their own when a request matches their description.
@@ -123,7 +138,11 @@ start a new session if a linked agent doesn't show. To shelve another group, mov
 - `rules/`: commit-attribution and context7 rules
 - `claude-md-files/`: reusable CLAUDE.md templates
 - `global/`: settings fragment and MCP config merged by `scripts/apply-global.mjs`
-- `scripts/`: installer, sync and shelf scripts
+- `scripts/`: installer, sync and shelf scripts (`shelf.mjs` forwards to `agentry shelf`)
+- `bin/`: the `agentry` command entry and router
+- `lib/`: the CLI modules (paths, shelf)
+- `docs/`: design plans, such as `docs/shelf-cli-plan.md`
+- `test/`: tests for the CLI (`npm test`)
 - `bundles.tsv`: the bundle each component belongs to
 
 ## Available Components

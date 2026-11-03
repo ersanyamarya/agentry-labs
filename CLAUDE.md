@@ -36,7 +36,11 @@ Remember, before writing any code:
 ├── rules/               # commit-attribution, context7
 ├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
-├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, shelf.mjs (skill groups on/off), image-gen-tools/ (README cover generator)
+├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, shelf.mjs (forwards to `agentry shelf`), image-gen-tools/ (README cover generator)
+├── bin/                 # agentry CLI entry and command router
+├── lib/                 # CLI modules: paths.mjs, shelf.mjs
+├── docs/                # design plans (shelf-cli-plan.md)
+├── test/                # node:test suites for the CLI (npm test)
 └── .github/             # CI (validates every skill) and assets/cover.jpg
 ```
 
