@@ -80,9 +80,10 @@ describe("duplicates", () => {
 		userSettings({ enableAllProjectMcpServers: true });
 		const [item] = findings("dup-mcp-scope");
 		assert.equal(item.severity, "warning");
-		assert.equal(item.file, join(configDir, ".claude.json"));
+		assert.equal(item.file, join(repo, ".mcp.json"));
 		assert.equal(item.line, 3);
-		assert.match(item.fix, /claude mcp remove dup -s user/);
+		assert.match(item.message, /also in user scope/);
+		assert.match(item.fix, /claude mcp remove dup -s project/);
 	});
 
 	test("dup-mcp-plugin: context-mode in .mcp.json while the plugin is enabled", () => {
