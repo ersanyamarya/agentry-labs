@@ -32,6 +32,7 @@ Commands:
   fix --undo [timestamp]              Restore the files from a backup set (the newest by default) and list what changed;
                                       a file edited since the fix is skipped unless --force
   fix --undo --list                   List the backup sets with their status and file count; changes nothing
+  ui                                  Open the terminal UI (needs a terminal)
   shelf list                          List shelf groups, their token cost and whether each is on
   shelf status [--json]               Show what is on in this project and globally, plus broken links
   shelf on <target>... [--global]     Link groups or skills into this project (or ~/.claude)
@@ -112,6 +113,12 @@ const runShelf = (args, { global, json, all, "dry-run": dryRun }) => {
 	return 2;
 };
 
+// Ink and React load here, on demand, so no other command pays for them.
+const runUi = async (argv) => {
+	const { run } = await import("../tui/index.mjs");
+	return run({ argv, paths: createPaths(), io: { stdin: process.stdin, stdout: process.stdout, stderr: process.stderr } });
+};
+
 const main = (argv) => {
 	let parsed;
 	try {
@@ -147,9 +154,15 @@ const main = (argv) => {
 		console.log(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version);
 		return 0;
 	}
+	if (!command && !values.help && process.stdin.isTTY && process.stdout.isTTY) {
+		return runUi(rest);
+	}
 	if (values.help || !command || command === "help") {
 		console.log(USAGE);
 		return 0;
+	}
+	if (command === "ui") {
+		return runUi(rest);
 	}
 	if (command === "status") {
 		if (rest.length > 1) {

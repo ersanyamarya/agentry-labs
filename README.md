@@ -129,6 +129,7 @@ npm link                       # puts `agentry` on your PATH (or: npm install -g
 agentry --help                 # commands and options
 agentry shelf list             # same output as node scripts/shelf.mjs list
 agentry shelf on video         # also: off <group>, off --all, shelve, unshelve; --global for ~/.claude, --dry-run to preview
+agentry ui                     # terminal UI (Ink); a bare `agentry` in a terminal opens it too
 ```
 
 Run tests with `npm test`.
