@@ -36,7 +36,7 @@ describe("shelve from the Skills tab", () => {
 		await ui.moveTo(/^>.* video/, KEYS.up);
 		await ui.press(KEYS.enter);
 		await ui.moveTo(/^>\s+notes/);
-		assert.match(ui.frame(), /^>\s+notes\s+shelf\s+~\d+\s+off/m);
+		assert.match(ui.frame(), /^>\s+notes\s+shelf\s+~\d+\s+P ○ off\s+G ○ off/m);
 		await ui.press(KEYS.space);
 		await ui.until(/video\/notes on in/);
 		assert.ok(lstatSync(join(ui.fx.repo, ".claude/skills/notes")).isSymbolicLink());
@@ -74,7 +74,7 @@ describe("shelve from the Skills tab", () => {
 		await ui.press("r");
 		await ui.until(/Refreshed/);
 		await ui.press("s", KEYS.enter);
-		await ui.until(/not overwriting/);
+		await ui.until(/overwriting/);
 		assert.match(ui.frame(), /Nothing can be applied here/);
 		await ui.press("y");
 		assert.ok(existsSync(personal()));
@@ -112,9 +112,9 @@ describe("unshelve and why a row cannot be toggled", () => {
 	test("space on personal, project and plugin skills explains instead of doing nothing", async () => {
 		await gotoNotes();
 		await ui.press(KEYS.space);
-		await ui.until(/personal skill: press s to move it onto the shelf/);
+		await ui.until(/personal skill \(~\/\.claude\/skills, every project\): s moves it to the shelf/);
 		await ui.press(KEYS.down, KEYS.space);
-		await ui.until(/project skill: files live in the repo/);
+		await ui.until(/project skill \(this repo.s \.claude\/skills\)/);
 	});
 
 	test("s elsewhere says what it does", async () => {

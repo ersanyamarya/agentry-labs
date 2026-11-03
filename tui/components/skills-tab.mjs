@@ -6,7 +6,6 @@ import { skillRows } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
 import { useFlow } from "../use-flow.mjs";
-import { useStyle } from "../theme.mjs";
 import { DetailsPane, ListPane } from "./list.mjs";
 import { Legend } from "./legend.mjs";
 
@@ -14,11 +13,9 @@ const h = React.createElement;
 
 export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock }) => {
 	const [expanded, setExpanded] = React.useState(() => new Set());
-	const [global, setGlobal] = React.useState(false);
 	const rows = React.useMemo(() => skillRows(data, expanded), [data, expanded]);
 	const { cursor, row, move } = useCursor(rows);
 
-	const style = useStyle();
 	const flow = useFlow({ lock, notify, reload });
 
 	const badName = (name) => (name === "" || name.includes("/") || name.startsWith(".") || name === "agents" ? `Not a usable group name: "${name}" (no slash, no leading dot, not "agents")` : undefined);
@@ -49,7 +46,8 @@ export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock
 		flow.begin({ kind: "confirm", title: "Unshelve preview (dry run)", text: preview.text, appliable: preview.ok, apply: () => api.unshelveSkill({ dir, target }), done: `Unshelved ${target} into ~/.claude/skills.` });
 	};
 
-	const toggle = async () => {
+	// space toggles the row in this project, G (shift-g) globally; plugin rows toggle the plugin either way.
+	const toggle = async (global = false) => {
 		if (row?.plugin) {
 			await startPluginToggle({ api, dir, flow, row });
 			return;
@@ -95,8 +93,8 @@ export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock
 				});
 			} else if (input === " ") {
 				toggle();
-			} else if (input === "g") {
-				setGlobal((value) => !value);
+			} else if (input === "G") {
+				toggle(true);
 			}
 		},
 		{ isActive: active },
@@ -105,7 +103,6 @@ export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock
 	return h(
 		Box,
 		{ flexDirection: "column" },
-		h(Text, null, h(Text, { dimColor: true }, "Toggle target: "), h(Text, style({ bold: true, color: "cyan" }), global ? "global (config dir)" : "this project"), h(Text, { dimColor: true }, "  (g to switch)")),
 		h(Legend),
 		h(Box, null, h(ListPane, { rows, cursor, height }), h(DetailsPane, { row, lines: flow.lines, title: flow.title, height })),
 	);

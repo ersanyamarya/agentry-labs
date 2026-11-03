@@ -144,24 +144,24 @@ Start it from the project folder with `agentry ui`, or type a bare `agentry` in 
 
 - **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, each with a count. A summary line under them shows the skill-description tokens every session pays and the problems found. A details pane beside the list shows the selected row; the footer lists only the keys that work on the current tab.
 - **Changes it can make** (all except the plain shelf toggle are previewed first and wait for `y`):
-  - **Skills, shelf:** `space` turns a shelf group or skill on or off for this project or globally (`g` switches the target). Same as `agentry shelf on|off`.
+  - **Skills, shelf:** Each shelf row shows two badges, `P` (this project) and `G` (global), each `● on`, `○ off` or `◐ partial`. `space` toggles the `P` state of the selected row and `G` (shift-g) toggles its `G` state; there is no mode to switch. Same as `agentry shelf on|off [--global]`.
   - **Skills, shelving:** `s` on a personal skill (a real folder under `~/.claude/skills`) asks for a shelf group (`↑/↓` and `enter`, or `n` to type a new name), previews the move, and `y` runs `agentry shelf shelve`. Afterwards the skill sits under Shelf, off, and toggles with `space`. `u` on a shelved skill moves it back (`agentry shelf unshelve`). Both refuse to overwrite, and to move a skill that is still linked.
   - **Plugins:** `space` on a plugin row (Plugins tab) or a `plugin:*` row (Skills tab) previews the `enabledPlugins` edit as a diff; `y` writes it with a backup. Same as `agentry plugin enable|disable`, and `agentry fix --undo` restores it. It applies to new sessions only.
   - **Doctor:** `enter` previews a fix as a diff. `y` applies it through the same engine as the CLI, with a backup first. `u` previews undoing the last fix set, and `y` restores it.
 - **Rows that cannot be toggled** say why in the status line and the details: personal skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
 - **Read-only:** MCP and Hooks list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
 
-Colour (off when `NO_COLOR` is set; every badge is also a word, so nothing depends on it): `on` green, `off` gray, `partial` yellow; token cost dim under 100, yellow under 500, red from 500 (legend line on the Skills tab); scope tags `user` cyan, `project` magenta, `plugin` blue, `shelf` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
+Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so nothing depends on it): `● on` / `● active` green, `○ off` / `○ disabled` gray, `◐ partial` yellow; token cost dim under 100, yellow under 500, red from 500 (legend line on the Skills tab); scope tags `personal` cyan, `project` magenta, `plugin` blue, `shelf` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
 
 | Key | Action |
 |---|---|
 | ← / →, 1-5 | switch tab |
 | ↑ / ↓ | move between rows |
 | enter | details, expand a group, preview a fix |
-| space | Skills: toggle a group or shelved skill; plugin rows: on/off |
+| space | Skills: toggle a shelf row in this project (P); plugin rows: on/off |
 | s | Skills: move a personal skill onto the shelf |
 | u | Skills: unshelve a skill; Doctor: undo the last fix set |
-| g | Skills: switch the target between project and global |
+| G | Skills: toggle a shelf row globally (G) |
 | e | MCP, Hooks, Plugins, Doctor: open the source file in $EDITOR |
 | y / n | confirm or cancel a previewed fix, undo, shelve or plugin change |
 | r | refresh |

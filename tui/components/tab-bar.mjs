@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Box, Text } from "ink";
-import { useStyle } from "../theme.mjs";
+import { badgeText, stateStyle, useStyle } from "../theme.mjs";
 
 const h = React.createElement;
 
@@ -24,6 +24,6 @@ export const TabBar = ({ tab, project, counts = {}, summary }) => {
 				h(Text, { key: name, inverse: index === tab, bold: index === tab }, ` ${index + 1} ${name}${counts[name] === undefined ? "" : ` (${counts[name]})`} `),
 			),
 		),
-		summary ? h(Text, { wrap: "truncate-end" }, h(Text, { dimColor: true }, `~${summary.tokens} tokens of skill descriptions in every session  ·  `), h(Text, style({ color: found.color }), found.text)) : null,
+		summary ? h(Text, { wrap: "truncate-end" }, h(Text, { dimColor: true }, `~${summary.tokens} skill-description tokens  ·  plugins `), h(Text, style({ ...stateStyle("active"), bold: true }), `${summary.active} ${badgeText("active")}`), " ", h(Text, style({ ...stateStyle("disabled"), bold: true }), `${summary.disabled} ${badgeText("disabled")}`), h(Text, { dimColor: true }, "  ·  "), h(Text, style({ color: found.color }), found.text)) : null,
 	);
 };

@@ -15,7 +15,7 @@ export const ListPane = ({ rows, cursor, height }) => {
 	const shown = rows.slice(start, start + height);
 	return h(
 		Box,
-		{ flexDirection: "column", width: "46%", flexShrink: 0 },
+		{ flexDirection: "column", width: "52%", flexShrink: 0 },
 		rows.length === 0 ? h(Text, { dimColor: true }, "  (nothing here)") : null,
 		...shown.map((row, index) => {
 			const at = start + index;
@@ -50,7 +50,7 @@ const DetailLine = ({ line, plain }) => {
 		return h(Text, { wrap: plain ? "wrap" : "truncate-middle" }, line || " ");
 	}
 	// Explanations (why a row cannot be toggled, advice) wrap; paths and values are cut in the middle.
-	return h(Text, { wrap: ["toggle", "note", "advice"].includes(match[1]) ? "wrap" : "truncate-middle" }, h(Text, { dimColor: true }, `${match[1]}: `), h(Text, style(match[1] === "state" ? stateStyle(match[2]) : {}), match[2]));
+	return h(Text, { wrap: ["toggle", "note", "advice"].includes(match[1]) ? "wrap" : "truncate-middle" }, h(Text, { dimColor: true }, `${match[1]}: `), h(Text, style(["state", "this project", "global"].includes(match[1]) ? { ...stateStyle(match[2]), bold: true } : {}), match[2]));
 };
 
 // `lines` replaces the row's own details (a fix preview, a prompt); long text is cut to `height`.

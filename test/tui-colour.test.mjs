@@ -58,15 +58,18 @@ describe("rows carry the styles", () => {
 	test("a group is off, partial or on, with the matching badge and a cost style", () => {
 		const badgeOf = (items) => {
 			const row = skillRows(data(items)).find((candidate) => candidate.kind === "group");
-			return row.segments.at(-1);
+			const badges = row.segments.filter((part) => /^[●○◐] /.test(part.text));
+			return { project: badges[0], global: badges[1] };
 		};
-		assert.deepEqual(badgeOf([item("a", false, false), item("b", false, false)]), { text: "off", style: { color: "gray" } });
-		assert.deepEqual(badgeOf([item("a", true, false), item("b", false, false)]), { text: "partial", style: { color: "yellow" } });
-		assert.deepEqual(badgeOf([item("a", true, false), item("b", true, false)]), { text: "on (project)", style: { color: "green" } });
-		assert.deepEqual(badgeOf([item("a", false, true), item("b", false, true)]), { text: "on (global)", style: { color: "green" } });
+		const off = { text: "○ off", style: { color: "gray", bold: true } };
+		assert.deepEqual(badgeOf([item("a", false, false), item("b", false, false)]), { project: off, global: off });
+		assert.deepEqual(badgeOf([item("a", true, false), item("b", false, false)]).project, { text: "◐ partial", style: { color: "yellow", bold: true } });
+		const on = { text: "● on", style: { color: "green", bold: true } };
+		assert.deepEqual(badgeOf([item("a", true, false), item("b", true, false)]), { project: on, global: off });
+		assert.deepEqual(badgeOf([item("a", false, true), item("b", false, true)]), { project: off, global: on });
 		const group = skillRows(data([item("a", false, false)])).find((candidate) => candidate.kind === "group");
-		assert.deepEqual(group.segments.find((part) => part.text.endsWith("tokens")).style, { color: "yellow" });
-		assert.match(group.note, /1 skills {2}~240 tokens {2}off/);
+		assert.deepEqual(group.segments.find((part) => part.text.startsWith("~")).style, { color: "yellow" });
+		assert.match(group.note, /1 skills {2}~240 {2}P ○ off {2}G ○ off/);
 	});
 
 	test("doctor rows use the severity icon and colour", () => {
@@ -82,15 +85,15 @@ describe("rendered with real escape codes", () => {
 		ui = createUi();
 		await ui.ready();
 		const frame = ui.frame();
-		assert.ok(frame.includes(`${GRAY}off`), "off badge is gray");
+		assert.ok(frame.includes(`${GRAY}○ off`), "off badge is gray");
 		await ui.moveTo(/video/);
 		await ui.press(KEYS.enter);
 		await ui.moveTo(/trim/);
 		await ui.press(KEYS.space);
 		await ui.until(/video\/trim on in/);
-		await ui.until(/\u001B\[32mon \(project\)/);
+		await ui.until(/\u001B\[32m● on/);
 		await ui.moveTo(/^.{0,12}video/, KEYS.up);
-		assert.ok(ui.frame().includes(`${YELLOW}partial`), "a group with one of two skills linked is partial");
+		assert.ok(ui.frame().includes(`${YELLOW}◐ partial`), "a group with one of two skills linked is partial");
 		await ui.press("5");
 		await ui.until(/\[fake-bad\]/);
 		assert.ok(ui.frame().includes(`${YELLOW}▲`), "warning icon is yellow");
@@ -103,7 +106,7 @@ describe("rendered with real escape codes", () => {
 		await ui.press(KEYS.enter);
 		assert.doesNotMatch(ui.frame(), COLOUR_CODE);
 		assert.match(stripAnsi(ui.frame()), /off/);
-		assert.match(stripAnsi(ui.frame()), /legend: on off partial/);
+		assert.match(stripAnsi(ui.frame()), /P project, G global {2}● on ○ off ◐ partial/);
 		await ui.press("5");
 		await ui.until(/\[fake-bad\]/);
 		assert.doesNotMatch(ui.frame(), COLOUR_CODE);

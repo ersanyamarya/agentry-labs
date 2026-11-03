@@ -5,14 +5,14 @@ import { KEYS, createUi } from "./helpers/tui.mjs";
 
 let ui;
 beforeEach(async () => {
-	ui = createUi({ personal: ["notes"] });
+	ui = createUi({ personal: ["notes"], plugin: {} });
 	await ui.ready();
 });
 afterEach(() => ui?.stop());
 
 test("the header sums up tokens and problems, and the Skills tab explains its colours", () => {
-	assert.match(ui.frame(), /~\d+ tokens of skill descriptions in every session {2}· {2}0 errors, 1 warning/);
-	assert.match(ui.frame(), /legend: on off partial {2}cost: ~<100 ~100-499 ~500\+/);
+	assert.match(ui.frame(), /~\d+ skill-description tokens {2}· {2}plugins 1 ● active 0 ○ disabled {2}· {2}0 errors, 1 warning/);
+	assert.match(ui.frame(), /P project, G global {2}● on ○ off ◐ partial {2}cost: ~<100 ~100-499 ~500\+/);
 });
 
 test("sections are bold headers with a rule and a blank line between them", () => {
@@ -23,14 +23,16 @@ test("sections are bold headers with a rule and a blank line between them", () =
 });
 
 test("scope badges tag the rows", async () => {
-	assert.match(ui.frame(), /notes {2}user {2}~\d+/);
+	assert.match(ui.frame(), /notes {2}personal {2}~\d+/);
 	assert.match(ui.frame(), /proj {2}project {2}~1/);
+	await ui.press("4");
+	await ui.until(/demo@mkt {2}personal {2}1\.0\.0 {2}● active/);
 	await ui.press("2");
 	await ui.until(/demo {2}project {2}pending-approval {2}stdio/);
 });
 
 test("the footer lists only the keys of the current tab", async () => {
-	assert.match(ui.frame(), /space toggle on\/off or plugin {2}s shelve {2}u unshelve/);
+	assert.match(ui.frame(), /space toggle P \(project\) {2}G toggle global {2}s shelve {2}u unshelve/);
 	await ui.press("2");
 	await ui.until(/e open source file in \$EDITOR/);
 	assert.doesNotMatch(ui.frame(), /s shelve/);

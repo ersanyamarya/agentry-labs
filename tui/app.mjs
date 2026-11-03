@@ -116,7 +116,8 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		h(DoctorTab, { ...shared, active: tab === 4 && !overlay }),
 	];
 
-	const summary = data && { tokens: data.status.tokens.measured, ...data.doctor.summary };
+	const plugins = data?.status.plugins.items ?? [];
+	const summary = data && { tokens: data.status.tokens.measured, ...data.doctor.summary, active: plugins.filter((plugin) => plugin.state === "active").length, disabled: plugins.filter((plugin) => plugin.state === "disabled").length };
 	const theme = React.useMemo(() => ({ color: colorEnabled(env) }), [env]);
 
 	return h(
