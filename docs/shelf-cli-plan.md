@@ -54,11 +54,11 @@ with JSON output and ends with an Ink terminal UI built on the same functions.
 | Done | Task | Model |
 |---|---|---|
 | [x] | Add a root `package.json`: `"type": "module"`, `"bin": { "agentry": "bin/agentry.mjs" }`, `engines.node`, `"test": "node --test"`, no dependencies. | Haiku 5.5 |
-| [ ] | Create `bin/agentry.mjs`: `parseArgs` router with subcommands, `help`/`--help`/`-h`/no arguments print usage with examples, unknown commands print an error plus usage and exit `2`, `--version` reads `package.json`. | Sonnet 5.5 |
-| [ ] | Create `lib/paths.mjs` (config dir, shelf dir, project root via `git rev-parse --show-toplevel`, `CLAUDE_CONFIG_DIR` and `AGENTRY_HOME` overrides). | Sonnet 5.5 |
-| [ ] | Move `shelf.mjs` logic into `lib/shelf.mjs` unchanged in behaviour; expose it as `agentry shelf list`, `on` and `off`. | Sonnet 5.5 |
+| [x] | Create `bin/agentry.mjs`: `parseArgs` router with subcommands, `help`/`--help`/`-h`/no arguments print usage with examples, unknown commands print an error plus usage and exit `2`, `--version` reads `package.json`. | Sonnet 5.5 |
+| [x] | Create `lib/paths.mjs` (config dir, shelf dir, project root via `git rev-parse --show-toplevel`, `CLAUDE_CONFIG_DIR` and `AGENTRY_HOME` overrides). | Sonnet 5.5 |
+| [x] | Move `shelf.mjs` logic into `lib/shelf.mjs` unchanged in behaviour; expose it as `agentry shelf list`, `on` and `off`. | Sonnet 5.5 |
 | [ ] | Turn `scripts/shelf.mjs` into a three-line wrapper that calls `lib/shelf.mjs`, so the documented command keeps working. | Haiku 5.5 |
-| [ ] | Add a test helper that builds a fixture `~/.claude` and git repo in a temp dir; cover today's `list`, `on`, `off` behaviour. | Sonnet 5.5 |
+| [x] | Add a test helper that builds a fixture `~/.claude` and git repo in a temp dir; cover today's `list`, `on`, `off` behaviour. | Sonnet 5.5 |
 | [ ] | Document setup in the README (`npm link` from the checkout, or `npm install -g <path>`), add `bin/`, `lib/`, `docs/` to "Project layout" and the CLAUDE.md tree. | Haiku 5.5 |
 
 ## Phase 1: Shelf that fits daily use
@@ -184,3 +184,4 @@ toggle shelf skills or apply fixes without remembering commands.
 | Date | Decision |
 |---|---|
 | 2026-11-03 | Scope is the full setup manager, not shelf-only. Command name `agentry`. Distributed as a `package.json` bin, linked from the checkout. Terminal UI uses Ink on Node (OpenTUI needs Bun or Node's `--experimental-ffi`). CLI first, UI last on the same `lib/` functions. |
+| 2026-11-03 | `AGENTRY_HOME` replaces the home directory (default `os.homedir()`); `CLAUDE_CONFIG_DIR` replaces `<home>/.claude` and wins over it. `lib/shelf.mjs` exports `createShelf(paths, {out, err, warn})` returning `{list, on, off}`, each giving an exit code; `createPaths({env, cwd})` takes the cwd so `projectRoot()` runs git there. Tests spawn the real CLI with both env vars set. Note: `node --test` also runs `test/helpers/*.mjs` as (empty) test files; harmless. `git init` seeds `.git/info/exclude` with comment lines, so tests filter comments. |
