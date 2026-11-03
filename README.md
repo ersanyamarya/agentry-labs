@@ -92,7 +92,9 @@ The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (exp
 
 Every installed skill puts its name and description in every session, and past the listing budget Claude Code drops
 descriptions, so rarely used skills crowd out the useful ones. Rarely used groups live in `~/.claude/skill-shelf/<group>/`
-instead (currently `video`, `audit`, `flutter-assets`) and are symlinked in when needed:
+instead (currently `video`, `audit`, `flutter-assets`, `design`, `web-audit`, `dev-tools`) and are symlinked in when
+needed. `image-artifact-setup` (`design`) and `lighthouse-audit` (`web-audit`) are still in the `global` bundle, so
+`install.sh --bundle global` copies them back into `~/.claude/skills`; move them to the shelf again afterwards:
 
 ```bash
 node scripts/shelf.mjs list                       # groups, their skills, and where each is on

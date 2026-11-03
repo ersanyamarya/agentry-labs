@@ -1,10 +1,10 @@
 {
-	"footerLinksRegexes": ["graft/[\\w./-]+\\.md"],
+	"footerLinksRegexes": [
+		"graft/[\\w./-]+\\.md"
+	],
 	"permissions": {
 		"allow": [
-			"Bash(graft:*)",
-			"Bash(npx graft:*)",
-			"Bash(graft-dev:*)",
+			"Bash(trail:*)",
 			"Bash(node dist/cli.js:*)"
 		]
 	}
