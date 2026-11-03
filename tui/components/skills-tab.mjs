@@ -6,7 +6,9 @@ import { skillRows } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
 import { useFlow } from "../use-flow.mjs";
+import { useStyle } from "../theme.mjs";
 import { DetailsPane, ListPane } from "./list.mjs";
+import { Legend } from "./legend.mjs";
 
 const h = React.createElement;
 
@@ -16,6 +18,7 @@ export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock
 	const rows = React.useMemo(() => skillRows(data, expanded), [data, expanded]);
 	const { cursor, row, move } = useCursor(rows);
 
+	const style = useStyle();
 	const flow = useFlow({ lock, notify, reload });
 
 	const badName = (name) => (name === "" || name.includes("/") || name.startsWith(".") || name === "agents" ? `Not a usable group name: "${name}" (no slash, no leading dot, not "agents")` : undefined);
@@ -102,7 +105,8 @@ export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock
 	return h(
 		Box,
 		{ flexDirection: "column" },
-		h(Text, null, `Toggle target: `, h(Text, { bold: true, color: "cyan" }, global ? "global (config dir)" : "this project"), h(Text, { dimColor: true }, `  (g to switch)  ~${data.status.tokens.measured} tokens of skill descriptions load in every session`)),
+		h(Text, null, h(Text, { dimColor: true }, "Toggle target: "), h(Text, style({ bold: true, color: "cyan" }), global ? "global (config dir)" : "this project"), h(Text, { dimColor: true }, "  (g to switch)")),
+		h(Legend),
 		h(Box, null, h(ListPane, { rows, cursor, height }), h(DetailsPane, { row, lines: flow.lines, title: flow.title, height })),
 	);
 };

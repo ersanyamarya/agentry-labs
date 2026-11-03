@@ -73,7 +73,7 @@ describe("skills tab", () => {
 		await ui.press(KEYS.down, KEYS.down, KEYS.space);
 		await ui.until(/video\/trim on in/);
 		assert.ok(lstatSync(join(ui.fx.repo, ".claude/skills/trim")).isSymbolicLink());
-		await ui.until(/trim\s+~10\s+on \(project\)/);
+		await ui.until(/trim\s+shelf\s+~10\s+on \(project\)/);
 		await ui.press(KEYS.space);
 		await ui.until(/video\/trim off in/);
 		assert.ok(!existsSync(join(ui.fx.repo, ".claude/skills/trim")));
@@ -182,7 +182,7 @@ describe("doctor tab: fix and undo", () => {
 
 	test("a finding without a fix says why and offers nothing to apply", async () => {
 		await ui.press(KEYS.down);
-		await ui.until(/> {2}\[fake-nofix\]/);
+		await ui.until(/>  ℹ \[fake-nofix\]/);
 		await ui.press(KEYS.enter);
 		await ui.until(/Nothing can be applied here/);
 		assert.match(ui.frame(), /No automatic fix is registered/);

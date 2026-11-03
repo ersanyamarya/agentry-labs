@@ -1,15 +1,22 @@
+// Top of the screen: project path, the tabs with their counts, and a summary line (skill-description tokens, problems).
+
 import React from "react";
 import { Box, Text } from "ink";
+import { useStyle } from "../theme.mjs";
 
 const h = React.createElement;
 
 export const TAB_NAMES = ["Skills", "MCP", "Hooks", "Plugins", "Doctor"];
 
-export const TabBar = ({ tab, project, counts = {} }) =>
-	h(
+const problems = ({ error = 0, warning = 0 }) => (error + warning === 0 ? { text: "no problems", color: "green" } : { text: `${error} error${error === 1 ? "" : "s"}, ${warning} warning${warning === 1 ? "" : "s"}`, color: error > 0 ? "red" : "yellow" });
+
+export const TabBar = ({ tab, project, counts = {}, summary }) => {
+	const style = useStyle();
+	const found = summary && problems(summary);
+	return h(
 		Box,
 		{ flexDirection: "column" },
-		h(Text, { wrap: "truncate-start", dimColor: true }, `agentry  ${project}`),
+		h(Text, { wrap: "truncate-middle", dimColor: true }, `agentry  ${project}`),
 		h(
 			Box,
 			{ gap: 2 },
@@ -17,4 +24,6 @@ export const TabBar = ({ tab, project, counts = {} }) =>
 				h(Text, { key: name, inverse: index === tab, bold: index === tab }, ` ${index + 1} ${name}${counts[name] === undefined ? "" : ` (${counts[name]})`} `),
 			),
 		),
+		summary ? h(Text, { wrap: "truncate-end" }, h(Text, { dimColor: true }, `~${summary.tokens} tokens of skill descriptions in every session  ·  `), h(Text, style({ color: found.color }), found.text)) : null,
 	);
+};

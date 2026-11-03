@@ -15,6 +15,9 @@ import { addPlugin, createFixture } from "./fixture.mjs";
 
 export const KEYS = { up: "\u001B[A", down: "\u001B[B", right: "\u001B[C", left: "\u001B[D", enter: "\r", esc: "\u001B", space: " " };
 
+// Frames carry escape codes when the test forces colour; patterns match the frame as drawn or with the codes removed.
+export const stripAnsi = (text) => text.replace(/\u001B\[[0-9;]*m/g, "");
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const createUi = ({ env = {}, spawn, personal = [], plugin } = {}) => {
@@ -54,7 +57,7 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin } = {}) => {
 
 	const until = async (pattern, what = String(pattern)) => {
 		for (let tries = 0; tries < 100; tries++) {
-			if (pattern.test(app.lastFrame() ?? "")) {
+			if (pattern.test(app.lastFrame() ?? "") || pattern.test(stripAnsi(app.lastFrame() ?? ""))) {
 				return app.lastFrame();
 			}
 			await wait(20);
@@ -63,7 +66,7 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin } = {}) => {
 	};
 	// Tabs mount once data arrives and Ink subscribes to stdin in an effect after the frame; keys sent sooner are lost.
 	const ready = async () => {
-		await until(/Shelf \(agentry shelf list\)/);
+		await until(/Shelf ─/);
 		await wait(60);
 	};
 	const press = async (...keys) => {
@@ -74,7 +77,7 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin } = {}) => {
 	};
 	// Presses up or down until the highlighted row (the line starting with ">") matches.
 	const moveTo = async (pattern, key = KEYS.down) => {
-		const selected = () => (app.lastFrame() ?? "").split("\n").find((line) => /^>/.test(line)) ?? "";
+		const selected = () => stripAnsi(app.lastFrame() ?? "").split("\n").find((line) => /^>/.test(line)) ?? "";
 		for (let tries = 0; tries < 30 && !pattern.test(selected()); tries++) {
 			await press(key);
 		}

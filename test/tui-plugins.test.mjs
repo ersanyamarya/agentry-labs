@@ -37,14 +37,14 @@ describe("Plugins tab: enable and disable", () => {
 		await ui.until(/Disable demo@mkt/);
 		await ui.press("q", "5", KEYS.enter, KEYS.space, KEYS.right, "e");
 		assert.equal(settings(), ON);
-		assert.match(ui.frame(), /Disable demo@mkt \(preview\)/);
+		await ui.until(/Disable demo@mkt \(preview\)/);
 	});
 
 	test("y writes through the engine (backup, verify), the row turns disabled, a second space re-enables it", async () => {
 		await ui.press(KEYS.space);
 		await ui.until(/Disable demo@mkt/);
 		await ui.press("y");
-		await ui.until(/verify \[plugin-toggle\].*: gone/);
+		await ui.until(/disabled: gone/);
 		assert.equal(settings(), ON.replace("true", "false"));
 		assert.equal(backups().length, 1);
 		await ui.until(/demo@mkt disabled\. Applies to new sessions/);

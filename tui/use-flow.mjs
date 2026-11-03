@@ -16,7 +16,9 @@ export const useFlow = ({ lock, notify, reload }) => {
 	const modal = Boolean(step && step.kind !== "result");
 	React.useEffect(() => lock(!modal ? false : step.kind === "name" ? "typing" : true), [modal, step?.kind]);
 
+	// Locks at once rather than from the effect below, so a key pressed right after the prompt opens is already guarded.
 	const begin = (next) => {
+		lock(!next || next.kind === "result" ? false : next.kind === "name" ? "typing" : true);
 		setAt(0);
 		setText("");
 		setStep(next);

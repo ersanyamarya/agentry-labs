@@ -5,6 +5,7 @@ import React from "react";
 import { Box, Text, useInput } from "ink";
 import { doctorRows } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
+import { SEVERITY, useStyle } from "../theme.mjs";
 import { DetailsPane, ListPane } from "./list.mjs";
 
 const h = React.createElement;
@@ -68,11 +69,12 @@ export const DoctorTab = ({ data, api, dir, active, height, notify, reload, lock
 			: [...step.text.split("\n"), "", step.appliable ? `${step.kind === "undo" ? "Restore" : "Apply"} this? y = yes, n = cancel` : "Nothing can be applied here. n = close"]
 		: undefined;
 	const title = step ? (step.kind === "result" ? (step.ok ? "Result" : "Result (errors)") : step.kind === "undo" ? "Undo preview" : "Fix preview (dry run)") : "Details";
+	const style = useStyle();
 	const { error, warning, info } = data.doctor.summary;
 	return h(
 		Box,
 		{ flexDirection: "column" },
-		h(Text, { dimColor: true }, `${error} errors, ${warning} warnings, ${info} info`),
+		h(Text, null, h(Text, style(SEVERITY.error.style), `${error} errors`), ", ", h(Text, style(SEVERITY.warning.style), `${warning} warnings`), ", ", h(Text, style(SEVERITY.info.style), `${info} info`)),
 		h(Box, null, h(ListPane, { rows, cursor, height }), h(DetailsPane, { row, lines, title, height })),
 	);
 };
