@@ -56,6 +56,15 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 		return { ok: code === 0, message: lines.join("\n") || `${target} ${on ? "on" : "off"}` };
 	};
 
+	// Moves a skill between ~/.claude/skills and the shelf with the shelf's own checks (no overwrite, refuses while linked).
+	// dryRun previews: nothing moves. Returns { ok, text }.
+	const moveSkill = async ({ dir, action, args, dryRun = false }) => {
+		const { code, lines } = await capture((io) => createShelf(makePaths(dir), io), (shelf) => shelf[action](...args, { dryRun }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
+	};
+	const shelveSkill = ({ dir, skill, group, dryRun }) => moveSkill({ dir, action: "shelve", args: [skill, group], dryRun });
+	const unshelveSkill = ({ dir, target, dryRun }) => moveSkill({ dir, action: "unshelve", args: [target], dryRun });
+
 	const stepsOf = (planned) => planned.edits.length + planned.commands.length;
 
 	// Dry-run preview of one finding's fix: the engine's own masked diff. Nothing is written.
@@ -90,5 +99,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, previewFix, applyFix, previewUndo, applyUndo };
 };

@@ -68,8 +68,10 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 	};
 
 	useInput((input, key) => {
-		if (input === "q") {
+		if (input === "q" && !locked) {
 			exit();
+		} else if (locked === "typing") {
+			// a name is being typed: only the open prompt reads keys
 		} else if (overlay === "help") {
 			if (input === "?" || key.escape || key.return) {
 				setOverlay(null);

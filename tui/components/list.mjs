@@ -31,13 +31,13 @@ export const ListPane = ({ rows, cursor, height }) => {
 };
 
 // `lines` replaces the row's own details (the doctor tab shows a fix preview there); long text is cut to `height`.
-export const DetailsPane = ({ row, lines, title = "Details", height }) => {
+export const DetailsPane = ({ row, lines, title = "Details", height, wrap = "truncate-middle" }) => {
 	const text = (lines ?? row?.details ?? []).map((line) => line.replaceAll("\t", "  "));
 	const shown = text.length > height ? [...text.slice(0, height - 1), `… ${text.length - height + 1} more lines`] : text;
 	return h(
 		Box,
 		{ flexDirection: "column", flexGrow: 1, borderStyle: "single", borderColor: "gray", paddingX: 1 },
 		h(Text, { bold: true }, title),
-		...shown.map((line, index) => h(Text, { key: index, wrap: "truncate-end", color: line.startsWith("+") && lines ? "green" : line.startsWith("-") && lines ? "red" : undefined }, line || " ")),
+		...shown.map((line, index) => h(Text, { key: index, wrap, color: line.startsWith("+") && lines ? "green" : line.startsWith("-") && lines ? "red" : undefined }, line || " ")),
 	);
 };

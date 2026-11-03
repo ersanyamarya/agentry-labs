@@ -3,7 +3,7 @@
 
 const tokens = (count) => (count === null || count === undefined ? "-" : `~${count}`);
 
-export const SKILLS_HINT = "space toggle on/off  g switch project/global";
+export const SKILLS_HINT = "space toggle on/off  s shelve  u unshelve  g switch project/global";
 
 const itemState = (item) => (item.global ? "on (global)" : item.project ? "on (project)" : "off");
 
@@ -15,6 +15,17 @@ const skillDetails = (skill) => [
 	`source: ${skill.source}`,
 	...(skill.target ? [`links to: ${skill.target}`] : []),
 ];
+
+// Why a loaded (non-shelf) skill row cannot be toggled, shown in the status line and the details.
+const whyFixed = (skill) => {
+	if (skill.scope === "project") {
+		return "project skill: files live in the repo, so there is no toggle here";
+	}
+	if (skill.kind === "file") {
+		return "personal skill: press s to move it onto the shelf, then it can be toggled";
+	}
+	return skill.kind === "broken" ? "broken skill: see the Doctor tab" : "personal skill is a symlink, not a folder: shelve moves folders only";
+};
 
 // Shelf groups (expandable), then what loads from personal, project and plugin folders.
 export const skillRows = (data, expanded = new Set()) => {
@@ -50,6 +61,8 @@ export const skillRows = (data, expanded = new Set()) => {
 					note: `${tokens(item.tokens)}  ${itemState(item)}`,
 					projectOn: item.project,
 					globalOn: item.global,
+					shelved: isSkill,
+					skill: item.name,
 					details: [`${isSkill ? "skill" : "agent"}: ${item.name}`, `group: ${group.name}`, `state: ${itemState(item)}`, `tokens: ${tokens(item.tokens)}`, `source: ${item.source}`, ...(isSkill ? [] : ["agents switch with their group"])],
 					file: isSkill ? `${item.source}/SKILL.md` : item.source,
 				});
@@ -65,13 +78,13 @@ export const skillRows = (data, expanded = new Set()) => {
 		}
 	};
 	const own = (scope) => loaded.filter((skill) => skill.scope === scope);
-	const skillRow = (skill) => ({ id: `skill:${skill.scope}:${skill.source}`, kind: "loaded", label: `  ${skill.name}`, note: `${tokens(skill.tokens)}${skill.state === "active" ? "" : `  ${skill.state}`}`, details: skillDetails(skill), file: skill.kind === "broken" ? undefined : `${skill.source}/SKILL.md` });
+	const skillRow = (skill) => ({ id: `skill:${skill.scope}:${skill.source}`, kind: skill.scope === "user" ? "personal" : "loaded", shelvable: skill.kind === "file", skill: skill.source.split("/").at(-1), why: whyFixed(skill), label: `  ${skill.name}`, note: `${tokens(skill.tokens)}${skill.state === "active" ? "" : `  ${skill.state}`}`, details: [...skillDetails(skill), `toggle: ${whyFixed(skill)}`], file: skill.kind === "broken" ? undefined : `${skill.source}/SKILL.md` });
 	section("Personal skills", own("user"), skillRow);
 	section("Project skills", own("project"), skillRow);
 	const plugins = data.status.plugins.items.filter((plugin) => loaded.some((skill) => skill.plugin === plugin.id));
 	section("Plugin skills", plugins, (plugin) => {
 		const mine = loaded.filter((skill) => skill.plugin === plugin.id);
-		return { id: `plugin-skills:${plugin.id}`, kind: "loaded", label: `  ${plugin.name}:*`, note: `${mine.length} skills  ${tokens(plugin.skillTokens)}  ${plugin.state}`, details: [`plugin: ${plugin.id}`, `skills: ${mine.map((skill) => skill.name.split(":").pop()).join(", ")}`, `tokens: ${tokens(plugin.skillTokens)}`, `source: ${plugin.installPath}`] };
+		return { id: `plugin-skills:${plugin.id}`, kind: "loaded", why: "plugin skill: enable or disable the plugin from the Plugins tab", label: `  ${plugin.name}:*`, note: `${mine.length} skills  ${tokens(plugin.skillTokens)}  ${plugin.state}`, details: [`toggle: plugin skill: enable or disable the plugin from the Plugins tab`, `plugin: ${plugin.id}`, `skills: ${mine.map((skill) => skill.name.split(":").pop()).join(", ")}`, `tokens: ${tokens(plugin.skillTokens)}`, `source: ${plugin.installPath}`] };
 	});
 	return rows;
 };
