@@ -70,11 +70,11 @@ flutter-assets, video, web-audit) without changing which groups are on; tests co
 
 | Done | Task | Model |
 |---|---|---|
-| [ ] | Fix the worktree bug: resolve the exclude file with `git rev-parse --git-path info/exclude` (in a worktree `.git` is a file). Add a test that runs `shelf on` inside a real temporary worktree. | Sonnet 5.5 |
-| [ ] | Accept several targets per call, each a group (`video`), `group/skill` (`video/ffmpeg-install`) or a bare skill name when unique across groups; ambiguous names list the matches and exit `2`. | Sonnet 5.5 |
-| [ ] | `agentry shelf status`: what is on in this project and globally, per skill, plus broken links (shelved skill moved or deleted). `--json`. | Sonnet 5.5 |
+| [x] | Fix the worktree bug: resolve the exclude file with `git rev-parse --git-path info/exclude` (in a worktree `.git` is a file). Add a test that runs `shelf on` inside a real temporary worktree. | Sonnet 5.5 |
+| [x] | Accept several targets per call, each a group (`video`), `group/skill` (`video/ffmpeg-install`) or a bare skill name when unique across groups; ambiguous names list the matches and exit `2`. | Sonnet 5.5 |
+| [x] | `agentry shelf status`: what is on in this project and globally, per skill, plus broken links (shelved skill moved or deleted). `--json`. | Sonnet 5.5 |
 | [ ] | `agentry shelf off --all [--global]`: remove every shelf link in the target and clean `.git/info/exclude`. | Haiku 5.5 |
-| [ ] | `agentry shelf shelve <skill> <group>` and `unshelve <skill>`: move a folder between `~/.claude/skills` and the shelf; refuse to overwrite; refuse while the skill is linked anywhere `status` can see. | Sonnet 5.5 |
+| [x] | `agentry shelf shelve <skill> <group>` and `unshelve <skill>`: move a folder between `~/.claude/skills` and the shelf; refuse to overwrite; refuse while the skill is linked anywhere `status` can see. | Sonnet 5.5 |
 | [ ] | Create `lib/tokens.mjs` (read `SKILL.md` frontmatter `description`, estimate tokens as characters ÷ 4) and show the per-group cost in `shelf list`. | Haiku 5.5 |
 | [ ] | `--dry-run` on every shelf write command, printing the links and exclude lines it would change. | Haiku 5.5 |
 | [ ] | Update the README "Skill shelf" section with the new commands and examples. | Haiku 5.5 |
@@ -185,3 +185,4 @@ toggle shelf skills or apply fixes without remembering commands.
 |---|---|
 | 2026-11-03 | Scope is the full setup manager, not shelf-only. Command name `agentry`. Distributed as a `package.json` bin, linked from the checkout. Terminal UI uses Ink on Node (OpenTUI needs Bun or Node's `--experimental-ffi`). CLI first, UI last on the same `lib/` functions. |
 | 2026-11-03 | `AGENTRY_HOME` replaces the home directory (default `os.homedir()`); `CLAUDE_CONFIG_DIR` replaces `<home>/.claude` and wins over it. `lib/shelf.mjs` exports `createShelf(paths, {out, err, warn})` returning `{list, on, off}`, each giving an exit code; `createPaths({env, cwd})` takes the cwd so `projectRoot()` runs git there. Tests spawn the real CLI with both env vars set. Note: `node --test` also runs `test/helpers/*.mjs` as (empty) test files; harmless. `git init` seeds `.git/info/exclude` with comment lines, so tests filter comments. |
+| 2026-11-03 | Phase 1 rows 1, 2, 3, 5. `paths.excludeFile(root)` runs `git rev-parse --git-path info/exclude` (shared across worktrees, so one worktree's links go into the common exclude file). `on`/`off` take an array of targets; all are resolved first, so one bad target changes nothing (exit 1 unknown, 2 ambiguous). A name that is both a group and a skill resolves to the group. `status` treats a symlink as a shelf link when its target lies under the shelf; a missing target is `broken`. `status` JSON keys: `shelf`, `groups[{name,state}]`, `project`/`global` `{base,links[{group,kind,name,link}],broken[{kind,name,link,target}]}`. `unshelve` refuses while a working or broken link to that skill exists; `shelve` refuses while any shelf link of that name exists (it would shadow the moved folder). Neither removes an emptied group folder. `linkTarget` now resolves relative symlinks against the link's folder. |
