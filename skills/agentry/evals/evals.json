@@ -1,0 +1,23 @@
+{
+  "skill_name": "agentry",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "what skills and MCP servers load in this project, and what do they cost?",
+      "expected_output": "Runs agentry status --json (not reading ~/.claude.json or settings by hand); summarizes skills.items and mcp.servers by scope with tokens.measured, says MCP tool lists are not measured, and never prints env or header values.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "my sessions feel slow and I think I have duplicate MCP servers",
+      "expected_output": "Runs agentry doctor --json, reports dup-mcp-scope / dup-mcp-plugin findings with their files, and offers agentry fix; does not edit .claude.json or .mcp.json directly.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "check all my repos under ~/ws for setup problems and fix what you can",
+      "expected_output": "Runs agentry scan ~/ws --only-problems --json, summarizes global versus per-repo findings, then proposes agentry scan --fix and waits for the user's go-ahead before running it; findings without an automatic fix are explained, not hand-edited.",
+      "files": []
+    }
+  ]
+}

@@ -23,6 +23,7 @@ Remember, before writing any code:
 
 ```
 ├── skills/              # Claude Code skills (self-contained, invoked as /<skill-name>)
+│   ├── agentry/                # Answer setup questions from agentry status/doctor/scan JSON
 │   ├── humanize-and-unslop/    # Edit/detect AI-slop patterns in writing (scan.mjs + judgment)
 │   ├── image-artifact-setup/   # Scaffold OG/social card generators using Playwright
 │   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, write fix plan
@@ -72,6 +73,7 @@ claude -p "/image-artifact-setup"
 | Skill | Bundle |
 |-------|--------|
 | `acquire-codebase-knowledge` | flutter |
+| `agentry` | global |
 | `flutter-brand-icons` | flutter |
 | `flutter-bundle-google-fonts` | flutter |
 | `flutter-device-scripts-setup` | flutter |

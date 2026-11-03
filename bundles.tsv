@@ -13,6 +13,7 @@ global	agents/super-planner.agent.md
 global	claude-md-files/BASIC_CLAUDE.md
 global	rules/commit-attribution.md
 global	rules/context7.md
+global	skills/agentry
 global	skills/generate-commit-message
 global	skills/humanize-and-unslop
 global	skills/image-artifact-setup
