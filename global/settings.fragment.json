@@ -2,6 +2,9 @@
 	"enabledPlugins": {
 		"context-mode@context-mode": true
 	},
+	"env": {
+		"TRAIL_INVOKED_AS": "trail"
+	},
 	"extraKnownMarketplaces": {
 		"context-mode": {
 			"source": {
@@ -15,8 +18,8 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" post-edit",
-						"timeout": 10000,
+						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" post-edit || exit 0",
+						"timeout": 10,
 						"type": "command"
 					}
 				],
@@ -25,20 +28,54 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" tool-savings",
-						"timeout": 8000,
+						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" tool-savings || exit 0",
+						"timeout": 8,
 						"type": "command"
 					}
 				],
-				"matcher": "Bash|mcp__graft__|Read|Grep|Glob"
+				"matcher": "Bash|mcp__graft__|mcp__trail__|Read|Grep|Glob|Skill"
+			}
+		],
+		"PostToolUseFailure": [
+			{
+				"hooks": [
+					{
+						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" post-bash-fail || exit 0",
+						"timeout": 5,
+						"type": "command"
+					}
+				],
+				"matcher": "Bash"
+			}
+		],
+		"PreToolUse": [
+			{
+				"hooks": [
+					{
+						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" pre-edit || exit 0",
+						"timeout": 5,
+						"type": "command"
+					}
+				],
+				"matcher": "Write|Edit|MultiEdit"
+			},
+			{
+				"hooks": [
+					{
+						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" pre-bash || exit 0",
+						"timeout": 5,
+						"type": "command"
+					}
+				],
+				"matcher": "Bash"
 			}
 		],
 		"SessionEnd": [
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" session-end",
-						"timeout": 8000,
+						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" session-end || exit 0",
+						"timeout": 5,
 						"type": "command"
 					}
 				]
@@ -48,8 +85,8 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" session-start",
-						"timeout": 8000,
+						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" session-start || exit 0",
+						"timeout": 10,
 						"type": "command"
 					}
 				]
@@ -59,8 +96,8 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" stop",
-						"timeout": 8000,
+						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" stop || exit 0",
+						"timeout": 10,
 						"type": "command"
 					}
 				]
@@ -70,8 +107,8 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" prompt",
-						"timeout": 15000,
+						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" prompt || exit 0",
+						"timeout": 15,
 						"type": "command"
 					}
 				]

@@ -121,7 +121,8 @@ The `bun run cover` log prints the counts it used; check they match the change, 
 ### MCP Configuration
 This repo has no project MCP servers (`.mcp.json` stays gitignored for local experiments). It relies on the global ones:
 - **context7**: library documentation lookup (`CONTEXT7_API_KEY` exported from your shell profile, since GUI-launched Claude does not read shell rc files)
-- **graft**: prebuilt code graph for finding and tracing code
+- **trail** (formerly graft): prebuilt code graph for finding and tracing code; its hooks need `TRAIL_INVOKED_AS=trail`
+  (in `global/settings.fragment.json`'s `env`) or they print the old `graft` command names
 - **context-mode**: plugin for sandboxed execution and indexing of large outputs
 
 `global/mcp.json` holds only these always-useful servers. Repo-specific ones (fallow, shadcn, chrome-devtools) go in that

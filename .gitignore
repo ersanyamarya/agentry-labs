@@ -1,6 +1,6 @@
 .mcp.json
 
-# graft's local graph cache — regenerable, not committed (run `graft build`).
+# trail's local code map (kept in graft/, its default folder) — regenerable, not committed (run `trail build`).
 /graft/
 **/graft*.cjs
 
