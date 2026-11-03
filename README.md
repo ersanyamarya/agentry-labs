@@ -97,11 +97,21 @@ needed. `image-artifact-setup` (`design`) and `lighthouse-audit` (`web-audit`) a
 `install.sh --bundle global` copies them back into `~/.claude/skills`; move them to the shelf again afterwards:
 
 ```bash
-node scripts/shelf.mjs list                       # groups, their skills, and where each is on
-node scripts/shelf.mjs on video                   # this project's .claude/skills (kept out of git via .git/info/exclude)
-node scripts/shelf.mjs on video --global          # ~/.claude/skills, every project
-node scripts/shelf.mjs off video [--global]
+agentry shelf list                        # groups, the description tokens each costs when on, and where each is on
+agentry shelf status [--json]             # what is on in this project and globally, plus broken links
+agentry shelf on video audit/review       # several targets at once: a group, group/skill, or a skill name unique across groups
+agentry shelf on video --global           # ~/.claude/skills, every project (default: this project's .claude)
+agentry shelf off video                   # remove those links
+agentry shelf off --all                   # remove every shelf link in this project (add --global for ~/.claude)
+agentry shelf on audit --dry-run          # print the links and exclude lines it would change; write nothing
+agentry shelf shelve pdf docs             # move ~/.claude/skills/pdf onto the shelf as group docs
+agentry shelf unshelve pdf                # move it back to ~/.claude/skills
 ```
+
+`list` estimates each group's cost as the frontmatter `description` of its skills and agents, at about four characters
+per token: what the group adds to every session once it is on. Project links are listed in `.git/info/exclude` (the
+shared one in a worktree), so they never show as untracked. `shelve` refuses to overwrite a folder, and both `shelve`
+and `unshelve` refuse while a link to the skill exists; run `off` first. `node scripts/shelf.mjs` still forwards to the same commands.
 
 A group's agents sit in `~/.claude/skill-shelf/<group>/agents/*.md` (the `audit` group carries `slop-auditor-analyst`) and
 are linked into `.claude/agents` with its skills. Claude Code watches skill folders, so a running session picks skills up;
@@ -118,7 +128,7 @@ npm link                       # puts `agentry` on your PATH (or: npm install -g
 
 agentry --help                 # commands and options
 agentry shelf list             # same output as node scripts/shelf.mjs list
-agentry shelf on video         # also: off <group>, with --global for ~/.claude
+agentry shelf on video         # also: off <group>, off --all, shelve, unshelve; --global for ~/.claude, --dry-run to preview
 ```
 
 Run tests with `npm test`.
@@ -140,7 +150,7 @@ Run tests with `npm test`.
 - `global/`: settings fragment and MCP config merged by `scripts/apply-global.mjs`
 - `scripts/`: installer, sync and shelf scripts (`shelf.mjs` forwards to `agentry shelf`)
 - `bin/`: the `agentry` command entry and router
-- `lib/`: the CLI modules (paths, shelf)
+- `lib/`: the CLI modules (paths, shelf, tokens)
 - `docs/`: design plans, such as `docs/shelf-cli-plan.md`
 - `test/`: tests for the CLI (`npm test`)
 - `bundles.tsv`: the bundle each component belongs to
