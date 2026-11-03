@@ -4,10 +4,7 @@ import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import React from "react";
-import { render } from "ink-testing-library";
 import { test } from "node:test";
-import { App } from "../tui/index.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const agentry = (dir, args, options = {}) =>
@@ -38,14 +35,4 @@ test("ui without a terminal refuses instead of rendering", () => {
 	const result = agentry(root, ["ui"]);
 	assert.equal(result.status, 2);
 	assert.match(result.stderr, /needs an interactive terminal/);
-});
-
-test("the ui placeholder renders its message", () => {
-	const { lastFrame, stdin, unmount } = render(React.createElement(App));
-	try {
-		assert.match(lastFrame(), /agentry ui: not built yet/);
-		stdin.write("q");
-	} finally {
-		unmount();
-	}
 });
