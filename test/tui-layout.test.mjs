@@ -23,24 +23,25 @@ test("sections are bold headers with a rule and a blank line between them", () =
 });
 
 test("scope badges tag the rows", async () => {
-	assert.match(ui.frame(), /notes {2}personal {2}~\d+/);
-	assert.match(ui.frame(), /proj {2}project {2}~1/);
+	assert.match(ui.frame(), /^Personal skills ─+\s/m);
+	assert.match(ui.frame(), /^Project skills ─+\s/m);
+	assert.doesNotMatch(ui.frame(), /notes\s+personal/);
 	await ui.press("4");
-	await ui.until(/demo@mkt {2}personal {2}1\.0\.0 {2}● active/);
+	await ui.until(/demo@mkt\s+personal\s+1\.0\.0\s+● active/);
 	await ui.press("2");
-	await ui.until(/demo {2}project {2}pending-approval {2}stdio/);
+	await ui.until(/demo\s+project\s+pending-approval\s+stdio/);
 });
 
 test("the footer lists only the keys of the current tab", async () => {
-	assert.match(ui.frame(), /space toggle P \(project\) {2}G toggle global {2}s shelve {2}u unshelve/);
+	assert.match(ui.frame(), /space P {2}G global {2}s shelve {2}u unshelve/);
 	await ui.press("2");
-	await ui.until(/e open source file in \$EDITOR/);
+	await ui.until(/e edit/);
 	assert.doesNotMatch(ui.frame(), /s shelve/);
 	await ui.press("4");
-	await ui.until(/space enable\/disable/);
+	await ui.until(/space on\/off/);
 	await ui.press("5");
-	await ui.until(/enter preview fix {2}u undo last fix set/);
-	assert.doesNotMatch(ui.frame(), /space enable/);
+	await ui.until(/enter fix {2}u undo {2}e edit/);
+	assert.doesNotMatch(ui.frame(), /space on\/off/);
 });
 
 test("a long path in the details is cut in the middle with an ellipsis, keeping both ends", async () => {

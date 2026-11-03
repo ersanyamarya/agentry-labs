@@ -6,12 +6,12 @@ import { skillRows } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
 import { useFlow } from "../use-flow.mjs";
-import { DetailsPane, ListPane } from "./list.mjs";
+import { Panes } from "./list.mjs";
 import { Legend } from "./legend.mjs";
 
 const h = React.createElement;
 
-export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock }) => {
+export const SkillsTab = ({ data, api, dir, active, height, layout, notify, reload, lock }) => {
 	const [expanded, setExpanded] = React.useState(() => new Set());
 	const rows = React.useMemo(() => skillRows(data, expanded), [data, expanded]);
 	const { cursor, row, move } = useCursor(rows);
@@ -104,6 +104,6 @@ export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock
 		Box,
 		{ flexDirection: "column" },
 		h(Legend),
-		h(Box, null, h(ListPane, { rows, cursor, height }), h(DetailsPane, { row, lines: flow.lines, title: flow.title, height })),
+		h(Panes, { rows, cursor, height, row, lines: flow.lines, title: flow.title, layout }),
 	);
 };

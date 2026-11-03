@@ -6,11 +6,11 @@ import { Box, Text, useInput } from "ink";
 import { doctorRows } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { SEVERITY, useStyle } from "../theme.mjs";
-import { DetailsPane, ListPane } from "./list.mjs";
+import { Panes } from "./list.mjs";
 
 const h = React.createElement;
 
-export const DoctorTab = ({ data, api, dir, active, height, notify, reload, lock, openFile }) => {
+export const DoctorTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile }) => {
 	const rows = React.useMemo(() => doctorRows(data), [data]);
 	const { cursor, row, move } = useCursor(rows);
 	// null | { kind: "fix" | "undo", finding?, text, appliable } waiting for y/n | { kind: "result", ok, text }
@@ -75,6 +75,6 @@ export const DoctorTab = ({ data, api, dir, active, height, notify, reload, lock
 		Box,
 		{ flexDirection: "column" },
 		h(Text, null, h(Text, style(SEVERITY.error.style), `${error} errors`), ", ", h(Text, style(SEVERITY.warning.style), `${warning} warnings`), ", ", h(Text, style(SEVERITY.info.style), `${info} info`)),
-		h(Box, null, h(ListPane, { rows, cursor, height }), h(DetailsPane, { row, lines, title, height })),
+		h(Panes, { rows, cursor, height, row, lines, title, layout }),
 	);
 };

@@ -7,11 +7,11 @@ import { startMcpToggle } from "../mcp-flow.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { useFlow } from "../use-flow.mjs";
-import { DetailsPane, ListPane } from "./list.mjs";
+import { Panes } from "./list.mjs";
 
 const h = React.createElement;
 
-export const InventoryTab = ({ data, api, dir, makeRows, active, height, openFile, notify, reload, lock }) => {
+export const InventoryTab = ({ data, api, dir, makeRows, active, height, layout, openFile, notify, reload, lock }) => {
 	const rows = React.useMemo(() => makeRows(data), [data, makeRows]);
 	const { cursor, row, move } = useCursor(rows);
 	const flow = useFlow({ lock, notify, reload });
@@ -35,5 +35,5 @@ export const InventoryTab = ({ data, api, dir, makeRows, active, height, openFil
 		},
 		{ isActive: active },
 	);
-	return h(Box, null, h(ListPane, { rows, cursor, height }), h(DetailsPane, { row, lines: flow.lines, title: flow.title, height }));
+	return h(Panes, { rows, cursor, height, row, lines: flow.lines, title: flow.title, layout });
 };

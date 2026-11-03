@@ -24,7 +24,7 @@ describe("Plugins tab: enable and disable", () => {
 		await ui.until(/Disable demo@mkt \(preview\)/);
 		assert.match(ui.frame(), /-\s+"demo@mkt": true/);
 		assert.match(ui.frame(), /\+\s+"demo@mkt": false/);
-		assert.match(ui.frame(), /sessions started after this/);
+		await ui.until(/sessions started after this/);
 		assert.match(ui.frame(), /Apply this\? y = yes, n = cancel/);
 		await ui.press("n");
 		await ui.until(/Cancelled; nothing changed/);

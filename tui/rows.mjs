@@ -8,20 +8,20 @@ import { badgeText, costStyle, plain, SCOPE_NAMES, scopeStyle, seg, SEVERITY, st
 const tokens = (count) => (count === null || count === undefined ? "-" : `~${count}`);
 
 const DIM = { dimColor: true };
-const gap = seg("  ");
-const cost = (count, suffix = "") => seg(`${tokens(count)}${suffix}`, costStyle(count));
+const cost = (count) => seg(tokens(count), costStyle(count));
 const badge = (text) => seg(badgeText(text), { ...stateStyle(text), bold: true });
 const scopeBadge = (scope) => seg(SCOPE_NAMES[scope] ?? scope, scopeStyle(scope));
 // "P ● on" / "G ○ off": the state of a shelf row in this project and globally.
 const where = (letter, state) => [seg(`${letter} `, DIM), badge(state)];
-// A row's right-hand side from segments, separated by two spaces; `note` is its plain text.
-// A part may be an array of segments that stay together (no gap inside).
-const withNote = (parts) => {
-	const segments = parts.flatMap((part, index) => (index === 0 ? [part].flat() : [gap, ...[part].flat()]));
-	return { segments, note: plain(segments) };
-};
+// A fixed-width column of a row: parts ([seg...]) padded to `width`, left or right aligned. See components/list.mjs.
+const cell = (parts, width, align = "left") => ({ parts: [parts].flat().filter(Boolean), width, align });
+const blank = (width) => cell([], width);
+// A row's columns and their plain text (for tests and text captures).
+const withCells = (cells) => ({ cells, note: cells.map((one) => one.parts.map((part) => part.text).join("")).join("  ").trim() });
+// Skills tab: count, cost, then two state columns (P and G for shelf rows; scope and state for plugin skills).
+const skillCells = (info, count, first, second) => withCells([cell(typeof info === "string" ? (info ? seg(info, DIM) : []) : info, 9), cell(cost(count), 5, "right"), cell(first ?? [], 11), cell(second ?? [], 11)]);
 
-export const SKILLS_KEYS = [["space", "toggle P (project)"], ["G", "toggle global"], ["s", "shelve"], ["u", "unshelve"], ["enter", "expand"]];
+export const SKILLS_KEYS = [["space", "toggle P (project)", "P"], ["G", "toggle global", "global"], ["s", "shelve"], ["u", "unshelve"], ["enter", "expand"]];
 
 const itemState = (item, field) => (item[field] ? "on" : "off");
 
@@ -69,10 +69,10 @@ export const skillRows = (data, expanded = new Set()) => {
 			group: group.name,
 			target: group.name,
 			label: `${open ? "▾" : "▸"} ${group.name}`,
-			...withNote([seg(`${skills.length} skills${agents > 0 ? `, ${agents} agent${agents > 1 ? "s" : ""}` : ""}`, DIM), cost(group.tokens), where("P", pState), where("G", gState)]),
+			...skillCells(`${skills.length} skills`, group.tokens, where("P", pState), where("G", gState)),
 			projectOn: group.items.some((item) => item.project),
 			globalOn: group.items.some((item) => item.global),
-			details: [`shelf group: ${group.name} (opt-in)`, `this project: ${badgeText(pState)}`, `global: ${badgeText(gState)}`, `cost when on: ${tokens(group.tokens)} tokens`, "toggle: space = this project, G = global; enter expands"],
+			details: [`shelf group: ${group.name} (opt-in)`, `this project: ${badgeText(pState)}`, `global: ${badgeText(gState)}`, `contains: ${skills.length} skills${agents > 0 ? `, ${agents} agent${agents > 1 ? "s" : ""}` : ""}`, `cost when on: ${tokens(group.tokens)} tokens`, "toggle: space = this project, G = global; enter expands"],
 		});
 		if (open) {
 			for (const item of group.items) {
@@ -83,7 +83,7 @@ export const skillRows = (data, expanded = new Set()) => {
 					group: group.name,
 					target: isSkill ? `${group.name}/${item.name}` : undefined,
 					label: `    ${item.name}${isSkill ? "" : " (agent)"}`,
-					...withNote([...(isSkill ? [scopeBadge("shelf")] : []), cost(item.tokens), where("P", itemState(item, "project")), where("G", itemState(item, "global"))]),
+					...skillCells(isSkill ? scopeBadge("shelf") : seg("agent", DIM), item.tokens, where("P", itemState(item, "project")), where("G", itemState(item, "global"))),
 					projectOn: item.project,
 					globalOn: item.global,
 					shelved: isSkill,
@@ -110,7 +110,7 @@ export const skillRows = (data, expanded = new Set()) => {
 		skill: skill.source.split("/").at(-1),
 		why: whyFixed(skill),
 		label: `  ${skill.name}`,
-		...withNote([scopeBadge(skill.scope), cost(skill.tokens), ...(skill.state === "active" ? [] : [badge(skill.state)])]),
+		...withCells([cell([], 9), cell(cost(skill.tokens), 5, "right"), ...(skill.state === "active" ? [] : [cell(badge(skill.state), 11)])]),
 		details: [...skillDetails(skill), `toggle: ${whyFixed(skill)}`],
 		file: skill.kind === "broken" ? undefined : `${skill.source}/SKILL.md`,
 	});
@@ -125,7 +125,7 @@ export const skillRows = (data, expanded = new Set()) => {
 			plugin: plugin.id,
 			enabled: plugin.state === "active",
 			label: `  ${plugin.name}:*`,
-			...withNote([seg(`${mine.length} skills`, DIM), cost(plugin.skillTokens), badge(plugin.state)]),
+			...skillCells(`${mine.length} skills`, plugin.skillTokens, scopeBadge("plugin"), badge(plugin.state)),
 			details: [`plugin: ${plugin.id}`, `state: ${badgeText(plugin.state)}`, `skills: ${mine.map((skill) => skill.name.split(":").pop()).join(", ")}`, `tokens: ${tokens(plugin.skillTokens)}`, `source: ${plugin.installPath}`, "toggle: plugin skill (comes with a plugin): space toggles the plugin", `note: ${PLUGIN_NOTE}`],
 		};
 	});
@@ -134,7 +134,7 @@ export const skillRows = (data, expanded = new Set()) => {
 
 export const PLUGIN_NOTE = "applies to new sessions";
 
-export const MCP_KEYS = [["space", "park / add back (user scope)"], ["e", "open source file in $EDITOR"]];
+export const MCP_KEYS = [["space", "park / add back (user scope)", "park"], ["e", "open source file in $EDITOR", "edit"]];
 
 const MCP_WHY = {
 	plugin: "plugin server: managed by the plugin, switch the plugin instead",
@@ -154,7 +154,7 @@ export const mcpRows = (data) => [
 			id: `mcp:${server.scope}:${server.name}:${server.source}`,
 			label: server.name,
 			...(mine ? { mcp: server.name, mcpEnable: false } : { why: MCP_WHY[server.scope] }),
-			...withNote([scopeBadge(server.scope), badge(server.state), seg(server.transport, DIM)]),
+			...withCells([cell(scopeBadge(server.scope), 8), cell(badge(server.state), 16), cell(seg(server.transport, DIM), 5)]),
 			file: server.source,
 			details: [`server: ${server.name}`, `scope: ${server.scope}`, `state: ${badgeText(server.state)}`, `transport: ${server.transport}`, `${server.url ? "url" : "command"}: ${target}`, ...env, ...headers, `tokens: not measured (tool lists)`, `source: ${server.source}`, `toggle: ${mine ? "space parks it (removes it from user scope, config saved); undo with agentry fix --undo" : MCP_WHY[server.scope] ?? "not managed here"}`],
 		};
@@ -164,7 +164,7 @@ export const mcpRows = (data) => [
 		label: entry.name,
 		mcp: entry.name,
 		mcpEnable: true,
-		...withNote([scopeBadge("user"), badge("parked"), seg("not loaded", DIM)]),
+		...withCells([cell(scopeBadge("user"), 8), cell(badge("parked"), 16), cell(seg("-", DIM), 5)]),
 		details: [`server: ${entry.name}`, "scope: user", `state: ${badgeText("parked")}`, `config: ${entry.summary}`, `parked: ${entry.parkedAt ?? "-"}`, "toggle: space adds it back to user scope (claude mcp add-json from the saved copy)"],
 	})),
 ];
@@ -173,12 +173,12 @@ export const hookRows = (data) =>
 	data.status.hooks.items.map((hook, index) => ({
 		id: `hook:${index}:${hook.source}`,
 		label: `${hook.event}  ${hook.matcher}`,
-		...withNote([scopeBadge(hook.scope), ...(hook.plugin ? [seg(hook.plugin, DIM)] : []), badge(hook.state)]),
+		...withCells([cell(scopeBadge(hook.scope), 8), cell(badge(hook.state), 10)]),
 		file: hook.source,
 		details: [`event: ${hook.event}`, `matcher: ${hook.matcher}`, `type: ${hook.type}`, `command: ${hook.command ?? `(${hook.type})`}`, `scope: ${hook.scope}${hook.plugin ? ` (${hook.plugin})` : ""}`, `state: ${hook.state}`, `output: not measured`, `source: ${hook.source}`],
 	}));
 
-export const PLUGINS_KEYS = [["space", "enable/disable"], ["e", "open source file in $EDITOR"]];
+export const PLUGINS_KEYS = [["space", "enable/disable", "on/off"], ["e", "open source file in $EDITOR", "edit"]];
 
 export const pluginRows = (data) =>
 	data.status.plugins.items.map((plugin) => ({
@@ -186,7 +186,7 @@ export const pluginRows = (data) =>
 		plugin: plugin.id,
 		enabled: plugin.state === "active",
 		label: plugin.id,
-		...withNote([...(plugin.installScope ? [scopeBadge(plugin.installScope)] : []), seg(plugin.version ?? "", DIM), badge(plugin.state)]),
+		...withCells([cell(plugin.installScope ? scopeBadge(plugin.installScope) : [], 8), cell(seg(plugin.version ?? "", DIM), 8), cell(badge(plugin.state), 10)]),
 		file: plugin.enabledBy?.source,
 		details: [
 			`plugin: ${plugin.id}`,
@@ -201,7 +201,7 @@ export const pluginRows = (data) =>
 		],
 	}));
 
-export const DOCTOR_KEYS = [["enter", "preview fix"], ["u", "undo last fix set"], ["e", "open file"]];
+export const DOCTOR_KEYS = [["enter", "preview fix", "fix"], ["u", "undo last fix set", "undo"], ["e", "open file", "edit"]];
 
 export const doctorRows = (data) => {
 	const rows = [];

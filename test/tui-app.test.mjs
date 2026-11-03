@@ -64,7 +64,7 @@ describe("skills tab", () => {
 	test("shows the same token cost as agentry shelf list", async () => {
 		const listed = ui.fx.run(["shelf", "list"]).stdout;
 		assert.match(listed, /video .*~10 tokens/);
-		assert.match(ui.frame(), /video {2}2 skills {2}~10 {2}P ○ off {2}G ○ off/);
+		assert.match(ui.frame(), /video\s+2 skills\s+~10\s+P ○ off\s+G ○ off/);
 	});
 
 	test("space toggles a row in this project, G toggles it globally, and enter expands the group", async () => {

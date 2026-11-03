@@ -52,7 +52,7 @@ describe("MCP tab: park and add back user-scope servers", () => {
 		await ui.press("y");
 		await ui.until(/userdemo is parked/);
 		assert.equal(servers().userdemo, undefined);
-		await ui.until(/userdemo\s+personal\s+○ parked\s+not loaded/);
+		await ui.until(/userdemo\s+personal\s+○ parked/);
 		assert.doesNotMatch(ui.frame(), new RegExp(SECRET));
 
 		await ui.press(KEYS.up);

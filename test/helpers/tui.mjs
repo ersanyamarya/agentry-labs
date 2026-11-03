@@ -18,9 +18,12 @@ export const KEYS = { up: "\u001B[A", down: "\u001B[B", right: "\u001B[C", left:
 // Frames carry escape codes when the test forces colour; patterns match the frame as drawn or with the codes removed.
 export const stripAnsi = (text) => text.replace(/\u001B\[[0-9;]*m/g, "");
 
+// The frame with box borders removed and whitespace collapsed, so text the details pane wrapped can still be matched.
+export const squash = (text) => stripAnsi(text).replace(/[│┌┐└┘─╭╮╰╯]/g, " ").replace(/\s+/g, " ");
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const createUi = ({ env = {}, spawn, personal = [], plugin } = {}) => {
+export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols: 100, rows: 60 } } = {}) => {
 	const fx = createFixture({ shelf: { audit: { skills: ["review"] }, video: { skills: ["trim", "ffmpeg-install"] } } });
 	assert.ok(!fx.root.startsWith(homedir()), "TMPDIR must be outside the home directory");
 	writeFileSync(join(fx.configDir, "skill-shelf/video/trim/SKILL.md"), `---\nname: trim\ndescription: ${"x".repeat(40)}\n---\n`);
@@ -52,12 +55,13 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin } = {}) => {
 		discover: (roots) => finder.find(roots, { depth: 2 }),
 		env,
 		spawn,
+		size,
 	};
 	const app = render(React.createElement(App, props));
 
 	const until = async (pattern, what = String(pattern)) => {
 		for (let tries = 0; tries < 100; tries++) {
-			if (pattern.test(app.lastFrame() ?? "") || pattern.test(stripAnsi(app.lastFrame() ?? ""))) {
+			if (pattern.test(app.lastFrame() ?? "") || pattern.test(stripAnsi(app.lastFrame() ?? "")) || pattern.test(squash(app.lastFrame() ?? ""))) {
 				return app.lastFrame();
 			}
 			await wait(20);

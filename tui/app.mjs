@@ -4,6 +4,7 @@
 import React from "react";
 import { Box, Text, useApp, useInput, useStdin, useStdout } from "ink";
 import { Footer } from "./components/footer.mjs";
+import { layoutFor, STACKED_DETAILS_LINES } from "./layout.mjs";
 import { DoctorTab } from "./components/doctor-tab.mjs";
 import { Help } from "./components/help.mjs";
 import { InventoryTab } from "./components/inventory-tab.mjs";
@@ -18,7 +19,8 @@ const h = React.createElement;
 
 const TAB_KEYS = [SKILLS_KEYS, MCP_KEYS, MCP_KEYS, PLUGINS_KEYS, DOCTOR_KEYS];
 
-export const App = ({ api, startDir, recents, discover, env = process.env, spawn }) => {
+// `size` ({ cols, rows }) overrides the terminal size, for tests.
+export const App = ({ api, startDir, recents, discover, env = process.env, spawn, size }) => {
 	const { exit } = useApp();
 	const { setRawMode } = useStdin();
 	const { stdout } = useStdout();
@@ -105,9 +107,11 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		}
 	});
 
-	const height = Math.max(6, (stdout?.rows ?? 30) - 12);
+	const layout = layoutFor(size?.cols ?? stdout?.columns ?? 100);
+	// Chrome takes about 12 lines; stacked, the details block under the list takes about 10 more.
+	const height = Math.max(6, (size?.rows ?? stdout?.rows ?? 30) - 12 - (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0));
 	const counts = !data ? {} : { Skills: data.status.skills.items.length, MCP: data.status.mcp.servers.length, Hooks: data.status.hooks.items.length, Plugins: data.status.plugins.items.length, Doctor: data.doctor.findings.length };
-	const shared = { data, api, dir, height, notify: setMessage, reload, lock, openFile };
+	const shared = { data, api, dir, height, layout, notify: setMessage, reload, lock, openFile };
 	const tabs = [
 		h(SkillsTab, { ...shared, active: tab === 0 && !overlay }),
 		h(InventoryTab, { ...shared, makeRows: mcpRows, active: tab === 1 && !overlay }),
@@ -126,7 +130,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		h(
 			Box,
 			{ flexDirection: "column" },
-			h(TabBar, { tab, project: dir, counts, summary }),
+			h(TabBar, { tab, project: dir, counts, summary, cols: layout.cols }),
 			overlay === "help" ? h(Help) : null,
 			overlay === "picker" ? h(Picker, { rows: picker, onPick: pick, onClose: () => setOverlay(null) }) : null,
 			!data
@@ -134,7 +138,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 				: h(Box, { flexDirection: "column", display: overlay ? "none" : "flex" }, ...tabs.map((content, index) => h(Box, { key: TAB_NAMES[index], flexDirection: "column", display: index === tab ? "flex" : "none" }, content))),
 			data?.status.errors.length > 0 || data?.doctor.errors.length > 0 ? h(Text, { color: theme.color ? "yellow" : undefined, wrap: "truncate-end" }, `warning: ${[...data.status.errors, ...data.doctor.errors][0].message}`) : null,
 			message ? h(Text, { color: theme.color ? "green" : undefined, wrap: "truncate-middle" }, message) : null,
-			h(Footer, { keys: TAB_KEYS[tab] }),
+			h(Footer, { keys: TAB_KEYS[tab], cols: layout.cols }),
 		),
 	);
 };

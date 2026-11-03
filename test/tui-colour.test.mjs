@@ -58,7 +58,7 @@ describe("rows carry the styles", () => {
 	test("a group is off, partial or on, with the matching badge and a cost style", () => {
 		const badgeOf = (items) => {
 			const row = skillRows(data(items)).find((candidate) => candidate.kind === "group");
-			const badges = row.segments.filter((part) => /^[●○◐] /.test(part.text));
+			const badges = row.cells.flatMap((one) => one.parts).filter((part) => /^[●○◐] /.test(part.text));
 			return { project: badges[0], global: badges[1] };
 		};
 		const off = { text: "○ off", style: { color: "gray", bold: true } };
@@ -68,8 +68,8 @@ describe("rows carry the styles", () => {
 		assert.deepEqual(badgeOf([item("a", true, false), item("b", true, false)]), { project: on, global: off });
 		assert.deepEqual(badgeOf([item("a", false, true), item("b", false, true)]), { project: off, global: on });
 		const group = skillRows(data([item("a", false, false)])).find((candidate) => candidate.kind === "group");
-		assert.deepEqual(group.segments.find((part) => part.text.startsWith("~")).style, { color: "yellow" });
-		assert.match(group.note, /1 skills {2}~240 {2}P ○ off {2}G ○ off/);
+		assert.deepEqual(group.cells.flatMap((one) => one.parts).find((part) => part.text.startsWith("~")).style, { color: "yellow" });
+		assert.match(group.note, /1 skills\s+~240\s+P ○ off\s+G ○ off/);
 	});
 
 	test("doctor rows use the severity icon and colour", () => {
