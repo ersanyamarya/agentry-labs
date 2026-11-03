@@ -122,7 +122,18 @@ const runShelf = (args, { global, json, all, "dry-run": dryRun }) => {
 };
 
 // Ink and React load here, on demand, so no other command pays for them.
+// Chalk (inside Ink) picks its colour level once, when it loads, from TERM, COLORTERM and FORCE_COLOR, and never reads
+// NO_COLOR. A terminal that leaves TERM unset (some app-embedded terminals) would get level 0 and no colour at all, so on a
+// TTY we ask for the basic 16 colours unless the user opted out (NO_COLOR, FORCE_COLOR, TERM=dumb).
+const preferColor = () => {
+	const { env } = process;
+	if (process.stdout.isTTY && !env.NO_COLOR && !("FORCE_COLOR" in env) && env.TERM !== "dumb") {
+		env.FORCE_COLOR = "1";
+	}
+};
+
 const runUi = async (argv) => {
+	preferColor();
 	const { run } = await import("../tui/index.mjs");
 	return run({ argv, paths: createPaths(), io: { stdin: process.stdin, stdout: process.stdout, stderr: process.stderr } });
 };
