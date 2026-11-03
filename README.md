@@ -120,10 +120,11 @@ start a new session if a linked agent doesn't show. To shelve another group, mov
 
 ### agentry CLI
 
-`agentry` runs from any folder. It needs Node.js 22 or newer and no install step beyond linking the checkout:
+`agentry` runs from any folder. It needs Node.js 22 or newer. Install the checkout's dependencies once (Ink and React for `agentry ui`), then link it:
 
 ```bash
 cd /path/to/agentry-labs
+npm install                    # once: Ink and React for `agentry ui`
 npm link                       # puts `agentry` on your PATH (or: npm install -g /path/to/agentry-labs)
 
 agentry --help                 # commands and options
@@ -132,7 +133,61 @@ agentry shelf on video         # also: off <group>, off --all, shelve, unshelve;
 agentry ui                     # terminal UI (Ink); a bare `agentry` in a terminal opens it too
 ```
 
-Run tests with `npm test`.
+`agentry --help` loads no UI code, so it works even before `npm install`. Run tests with `npm test`.
+
+#### agentry ui
+
+`agentry ui` is a keyboard-driven view of the project you run it in: what loads, what it costs, what is wrong.
+
+Start it from the project folder with `agentry ui`, or type a bare `agentry` in a terminal. It needs a terminal: without one it prints a message and exits `2`. The `p` picker switches to another repo (current repo, recent repos, then repos under the scan roots).
+
+- **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, each with a count. A details pane beside the list shows the selected row.
+- **Changes it can make:**
+  - **Skills:** turn shelf groups and skills on or off for this project or globally (`g` switches the target). Same as `agentry shelf on|off`.
+  - **Doctor:** `enter` previews a fix as a diff. `y` applies it through the same engine as the CLI, with a backup first. `u` previews undoing the last fix set, and `y` restores it.
+- **Read-only:** MCP, Hooks and Plugins list what loads and its source file, with secrets masked. `e` opens the source file in `$EDITOR`; the UI itself writes nothing there.
+
+Shelf toggles apply on `space`. Doctor fixes and undos are never written until you press `y` on the previewed diff.
+
+| Key | Action |
+|---|---|
+| ← / →, 1-5 | switch tab |
+| ↑ / ↓ | move between rows |
+| enter | details, expand a group, preview a fix |
+| space | Skills: toggle the group or skill on/off |
+| g | Skills: switch the target between project and global |
+| e | MCP, Hooks, Plugins, Doctor: open the source file in $EDITOR |
+| y / n | Doctor: confirm or cancel a previewed fix or undo |
+| u | Doctor: preview undoing the last fix set |
+| r | refresh |
+| p | project picker |
+| ? | this help |
+| q | quit |
+
+Press `?` in the UI to see the same table. Screenshot below is a plain-text capture of the Skills tab at 100 columns (not an image), trimmed to fit, with the home folder shown as `~`:
+
+```text
+agentry  ~/ws/aryantriki/agentry-labs
+ 1 Skills (24)    2 MCP (4)    3 Hooks (29)    4 Plugins (5)    5 Doctor (18)
+Toggle target: this project  (g to switch)  ~1210 tokens of skill descriptions load in every session
+Shelf (agentry shelf list)                             ┌───────────────────────────────────────────┐
+>▸ audit  7 skills, 1 agent  ~1078 tokens  off         │ Details                                   │
+ ▸ design  2 skills  ~296 tokens  off                  │ shelf group: audit                        │
+ ▸ dev-tools  1 skills  ~103 tokens  off               │ state: off                                │
+ ▸ flutter-assets  4 skills  ~606 tokens  off          │ cost when on: ~1078 tokens                │
+ ▸ video  28 skills  ~3001 tokens  off                 │ enter expands, space toggles the whole gr…│
+ ▸ web-audit  1 skills  ~135 tokens  off               │                                           │
+Personal skills                                        │                                           │
+   humanize-and-unslop  ~44                            │                                           │
+   run-fallow  ~158                                    │                                           │
+   skill-architect  ~96                                │                                           │
+   trail  ~19                                          │                                           │
+Project skills                                         │                                           │
+   script-writer  ~60                                  │                                           │
+Plugin skills                                          │                                           │
+   …                                                   │                                           │
+space toggle on/off  g switch project/global  |  ←/→ tabs  ↑/↓ rows  r refresh  p project  ? help  …
+```
 
 ## Commands
 1. Install skills
@@ -152,6 +207,7 @@ Run tests with `npm test`.
 - `scripts/`: installer, sync and shelf scripts (`shelf.mjs` forwards to `agentry shelf`)
 - `bin/`: the `agentry` command entry and router
 - `lib/`: the CLI modules (paths, shelf, tokens)
+- `tui/`: the Ink terminal UI behind `agentry ui`
 - `docs/`: design plans, such as `docs/shelf-cli-plan.md`
 - `test/`: tests for the CLI (`npm test`)
 - `bundles.tsv`: the bundle each component belongs to
