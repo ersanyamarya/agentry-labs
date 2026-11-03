@@ -8,6 +8,22 @@ import { fileURLToPath } from "node:url";
 
 const bin = fileURLToPath(new URL("../../bin/agentry.mjs", import.meta.url));
 
+// A plugin installed for the user scope, with one skill; `enabled` goes into <config>/settings.json when not undefined.
+export const addPlugin = (fx, { id = "demo@mkt", enabled, settingsText } = {}) => {
+	const [name] = id.split("@");
+	const installPath = join(fx.configDir, "plugins/cache/mkt", name, "1.0.0");
+	mkdirSync(join(installPath, "skills/hello"), { recursive: true });
+	writeFileSync(join(installPath, "skills/hello/SKILL.md"), `---\nname: hello\ndescription: ${"y".repeat(20)}\n---\n`);
+	writeFileSync(join(fx.configDir, "plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins: { [id]: [{ scope: "user", installPath, version: "1.0.0" }] } }));
+	const settings = join(fx.configDir, "settings.json");
+	if (settingsText !== undefined) {
+		writeFileSync(settings, settingsText);
+	} else if (enabled !== undefined) {
+		writeFileSync(settings, `{\n\t"enabledPlugins": {\n\t\t"${id}": ${enabled}\n\t}\n}\n`);
+	}
+	return { id, settings };
+};
+
 // shelf: { group: { skills: [names], agents: [file names] } }
 export const createFixture = ({ shelf = { video: { skills: ["ffmpeg-install", "trim"], agents: ["editor.md"] }, audit: { skills: ["review"] } } } = {}) => {
 	const root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-")));
@@ -28,11 +44,12 @@ export const createFixture = ({ shelf = { video: { skills: ["ffmpeg-install", "t
 	mkdirSync(repo, { recursive: true });
 	execFileSync("git", ["init", "-q"], { cwd: repo });
 
-	const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir, AGENTRY_HOME: home };
+	const managedDir = join(root, "managed");
+	const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir, AGENTRY_HOME: home, AGENTRY_MANAGED_DIR: managedDir };
 	const run = (args, { cwd = repo } = {}) => {
 		const { status, stdout, stderr } = spawnSync(process.execPath, [bin, ...args], { cwd, env, encoding: "utf8" });
 		return { status, stdout, stderr };
 	};
 
-	return { root, home, configDir, repo, run, cleanup: () => rmSync(root, { recursive: true, force: true }) };
+	return { root, home, configDir, repo, managedDir, run, cleanup: () => rmSync(root, { recursive: true, force: true }) };
 };

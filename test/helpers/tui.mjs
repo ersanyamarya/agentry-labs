@@ -11,27 +11,11 @@ import { createPaths } from "../../lib/paths.mjs";
 import { App } from "../../tui/app.mjs";
 import { createData } from "../../tui/data.mjs";
 import { createRecents } from "../../tui/recents.mjs";
-import { createFixture } from "./fixture.mjs";
+import { addPlugin, createFixture } from "./fixture.mjs";
 
 export const KEYS = { up: "\u001B[A", down: "\u001B[B", right: "\u001B[C", left: "\u001B[D", enter: "\r", esc: "\u001B", space: " " };
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// A plugin installed for the user scope, with one skill; `enabled` goes into <config>/settings.json when not undefined.
-export const addPlugin = (fx, { id = "demo@mkt", enabled, settingsText } = {}) => {
-	const [name] = id.split("@");
-	const installPath = join(fx.configDir, "plugins/cache/mkt", name, "1.0.0");
-	mkdirSync(join(installPath, "skills/hello"), { recursive: true });
-	writeFileSync(join(installPath, "skills/hello/SKILL.md"), `---\nname: hello\ndescription: ${"y".repeat(20)}\n---\n`);
-	writeFileSync(join(fx.configDir, "plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins: { [id]: [{ scope: "user", installPath, version: "1.0.0" }] } }));
-	const settings = join(fx.configDir, "settings.json");
-	if (settingsText !== undefined) {
-		writeFileSync(settings, settingsText);
-	} else if (enabled !== undefined) {
-		writeFileSync(settings, `{\n\t"enabledPlugins": {\n\t\t"${id}": ${enabled}\n\t}\n}\n`);
-	}
-	return { id, settings };
-};
 
 export const createUi = ({ env = {}, spawn, personal = [], plugin } = {}) => {
 	const fx = createFixture({ shelf: { audit: { skills: ["review"] }, video: { skills: ["trim", "ffmpeg-install"] } } });
@@ -56,7 +40,7 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin } = {}) => {
 	const fixes = { "fake-bad": (finding) => ({ ruleId: finding.id, file: finding.file, describe: () => "Replace BAD with GOOD", apply: (text) => text.replace("BAD", "GOOD") }) };
 	const doctorOptions = { platform: "linux", env: { PATH: "" }, rules, renames: {}, launchctlGetenv: () => "" };
 
-	const makePaths = (dir) => createPaths({ env: { AGENTRY_HOME: fx.home, CLAUDE_CONFIG_DIR: fx.configDir }, cwd: dir });
+	const makePaths = (dir) => createPaths({ env: { AGENTRY_HOME: fx.home, CLAUDE_CONFIG_DIR: fx.configDir, AGENTRY_MANAGED_DIR: fx.managedDir }, cwd: dir });
 	const finder = createDiscover();
 	const props = {
 		api: createData({ makePaths, doctorOptions, fixOptions: { fixes } }),
