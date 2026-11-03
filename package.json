@@ -1,0 +1,15 @@
+{
+	"name": "agentry-labs",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"bin": {
+		"agentry": "bin/agentry.mjs"
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"test": "node --test"
+	}
+}

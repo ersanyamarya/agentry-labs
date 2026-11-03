@@ -53,7 +53,7 @@ with JSON output and ends with an Ink terminal UI built on the same functions.
 
 | Done | Task | Model |
 |---|---|---|
-| [ ] | Add a root `package.json`: `"type": "module"`, `"bin": { "agentry": "bin/agentry.mjs" }`, `engines.node`, `"test": "node --test"`, no dependencies. | Haiku 5.5 |
+| [x] | Add a root `package.json`: `"type": "module"`, `"bin": { "agentry": "bin/agentry.mjs" }`, `engines.node`, `"test": "node --test"`, no dependencies. | Haiku 5.5 |
 | [ ] | Create `bin/agentry.mjs`: `parseArgs` router with subcommands, `help`/`--help`/`-h`/no arguments print usage with examples, unknown commands print an error plus usage and exit `2`, `--version` reads `package.json`. | Sonnet 5.5 |
 | [ ] | Create `lib/paths.mjs` (config dir, shelf dir, project root via `git rev-parse --show-toplevel`, `CLAUDE_CONFIG_DIR` and `AGENTRY_HOME` overrides). | Sonnet 5.5 |
 | [ ] | Move `shelf.mjs` logic into `lib/shelf.mjs` unchanged in behaviour; expose it as `agentry shelf list`, `on` and `off`. | Sonnet 5.5 |
