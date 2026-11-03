@@ -59,6 +59,10 @@
 #   - Each installed component replaces its previous copy, so files removed
 #     upstream disappear too. Unrelated installed components remain.
 #   - --global and --target cannot be used together.
+#   - --global also links the `agentry` command (npm install + npm link) from
+#     the checkout the script runs from, or from a clone in ~/.agentry-labs
+#     (override with AGENTRY_HOME) when run via curl | bash. Without npm it
+#     only warns.
 #   - Installs are idempotent: running the same command again leaves the
 #     target identical, so a re-run with --source syncs a project.
 # ------------------------------------------------------------------------------
@@ -384,5 +388,58 @@ for selector in "${SELECTORS[@]}"; do
     install_type "$component_type"
   fi
 done
+
+# Make the `agentry` command available on a global install: install the CLI's
+# dependencies (Ink, React) and `npm link` the checkout. Without a checkout
+# (curl | bash) the repo is cloned or updated in $AGENTRY_HOME. Never fails the
+# install: a missing tool or a failed step only warns.
+link_agentry() {
+  local checkout="${SOURCE_DIR:-}"
+  local home_dir="${AGENTRY_HOME:-$HOME/.agentry-labs}"
+
+  if [[ -z $checkout && -f "$REPO_ROOT/bin/agentry.mjs" ]]; then
+    checkout="$REPO_ROOT"
+  fi
+  if [[ -z $checkout ]]; then
+    checkout="$home_dir"
+  fi
+
+  if [[ $DRY_RUN == "true" ]]; then
+    [[ $checkout == "$home_dir" ]] && echo "[dry-run] would clone or update $home_dir"
+    echo "[dry-run] would run 'npm install' and 'npm link' in $checkout to provide the agentry command"
+    return 0
+  fi
+
+  command -v npm >/dev/null 2>&1 || {
+    log_warn "npm not found; skipping the agentry command. Install Node 22+ and run 'npm install && npm link' in the repo."
+    return 0
+  }
+
+  if [[ $checkout == "$home_dir" ]]; then
+    if [[ -d "$home_dir/.git" ]]; then
+      git -C "$home_dir" pull --ff-only >/dev/null 2>&1 || log_warn "Could not update $home_dir; using it as is."
+    elif [[ ! -f "$home_dir/bin/agentry.mjs" ]]; then
+      git clone --depth 1 https://github.com/ersanyamarya/agentry-labs.git "$home_dir" >/dev/null 2>&1 || {
+        log_warn "Could not clone the repo to $home_dir; skipping the agentry command."
+        return 0
+      }
+    fi
+  fi
+
+  if [[ ! -f "$checkout/bin/agentry.mjs" ]]; then
+    log_warn "No agentry CLI in $checkout; skipping the agentry command."
+    return 0
+  fi
+
+  (cd "$checkout" && npm install --no-audit --no-fund >/dev/null 2>&1 && npm link >/dev/null 2>&1) || {
+    log_warn "Could not link agentry. Run 'npm install && npm link' in $checkout (Node 22+)."
+    return 0
+  }
+  log_info "Linked the agentry command from $checkout"
+}
+
+if [[ $GLOBAL_INSTALL == "true" ]]; then
+  link_agentry
+fi
 
 log_info "Installation complete."

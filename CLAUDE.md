@@ -23,9 +23,10 @@ Remember, before writing any code:
 
 ```
 ├── skills/              # Claude Code skills (self-contained, invoked as /<skill-name>)
+│   ├── agentry/                # Answer setup questions from agentry status/doctor/scan JSON
 │   ├── humanize-and-unslop/    # Edit/detect AI-slop patterns in writing (scan.mjs + judgment)
-│   ├── image-artifact-setup/   # Scaffold OG/social card generators using Playwright
-│   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, write fix plan
+│   ├── image-artifact-setup/   # Scaffold OG/social card generators using Playwright (shelf-only, in no bundle; also used by the README cover)
+│   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, write fix plan (shelf-only)
 │   ├── phased-plan/            # Write a phased plan with a model per task, run as one sub-session per task
 │   ├── run-fallow/             # Run fallow CLI for dead code, dupes, complexity, security
 │   └── skill-architect/        # Create, improve, review, and validate skills
@@ -36,9 +37,9 @@ Remember, before writing any code:
 ├── rules/               # commit-attribution, context7
 ├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
-├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, shelf.mjs (forwards to `agentry shelf`), image-gen-tools/ (README cover generator)
-├── bin/                 # agentry CLI entry and command router
-├── lib/                 # CLI modules: paths.mjs, shelf.mjs, tokens.mjs, mask.mjs, inventory/ (mcp.mjs)
+├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
+├── bin/                 # agentry CLI entry and command router (shelf, status, doctor, scan, fix, ui)
+├── lib/                 # CLI modules: shelf.mjs, status.mjs, doctor.mjs, scan.mjs, fix.mjs, json-edit.mjs, tokens.mjs, mask.mjs, inventory/
 ├── tui/                 # agentry ui: Ink terminal UI (app, data, rows, components/); loaded lazily by bin/agentry.mjs
 ├── docs/                # design plans (shelf-cli-plan.md) and the config-sources spec (claude-config-sources.md)
 ├── test/                # node:test suites for the CLI (npm test)
@@ -61,6 +62,15 @@ cp -r skills/* .claude/skills/
 # Regenerate the README cover (.github/assets/cover.jpg) after adding components
 cd scripts/image-gen-tools && bun install && bun run cover
 
+# CLI: install dependencies, run tests, link `agentry` onto PATH
+npm install && npm test
+npm link
+
+# Shelf and setup checks (any folder once linked)
+agentry shelf list
+agentry status --json
+agentry doctor --json
+
 # Run skills in Claude Code (/<skill-name>, interactively or with -p)
 claude -p "/run-fallow"
 claude -p "/lighthouse-audit https://example.com"
@@ -72,17 +82,18 @@ claude -p "/image-artifact-setup"
 | Skill | Bundle |
 |-------|--------|
 | `acquire-codebase-knowledge` | flutter |
-| `flutter-brand-icons` | flutter |
-| `flutter-bundle-google-fonts` | flutter |
-| `flutter-device-scripts-setup` | flutter |
+| `agentry` | global |
+| `flutter-brand-icons` | shelf |
+| `flutter-bundle-google-fonts` | shelf |
+| `flutter-device-scripts-setup` | shelf |
 | `flutter-lib-refactor` | flutter |
 | `flutter-logging-strategy` | flutter |
 | `flutter-quality-gate` | flutter |
-| `flutter-store-assets` | flutter |
+| `flutter-store-assets` | shelf |
 | `generate-commit-message` | global |
 | `humanize-and-unslop` | global |
-| `image-artifact-setup` | global |
-| `lighthouse-audit` | global |
+| `image-artifact-setup` | shelf |
+| `lighthouse-audit` | shelf |
 | `mongodb-data-modeling` | mongodb |
 | `mongoose-schema-docs` | mongodb |
 | `phased-plan` | global |
@@ -93,7 +104,7 @@ claude -p "/image-artifact-setup"
 | `theme-hardcoding-audit` | flutter |
 | `write-project-readme` | global |
 
-Each skill's bundle is set in `bundles.tsv`; the README lists them all.
+Each skill's bundle is set in `bundles.tsv`; the README lists them all. `shelf` means the skill is in no bundle: it lives in `~/.claude/skill-shelf/<group>/` and is linked in with `agentry shelf on <group>`.
 
 ## Conventions
 

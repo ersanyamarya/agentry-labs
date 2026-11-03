@@ -9,4 +9,5 @@ Repository maintenance and installation scripts.
 
 Use `./scripts/install.sh --help` for the complete selector syntax and examples.
 Installations target the current project's `./.claude` directory by default;
-pass `--global` to target `~/.claude`.
+pass `--global` to target `~/.claude` and also link the `agentry` command
+(`npm install` + `npm link` from the checkout, or from a clone in `~/.agentry-labs`).
