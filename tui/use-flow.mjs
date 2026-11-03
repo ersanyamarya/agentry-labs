@@ -18,6 +18,7 @@ export const useFlow = ({ lock, notify, reload }) => {
 
 	// Locks at once rather than from the effect below, so a key pressed right after the prompt opens is already guarded.
 	const begin = (next) => {
+		notify("");
 		lock(!next || next.kind === "result" ? false : next.kind === "name" ? "typing" : true);
 		setAt(0);
 		setText("");
