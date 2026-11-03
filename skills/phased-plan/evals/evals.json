@@ -1,0 +1,23 @@
+{
+	"skill_name": "phased-plan",
+	"evals": [
+		{
+			"id": "cli-tool-plan",
+			"prompt": "Let's make a plan in phases to turn scripts/shelf.mjs into a proper CLI with a terminal UI. Put it in docs so I can execute it from a different session. Each phase needs a task table with a checkbox, the task, and the model (Haiku, Sonnet or Opus 5.5, cheapest that works).",
+			"expected_output": "Reads the project's CLAUDE.md, README and the script first, asks one round of scope questions (scope, UI library, install method, command name) with recommendations, then writes docs/<name>-plan.md from the template: How to use this plan with sub-session-per-task rules (never a subagent, batching, coordinator on Sonnet with no model switches), phases each with Value and Done when lines and a 3-column task table, mostly Haiku/Sonnet rows, Opus only with a stated reason, Out of scope, Decisions log. Runs check-plan.mjs until errorCount is 0 and reports phases, model counts and Opus reasons.",
+			"files": []
+		},
+		{
+			"id": "settled-scope",
+			"prompt": "We already agreed: add CSV export and scheduled email reports to the analytics service, Node 22, vitest. Write the implementation plan in phases with models per task.",
+			"expected_output": "Does not re-ask the settled scope or stack; asks at most what is still open (file path, model versions if unsaid). Phases start with a usable CSV export, then scheduling, then email delivery; tasks name real files found in the repo; the vitest command appears in How to use and Ground rules; the decisions log records the agreed scope.",
+			"files": []
+		},
+		{
+			"id": "opus-overuse",
+			"prompt": "Review docs/migration-plan.md: half the tasks are Opus. Fix the model choices and make sure the file passes the plan checks.",
+			"expected_output": "Reads references/model-choice.md, downgrades Opus rows whose only justification is size or importance to Sonnet (or Haiku for mechanical rows), keeps Opus only where a mistake is costly and hard to catch (spec others build on, hard-to-undo writes, security) and writes each remaining reason into How to use this plan. Runs check-plan.mjs, fixes table or checkbox errors, and reports the before/after model counts.",
+			"files": ["docs/migration-plan.md"]
+		}
+	]
+}

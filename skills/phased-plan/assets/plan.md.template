@@ -1,0 +1,60 @@
+# [Plan title]
+
+[Two or three sentences: what gets built, for whom, and what it looks like when every phase is done.]
+
+## How to use this plan
+
+- Work one phase per coordinator session, in order. Each phase ships something usable and testable on its own.
+- Start a branch per phase (`[branch-prefix]/phase-<n>`), tick a task's box (`[ ]` → `[x]`) in this file in the same
+  commit that finishes it, and merge when the phase's "Done when" checks pass.
+- The **Model** column names the cheapest model that does the task well: [SMALL] for mechanical work, [MID] for
+  normal implementation, [LARGE] only for: [one line per large-tier task with its reason].
+- **Run each task in its own sub-session on that model, never in a subagent.** The coordinator starts a separate
+  Claude Code session per task (in the desktop app, `start_session` with `model` set; in a terminal,
+  `claude --model <id>` in a new tab) on the phase branch, with a brief naming the task row, files and "Done when"
+  check. A subagent can't be steered or reviewed on its own and doesn't reliably run on the chosen model. The
+  coordinator reviews each sub-session's diff, runs [test command], and only then ticks the box. Tasks that touch the
+  same files run one after another, not in parallel.
+- **Batch small tasks.** Consecutive tasks with the same model that touch nearby files go into one sub-session. A
+  sub-session's startup and orientation cost more than a one-file task, so never start one per tiny row.
+- **The coordinator runs on [MID] and never switches model.** It only writes briefs, reviews diffs and runs tests.
+  The prompt cache is per model: switching a session's model re-sends its whole history uncached on the new one, so
+  models change by starting a sub-session, not by switching inside a session.
+- Ask before going beyond a phase's tasks. Record decisions and surprises in "Decisions log" at the bottom.
+
+## Ground rules
+
+- [Runtime, dependencies and language detected from the project.]
+- [Layout: where new code goes, following the project's existing structure.]
+- [Testing: the project's test runner and how fixtures stay away from real user data.]
+- [Safety: what stays read-only, how writes are previewed and backed up, what must never be printed.]
+- [Facts to verify before coding against them, and where (docs via Context7, the project's own specs).]
+
+## Phase 0: [Title]
+
+**Value:** [What someone can do after this phase that they couldn't before.]
+**Done when:** [Concrete checks a reviewer can run: commands, expected output, tests that pass.]
+
+| Done | Task | Model |
+|---|---|---|
+| [ ] | [One bounded change: what, where, and the behaviour it adds.] | [SMALL] |
+| [ ] | [Next task.] | [MID] |
+
+## Phase 1: [Title]
+
+**Value:** [...]
+**Done when:** [...]
+
+| Done | Task | Model |
+|---|---|---|
+| [ ] | [...] | [MID] |
+
+## Out of scope
+
+- [Things deliberately not built, so sessions don't drift into them.]
+
+## Decisions log
+
+| Date | Decision |
+|---|---|
+| [YYYY-MM-DD] | [Scope, naming, tooling and other choices made while writing the plan, with the reason.] |

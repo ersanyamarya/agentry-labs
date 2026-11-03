@@ -26,6 +26,7 @@ Remember, before writing any code:
 │   ├── humanize-and-unslop/    # Edit/detect AI-slop patterns in writing (scan.mjs + judgment)
 │   ├── image-artifact-setup/   # Scaffold OG/social card generators using Playwright
 │   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, write fix plan
+│   ├── phased-plan/            # Write a phased plan with a model per task, run as one sub-session per task
 │   ├── run-fallow/             # Run fallow CLI for dead code, dupes, complexity, security
 │   └── skill-architect/        # Create, improve, review, and validate skills
 ├── agents/              # Custom agent definitions
@@ -79,6 +80,7 @@ claude -p "/image-artifact-setup"
 | `lighthouse-audit` | global |
 | `mongodb-data-modeling` | mongodb |
 | `mongoose-schema-docs` | mongodb |
+| `phased-plan` | global |
 | `run-fallow` | global |
 | `shadcn` | web |
 | `skill-architect` | global |
