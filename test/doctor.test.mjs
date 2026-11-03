@@ -179,6 +179,58 @@ describe("stale names", () => {
 	});
 });
 
+describe("shelf", () => {
+	// A skill folder on the shelf, in the group `group`; returns its path.
+	const shelfSkill = (group, name) => {
+		skill(join(configDir, "skill-shelf", group), name);
+		return join(configDir, "skill-shelf", group, name);
+	};
+
+	test("shelf-duplicate: a real global folder identical to a shelved copy (file list and bytes)", () => {
+		writeFileSync(join(shelfSkill("video", "trim"), "run.sh"), "echo\n");
+		skill(join(configDir, "skills"), "trim");
+		writeFileSync(join(configDir, "skills", "trim", "run.sh"), "echo\n");
+		const [item, ...rest] = findings("shelf-duplicate");
+		assert.equal(rest.length, 0);
+		assert.equal(item.severity, "warning");
+		assert.equal(item.file, join(configDir, "skills", "trim"));
+		assert.match(item.message, /video\/trim/);
+		assert.match(item.fix, /rm -r ".*skills\/trim"/);
+		assert.match(item.fix, /agentry shelf on video\/trim/);
+	});
+
+	test("shelf-duplicate: nothing when the file list or the bytes differ, or the global copy is a link into the shelf", () => {
+		const copy = shelfSkill("video", "trim");
+		writeFileSync(join(copy, "run.sh"), "echo\n");
+		skill(join(configDir, "skills"), "trim");
+		assert.deepEqual(findings("shelf-duplicate"), []);
+		writeFileSync(join(configDir, "skills", "trim", "run.sh"), "echo changed\n");
+		assert.deepEqual(findings("shelf-duplicate"), []);
+		rmSync(join(configDir, "skills", "trim"), { recursive: true });
+		symlinkSync(copy, join(configDir, "skills", "trim"));
+		assert.deepEqual(findings("shelf-duplicate"), []);
+	});
+
+	test("bundle-shelf-skill: a bundles.tsv line that installs a shelved skill, with the line", () => {
+		shelfSkill("design", "image-artifact-setup");
+		writeFileSync(join(repo, "bundles.tsv"), "# bundle\tselector\nglobal\tskills/image-artifact-setup\n");
+		const [item, ...rest] = findings("bundle-shelf-skill");
+		assert.equal(rest.length, 0);
+		assert.equal(item.severity, "warning");
+		assert.equal(item.file, join(repo, "bundles.tsv"));
+		assert.equal(item.line, 2);
+		assert.match(item.message, /Bundle "global" installs skill "image-artifact-setup", which lives on the shelf \(design\/image-artifact-setup\)/);
+		assert.match(item.fix, /agentry shelf unshelve design\/image-artifact-setup/);
+	});
+
+	test("bundle-shelf-skill: nothing for a skill that is not shelved, an agent line, or no bundles.tsv", () => {
+		writeFileSync(join(repo, "bundles.tsv"), "global\tskills/not-shelved\nglobal\tagents/super-planner.agent.md\n");
+		assert.deepEqual(findings("bundle-shelf-skill"), []);
+		rmSync(join(repo, "bundles.tsv"));
+		assert.deepEqual(findings("bundle-shelf-skill"), []);
+	});
+});
+
 describe("clean setup", () => {
 	test("reports nothing and exits 0", () => {
 		const hookFile = join(home, "hooks", "ok.sh");
@@ -186,6 +238,8 @@ describe("clean setup", () => {
 		writeFileSync(hookFile, "#!/bin/sh\n");
 		skill(join(configDir, "skills"), "mine");
 		skill(join(repo, ".claude", "skills"), "theirs");
+		skill(join(configDir, "skill-shelf", "video"), "other");
+		writeFileSync(join(repo, "bundles.tsv"), "global\tskills/mine\n");
 		const dir = pluginRoot("tools");
 		skill(join(dir, "skills"), "s1");
 		install({ "tools@mk": [{ scope: "user", installPath: dir, version: "1.0.0" }] });
