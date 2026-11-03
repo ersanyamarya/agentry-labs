@@ -130,6 +130,7 @@ npm link                       # puts `agentry` on your PATH (or: npm install -g
 agentry --help                 # commands and options
 agentry shelf list             # shelf groups, their token cost and whether each is on
 agentry shelf on video         # also: off <group>, off --all, shelve, unshelve; --global for ~/.claude, --dry-run to preview
+agentry plugin disable demo    # also: enable; --scope user|project|local, --dry-run, --yes; backed up, undo with agentry fix --undo
 agentry ui                     # terminal UI (Ink); a bare `agentry` in a terminal opens it too
 ```
 
@@ -141,52 +142,65 @@ agentry ui                     # terminal UI (Ink); a bare `agentry` in a termin
 
 Start it from the project folder with `agentry ui`, or type a bare `agentry` in a terminal. It needs a terminal: without one it prints a message and exits `2`. The `p` picker switches to another repo (current repo, recent repos, then repos under the scan roots).
 
-- **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, each with a count. A details pane beside the list shows the selected row.
-- **Changes it can make:**
-  - **Skills:** turn shelf groups and skills on or off for this project or globally (`g` switches the target). Same as `agentry shelf on|off`.
+- **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, each with a count. A summary line under them shows the skill-description tokens every session pays and the problems found. A details pane beside the list shows the selected row; the footer lists only the keys that work on the current tab.
+- **Changes it can make** (all except the plain shelf toggle are previewed first and wait for `y`):
+  - **Skills, shelf:** `space` turns a shelf group or skill on or off for this project or globally (`g` switches the target). Same as `agentry shelf on|off`.
+  - **Skills, shelving:** `s` on a personal skill (a real folder under `~/.claude/skills`) asks for a shelf group (`↑/↓` and `enter`, or `n` to type a new name), previews the move, and `y` runs `agentry shelf shelve`. Afterwards the skill sits under Shelf, off, and toggles with `space`. `u` on a shelved skill moves it back (`agentry shelf unshelve`). Both refuse to overwrite, and to move a skill that is still linked.
+  - **Plugins:** `space` on a plugin row (Plugins tab) or a `plugin:*` row (Skills tab) previews the `enabledPlugins` edit as a diff; `y` writes it with a backup. Same as `agentry plugin enable|disable`, and `agentry fix --undo` restores it. It applies to new sessions only.
   - **Doctor:** `enter` previews a fix as a diff. `y` applies it through the same engine as the CLI, with a backup first. `u` previews undoing the last fix set, and `y` restores it.
-- **Read-only:** MCP, Hooks and Plugins list what loads and its source file, with secrets masked. `e` opens the source file in `$EDITOR`; the UI itself writes nothing there.
+- **Rows that cannot be toggled** say why in the status line and the details: personal skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
+- **Read-only:** MCP and Hooks list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
 
-Shelf toggles apply on `space`. Doctor fixes and undos are never written until you press `y` on the previewed diff.
+Colour (off when `NO_COLOR` is set; every badge is also a word, so nothing depends on it): `on` green, `off` gray, `partial` yellow; token cost dim under 100, yellow under 500, red from 500 (legend line on the Skills tab); scope tags `user` cyan, `project` magenta, `plugin` blue, `shelf` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
 
 | Key | Action |
 |---|---|
 | ← / →, 1-5 | switch tab |
 | ↑ / ↓ | move between rows |
 | enter | details, expand a group, preview a fix |
-| space | Skills: toggle the group or skill on/off |
+| space | Skills: toggle a group or shelved skill; plugin rows: on/off |
+| s | Skills: move a personal skill onto the shelf |
+| u | Skills: unshelve a skill; Doctor: undo the last fix set |
 | g | Skills: switch the target between project and global |
 | e | MCP, Hooks, Plugins, Doctor: open the source file in $EDITOR |
-| y / n | Doctor: confirm or cancel a previewed fix or undo |
-| u | Doctor: preview undoing the last fix set |
+| y / n | confirm or cancel a previewed fix, undo, shelve or plugin change |
 | r | refresh |
 | p | project picker |
 | ? | this help |
 | q | quit |
 
-Press `?` in the UI to see the same table. Screenshot below is a plain-text capture of the Skills tab at 100 columns (not an image), trimmed to fit, with the home folder shown as `~`:
+Press `?` in the UI to see the same table. Screenshot below is a plain-text capture of the Skills tab at 100 columns (colours are lost in text; not an image), with the home folder shown as `~`:
 
 ```text
 agentry  ~/ws/aryantriki/agentry-labs
- 1 Skills (24)    2 MCP (4)    3 Hooks (29)    4 Plugins (5)    5 Doctor (18)
-Toggle target: this project  (g to switch)  ~1210 tokens of skill descriptions load in every session
-Shelf (agentry shelf list)                             ┌───────────────────────────────────────────┐
->▸ audit  7 skills, 1 agent  ~1078 tokens  off         │ Details                                   │
- ▸ design  2 skills  ~296 tokens  off                  │ shelf group: audit                        │
- ▸ dev-tools  1 skills  ~103 tokens  off               │ state: off                                │
- ▸ flutter-assets  4 skills  ~606 tokens  off          │ cost when on: ~1078 tokens                │
- ▸ video  28 skills  ~3001 tokens  off                 │ enter expands, space toggles the whole gr…│
- ▸ web-audit  1 skills  ~135 tokens  off               │                                           │
-Personal skills                                        │                                           │
-   humanize-and-unslop  ~44                            │                                           │
-   run-fallow  ~158                                    │                                           │
-   skill-architect  ~96                                │                                           │
-   trail  ~19                                          │                                           │
-Project skills                                         │                                           │
-   script-writer  ~60                                  │                                           │
-Plugin skills                                          │                                           │
-   …                                                   │                                           │
-space toggle on/off  g switch project/global  |  ←/→ tabs  ↑/↓ rows  r refresh  p project  ? help  …
+ 1 Skills (24)    2 MCP (2)    3 Hooks (29)    4 Plugins (5)    5 Doctor (11)
+~1023 tokens of skill descriptions in every session  ·  0 errors, 11 warnings
+Toggle target: this project  (g to switch)
+legend: on off partial  cost: ~<100 ~100-499 ~500+
+Shelf ─────────────────────────────           ┌────────────────────────────────────────────────────┐
+>▸ audit  7 skills, 1 agent  ~1078 tokens  off│ Details                                            │
+ ▸ design  2 skills  ~296 tokens  off         │ shelf group: audit                                 │
+ ▸ dev-tools  1 skills  ~103 tokens  off      │ state: off                                         │
+ ▸ flutter-assets  4 skills  ~606 tokens  off │ cost when on: ~1078 tokens                         │
+ ▸ video  28 skills  ~3001 tokens  off        │ toggle: space switches the whole group; enter      │
+ ▸ web-audit  1 skills  ~135 tokens  off      │ expands it                                         │
+                                              │                                                    │
+Personal skills ───────────────────           │                                                    │
+   humanize-and-unslop  user  ~44             │                                                    │
+   run-fallow  user  ~158                     │                                                    │
+   skill-architect  user  ~96                 │                                                    │
+   trail  user  ~19                           │                                                    │
+                                              │                                                    │
+Project skills ────────────────────           │                                                    │
+   script-writer  project  ~60                │                                                    │
+                                              │                                                    │
+Plugin skills ─────────────────────           │                                                    │
+   diagram-design:*  1 skills  ~0  disabled   │                                                    │
+   i-have-adhd:*  1 skills  ~61  active       │                                                    │
+   context-mode:*  8 skills  ~585  active     │                                                    │
+   gsap-skills:*  8 skills  ~0  disabled      │                                                    │
+   impeccable:*  1 skills  ~0  disabled       └────────────────────────────────────────────────────┘
+space toggle on/off or plugin  s shelve  u unshelve  g project/global  enter expand  │ ←/→ tabs  ↑/…
 ```
 
 ## Commands
