@@ -50,8 +50,8 @@ const word = (state) => String(state).replace(/^[●○◐]\s*/, "");
 export const badgeText = (state) => (SYMBOLS[word(state).split(" ")[0]] ? `${SYMBOLS[word(state).split(" ")[0]]} ${word(state)}` : String(state));
 export const stateStyle = (state = "") => STATES[word(state).split(" ")[0]] ?? {};
 
-export const SCOPE_STYLES = { user: { color: "cyan" }, personal: { color: "cyan" }, project: { color: "magenta" }, local: { color: "magenta" }, plugin: { color: "blue" }, shelf: { color: "yellow" } };
-export const SCOPE_NAMES = { user: "personal", "desktop-config": "desktop", "desktop-extension": "desktop" };
+export const SCOPE_STYLES = { user: { color: "cyan" }, global: { color: "cyan" }, project: { color: "magenta" }, local: { color: "magenta" }, plugin: { color: "blue" }, shelf: { color: "yellow" } };
+export const SCOPE_NAMES = { user: "global", "desktop-config": "desktop", "desktop-extension": "desktop" };
 export const scopeStyle = (scope) => SCOPE_STYLES[scope] ?? SCOPE_STYLES[Object.keys(SCOPE_NAMES).find((key) => SCOPE_NAMES[key] === scope)] ?? {};
 
 // Description cost: dim when small, yellow in the middle, red when large.

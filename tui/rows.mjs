@@ -11,8 +11,6 @@ const DIM = { dimColor: true };
 const cost = (count) => seg(tokens(count), costStyle(count));
 const badge = (text) => seg(badgeText(text), { ...stateStyle(text), bold: true });
 const scopeBadge = (scope) => seg(SCOPE_NAMES[scope] ?? scope, scopeStyle(scope));
-// "P ● on" / "G ○ off": the state of a shelf row in this project and globally.
-const where = (letter, state) => [seg(`${letter} `, DIM), badge(state)];
 // A fixed-width column of a row: parts ([seg...]) padded to `width`, left or right aligned. See components/list.mjs.
 const cell = (parts, width, align = "left") => ({ parts: [parts].flat().filter(Boolean), width, align });
 const blank = (width) => cell([], width);
@@ -21,7 +19,23 @@ const withCells = (cells) => ({ cells, note: cells.map((one) => one.parts.map((p
 // Skills tab: count, cost, then two state columns (P and G for shelf rows; scope and state for plugin skills).
 const skillCells = (info, count, first, second) => withCells([cell(typeof info === "string" ? (info ? seg(info, DIM) : []) : info, 9), cell(cost(count), 5, "right"), cell(first ?? [], 11), cell(second ?? [], 11)]);
 
-export const SKILLS_KEYS = [["space", "toggle P (project)", "P"], ["G", "toggle global", "global"], ["s", "shelve"], ["u", "unshelve"], ["enter", "expand"]];
+// The footer keys of the selected Skills row: only what works on it. [key, text, short text].
+export const skillKeys = (row) => {
+	const both = [["space", "project on/off", "project"], ["g", "global on/off", "global"]];
+	if (row?.kind === "group") {
+		return [...both, ["enter", "expand"]];
+	}
+	if (row?.kind === "skill") {
+		return [...both, ["u", "unshelve"], ["e", "open file", "edit"]];
+	}
+	if (row?.plugin) {
+		return [["space", "enable/disable plugin", "on/off"]];
+	}
+	if (row?.shelvable) {
+		return [["s", "shelve"], ["e", "open file", "edit"]];
+	}
+	return row?.file ? [["e", "open file", "edit"]] : [];
+};
 
 const itemState = (item, field) => (item[field] ? "on" : "off");
 
@@ -30,7 +44,7 @@ const groupState = (group, field) => (group.items.length > 0 && group.items.ever
 
 const skillDetails = (skill) => [
 	`skill: ${skill.name}`,
-	`scope: ${skill.scope}${skill.plugin ? ` (${skill.plugin})` : ""}`,
+	`scope: ${SCOPE_NAMES[skill.scope] ?? skill.scope}${skill.plugin ? ` (${skill.plugin})` : ""}`,
 	`state: ${badgeText(skill.state)}`,
 	`tokens: ${tokens(skill.tokens)} (description)`,
 	`source: ${skill.source}`,
@@ -40,21 +54,21 @@ const skillDetails = (skill) => [
 // Why a loaded (non-shelf) skill row cannot be toggled, shown in the status line and the details.
 const whyFixed = (skill) => {
 	if (skill.scope === "project") {
-		return "project skill (this repo's .claude/skills): edit it in the repo";
+		return "project skill (this repo's .claude/skills): edit it in the repo, e opens it";
 	}
 	if (skill.kind === "file") {
-		return "personal skill (~/.claude/skills, every project): s moves it to the shelf";
+		return "global skill (~/.claude/skills, every project): s moves it to the shelf, where it can be turned on per project";
 	}
-	return skill.kind === "broken" ? "broken skill: see the Doctor tab" : "personal skill is a symlink, not a folder: shelve moves folders only";
+	return skill.kind === "broken" ? "broken skill: see the Doctor tab" : "global skill is a symlink, not a folder: shelve moves folders only";
 };
 
 const header = (id, label, extra = {}) => ({ id, header: true, label, ...extra });
 // A blank, unselectable row between sections.
 const spacer = (id) => ({ id: `sp:${id}`, header: true, blank: true, label: "" });
 
-// Shelf groups (expandable), then what loads from personal, project and plugin folders.
+// Shelf groups (expandable), then what loads from global, project and plugin folders.
 export const skillRows = (data, expanded = new Set()) => {
-	const rows = [header("h:shelf", "Shelf")];
+	const rows = [header("h:shelf", "Shelf", withCells([cell(seg("Skills", DIM), 9), cell(seg("Cost", DIM), 5, "right"), cell(seg("Project", DIM), 11), cell(seg("Global", DIM), 11)]))];
 	if (data.groups.length === 0) {
 		rows.push({ id: "none:shelf", label: "  (no shelf groups)", details: ["Shelved skills live in <config dir>/skill-shelf/<group>/<skill>."] });
 	}
@@ -69,10 +83,10 @@ export const skillRows = (data, expanded = new Set()) => {
 			group: group.name,
 			target: group.name,
 			label: `${open ? "▾" : "▸"} ${group.name}`,
-			...skillCells(`${skills.length} skills`, group.tokens, where("P", pState), where("G", gState)),
+			...skillCells(`${skills.length} skills`, group.tokens, badge(pState), badge(gState)),
 			projectOn: group.items.some((item) => item.project),
 			globalOn: group.items.some((item) => item.global),
-			details: [`shelf group: ${group.name} (opt-in)`, `this project: ${badgeText(pState)}`, `global: ${badgeText(gState)}`, `contains: ${skills.length} skills${agents > 0 ? `, ${agents} agent${agents > 1 ? "s" : ""}` : ""}`, `cost when on: ${tokens(group.tokens)} tokens`, "toggle: space = this project, G = global; enter expands"],
+			details: [`shelf group: ${group.name} (opt-in)`, `this project: ${badgeText(pState)}`, `global: ${badgeText(gState)}`, `contains: ${skills.length} skills${agents > 0 ? `, ${agents} agent${agents > 1 ? "s" : ""}` : ""}`, `cost when on: ${tokens(group.tokens)} tokens`, "toggle: space = this project, g = global; enter expands"],
 		});
 		if (open) {
 			for (const item of group.items) {
@@ -83,12 +97,12 @@ export const skillRows = (data, expanded = new Set()) => {
 					group: group.name,
 					target: isSkill ? `${group.name}/${item.name}` : undefined,
 					label: `    ${item.name}${isSkill ? "" : " (agent)"}`,
-					...skillCells(isSkill ? scopeBadge("shelf") : seg("agent", DIM), item.tokens, where("P", itemState(item, "project")), where("G", itemState(item, "global"))),
+					...skillCells(isSkill ? scopeBadge("shelf") : seg("agent", DIM), item.tokens, badge(itemState(item, "project")), badge(itemState(item, "global"))),
 					projectOn: item.project,
 					globalOn: item.global,
 					shelved: isSkill,
 					skill: item.name,
-					details: [`${isSkill ? "skill" : "agent"}: ${item.name}`, `group: ${group.name}`, `this project: ${badgeText(itemState(item, "project"))}`, `global: ${badgeText(itemState(item, "global"))}`, `tokens: ${tokens(item.tokens)}`, `source: ${item.source}`, isSkill ? "toggle: shelf skill (opt-in): space = this project, G = global; u unshelves" : "toggle: agents switch with their group"],
+					details: [`${isSkill ? "skill" : "agent"}: ${item.name}`, `group: ${group.name}`, `this project: ${badgeText(itemState(item, "project"))}`, `global: ${badgeText(itemState(item, "global"))}`, `tokens: ${tokens(item.tokens)}`, `source: ${item.source}`, isSkill ? "toggle: shelf skill (opt-in): space = this project, g = global; u unshelves" : "toggle: agents switch with their group"],
 					file: isSkill ? `${item.source}/SKILL.md` : item.source,
 				});
 			}
@@ -105,17 +119,17 @@ export const skillRows = (data, expanded = new Set()) => {
 	const own = (scope) => loaded.filter((skill) => skill.scope === scope);
 	const skillRow = (skill) => ({
 		id: `skill:${skill.scope}:${skill.source}`,
-		kind: skill.scope === "user" ? "personal" : "loaded",
+		kind: skill.scope === "user" ? "global" : "loaded",
 		shelvable: skill.kind === "file",
 		skill: skill.source.split("/").at(-1),
 		why: whyFixed(skill),
 		label: `  ${skill.name}`,
-		...withCells([cell([], 9), cell(cost(skill.tokens), 5, "right"), ...(skill.state === "active" ? [] : [cell(badge(skill.state), 11)])]),
+		...withCells([cell([], 9), cell(cost(skill.tokens), 5, "right"), cell(skill.scope === "project" ? badge(skill.state) : [], 11), cell(skill.scope === "project" ? [] : badge(skill.state), 11)]),
 		details: [...skillDetails(skill), `toggle: ${whyFixed(skill)}`],
 		file: skill.kind === "broken" ? undefined : `${skill.source}/SKILL.md`,
 	});
-	section("Personal skills", own("user"), skillRow);
-	section("Project skills", own("project"), skillRow);
+	section("Global skills", own("user"), skillRow);
+	section("This project only", own("project"), skillRow);
 	const plugins = data.status.plugins.items.filter((plugin) => loaded.some((skill) => skill.plugin === plugin.id));
 	section("Plugin skills", plugins, (plugin) => {
 		const mine = loaded.filter((skill) => skill.plugin === plugin.id);
@@ -134,7 +148,8 @@ export const skillRows = (data, expanded = new Set()) => {
 
 export const PLUGIN_NOTE = "applies to new sessions";
 
-export const MCP_KEYS = [["space", "park / add back (user scope)", "park"], ["e", "open source file in $EDITOR", "edit"]];
+export const mcpKeys = (row) => [...(row?.mcp ? [["space", row.mcpEnable ? "add back" : "turn off (saved)", row.mcpEnable ? "add back" : "off"]] : []), ...(row?.file ? [["e", "open file", "edit"]] : [])];
+export const HOOKS_KEYS = [["e", "open file", "edit"]];
 
 const MCP_WHY = {
 	plugin: "plugin server: managed by the plugin, switch the plugin instead",
@@ -156,7 +171,7 @@ export const mcpRows = (data) => [
 			...(mine ? { mcp: server.name, mcpEnable: false } : { why: MCP_WHY[server.scope] }),
 			...withCells([cell(scopeBadge(server.scope), 8), cell(badge(server.state), 16), cell(seg(server.transport, DIM), 5)]),
 			file: server.source,
-			details: [`server: ${server.name}`, `scope: ${server.scope}`, `state: ${badgeText(server.state)}`, `transport: ${server.transport}`, `${server.url ? "url" : "command"}: ${target}`, ...env, ...headers, `tokens: not measured (tool lists)`, `source: ${server.source}`, `toggle: ${mine ? "space parks it (removes it from user scope, config saved); undo with agentry fix --undo" : MCP_WHY[server.scope] ?? "not managed here"}`],
+			details: [`server: ${server.name}`, `scope: ${server.scope}`, `state: ${badgeText(server.state)}`, `transport: ${server.transport}`, `${server.url ? "url" : "command"}: ${target}`, ...env, ...headers, `tokens: not measured (tool lists)`, `source: ${server.source}`, `toggle: ${mine ? "space turns it off (removes it from user scope, config saved); undo with agentry fix --undo" : MCP_WHY[server.scope] ?? "not managed here"}`],
 		};
 	}),
 	...(Array.isArray(data.parked) ? data.parked : []).map((entry) => ({
@@ -164,8 +179,8 @@ export const mcpRows = (data) => [
 		label: entry.name,
 		mcp: entry.name,
 		mcpEnable: true,
-		...withCells([cell(scopeBadge("user"), 8), cell(badge("parked"), 16), cell(seg("-", DIM), 5)]),
-		details: [`server: ${entry.name}`, "scope: user", `state: ${badgeText("parked")}`, `config: ${entry.summary}`, `parked: ${entry.parkedAt ?? "-"}`, "toggle: space adds it back to user scope (claude mcp add-json from the saved copy)"],
+		...withCells([cell(scopeBadge("user"), 8), cell(badge("off"), 16), cell(seg("-", DIM), 5)]),
+		details: [`server: ${entry.name}`, "scope: user", `state: ${badgeText("off")} (config saved)`, `config: ${entry.summary}`, `turned off: ${entry.parkedAt ?? "-"}`, "toggle: space adds it back to user scope (claude mcp add-json from the saved copy)"],
 	})),
 ];
 
@@ -178,7 +193,7 @@ export const hookRows = (data) =>
 		details: [`event: ${hook.event}`, `matcher: ${hook.matcher}`, `type: ${hook.type}`, `command: ${hook.command ?? `(${hook.type})`}`, `scope: ${hook.scope}${hook.plugin ? ` (${hook.plugin})` : ""}`, `state: ${hook.state}`, `output: not measured`, `source: ${hook.source}`],
 	}));
 
-export const PLUGINS_KEYS = [["space", "enable/disable", "on/off"], ["e", "open source file in $EDITOR", "edit"]];
+export const PLUGINS_KEYS = [["space", "enable/disable", "on/off"], ["e", "open file", "edit"]];
 
 export const pluginRows = (data) =>
 	data.status.plugins.items.map((plugin) => ({

@@ -145,66 +145,66 @@ Start it from the project folder with `agentry ui`, or type a bare `agentry` in 
 
 - **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, each with a count. A summary line under them shows the skill-description tokens every session pays and the problems found. A details pane beside the list shows the selected row; the footer lists only the keys that work on the current tab.
 - **Changes it can make** (all except the plain shelf toggle are previewed first and wait for `y`):
-  - **Skills, shelf:** Each shelf row shows two badges, `P` (this project) and `G` (global), each `● on`, `○ off` or `◐ partial`. `space` toggles the `P` state of the selected row and `G` (shift-g) toggles its `G` state; there is no mode to switch. Same as `agentry shelf on|off [--global]`.
-  - **Skills, shelving:** `s` on a personal skill (a real folder under `~/.claude/skills`) asks for a shelf group (`↑/↓` and `enter`, or `n` to type a new name), previews the move, and `y` runs `agentry shelf shelve`. Afterwards the skill sits under Shelf, off, and toggles with `space`. `u` on a shelved skill moves it back (`agentry shelf unshelve`). Both refuse to overwrite, and to move a skill that is still linked.
+  - **Skills, shelf:** Each shelf row has two columns, **Project** (this project) and **Global**, each `● on`, `○ off` or `◐ partial`. `space` toggles the Project column of the selected row and `g` toggles the Global column; there is no mode to switch. Same as `agentry shelf on|off [--global]`.
+  - **Skills, shelving:** `s` on a global skill (a real folder under `~/.claude/skills`) asks for a shelf group (`↑/↓` and `enter`, or `n` to type a new name), previews the move, and `y` runs `agentry shelf shelve`. Afterwards the skill sits under Shelf, off, and toggles with `space`. `u` on a shelved skill moves it back (`agentry shelf unshelve`). Both refuse to overwrite, and to move a skill that is still linked.
   - **Plugins:** `space` on a plugin row (Plugins tab) or a `plugin:*` row (Skills tab) previews the `enabledPlugins` edit as a diff; `y` writes it with a backup. Same as `agentry plugin enable|disable`, and `agentry fix --undo` restores it. It applies to new sessions only.
   - **Doctor:** `enter` previews a fix as a diff. `y` applies it through the same engine as the CLI, with a backup first. `u` previews undoing the last fix set, and `y` restores it.
-  - **MCP:** `space` on a user-scope server previews parking it (its config is saved, then `claude mcp remove --scope user` runs, with a backup of `~/.claude.json`); parked servers stay in the list as `○ parked`, and `space` adds them back with `claude mcp add-json`. Same as `agentry mcp disable|enable <name>`, `agentry mcp list-parked`. The saved configs live in `~/.claude/agentry/parked-mcp.json` (mode 0600), with their secrets, exactly as exposed as `~/.claude.json`. Plugin, project `.mcp.json` and desktop servers say who manages them instead.
-- **Rows that cannot be toggled** say why in the status line and the details: personal skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
+  - **MCP:** `space` on a user-scope server previews turning it off (its config is saved, then `claude mcp remove --scope user` runs, with a backup of `~/.claude.json`); turned-off servers stay in the list as `○ off`, and `space` adds them back with `claude mcp add-json`. Same as `agentry mcp disable|enable <name>`, `agentry mcp list-parked`. The saved configs live in `~/.claude/agentry/parked-mcp.json` (mode 0600), with their secrets, exactly as exposed as `~/.claude.json`. Plugin, project `.mcp.json` and desktop servers say who manages them instead.
+- **Rows that cannot be toggled** say why in the status line and the details: global skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
 - **Read-only:** Hooks list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
 
-Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so nothing depends on it): `● on` / `● active` green, `○ off` / `○ disabled` gray, `◐ partial` yellow; token cost dim under 100, yellow under 500, red from 500 (legend line on the Skills tab); scope tags `personal` cyan, `project` magenta, `plugin` blue, `shelf` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
+Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so nothing depends on it): `● on` / `● active` green, `○ off` / `○ disabled` gray, `◐ partial` yellow; token cost dim under 100, yellow under 500, red from 500 (legend line on the Skills tab); scope tags `global` cyan, `project` magenta, `plugin` blue, `shelf` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
 
 | Key | Action |
 |---|---|
 | ← / →, 1-5 | switch tab |
 | ↑ / ↓ | move between rows |
 | enter | details, expand a group, preview a fix |
-| space | Skills: toggle a shelf row (P); plugin rows: on/off; MCP: park / add back a user server |
-| s | Skills: move a personal skill onto the shelf |
+| space | Skills: shelf row on/off for this project; plugin rows: on/off; MCP: turn off (saved) / add back a user server |
+| g | Skills: shelf row on/off globally |
+| s | Skills: move a global skill onto the shelf |
 | u | Skills: unshelve a skill; Doctor: undo the last fix set |
-| G | Skills: toggle a shelf row globally (G) |
-| e | MCP, Hooks, Plugins, Doctor: open the source file in $EDITOR |
+| e | open the selected row's file in $EDITOR |
 | y / n | confirm or cancel a previewed fix, undo, shelve or plugin change |
 | r | refresh |
-| p | project picker |
+| p | switch project |
 | ? | this help |
 | q | quit |
 
-Press `?` in the UI to see the same table. Layout: from 110 columns the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its `P`/`G` badges are never cut (a long name is shortened with `…` in the middle instead). The summary line and the footer shorten to fit on one line. Screenshot below is a plain-text capture of the Skills tab at 100 columns (colours are lost in text; not an image), with the home folder shown as `~`:
+Press `?` in the UI to see the same table. Layout: from 110 columns the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its Project/Global badges are never cut (a long name is shortened with `…` in the middle instead). The summary line shortens to fit, and the footer lists only the keys that work on the selected row, in one line. Screenshot below is a plain-text capture of the Skills tab at 100 columns (colours are lost in text; not an image), with the home folder shown as `~`:
 
 ```text
 agentry  ~/ws/aryantriki/agentry-labs
- 1 Skills (31)    2 MCP (2)    3 Hooks (29)    4 Plugins (5)    5 Doctor (11)
-~1912 skill-description tokens  ·  plugins 2 ● active 3 ○ disabled  ·  0 errors, 11 warnings
-P project, G global  ● on ○ off ◐ partial  cost: ~<100 ~100-499 ~500+
-Shelf ──────────────────────────────────
->▸ audit                                                 7 skills   ~1078  P ○ off      G ● on
- ▸ design                                                2 skills    ~296  P ○ off      G ○ off
- ▸ dev-tools                                             1 skills    ~103  P ○ off      G ○ off
- ▸ flutter-assets                                        4 skills    ~606  P ○ off      G ○ off
- ▸ video                                                 28 skills  ~3001  P ○ off      G ○ off
- ▸ web-audit                                             1 skills    ~135  P ○ off      G ○ off
+ 1 Skills (38)    2 MCP (4)    3 Hooks (29)    4 Plugins (5)    5 Doctor (18)
+~2801 skill-description tokens  ·  plugins 2 ● active 3 ○ disabled  ·  0 errors, 18 warnings
+● on ○ off ◐ partial  cost: ~<100 ~100-499 ~500+
+ Shelf                                                   Skills      Cost  Project      Global
+>▸ audit                                                 7 skills   ~1078  ● on         ● on
+ ▸ design                                                2 skills    ~296  ○ off        ○ off
+ ▸ dev-tools                                             1 skills    ~103  ○ off        ○ off
+ ▸ flutter-assets                                        4 skills    ~606  ○ off        ○ off
+ ▸ video                                                 28 skills  ~3001  ○ off        ○ off
+ ▸ web-audit                                             1 skills    ~135  ○ off        ○ off
 
-Personal skills ────────────────────────
-   humanize-and-unslop                                                                          ~44
-   run-fallow                                                                                  ~158
-   skill-architect                                                                              ~96
-   trail                                                                                        ~19
+Global skills ──────────────────────────
+   humanize-and-unslop                                                ~44               ● active
+   run-fallow                                                        ~158               ● active
+   skill-architect                                                    ~96               ● active
+   trail                                                              ~19               ● active
 
-Project skills ─────────────────────────
-   script-writer                                                                                ~60
+This project only ──────────────────────
+   script-writer                                                      ~60  ● active
   2/23
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Details
 shelf group: audit (opt-in)
-this project: ○ off
+this project: ● on
 global: ● on
 contains: 7 skills, 1 agent
 cost when on: ~1078 tokens
-toggle: space = this project, G = global; enter expands
-space P  G global  s shelve  u unshelve  enter expand  │ ←→ tabs  ? help  q quit
+toggle: space = this project, g = global; enter expands
+space project  g global  enter expand  │ ←→ tabs  ? help  q quit
 ```
 
 ## Commands

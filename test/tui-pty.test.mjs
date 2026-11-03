@@ -53,7 +53,7 @@ describe("colour in a pseudo-terminal", { skip: !hasPython && "needs python3 wit
 	test("NO_COLOR=1: no colour escapes, words still there", async () => {
 		const out = await ui({ TERM: "xterm-256color", NO_COLOR: "1" });
 		assert.doesNotMatch(out, COLOUR);
-		assert.match(out, /P project, G global/);
+		assert.match(out, /● on ○ off ◐ partial/);
 	});
 
 	test("TERM=dumb and FORCE_COLOR=0: the user's opt-outs are respected", async () => {

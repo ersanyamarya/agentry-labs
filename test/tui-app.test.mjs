@@ -20,7 +20,7 @@ describe("navigation", () => {
 		await ui.press(KEYS.right);
 		await ui.until(/server: demo/);
 		await ui.press(KEYS.left);
-		await ui.until(/P project, G global/);
+		await ui.until(/● on ○ off ◐ partial/);
 		await ui.press("5");
 		await ui.until(/warnings?, \d+ info|errors, \d+ warnings/);
 		assert.match(ui.frame(), /\[fake-bad\]/);
@@ -38,9 +38,9 @@ describe("navigation", () => {
 	test("? opens the key map and esc closes it", async () => {
 		await ui.press("?");
 		await ui.until(/Keys \(\? or esc to close\)/);
-		assert.match(ui.frame(), /project picker/);
+		assert.match(ui.frame(), /switch project/);
 		await ui.press(KEYS.esc);
-		await ui.until(/P project, G global/);
+		await ui.until(/● on ○ off ◐ partial/);
 		assert.doesNotMatch(ui.frame(), /Keys \(/);
 	});
 
@@ -64,7 +64,7 @@ describe("skills tab", () => {
 	test("shows the same token cost as agentry shelf list", async () => {
 		const listed = ui.fx.run(["shelf", "list"]).stdout;
 		assert.match(listed, /video .*~10 tokens/);
-		assert.match(ui.frame(), /video\s+2 skills\s+~10\s+P ○ off\s+G ○ off/);
+		assert.match(ui.frame(), /video\s+2 skills\s+~10\s+○ off\s+○ off/);
 	});
 
 	test("space toggles a row in this project, G toggles it globally, and enter expands the group", async () => {
@@ -73,14 +73,14 @@ describe("skills tab", () => {
 		await ui.press(KEYS.down, KEYS.down, KEYS.space);
 		await ui.until(/video\/trim on in/);
 		assert.ok(lstatSync(join(ui.fx.repo, ".claude/skills/trim")).isSymbolicLink());
-		await ui.until(/trim\s+shelf\s+~10\s+P ● on\s+G ○ off/);
+		await ui.until(/trim\s+shelf\s+~10\s+● on\s+○ off/);
 		await ui.press(KEYS.space);
 		await ui.until(/video\/trim off in/);
 		assert.ok(!existsSync(join(ui.fx.repo, ".claude/skills/trim")));
 
-		await ui.press("G");
+		await ui.press("g");
 		await ui.until(/video\/trim on in/);
-		await ui.until(/trim\s+shelf\s+~10\s+P ○ off\s+G ● on/);
+		await ui.until(/trim\s+shelf\s+~10\s+○ off\s+● on/);
 		assert.ok(lstatSync(join(ui.fx.configDir, "skills/trim")).isSymbolicLink());
 		assert.ok(!existsSync(join(ui.fx.repo, ".claude/skills/trim")));
 	});
