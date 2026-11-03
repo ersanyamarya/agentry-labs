@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createFixture } from "./helpers/fixture.mjs";
@@ -23,8 +24,15 @@ describe("shelf list", () => {
 	test("shows every group as off with skill and agent counts", () => {
 		const { status, stdout } = fx.run(["shelf", "list"]);
 		assert.equal(status, 0);
-		assert.match(stdout, /audit +1 skills +off\n {2}review\n/);
-		assert.match(stdout, /video +2 skills, 1 agent +off\n {2}ffmpeg-install, trim, editor\.md\n/);
+		assert.match(stdout, /audit +1 skills +~0 tokens +off\n {2}review\n/);
+		assert.match(stdout, /video +2 skills, 1 agent +~0 tokens +off\n {2}ffmpeg-install, trim, editor\.md\n/);
+	});
+
+	test("shows the description tokens each group adds when on", () => {
+		fx.cleanup();
+		fx = createFixture({ shelf: { video: { skills: ["trim"] } } });
+		writeFileSync(join(fx.configDir, "skill-shelf/video/trim/SKILL.md"), `---\nname: trim\ndescription: ${"x".repeat(40)}\n---\n`);
+		assert.match(fx.run(["shelf", "list"]).stdout, /video +1 skills +~10 tokens +off/);
 	});
 
 	test("reports on (this project) and on (global)", () => {
@@ -228,5 +236,144 @@ describe("shelf shelve / unshelve", () => {
 		assert.match(fx.run(["shelf", "unshelve", "trim"]).stderr, /already exists; not overwriting/);
 		assert.equal(fx.run(["shelf", "unshelve", "video"]).status, 2);
 		assert.ok(existsSync(join(fx.configDir, "skill-shelf/video/trim")));
+	});
+});
+
+describe("shelf off --all", () => {
+	test("removes every shelf link in the project and keeps other exclude lines", () => {
+		writeFileSync(join(fx.repo, ".git/info/exclude"), "keep-me\n");
+		fx.run(["shelf", "on", "video", "audit"]);
+		const { status, stdout } = fx.run(["shelf", "off", "--all"]);
+		assert.equal(status, 0);
+		assert.equal(stdout, `all off in ${join(fx.repo, ".claude")}: 4 of 4 changed.\n`);
+		for (const path of [".claude/skills/trim", ".claude/skills/ffmpeg-install", ".claude/skills/review", ".claude/agents/editor.md"]) {
+			assert.ok(!existsSync(join(fx.repo, path)), path);
+		}
+		assert.equal(exclude(), "keep-me\n");
+	});
+
+	test("leaves links and folders that do not point into the shelf", () => {
+		const elsewhere = join(fx.root, "elsewhere");
+		mkdirSync(elsewhere);
+		mkdirSync(join(fx.repo, ".claude/skills"), { recursive: true });
+		symlinkSync(elsewhere, join(fx.repo, ".claude/skills/outside"));
+		mkdirSync(join(fx.repo, ".claude/skills/real"));
+		fx.run(["shelf", "on", "audit"]);
+		assert.match(fx.run(["shelf", "off", "--all"]).stdout, /: 1 of 1 changed\./);
+		assert.ok(lstatSync(join(fx.repo, ".claude/skills/outside")).isSymbolicLink());
+		assert.ok(existsSync(join(fx.repo, ".claude/skills/real")));
+	});
+
+	test("removes broken shelf links too", () => {
+		fx.run(["shelf", "on", "video/trim"]);
+		rmSync(join(fx.configDir, "skill-shelf/video/trim"), { recursive: true });
+		assert.match(fx.run(["shelf", "off", "--all"]).stdout, /: 1 of 1 changed\./);
+		assert.ok(!linkExists(join(fx.repo, ".claude/skills/trim")));
+	});
+
+	test("with --global only touches the config dir", () => {
+		fx.run(["shelf", "on", "video"]);
+		fx.run(["shelf", "on", "audit", "--global"]);
+		const { stdout } = fx.run(["shelf", "off", "--all", "--global"]);
+		assert.equal(stdout, `all off in ${fx.configDir}: 1 of 1 changed.\n`);
+		assert.ok(!linkExists(join(fx.configDir, "skills/review")));
+		assert.ok(existsSync(join(fx.repo, ".claude/skills/trim")));
+	});
+
+	test("with nothing linked changes nothing and exits 0", () => {
+		assert.equal(fx.run(["shelf", "off", "--all"]).stdout, `all off in ${join(fx.repo, ".claude")}: 0 of 0 changed.\n`);
+	});
+
+	test("refuses named targets", () => {
+		const { status, stderr } = fx.run(["shelf", "off", "--all", "video"]);
+		assert.equal(status, 2);
+		assert.match(stderr, /Usage: agentry shelf/);
+	});
+});
+
+// Every file, folder and symlink under the fixture, so a test can prove a command wrote nothing.
+const snapshot = (dir) => {
+	const entries = [];
+	for (const name of readdirSync(dir).sort()) {
+		const path = join(dir, name);
+		const stat = lstatSync(path);
+		if (stat.isSymbolicLink()) {
+			entries.push(`${path} -> ${readlinkSync(path)}`);
+		} else if (stat.isDirectory()) {
+			entries.push(`${path}/`, snapshot(path));
+		} else {
+			entries.push(`${path} ${readFileSync(path, "utf8")}`);
+		}
+	}
+	return entries.join("\n");
+};
+
+const linkExists = (path) => {
+	try {
+		return lstatSync(path).isSymbolicLink();
+	} catch {
+		return false;
+	}
+};
+
+describe("--dry-run", () => {
+	const globalSkill = (name) => {
+		mkdirSync(join(fx.configDir, "skills", name), { recursive: true });
+		writeFileSync(join(fx.configDir, "skills", name, "SKILL.md"), "x\n");
+	};
+
+	test("on prints the links and exclude lines it would add and writes nothing", () => {
+		const before = snapshot(fx.root);
+		const { status, stdout } = fx.run(["shelf", "on", "video", "--dry-run"]);
+		assert.equal(status, 0);
+		assert.match(stdout, /^video on in .*: 3 of 3 would change\.\n/);
+		assert.match(stdout, /  link .*\.claude\/skills\/trim -> .*video\/trim\n/);
+		assert.match(stdout, /  exclude \+ \.claude\/agents\/editor\.md\n/);
+		assert.equal(snapshot(fx.root), before);
+	});
+
+	test("off and off --all print what they would remove and leave every link in place", () => {
+		fx.run(["shelf", "on", "video", "audit"]);
+		const before = snapshot(fx.root);
+		assert.match(fx.run(["shelf", "off", "video", "--dry-run"]).stdout, /video off in .*: 3 of 3 would change\.\n {2}unlink .*\n/);
+		assert.match(fx.run(["shelf", "off", "--all", "--dry-run"]).stdout, /all off in .*: 4 of 4 would change\.\n/);
+		assert.equal(snapshot(fx.root), before);
+	});
+
+	test("global on, off and off --all write nothing in the config dir", () => {
+		const before = snapshot(fx.root);
+		fx.run(["shelf", "on", "audit", "--global", "--dry-run"]);
+		fx.run(["shelf", "off", "--all", "--global", "--dry-run"]);
+		assert.equal(snapshot(fx.root), before);
+		assert.ok(!existsSync(join(fx.repo, ".claude")));
+	});
+
+	test("still reports unknown targets and exits 1", () => {
+		const { status, stderr } = fx.run(["shelf", "on", "nope", "--dry-run"]);
+		assert.equal(status, 1);
+		assert.match(stderr, /No group "nope"/);
+	});
+
+	test("shelve and unshelve show the move and leave both folders alone", () => {
+		globalSkill("pdf");
+		const before = snapshot(fx.root);
+		const shelved = fx.run(["shelf", "shelve", "pdf", "docs", "--dry-run"]);
+		assert.equal(shelved.status, 0);
+		assert.match(shelved.stdout, /would shelve pdf into docs: .*skills\/pdf -> .*skill-shelf\/docs\/pdf/);
+		assert.equal(snapshot(fx.root), before);
+
+		fx.run(["shelf", "shelve", "pdf", "docs"]);
+		const beforeUnshelve = snapshot(fx.root);
+		const unshelved = fx.run(["shelf", "unshelve", "pdf", "--dry-run"]);
+		assert.equal(unshelved.status, 0);
+		assert.match(unshelved.stdout, /would unshelve docs\/pdf/);
+		assert.equal(snapshot(fx.root), beforeUnshelve);
+	});
+
+	test("shelve dry run still refuses what a real run refuses", () => {
+		globalSkill("trim");
+		const { status, stderr } = fx.run(["shelf", "shelve", "trim", "video", "--dry-run"]);
+		assert.equal(status, 1);
+		assert.match(stderr, /already exists; not overwriting/);
 	});
 });
