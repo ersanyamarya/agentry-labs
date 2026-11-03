@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix } from "../lib/fix.mjs";
 import { createFixUndo } from "../lib/fix-undo.mjs";
+import { createMcpToggle } from "../lib/mcp-toggle.mjs";
 import { createPaths } from "../lib/paths.mjs";
 import { createPluginToggle } from "../lib/plugin-toggle.mjs";
 import { createScan } from "../lib/scan.mjs";
@@ -37,6 +38,12 @@ Commands:
                                       Switch a plugin on or off by editing enabledPlugins in the settings file that
                                       decides it (or --scope's): previewed as a diff, backed up, undoable with fix
                                       --undo. Refuses when managed settings or a higher scope win. New sessions only
+  mcp disable|enable <name> [--dry-run] [--yes]
+                                      Park a user-scope MCP server (save its config, then claude mcp remove) or add
+                                      it back (claude mcp add-json) from the parked copy. Previewed with secrets
+                                      masked, ~/.claude.json backed up first, undo with fix --undo. Other scopes are
+                                      refused. Parked configs hold secrets in <config>/agentry/parked-mcp.json (0600)
+  mcp list-parked                     List the parked servers (names and masked summaries only)
   ui                                  Open the terminal UI (needs a terminal)
   shelf list                          List shelf groups, their token cost and whether each is on
   shelf status [--json]               Show what is on in this project and globally, plus broken links
@@ -85,6 +92,8 @@ Examples:
   agentry fix ~/ws/my-repo --yes
   agentry plugin disable context-mode --dry-run
   agentry plugin enable demo@market --scope user --yes
+  agentry mcp disable context7 --dry-run
+  agentry mcp enable context7 --yes
   agentry fix --undo --list
   agentry fix --undo --yes`;
 
@@ -246,6 +255,21 @@ const main = (argv) => {
 			return usageError("--yes and --dry-run cannot be used together");
 		}
 		return createPluginToggle(createPaths()).run({ name, enable: action === "enable", scope: values.scope, yes: values.yes, dryRun: values["dry-run"] });
+	}
+	if (command === "mcp") {
+		const [action, name] = rest;
+		if (action === "list-parked" && rest.length === 1) {
+			const parked = createMcpToggle(createPaths()).listParked();
+			parked.forEach((entry) => console.log(`${entry.name}  parked ${entry.parkedAt ?? ""}  ${entry.summary}`));
+			return 0;
+		}
+		if ((action !== "enable" && action !== "disable") || !name || rest.length > 2 || values.json) {
+			return usageError("Usage: agentry mcp disable|enable <name> [--dry-run] [--yes] | agentry mcp list-parked");
+		}
+		if (values.yes && values["dry-run"]) {
+			return usageError("--yes and --dry-run cannot be used together");
+		}
+		return createMcpToggle(createPaths()).run({ name, enable: action === "enable", yes: values.yes, dryRun: values["dry-run"] });
 	}
 	if (command === "shelf") {
 		return runShelf(rest, values);

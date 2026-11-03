@@ -46,8 +46,8 @@ export const createFixture = ({ shelf = { video: { skills: ["ffmpeg-install", "t
 
 	const managedDir = join(root, "managed");
 	const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir, AGENTRY_HOME: home, AGENTRY_MANAGED_DIR: managedDir };
-	const run = (args, { cwd = repo } = {}) => {
-		const { status, stdout, stderr } = spawnSync(process.execPath, [bin, ...args], { cwd, env, encoding: "utf8" });
+	const run = (args, { cwd = repo, env: extra = {} } = {}) => {
+		const { status, stdout, stderr } = spawnSync(process.execPath, [bin, ...args], { cwd, env: { ...env, ...extra }, encoding: "utf8" });
 		return { status, stdout, stderr };
 	};
 
