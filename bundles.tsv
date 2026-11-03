@@ -17,6 +17,7 @@ global	skills/generate-commit-message
 global	skills/humanize-and-unslop
 global	skills/image-artifact-setup
 global	skills/lighthouse-audit
+global	skills/phased-plan
 global	skills/run-fallow
 global	skills/skill-architect
 global	skills/sync-docs-from-diff

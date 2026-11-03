@@ -26,6 +26,7 @@ Remember, before writing any code:
 │   ├── humanize-and-unslop/    # Edit/detect AI-slop patterns in writing (scan.mjs + judgment)
 │   ├── image-artifact-setup/   # Scaffold OG/social card generators using Playwright
 │   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, write fix plan
+│   ├── phased-plan/            # Write a phased plan with a model per task, run as one sub-session per task
 │   ├── run-fallow/             # Run fallow CLI for dead code, dupes, complexity, security
 │   └── skill-architect/        # Create, improve, review, and validate skills
 ├── agents/              # Custom agent definitions
@@ -35,7 +36,11 @@ Remember, before writing any code:
 ├── rules/               # commit-attribution, context7
 ├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
-├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, shelf.mjs (skill groups on/off), image-gen-tools/ (README cover generator)
+├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, shelf.mjs (forwards to `agentry shelf`), image-gen-tools/ (README cover generator)
+├── bin/                 # agentry CLI entry and command router
+├── lib/                 # CLI modules: paths.mjs, shelf.mjs
+├── docs/                # design plans (shelf-cli-plan.md)
+├── test/                # node:test suites for the CLI (npm test)
 └── .github/             # CI (validates every skill) and assets/cover.jpg
 ```
 
@@ -79,6 +84,7 @@ claude -p "/image-artifact-setup"
 | `lighthouse-audit` | global |
 | `mongodb-data-modeling` | mongodb |
 | `mongoose-schema-docs` | mongodb |
+| `phased-plan` | global |
 | `run-fallow` | global |
 | `shadcn` | web |
 | `skill-architect` | global |

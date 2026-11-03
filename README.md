@@ -92,7 +92,9 @@ The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (exp
 
 Every installed skill puts its name and description in every session, and past the listing budget Claude Code drops
 descriptions, so rarely used skills crowd out the useful ones. Rarely used groups live in `~/.claude/skill-shelf/<group>/`
-instead (currently `video`, `audit`, `flutter-assets`) and are symlinked in when needed:
+instead (currently `video`, `audit`, `flutter-assets`, `design`, `web-audit`, `dev-tools`) and are symlinked in when
+needed. `image-artifact-setup` (`design`) and `lighthouse-audit` (`web-audit`) are still in the `global` bundle, so
+`install.sh --bundle global` copies them back into `~/.claude/skills`; move them to the shelf again afterwards:
 
 ```bash
 node scripts/shelf.mjs list                       # groups, their skills, and where each is on
@@ -105,6 +107,21 @@ A group's agents sit in `~/.claude/skill-shelf/<group>/agents/*.md` (the `audit`
 are linked into `.claude/agents` with its skills. Claude Code watches skill folders, so a running session picks skills up;
 start a new session if a linked agent doesn't show. To shelve another group, move its skill folders (and agents) into a new
 `~/.claude/skill-shelf/<group>/`. Leave `~/.claude/skills/synced/` alone: claude.ai manages it.
+
+### agentry CLI
+
+`agentry` runs from any folder. It needs Node.js 22 or newer and no install step beyond linking the checkout:
+
+```bash
+cd /path/to/agentry-labs
+npm link                       # puts `agentry` on your PATH (or: npm install -g /path/to/agentry-labs)
+
+agentry --help                 # commands and options
+agentry shelf list             # same output as node scripts/shelf.mjs list
+agentry shelf on video         # also: off <group>, with --global for ~/.claude
+```
+
+Run tests with `npm test`.
 
 ## Commands
 1. Install skills
@@ -121,7 +138,11 @@ start a new session if a linked agent doesn't show. To shelve another group, mov
 - `rules/`: commit-attribution and context7 rules
 - `claude-md-files/`: reusable CLAUDE.md templates
 - `global/`: settings fragment and MCP config merged by `scripts/apply-global.mjs`
-- `scripts/`: installer, sync and shelf scripts
+- `scripts/`: installer, sync and shelf scripts (`shelf.mjs` forwards to `agentry shelf`)
+- `bin/`: the `agentry` command entry and router
+- `lib/`: the CLI modules (paths, shelf)
+- `docs/`: design plans, such as `docs/shelf-cli-plan.md`
+- `test/`: tests for the CLI (`npm test`)
 - `bundles.tsv`: the bundle each component belongs to
 
 ## Available Components
@@ -136,6 +157,7 @@ start a new session if a linked agent doesn't show. To shelve another group, mov
 | `humanize-and-unslop` | Edit drafts into plain, specific, human-sounding writing by removing AI tells (banned vocabulary, em dashes, curly quotes, puffery, chatbot phrases, formulaic structures) |
 | `image-artifact-setup` | Set up a reproducible image generator in a project (Open Graph and social cards, link previews, project or product tiles, README banners, store screenshots) by rendering  |
 | `lighthouse-audit` | Run Google Lighthouse against a URL (mobile and desktop), trace the performance, accessibility, SEO, and best-practices findings to the project's actual source, and write |
+| `phased-plan` | Write a phased implementation plan where every phase delivers testable value and each task names the cheapest Claude model that does it, run as one sub-session per task |
 | `run-fallow` | Run the `fallow` CLI on any JavaScript/TypeScript project to find dead code, unused dependencies, duplication, complexity hotspots, and security candidates, then report c |
 | `skill-architect` | Create, improve, or review Claude Code skills so they are portable, token-efficient, and spec-compliant, with scripts doing the exact work and the model doing the judgmen |
 | `sync-docs-from-diff` | Update repo documentation from a git diff. |
