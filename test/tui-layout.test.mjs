@@ -53,6 +53,6 @@ test("the help overlay lists the new keys and the colour legend", async () => {
 	await ui.until(/Keys \(\? or esc to close\)/);
 	assert.match(ui.frame(), /s {12}Skills: move a personal skill onto the shelf/);
 	assert.match(ui.frame(), /u {12}Skills: unshelve a skill/);
-	assert.match(ui.frame(), /Badges: on green, off gray, partial yellow/);
+	assert.match(ui.frame(), /● on \/ active green, ○ off \/ disabled gray, ◐ partial yellow/);
 	await ui.press(KEYS.esc);
 });
