@@ -4,6 +4,8 @@
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix, findingKey } from "../lib/fix.mjs";
 import { createFixUndo } from "../lib/fix-undo.mjs";
+import { createMcpToggle } from "../lib/mcp-toggle.mjs";
+import { createPluginToggle } from "../lib/plugin-toggle.mjs";
 import { createShelf } from "../lib/shelf.mjs";
 import { createStatus } from "../lib/status.mjs";
 
@@ -45,6 +47,7 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 				errors: [],
 			}),
 			doctor: attempt("doctor", () => doctorFor(paths).collect(dir), { findings: [], summary: { error: 0, warning: 0, info: 0 }, errors: [] }),
+			parked: attempt("parked", () => createMcpToggle(paths).listParked(), []),
 			groups: attempt("shelf", () => createShelf(paths, noIo).groups(), []),
 		};
 	};
@@ -54,6 +57,38 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 		const paths = makePaths(dir);
 		const { code, lines } = await capture((io) => createShelf(paths, io), (shelf) => (on ? shelf.on : shelf.off)([target], { global }));
 		return { ok: code === 0, message: lines.join("\n") || `${target} ${on ? "on" : "off"}` };
+	};
+
+	// Moves a skill between ~/.claude/skills and the shelf with the shelf's own checks (no overwrite, refuses while linked).
+	// dryRun previews: nothing moves. Returns { ok, text }.
+	const moveSkill = async ({ dir, action, args, dryRun = false }) => {
+		const { code, lines } = await capture((io) => createShelf(makePaths(dir), io), (shelf) => shelf[action](...args, { dryRun }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
+	};
+	const shelveSkill = ({ dir, skill, group, dryRun }) => moveSkill({ dir, action: "shelve", args: [skill, group], dryRun });
+	const unshelveSkill = ({ dir, target, dryRun }) => moveSkill({ dir, action: "unshelve", args: [target], dryRun });
+
+	// Plugin enable/disable: the engine's own preview (dry run), then, after an explicit y, backup + write + verify.
+	const toggleFor = (dir, io) => createPluginToggle(makePaths(dir), { ...io, now });
+	const previewPlugin = async ({ dir, id, enable }) => {
+		const { code, lines } = await capture((io) => toggleFor(dir, io), (toggle) => toggle.run({ name: id, enable, path: dir, dryRun: true }));
+		const text = lines.join("\n").replace(/\n?Dry run: nothing written\./, "").trim();
+		return { appliable: code === 0 && lines.some((line) => line.startsWith(`[plugin-toggle]`)), text };
+	};
+	const applyPlugin = async ({ dir, id, enable }) => {
+		const { code, lines } = await capture((io) => toggleFor(dir, io), (toggle) => toggle.run({ name: id, enable, path: dir, yes: true }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
+	};
+
+	// User-scope MCP servers: park (claude mcp remove, config saved first) and add back. Preview = the engine's dry run.
+	const mcpFor = (dir, io) => createMcpToggle(makePaths(dir), { ...io, now });
+	const previewMcp = async ({ dir, name, enable }) => {
+		const { code, lines } = await capture((io) => mcpFor(dir, io), (toggle) => toggle.run({ name, enable, path: dir, dryRun: true }));
+		return { appliable: code === 0 && lines.some((line) => line.startsWith("[mcp-toggle]")), text: lines.join("\n").replace(/\n?Dry run: nothing written\./, "").trim() };
+	};
+	const applyMcp = async ({ dir, name, enable }) => {
+		const { code, lines } = await capture((io) => mcpFor(dir, io), (toggle) => toggle.run({ name, enable, path: dir, yes: true }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
 	const stepsOf = (planned) => planned.edits.length + planned.commands.length;
@@ -90,5 +125,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, previewPlugin, applyPlugin, previewMcp, applyMcp, previewFix, applyFix, previewUndo, applyUndo };
 };

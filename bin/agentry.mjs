@@ -6,7 +6,9 @@ import { parseArgs } from "node:util";
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix } from "../lib/fix.mjs";
 import { createFixUndo } from "../lib/fix-undo.mjs";
+import { createMcpToggle } from "../lib/mcp-toggle.mjs";
 import { createPaths } from "../lib/paths.mjs";
+import { createPluginToggle } from "../lib/plugin-toggle.mjs";
 import { createScan } from "../lib/scan.mjs";
 import { createShelf } from "../lib/shelf.mjs";
 import { createStatus } from "../lib/status.mjs";
@@ -32,6 +34,16 @@ Commands:
   fix --undo [timestamp]              Restore the files from a backup set (the newest by default) and list what changed;
                                       a file edited since the fix is skipped unless --force
   fix --undo --list                   List the backup sets with their status and file count; changes nothing
+  plugin enable|disable <name> [--scope user|project|local] [--dry-run] [--yes]
+                                      Switch a plugin on or off by editing enabledPlugins in the settings file that
+                                      decides it (or --scope's): previewed as a diff, backed up, undoable with fix
+                                      --undo. Refuses when managed settings or a higher scope win. New sessions only
+  mcp disable|enable <name> [--dry-run] [--yes]
+                                      Park a user-scope MCP server (save its config, then claude mcp remove) or add
+                                      it back (claude mcp add-json) from the parked copy. Previewed with secrets
+                                      masked, ~/.claude.json backed up first, undo with fix --undo. Other scopes are
+                                      refused. Parked configs hold secrets in <config>/agentry/parked-mcp.json (0600)
+  mcp list-parked                     List the parked servers (names and masked summaries only)
   ui                                  Open the terminal UI (needs a terminal)
   shelf list                          List shelf groups, their token cost and whether each is on
   shelf status [--json]               Show what is on in this project and globally, plus broken links
@@ -55,7 +67,8 @@ Options:
       --all        With shelf off: every shelf link instead of named targets
       --dry-run    With shelf: print the links and exclude lines a write would change. With fix: show the
                    preview only. Either way nothing is written
-  -y, --yes        With fix: apply without asking (for scripts); exit 1 if a fix or its verification fails
+      --scope S    With plugin: settings scope to edit (user, project, local); default: the scope that decides today
+  -y, --yes        With fix or plugin: apply without asking (for scripts); exit 1 if a fix or its verification fails
       --undo       With fix: undo a backup set instead of fixing (see above)
       --list       With fix --undo: list the backup sets only
       --force      With fix --undo: overwrite files that changed since the fix wrote them
@@ -77,6 +90,10 @@ Examples:
   agentry scan ~/ws --fix
   agentry fix --dry-run
   agentry fix ~/ws/my-repo --yes
+  agentry plugin disable context-mode --dry-run
+  agentry plugin enable demo@market --scope user --yes
+  agentry mcp disable context7 --dry-run
+  agentry mcp enable context7 --yes
   agentry fix --undo --list
   agentry fix --undo --yes`;
 
@@ -114,7 +131,18 @@ const runShelf = (args, { global, json, all, "dry-run": dryRun }) => {
 };
 
 // Ink and React load here, on demand, so no other command pays for them.
+// Chalk (inside Ink) picks its colour level once, when it loads, from TERM, COLORTERM and FORCE_COLOR, and never reads
+// NO_COLOR. A terminal that leaves TERM unset (some app-embedded terminals) would get level 0 and no colour at all, so on a
+// TTY we ask for the basic 16 colours unless the user opted out (NO_COLOR, FORCE_COLOR, TERM=dumb).
+const preferColor = () => {
+	const { env } = process;
+	if (process.stdout.isTTY && !env.NO_COLOR && !("FORCE_COLOR" in env) && env.TERM !== "dumb") {
+		env.FORCE_COLOR = "1";
+	}
+};
+
 const runUi = async (argv) => {
+	preferColor();
 	const { run } = await import("../tui/index.mjs");
 	return run({ argv, paths: createPaths(), io: { stdin: process.stdin, stdout: process.stdout, stderr: process.stderr } });
 };
@@ -140,6 +168,7 @@ const main = (argv) => {
 				list: { type: "boolean" },
 				force: { type: "boolean" },
 				fix: { type: "boolean" },
+				scope: { type: "string" },
 			},
 		});
 	} catch (error) {
@@ -216,6 +245,31 @@ const main = (argv) => {
 			return usageError("--yes and --dry-run cannot be used together");
 		}
 		return createFix(createPaths()).run({ path: rest[0], yes: values.yes, dryRun: values["dry-run"] });
+	}
+	if (command === "plugin") {
+		const [action, name] = rest;
+		if ((action !== "enable" && action !== "disable") || !name || rest.length > 2 || values.json) {
+			return usageError("Usage: agentry plugin enable|disable <name> [--scope user|project|local] [--dry-run] [--yes]");
+		}
+		if (values.yes && values["dry-run"]) {
+			return usageError("--yes and --dry-run cannot be used together");
+		}
+		return createPluginToggle(createPaths()).run({ name, enable: action === "enable", scope: values.scope, yes: values.yes, dryRun: values["dry-run"] });
+	}
+	if (command === "mcp") {
+		const [action, name] = rest;
+		if (action === "list-parked" && rest.length === 1) {
+			const parked = createMcpToggle(createPaths()).listParked();
+			parked.forEach((entry) => console.log(`${entry.name}  parked ${entry.parkedAt ?? ""}  ${entry.summary}`));
+			return 0;
+		}
+		if ((action !== "enable" && action !== "disable") || !name || rest.length > 2 || values.json) {
+			return usageError("Usage: agentry mcp disable|enable <name> [--dry-run] [--yes] | agentry mcp list-parked");
+		}
+		if (values.yes && values["dry-run"]) {
+			return usageError("--yes and --dry-run cannot be used together");
+		}
+		return createMcpToggle(createPaths()).run({ name, enable: action === "enable", yes: values.yes, dryRun: values["dry-run"] });
 	}
 	if (command === "shelf") {
 		return runShelf(rest, values);
