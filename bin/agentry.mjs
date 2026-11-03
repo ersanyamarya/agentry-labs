@@ -5,10 +5,13 @@ import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { createPaths } from "../lib/paths.mjs";
 import { createShelf } from "../lib/shelf.mjs";
+import { createStatus } from "../lib/status.mjs";
 
 const USAGE = `Usage: agentry <command> [options]
 
 Commands:
+  status [path] [--json]              Show the skills, MCP servers, hooks and plugins a session in a folder loads,
+                                      with source files and token estimates (unmeasurable parts say "not measured")
   shelf list                          List shelf groups, their token cost and whether each is on
   shelf status [--json]               Show what is on in this project and globally, plus broken links
   shelf on <target>... [--global]     Link groups or skills into this project (or ~/.claude)
@@ -23,6 +26,7 @@ A target is a group (video), group/skill (video/ffmpeg-install) or a skill name 
 Options:
   -h, --help       Show this help
       --version    Print the version
+      --json       With status or shelf status: machine-readable output
       --all        With shelf off: every shelf link instead of named targets
       --dry-run    Print the links and exclude lines a shelf write would change; write nothing
 
@@ -32,7 +36,9 @@ Examples:
   agentry shelf status --json
   agentry shelf off video --global
   agentry shelf on audit --dry-run
-  agentry shelf off --all`;
+  agentry shelf off --all
+  agentry status
+  agentry status ~/ws/my-repo --json`;
 
 const SHELF_USAGE =
 	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run]";
@@ -97,6 +103,12 @@ const main = (argv) => {
 	if (values.help || !command || command === "help") {
 		console.log(USAGE);
 		return 0;
+	}
+	if (command === "status") {
+		if (rest.length > 1) {
+			return usageError("Usage: agentry status [path] [--json]");
+		}
+		return createStatus(createPaths()).run({ path: rest[0], json: values.json });
 	}
 	if (command === "shelf") {
 		return runShelf(rest, values);
