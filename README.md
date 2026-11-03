@@ -171,37 +171,40 @@ Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so noth
 | ? | this help |
 | q | quit |
 
-Press `?` in the UI to see the same table. Screenshot below is a plain-text capture of the Skills tab at 100 columns (colours are lost in text; not an image), with the home folder shown as `~`:
+Press `?` in the UI to see the same table. Layout: from 110 columns the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its `P`/`G` badges are never cut (a long name is shortened with `…` in the middle instead). The summary line and the footer shorten to fit on one line. Screenshot below is a plain-text capture of the Skills tab at 100 columns (colours are lost in text; not an image), with the home folder shown as `~`:
 
 ```text
 agentry  ~/ws/aryantriki/agentry-labs
- 1 Skills (24)    2 MCP (2)    3 Hooks (29)    4 Plugins (5)    5 Doctor (11)
-~1023 skill-description tokens  ·  plugins 2 ● active 3 ○ disabled  ·  0 errors, 11 warnings
-P project, G global  ● on ○ off ◐ partial  cost: ~<100 ~100-499 ~500+ 
-Shelf ─────────────────────────────                 ┌──────────────────────────────────────────────┐
->▸ audit  7 skills, 1 agent  ~1078  P ○ off  G ○ off│ Details                                      │
- ▸ design  2 skills  ~296  P ○ off  G ○ off         │ shelf group: audit (opt-in)                  │
- ▸ dev-tools  1 skills  ~103  P ○ off  G ○ off      │ this project: ○ off                          │
- ▸ flutter-assets  4 skills  ~606  P ○ off  G ○ off │ global: ○ off                                │
- ▸ video  28 skills  ~3001  P ○ off  G ○ off        │ cost when on: ~1078 tokens                   │
- ▸ web-audit  1 skills  ~135  P ○ off  G ○ off      │ toggle: space = this project, G = global;    │
-                                                    │ enter expands                                │
-Personal skills ───────────────────                 │                                              │
-   humanize-and-unslop  personal  ~44               │                                              │
-   run-fallow  personal  ~158                       │                                              │
-   skill-architect  personal  ~96                   │                                              │
-   trail  personal  ~19                             │                                              │
-                                                    │                                              │
-Project skills ────────────────────                 │                                              │
-   script-writer  project  ~60                      │                                              │
-                                                    │                                              │
-Plugin skills ─────────────────────                 │                                              │
-   diagram-design:*  1 skills  ~0  ○ disabled       │                                              │
-   i-have-adhd:*  1 skills  ~61  ● active           │                                              │
-   context-mode:*  8 skills  ~585  ● active         │                                              │
-   gsap-skills:*  8 skills  ~0  ○ disabled          │                                              │
-   impeccable:*  1 skills  ~0  ○ disabled           └──────────────────────────────────────────────┘
-space toggle P (project)  G toggle global  s shelve  u unshelve  enter expand  │ ←/→ tabs  ↑/↓ rows…
+ 1 Skills (31)    2 MCP (2)    3 Hooks (29)    4 Plugins (5)    5 Doctor (11)
+~1912 skill-description tokens  ·  plugins 2 ● active 3 ○ disabled  ·  0 errors, 11 warnings
+P project, G global  ● on ○ off ◐ partial  cost: ~<100 ~100-499 ~500+
+Shelf ──────────────────────────────────
+>▸ audit                                                 7 skills   ~1078  P ○ off      G ● on
+ ▸ design                                                2 skills    ~296  P ○ off      G ○ off
+ ▸ dev-tools                                             1 skills    ~103  P ○ off      G ○ off
+ ▸ flutter-assets                                        4 skills    ~606  P ○ off      G ○ off
+ ▸ video                                                 28 skills  ~3001  P ○ off      G ○ off
+ ▸ web-audit                                             1 skills    ~135  P ○ off      G ○ off
+
+Personal skills ────────────────────────
+   humanize-and-unslop                                                                          ~44
+   run-fallow                                                                                  ~158
+   skill-architect                                                                              ~96
+   trail                                                                                        ~19
+
+Project skills ─────────────────────────
+   script-writer                                                                                ~60
+  2/23
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+Details
+shelf group: audit (opt-in)
+this project: ○ off
+global: ● on
+contains: 7 skills, 1 agent
+cost when on: ~1078 tokens
+toggle: space = this project, G = global; enter expands
+space P  G global  s shelve  u unshelve  enter expand  │ ←→ tabs  ? help  q quit
 ```
 
 ## Commands
