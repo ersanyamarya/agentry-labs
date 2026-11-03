@@ -167,12 +167,13 @@ describe("stale names", () => {
 	test("stale-name: permission entries, MCP name and command, and hook commands", () => {
 		userSettings({
 			permissions: { allow: ["Bash(graft:*)", "mcp__graft__find", "Read(graft/**)"] },
-			hooks: { SessionStart: [{ hooks: [{ type: "command", command: "graft check" }] }] },
+			statusLine: { type: "command", command: "node ~/.claude/helpers/graft-statusline.cjs" },
+			hooks: { SessionStart: [{ hooks: [{ type: "command", command: "graft check" }] }], PreToolUse: [{ matcher: "mcp__graft__", hooks: [{ type: "command", command: "node ~/.claude/helpers/graft-hooks.cjs pre" }] }] },
 		});
 		claudeJson({ mcpServers: { graft: { command: "tool", args: ["mcp"] }, other: { command: "tool", args: ["graft", "serve"] } } });
 		const items = findings("stale-name");
 		const what = items.map((item) => item.message.split(" still")[0]).sort();
-		assert.deepEqual(what, ['MCP server "graft"', 'MCP server "other"', 'Permission allow entry "Bash(graft:*)"', 'Permission allow entry "mcp__graft__find"', "SessionStart hook"]);
+		assert.deepEqual(what, ['MCP server "graft"', 'MCP server "other"', 'Permission allow entry "Bash(graft:*)"', 'Permission allow entry "mcp__graft__find"', "PreToolUse hook", "PreToolUse hook matcher", "SessionStart hook", "statusLine command"]);
 		assert.ok(items.every((item) => item.severity === "warning" && item.file && /trail/.test(item.fix)));
 		assert.ok(items.find((item) => item.message.startsWith("Permission")).line > 0);
 	});
