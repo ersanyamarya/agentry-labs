@@ -7,7 +7,7 @@ export const KEYS = [
 	["← / →, 1-5", "switch tab"],
 	["↑ / ↓", "move between rows"],
 	["enter", "details, expand a group, preview a fix"],
-	["space", "Skills: toggle a shelf row in this project (P); plugin rows: on/off"],
+	["space", "Skills: toggle a shelf row (P); plugin rows: on/off; MCP: park / add back"],
 	["s", "Skills: move a personal skill onto the shelf"],
 	["u", "Skills: unshelve a skill; Doctor: undo the last fix set"],
 	["G", "Skills: toggle a shelf row globally (G)"],

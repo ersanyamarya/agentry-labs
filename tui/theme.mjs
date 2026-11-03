@@ -35,6 +35,7 @@ const STATES = {
 	active: GREEN,
 	off: GRAY,
 	disabled: GRAY,
+	parked: GRAY,
 	partial: YELLOW,
 	shadowed: YELLOW,
 	"pending-approval": YELLOW,
@@ -44,7 +45,7 @@ const STATES = {
 	"not-installed": RED,
 };
 // Badges carry a symbol too, so the state reads without colour: ● on / active, ○ off / disabled, ◐ partial.
-const SYMBOLS = { on: "●", active: "●", off: "○", disabled: "○", partial: "◐" };
+const SYMBOLS = { on: "●", active: "●", off: "○", disabled: "○", parked: "○", partial: "◐" };
 const word = (state) => String(state).replace(/^[●○◐]\s*/, "");
 export const badgeText = (state) => (SYMBOLS[word(state).split(" ")[0]] ? `${SYMBOLS[word(state).split(" ")[0]]} ${word(state)}` : String(state));
 export const stateStyle = (state = "") => STATES[word(state).split(" ")[0]] ?? {};

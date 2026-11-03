@@ -134,21 +134,40 @@ export const skillRows = (data, expanded = new Set()) => {
 
 export const PLUGIN_NOTE = "applies to new sessions";
 
-export const MCP_KEYS = [["e", "open source file in $EDITOR"]];
+export const MCP_KEYS = [["space", "park / add back (user scope)"], ["e", "open source file in $EDITOR"]];
 
-export const mcpRows = (data) =>
-	data.status.mcp.servers.map((server) => {
+const MCP_WHY = {
+	plugin: "plugin server: managed by the plugin, switch the plugin instead",
+	project: "project server (.mcp.json): managed by the repo, approval is in Claude Code",
+	local: "local-scope server: this tool only handles user scope",
+	"desktop-config": "desktop server: managed by Claude desktop",
+	"desktop-extension": "desktop extension: managed by Claude desktop",
+};
+
+export const mcpRows = (data) => [
+	...data.status.mcp.servers.map((server) => {
 		const target = server.url ?? [server.command, ...(server.args ?? [])].join(" ");
 		const env = Object.entries(server.env ?? {}).map(([key, value]) => `env ${key}=${value}`);
 		const headers = Object.entries(server.headers ?? {}).map(([key, value]) => `header ${key}: ${value}`);
+		const mine = server.scope === "user";
 		return {
 			id: `mcp:${server.scope}:${server.name}:${server.source}`,
 			label: server.name,
+			...(mine ? { mcp: server.name, mcpEnable: false } : { why: MCP_WHY[server.scope] }),
 			...withNote([scopeBadge(server.scope), badge(server.state), seg(server.transport, DIM)]),
 			file: server.source,
-			details: [`server: ${server.name}`, `scope: ${server.scope}`, `state: ${server.state}`, `transport: ${server.transport}`, `${server.url ? "url" : "command"}: ${target}`, ...env, ...headers, `tokens: not measured (tool lists)`, `source: ${server.source}`],
+			details: [`server: ${server.name}`, `scope: ${server.scope}`, `state: ${badgeText(server.state)}`, `transport: ${server.transport}`, `${server.url ? "url" : "command"}: ${target}`, ...env, ...headers, `tokens: not measured (tool lists)`, `source: ${server.source}`, `toggle: ${mine ? "space parks it (removes it from user scope, config saved); undo with agentry fix --undo" : MCP_WHY[server.scope] ?? "not managed here"}`],
 		};
-	});
+	}),
+	...(Array.isArray(data.parked) ? data.parked : []).map((entry) => ({
+		id: `parked:${entry.name}`,
+		label: entry.name,
+		mcp: entry.name,
+		mcpEnable: true,
+		...withNote([scopeBadge("user"), badge("parked"), seg("not loaded", DIM)]),
+		details: [`server: ${entry.name}`, "scope: user", `state: ${badgeText("parked")}`, `config: ${entry.summary}`, `parked: ${entry.parkedAt ?? "-"}`, "toggle: space adds it back to user scope (claude mcp add-json from the saved copy)"],
+	})),
+];
 
 export const hookRows = (data) =>
 	data.status.hooks.items.map((hook, index) => ({

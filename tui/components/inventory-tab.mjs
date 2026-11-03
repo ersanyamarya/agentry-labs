@@ -3,6 +3,7 @@
 
 import React from "react";
 import { Box, useInput } from "ink";
+import { startMcpToggle } from "../mcp-flow.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { useFlow } from "../use-flow.mjs";
@@ -26,6 +27,10 @@ export const InventoryTab = ({ data, api, dir, makeRows, active, height, openFil
 				openFile(row?.file);
 			} else if (input === " " && row?.plugin) {
 				startPluginToggle({ api, dir, flow, row });
+			} else if (input === " " && row?.mcp) {
+				startMcpToggle({ api, dir, flow, row });
+			} else if (input === " " && row?.why) {
+				notify(row.why);
 			}
 		},
 		{ isActive: active },

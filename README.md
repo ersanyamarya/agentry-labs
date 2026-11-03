@@ -130,6 +130,7 @@ npm link                       # puts `agentry` on your PATH (or: npm install -g
 agentry --help                 # commands and options
 agentry shelf list             # shelf groups, their token cost and whether each is on
 agentry shelf on video         # also: off <group>, off --all, shelve, unshelve; --global for ~/.claude, --dry-run to preview
+agentry mcp disable context7   # park a user-scope MCP server (also: enable, list-parked; --dry-run, --yes); undo with agentry fix --undo
 agentry plugin disable demo    # also: enable; --scope user|project|local, --dry-run, --yes; backed up, undo with agentry fix --undo
 agentry ui                     # terminal UI (Ink); a bare `agentry` in a terminal opens it too
 ```
@@ -148,8 +149,9 @@ Start it from the project folder with `agentry ui`, or type a bare `agentry` in 
   - **Skills, shelving:** `s` on a personal skill (a real folder under `~/.claude/skills`) asks for a shelf group (`↑/↓` and `enter`, or `n` to type a new name), previews the move, and `y` runs `agentry shelf shelve`. Afterwards the skill sits under Shelf, off, and toggles with `space`. `u` on a shelved skill moves it back (`agentry shelf unshelve`). Both refuse to overwrite, and to move a skill that is still linked.
   - **Plugins:** `space` on a plugin row (Plugins tab) or a `plugin:*` row (Skills tab) previews the `enabledPlugins` edit as a diff; `y` writes it with a backup. Same as `agentry plugin enable|disable`, and `agentry fix --undo` restores it. It applies to new sessions only.
   - **Doctor:** `enter` previews a fix as a diff. `y` applies it through the same engine as the CLI, with a backup first. `u` previews undoing the last fix set, and `y` restores it.
+  - **MCP:** `space` on a user-scope server previews parking it (its config is saved, then `claude mcp remove --scope user` runs, with a backup of `~/.claude.json`); parked servers stay in the list as `○ parked`, and `space` adds them back with `claude mcp add-json`. Same as `agentry mcp disable|enable <name>`, `agentry mcp list-parked`. The saved configs live in `~/.claude/agentry/parked-mcp.json` (mode 0600), with their secrets, exactly as exposed as `~/.claude.json`. Plugin, project `.mcp.json` and desktop servers say who manages them instead.
 - **Rows that cannot be toggled** say why in the status line and the details: personal skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
-- **Read-only:** MCP and Hooks list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
+- **Read-only:** Hooks list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
 
 Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so nothing depends on it): `● on` / `● active` green, `○ off` / `○ disabled` gray, `◐ partial` yellow; token cost dim under 100, yellow under 500, red from 500 (legend line on the Skills tab); scope tags `personal` cyan, `project` magenta, `plugin` blue, `shelf` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
 
@@ -158,7 +160,7 @@ Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so noth
 | ← / →, 1-5 | switch tab |
 | ↑ / ↓ | move between rows |
 | enter | details, expand a group, preview a fix |
-| space | Skills: toggle a shelf row in this project (P); plugin rows: on/off |
+| space | Skills: toggle a shelf row (P); plugin rows: on/off; MCP: park / add back a user server |
 | s | Skills: move a personal skill onto the shelf |
 | u | Skills: unshelve a skill; Doctor: undo the last fix set |
 | G | Skills: toggle a shelf row globally (G) |
