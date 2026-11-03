@@ -93,8 +93,8 @@ The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (exp
 Every installed skill puts its name and description in every session, and past the listing budget Claude Code drops
 descriptions, so rarely used skills crowd out the useful ones. Rarely used groups live in `~/.claude/skill-shelf/<group>/`
 instead (currently `video`, `audit`, `flutter-assets`, `design`, `web-audit`, `dev-tools`) and are symlinked in when
-needed. `image-artifact-setup` (`design`) and `lighthouse-audit` (`web-audit`) are still in the `global` bundle, so
-`install.sh --bundle global` copies them back into `~/.claude/skills`; move them to the shelf again afterwards:
+needed. The shelved skills (`image-artifact-setup`, `lighthouse-audit`, and four flutter-assets skills) are in no bundle, so
+installs never copy them back. Turn them on with `agentry shelf on <group>`:
 
 ```bash
 agentry shelf list                        # groups, the description tokens each costs when on, and where each is on
@@ -111,7 +111,7 @@ agentry shelf unshelve pdf                # move it back to ~/.claude/skills
 `list` estimates each group's cost as the frontmatter `description` of its skills and agents, at about four characters
 per token: what the group adds to every session once it is on. Project links are listed in `.git/info/exclude` (the
 shared one in a worktree), so they never show as untracked. `shelve` refuses to overwrite a folder, and both `shelve`
-and `unshelve` refuse while a link to the skill exists; run `off` first. `node scripts/shelf.mjs` still forwards to the same commands.
+and `unshelve` refuse while a link to the skill exists; run `off` first.
 
 A group's agents sit in `~/.claude/skill-shelf/<group>/agents/*.md` (the `audit` group carries `slop-auditor-analyst`) and
 are linked into `.claude/agents` with its skills. Claude Code watches skill folders, so a running session picks skills up;
@@ -128,7 +128,7 @@ npm install                    # once: Ink and React for `agentry ui`
 npm link                       # puts `agentry` on your PATH (or: npm install -g /path/to/agentry-labs)
 
 agentry --help                 # commands and options
-agentry shelf list             # same output as node scripts/shelf.mjs list
+agentry shelf list             # shelf groups, their token cost and whether each is on
 agentry shelf on video         # also: off <group>, off --all, shelve, unshelve; --global for ~/.claude, --dry-run to preview
 agentry ui                     # terminal UI (Ink); a bare `agentry` in a terminal opens it too
 ```
@@ -204,9 +204,9 @@ space toggle on/off  g switch project/global  |  ←/→ tabs  ↑/↓ rows  r r
 - `rules/`: commit-attribution and context7 rules
 - `claude-md-files/`: reusable CLAUDE.md templates
 - `global/`: settings fragment and MCP config merged by `scripts/apply-global.mjs`
-- `scripts/`: installer, sync and shelf scripts (`shelf.mjs` forwards to `agentry shelf`)
+- `scripts/`: installer, global-settings merge, skill drift check and the README cover generator
 - `bin/`: the `agentry` command entry and router
-- `lib/`: the CLI modules (paths, shelf, tokens)
+- `lib/`: the CLI modules (paths, shelf, status, doctor, scan, fix, tokens, inventory)
 - `tui/`: the Ink terminal UI behind `agentry ui`
 - `docs/`: design plans, such as `docs/shelf-cli-plan.md`
 - `test/`: tests for the CLI (`npm test`)
@@ -223,8 +223,6 @@ space toggle on/off  g switch project/global  |  ←/→ tabs  ↑/↓ rows  r r
 | `agentry` | Answer "what loads here", slow-session and duplicate MCP or skill questions from `agentry status`, `doctor` and `scan --json`; fixes go through `agentry fix`. |
 | `generate-commit-message` | Write a Conventional Commit message in this repo's style (type(scope): Capitalized summary) from staged or unstaged changes. |
 | `humanize-and-unslop` | Edit drafts into plain, specific, human-sounding writing by removing AI tells (banned vocabulary, em dashes, curly quotes, puffery, chatbot phrases, formulaic structures) |
-| `image-artifact-setup` | Set up a reproducible image generator in a project (Open Graph and social cards, link previews, project or product tiles, README banners, store screenshots) by rendering  |
-| `lighthouse-audit` | Run Google Lighthouse against a URL (mobile and desktop), trace the performance, accessibility, SEO, and best-practices findings to the project's actual source, and write |
 | `phased-plan` | Write a phased implementation plan where every phase delivers testable value and each task names the cheapest Claude model that does it, run as one sub-session per task |
 | `run-fallow` | Run the `fallow` CLI on any JavaScript/TypeScript project to find dead code, unused dependencies, duplication, complexity hotspots, and security candidates, then report c |
 | `skill-architect` | Create, improve, or review Claude Code skills so they are portable, token-efficient, and spec-compliant, with scripts doing the exact work and the model doing the judgmen |
@@ -236,13 +234,9 @@ space toggle on/off  g switch project/global  |  ←/→ tabs  ↑/↓ rows  r r
 | Skill | Description |
 |-------|-------------|
 | `acquire-codebase-knowledge` | Use this skill when the user explicitly asks to map, document, or onboard into an existing Flutter/Dart codebase. |
-| `flutter-brand-icons` | Generate every app icon and native splash asset for a Flutter project from one single-color logo SVG, with colors taken from the project's brand doc, design doc, or Dart  |
-| `flutter-bundle-google-fonts` | Replaces the google_fonts package in a Flutter project with fonts bundled in the app. |
-| `flutter-device-scripts-setup` | Run the stack's scripts/flutter run-all and build-release: debug or release build installed on every connected Android phone, iPhone and this Mac. Wrapper only; the logic lives in the stack. |
 | `flutter-lib-refactor` | Audit and refactor a Flutter project's lib/ folder into a feature-first layered architecture. |
 | `flutter-logging-strategy` | Establish, audit, and enforce a consistent logging strategy in any Flutter/Dart project using package:logging — installs the dependency if missing, builds a named-logger  |
 | `flutter-quality-gate` | Run the Flutter quality checks (format, analyze, test) for a Flutter app and fix common issues. |
-| `flutter-store-assets` | Sets up and runs an image tool for a Flutter app that makes store screenshots (App Store iPhone and iPad, Mac App Store, Play phone and tablet), a Play feature graphic, s |
 | `theme-hardcoding-audit` | Audit the app for hardcoded theme values, local styling drift, and visual inconsistencies. |
 
 **`mongodb`** (MongoDB / Mongoose projects):
@@ -257,6 +251,8 @@ space toggle on/off  g switch project/global  |  ←/→ tabs  ↑/↓ rows  r r
 | Skill | Description |
 |-------|-------------|
 | `shadcn` | Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI, including chat interfaces. |
+
+Shelved skills (`image-artifact-setup`, `lighthouse-audit`, `flutter-brand-icons`, `flutter-bundle-google-fonts`, `flutter-device-scripts-setup`, `flutter-store-assets`) are in no bundle; they live on the shelf (`agentry shelf on <group>`, see [Skill shelf](#skill-shelf)).
 
 Skills tied to gentlemans-stack layers, generators and libs (Nx workspace and package linking, `api-endpoints`, `service-handler-tests`, `domain-repository-tests` and similar) live in that repo's `.claude/skills` and reach projects through its sync, not from here.
 

@@ -167,10 +167,10 @@ toggle shelf skills or apply fixes without remembering commands.
 | Done | Task | Model |
 |---|---|---|
 | [x] | `install.sh`: link the `agentry` bin when installing globally; `--dry-run` shows it. | Sonnet 5.5 |
-| [ ] | Resolve the `bundles.tsv` conflict: `image-artifact-setup` and `lighthouse-audit` are in the `global` bundle but now live on the shelf (`design`, `web-audit`); move them to a bundle or mark them shelf-only, and drop the README workaround note. | Haiku 5.5 |
+| [x] | Resolve the `bundles.tsv` conflict: `image-artifact-setup` and `lighthouse-audit` are in the `global` bundle but now live on the shelf (`design`, `web-audit`); move them to a bundle or mark them shelf-only, and drop the README workaround note. | Haiku 5.5 |
 | [x] | Add a short rule or skill telling Claude to run `agentry status --json` / `agentry doctor --json` for setup questions; keep its description under 200 characters; it needs a `bundles.tsv` line, must pass `skill-architect`'s `validate.mjs`, and changes the README cover counts. | Sonnet 5.5 |
-| [ ] | Retire `scripts/shelf.mjs` after one release: print a notice pointing at `agentry shelf`, then remove it and its README mentions. | Haiku 5.5 |
-| [ ] | Final pass: README, CLAUDE.md tree and Skills Quick Reference match the shipped commands; regenerate the README cover if counts changed. | Haiku 5.5 |
+| [x] | Retire `scripts/shelf.mjs` after one release: print a notice pointing at `agentry shelf`, then remove it and its README mentions. | Haiku 5.5 |
+| [x] | Final pass: README, CLAUDE.md tree and Skills Quick Reference match the shipped commands; regenerate the README cover if counts changed. | Haiku 5.5 |
 
 ## Out of scope
 
