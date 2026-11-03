@@ -98,6 +98,6 @@ export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock
 		Box,
 		{ flexDirection: "column" },
 		h(Text, null, `Toggle target: `, h(Text, { bold: true, color: "cyan" }, global ? "global (config dir)" : "this project"), h(Text, { dimColor: true }, `  (g to switch)  ~${data.status.tokens.measured} tokens of skill descriptions load in every session`)),
-		h(Box, null, h(ListPane, { rows, cursor, height }), h(DetailsPane, { row, lines: flow.lines, title: flow.title, height, wrap: flow.lines ? "wrap" : undefined })),
+		h(Box, null, h(ListPane, { rows, cursor, height }), h(DetailsPane, { row, lines: flow.lines, title: flow.title, height })),
 	);
 };

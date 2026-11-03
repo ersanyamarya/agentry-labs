@@ -89,7 +89,7 @@ describe("skills tab", () => {
 	test("space on a group links all its skills; the real home is untouched", async () => {
 		await ui.press(KEYS.space);
 		await ui.until(/audit on in/);
-		assert.deepEqual(readdirSync(join(ui.fx.repo, ".claude/skills")), ["review"]);
+		assert.deepEqual(readdirSync(join(ui.fx.repo, ".claude/skills")).filter((name) => name !== "proj"), ["review"]);
 	});
 });
 

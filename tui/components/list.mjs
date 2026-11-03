@@ -31,7 +31,8 @@ export const ListPane = ({ rows, cursor, height }) => {
 };
 
 // `lines` replaces the row's own details (the doctor tab shows a fix preview there); long text is cut to `height`.
-export const DetailsPane = ({ row, lines, title = "Details", height, wrap = "truncate-middle" }) => {
+export const DetailsPane = ({ row, lines, title = "Details", height }) => {
+	const wrap = lines ? "wrap" : "truncate-middle";
 	const text = (lines ?? row?.details ?? []).map((line) => line.replaceAll("\t", "  "));
 	const shown = text.length > height ? [...text.slice(0, height - 1), `… ${text.length - height + 1} more lines`] : text;
 	return h(
