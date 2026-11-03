@@ -137,7 +137,7 @@ asks before writing, backs up each file and can be undone; JSON files keep their
 | [x] | Fix engine: plan → preview (unified diff per file) → confirm → backup → write → verify (re-run the rule); `--yes` for scripts, `--dry-run` default when not a TTY. | Opus 5.5 |
 | [ ] | JSON editing that keeps indentation, key order and trailing newline; refuse files that fail to parse instead of rewriting them. | Sonnet 5.5 |
 | [ ] | Fixes: remove a duplicate MCP entry, remove an MCP server whose command is missing, swap stale names via the rename map, prune broken symlinks, shelve a global skill that duplicates a shelf copy, uninstall a duplicate plugin scope (via `claude plugin uninstall --scope`, run from the right folder). | Sonnet 5.5 |
-| [ ] | `agentry fix --undo [timestamp]`: restore the files from a backup set and list what changed. | Haiku 5.5 |
+| [x] | `agentry fix --undo [timestamp]`: restore the files from a backup set and list what changed. | Haiku 5.5 |
 | [ ] | `agentry fix` across a scan (`agentry scan ~/ws --fix`): group the plan by repo and confirm per repo; note which changed files are tracked in git. | Sonnet 5.5 |
 | [ ] | Tests: dry-run output, backup and undo round trip, untouched formatting, refusal on unparsable JSON. | Sonnet 5.5 |
 

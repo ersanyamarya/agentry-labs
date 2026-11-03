@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix } from "../lib/fix.mjs";
+import { createFixUndo } from "../lib/fix-undo.mjs";
 import { createPaths } from "../lib/paths.mjs";
 import { createScan } from "../lib/scan.mjs";
 import { createShelf } from "../lib/shelf.mjs";
@@ -23,6 +24,9 @@ Commands:
   fix [path] [--dry-run] [--yes]      Preview doctor's automatic fixes as a diff per file (secrets masked), ask, back
                                       each file up under ~/.claude/backups/agentry/<time>/, write, then re-run doctor
                                       to confirm each finding is gone. Without a terminal it only previews unless --yes
+  fix --undo [timestamp]              Restore the files from a backup set (the newest by default) and list what changed;
+                                      a file edited since the fix is skipped unless --force
+  fix --undo --list                   List the backup sets with their status and file count; changes nothing
   shelf list                          List shelf groups, their token cost and whether each is on
   shelf status [--json]               Show what is on in this project and globally, plus broken links
   shelf on <target>... [--global]     Link groups or skills into this project (or ~/.claude)
@@ -45,6 +49,9 @@ Options:
       --dry-run    With shelf: print the links and exclude lines a write would change. With fix: show the
                    preview only. Either way nothing is written
   -y, --yes        With fix: apply without asking (for scripts); exit 1 if a fix or its verification fails
+      --undo       With fix: undo a backup set instead of fixing (see above)
+      --list       With fix --undo: list the backup sets only
+      --force      With fix --undo: overwrite files that changed since the fix wrote them
 
 Examples:
   agentry shelf list
@@ -60,7 +67,9 @@ Examples:
   agentry scan ~/ws --only-problems
   agentry scan ~/ws ~/other --depth 3 --json
   agentry fix --dry-run
-  agentry fix ~/ws/my-repo --yes`;
+  agentry fix ~/ws/my-repo --yes
+  agentry fix --undo --list
+  agentry fix --undo --yes`;
 
 const SHELF_USAGE =
 	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run]";
@@ -112,6 +121,9 @@ const main = (argv) => {
 				"no-cache": { type: "boolean" },
 				"dry-run": { type: "boolean" },
 				yes: { type: "boolean", short: "y" },
+				undo: { type: "boolean" },
+				list: { type: "boolean" },
+				force: { type: "boolean" },
 			},
 		});
 	} catch (error) {
@@ -149,7 +161,20 @@ const main = (argv) => {
 		}
 		return createScan(createPaths({ memoize: true })).run({ roots: rest, depth, json: values.json, onlyProblems: values["only-problems"], cache: !values["no-cache"] });
 	}
+	if (command === "fix" && values.undo) {
+		const usage = "Usage: agentry fix --undo [timestamp] [--list] [--yes] [--dry-run] [--force]";
+		if (rest.length > 1 || values.json || (values.list && rest.length > 0)) {
+			return usageError(usage);
+		}
+		if (values.yes && values["dry-run"]) {
+			return usageError("--yes and --dry-run cannot be used together");
+		}
+		return createFixUndo(createPaths()).run({ timestamp: rest[0], list: values.list, yes: values.yes, dryRun: values["dry-run"], force: values.force });
+	}
 	if (command === "fix") {
+		if (values.list || values.force) {
+			return usageError("--list and --force go with fix --undo");
+		}
 		if (rest.length > 1 || values.json) {
 			return usageError("Usage: agentry fix [path] [--dry-run] [--yes]");
 		}
