@@ -184,7 +184,7 @@ every row that cannot be toggled says why; `NO_COLOR` renders without colour pro
 |---|---|---|
 | [x] | Skills tab: `s` on a personal skill picks a shelf group (↑/↓, or `n` for a new name), previews and on `y` runs `shelf shelve`; `u` on a shelved skill runs `shelf unshelve`; rows that cannot be toggled (personal, project, plugin) say why in the status line and details. | Sonnet 5.5 |
 | [x] | `lib/plugin-toggle.mjs` and `agentry plugin enable\|disable <name> [--scope] [--dry-run] [--yes]`: edit `enabledPlugins` through `json-edit` and the fix engine (preview, backup, undo); refuse managed or higher-scope overrides. | Sonnet 5.5 |
-| [ ] | Plugin toggle in the UI: space on a Plugins row or a plugin-skills group row previews and applies it; note that it applies to new sessions. | Sonnet 5.5 |
+| [x] | Plugin toggle in the UI: space on a Plugins row or a plugin-skills group row previews and applies it; note that it applies to new sessions. | Sonnet 5.5 |
 | [ ] | Colour and layout polish: on/off/partial badges, token cost colours with legend, scope badges, bold headers with rules, severity icons, header summary line, per-tab footer keys, middle-truncated paths, label/value details; `NO_COLOR` respected. | Sonnet 5.5 |
 | [ ] | Tests: `test/tui-*.test.mjs` (shelve, unshelve, refusals, plugin toggle, NO_COLOR) and `test/plugin-toggle.test.mjs`. | Sonnet 5.5 |
 | [ ] | README `agentry ui` section (new keys, colour legend, refreshed capture), CLI list, `?` overlay, CLAUDE.md. | Sonnet 5.5 |

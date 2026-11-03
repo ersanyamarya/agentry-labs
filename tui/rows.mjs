@@ -84,10 +84,12 @@ export const skillRows = (data, expanded = new Set()) => {
 	const plugins = data.status.plugins.items.filter((plugin) => loaded.some((skill) => skill.plugin === plugin.id));
 	section("Plugin skills", plugins, (plugin) => {
 		const mine = loaded.filter((skill) => skill.plugin === plugin.id);
-		return { id: `plugin-skills:${plugin.id}`, kind: "loaded", why: "plugin skill: enable or disable the plugin from the Plugins tab", label: `  ${plugin.name}:*`, note: `${mine.length} skills  ${tokens(plugin.skillTokens)}  ${plugin.state}`, details: [`toggle: plugin skill: enable or disable the plugin from the Plugins tab`, `plugin: ${plugin.id}`, `skills: ${mine.map((skill) => skill.name.split(":").pop()).join(", ")}`, `tokens: ${tokens(plugin.skillTokens)}`, `source: ${plugin.installPath}`] };
+		return { id: `plugin-skills:${plugin.id}`, kind: "loaded", plugin: plugin.id, enabled: plugin.state === "active", label: `  ${plugin.name}:*`, note: `${mine.length} skills  ${tokens(plugin.skillTokens)}  ${plugin.state}`, details: [`toggle: space enables or disables the plugin`, `note: ${PLUGIN_NOTE}`, `plugin: ${plugin.id}`, `skills: ${mine.map((skill) => skill.name.split(":").pop()).join(", ")}`, `tokens: ${tokens(plugin.skillTokens)}`, `source: ${plugin.installPath}`] };
 	});
 	return rows;
 };
+
+export const PLUGIN_NOTE = "applies to new sessions";
 
 export const MCP_HINT = "e open source file in $EDITOR";
 
@@ -117,6 +119,8 @@ export const hookRows = (data) =>
 export const pluginRows = (data) =>
 	data.status.plugins.items.map((plugin) => ({
 		id: `plugin:${plugin.id}`,
+		plugin: plugin.id,
+		enabled: plugin.state === "active",
 		label: plugin.id,
 		note: `${plugin.version ?? ""}  ${plugin.state}`,
 		file: plugin.enabledBy?.source,
@@ -127,9 +131,13 @@ export const pluginRows = (data) =>
 			`skill tokens: ${tokens(plugin.skillTokens)}`,
 			...plugin.installs.map((install) => `install: ${install.scope}${install.projectPath ? ` ${install.projectPath}` : ""}${install.appliesHere ? "" : " (other project)"}`),
 			`enabled by: ${plugin.enabledBy?.source ?? "-"}`,
+			`toggle: space ${plugin.state === "active" ? "disables" : "enables"} it`,
+			`note: ${PLUGIN_NOTE}`,
 			`path: ${plugin.installPath ?? "not installed"}`,
 		],
 	}));
+
+export const PLUGINS_HINT = "space enable/disable plugin  e open source file in $EDITOR";
 
 export const DOCTOR_HINT = "enter preview fix  u undo last fix set";
 

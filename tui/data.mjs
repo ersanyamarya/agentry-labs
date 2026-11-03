@@ -4,6 +4,7 @@
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix, findingKey } from "../lib/fix.mjs";
 import { createFixUndo } from "../lib/fix-undo.mjs";
+import { createPluginToggle } from "../lib/plugin-toggle.mjs";
 import { createShelf } from "../lib/shelf.mjs";
 import { createStatus } from "../lib/status.mjs";
 
@@ -65,6 +66,18 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 	const shelveSkill = ({ dir, skill, group, dryRun }) => moveSkill({ dir, action: "shelve", args: [skill, group], dryRun });
 	const unshelveSkill = ({ dir, target, dryRun }) => moveSkill({ dir, action: "unshelve", args: [target], dryRun });
 
+	// Plugin enable/disable: the engine's own preview (dry run), then, after an explicit y, backup + write + verify.
+	const toggleFor = (dir, io) => createPluginToggle(makePaths(dir), { ...io, now });
+	const previewPlugin = async ({ dir, id, enable }) => {
+		const { code, lines } = await capture((io) => toggleFor(dir, io), (toggle) => toggle.run({ name: id, enable, path: dir, dryRun: true }));
+		const text = lines.join("\n").replace(/\n?Dry run: nothing written\./, "").trim();
+		return { appliable: code === 0 && lines.some((line) => line.startsWith(`[plugin-toggle]`)), text };
+	};
+	const applyPlugin = async ({ dir, id, enable }) => {
+		const { code, lines } = await capture((io) => toggleFor(dir, io), (toggle) => toggle.run({ name: id, enable, path: dir, yes: true }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
+	};
+
 	const stepsOf = (planned) => planned.edits.length + planned.commands.length;
 
 	// Dry-run preview of one finding's fix: the engine's own masked diff. Nothing is written.
@@ -99,5 +112,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, shelveSkill, unshelveSkill, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, previewPlugin, applyPlugin, previewFix, applyFix, previewUndo, applyUndo };
 };

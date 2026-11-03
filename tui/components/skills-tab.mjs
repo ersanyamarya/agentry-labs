@@ -4,6 +4,7 @@ import React from "react";
 import { Box, Text, useInput } from "ink";
 import { skillRows } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
+import { startPluginToggle } from "../plugin-flow.mjs";
 import { useFlow } from "../use-flow.mjs";
 import { DetailsPane, ListPane } from "./list.mjs";
 
@@ -46,6 +47,10 @@ export const SkillsTab = ({ data, api, dir, active, height, notify, reload, lock
 	};
 
 	const toggle = async () => {
+		if (row?.plugin) {
+			await startPluginToggle({ api, dir, flow, row });
+			return;
+		}
 		if (row?.why) {
 			notify(row.why);
 			return;

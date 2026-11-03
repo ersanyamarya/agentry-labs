@@ -10,11 +10,11 @@ import { Picker, pickerRows } from "./components/picker.mjs";
 import { SkillsTab } from "./components/skills-tab.mjs";
 import { TAB_NAMES, TabBar } from "./components/tab-bar.mjs";
 import { openInEditor } from "./editor.mjs";
-import { DOCTOR_HINT, hookRows, MCP_HINT, mcpRows, pluginRows, SKILLS_HINT } from "./rows.mjs";
+import { DOCTOR_HINT, hookRows, MCP_HINT, mcpRows, pluginRows, PLUGINS_HINT, SKILLS_HINT } from "./rows.mjs";
 
 const h = React.createElement;
 
-const HINTS = [SKILLS_HINT, MCP_HINT, MCP_HINT, MCP_HINT, DOCTOR_HINT];
+const HINTS = [SKILLS_HINT, MCP_HINT, MCP_HINT, PLUGINS_HINT, DOCTOR_HINT];
 const GLOBAL_HINT = "←/→ tabs  ↑/↓ rows  r refresh  p project  ? help  q quit";
 
 export const App = ({ api, startDir, recents, discover, env = process.env, spawn }) => {
