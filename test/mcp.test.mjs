@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createMcpReader } from "../lib/inventory/mcp.mjs";
@@ -16,6 +16,8 @@ let ws;
 let repo;
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-mcp-")));
+	// The .mcp.json walk reads every parent of the fixture, so it must not run under the real home.
+	assert.ok(!root.startsWith(realpathSync(homedir())), "TMPDIR must be outside the home directory");
 	home = join(root, "home");
 	configDir = join(home, ".claude");
 	ws = join(home, "ws");
@@ -110,7 +112,7 @@ describe("MCP reader: .mcp.json", () => {
 		assert.deepEqual(byName(result, "child"), []);
 	});
 
-	test("the nearest .mcp.json wins a name clash; local beats project beats user", () => {
+	test("the nearest .mcp.json wins a name clash, approved or not; local beats project beats user", () => {
 		writeJson(join(repo, ".mcp.json"), { mcpServers: { s: { command: "inner" }, both: { command: "project" } } });
 		writeJson(join(ws, ".mcp.json"), { mcpServers: { s: { command: "outer" } } });
 		claudeJson({ mcpServers: { both: { command: "user" }, top: { command: "user" } }, projects: { [repo]: { mcpServers: { top: { command: "local" } } } } });
@@ -120,8 +122,12 @@ describe("MCP reader: .mcp.json", () => {
 		assert.equal(inner.state, "pending-approval");
 		assert.equal(outer.state, "shadowed");
 		assert.deepEqual(outer.shadowedBy, { name: "s", scope: "project", source: join(repo, ".mcp.json") });
-		assert.deepEqual(byName(result, "both").map((s) => [s.scope, s.state]), [["project", "pending-approval"], ["user", "shadowed"]]);
 		assert.deepEqual(byName(result, "top").map((s) => [s.scope, s.state]), [["local", "active"], ["user", "shadowed"]]);
+
+		// An unapproved project entry leaves the user entry loading; an approved one shadows it.
+		assert.deepEqual(byName(result, "both").map((s) => [s.scope, s.state]), [["project", "pending-approval"], ["user", "active"]]);
+		writeJson(join(configDir, "settings.json"), { enableAllProjectMcpServers: true });
+		assert.deepEqual(byName(read(), "both").map((s) => [s.scope, s.state]), [["project", "active"], ["user", "shadowed"]]);
 	});
 
 	test("approval: pending by default, enableAllProjectMcpServers in user settings, project approvals only when trusted, rejections", () => {
@@ -141,9 +147,11 @@ describe("MCP reader: .mcp.json", () => {
 		assert.deepEqual(["a", "b", "c"].map((name) => one(result, name).state), ["active", "active", "rejected"]);
 	});
 
-	test("accepts streamable-http as http and a bare name map", () => {
-		writeJson(join(repo, ".mcp.json"), { remote: { type: "streamable-http", url: "https://x.example/mcp" } });
+	test("accepts streamable-http as http; ignores a bare name map, as Claude Code does", () => {
+		writeJson(join(repo, ".mcp.json"), { mcpServers: { remote: { type: "streamable-http", url: "https://x.example/mcp" } } });
 		assert.equal(one(read(), "remote").transport, "http");
+		writeJson(join(repo, ".mcp.json"), { bare: { command: "true" } });
+		assert.deepEqual(byName(read(), "bare"), []);
 	});
 });
 

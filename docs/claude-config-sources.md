@@ -87,6 +87,11 @@ highest-precedence source; fields are never merged. [docs: mcp "Scope hierarchy 
 
 - Scopes 1–3 dedupe **by name**. Plugins and connectors dedupe **by endpoint**: one with the same URL or command as a
   server above is a duplicate. [docs: mcp]
+- An **unapproved or rejected** `.mcp.json` entry does not take part: a user entry of the same name loads instead
+  (`claude mcp list` showed the user command while pending, the project command once approved). [probe] Among
+  `.mcp.json` files the nearest still wins even while pending, since approval is per name. [probe]
+- `claude mcp list` itself warns when one name has different endpoints in several scopes. [probe] (Useful for the
+  Phase 3 duplicate rule.)
 - The `.mcp.json` walk [probe]:
   - files in every parent of `<cwd>` are read, past the git root and outside `~` (tested under `/private/tmp`);
   - a `.mcp.json` in a **child** folder of `<cwd>` is not read;
@@ -103,7 +108,7 @@ Project-scope servers need approval before they start; `claude mcp get` reports 
 | Approval | Where | Needs trust | Mark |
 |---|---|---|---|
 | `enableAllProjectMcpServers: true` | any settings file; probed in user `settings.json` | no (user settings) | [docs: settings] [probe] |
-| `enabledMcpjsonServers: ["name"]` | `.claude.json` project entry, `<top>/.claude/settings.local.json` (git root, probed outside a worktree), `<cwd>/.claude/settings.local.json` | yes | [docs: settings] [probe] |
+| `enabledMcpjsonServers: ["name"]` | `<top>/.claude/settings.local.json` (git root, probed outside a worktree), `<cwd>/.claude/settings.local.json`; also the `.claude.json` project entry, but that worked in one probe and not in a second | yes | [docs: settings] [probe]; `.claude.json` entry [unverified] |
 | `disabledMcpjsonServers: ["name"]` | same places | — | rejected, [docs: settings] |
 
 Readers report unapproved ones with state `pending-approval`, not as missing.
@@ -121,8 +126,8 @@ Same shape in `.claude.json`, `.mcp.json`, plugin configs and `managed-mcp.json`
 
 - `type` may be omitted for stdio; `"streamable-http"` is an alias for `"http"`. [docs: agent-sdk/mcp]
 - Other fields seen in docs: `cwd`, `timeout`, `alwaysLoad`, `headersHelper`, `oauth`. [docs: mcp]
-- `.mcp.json` (and plugin) files wrap entries in `{ "mcpServers": { … } }`. [docs: mcp] Readers also accept a bare
-  `{ "<name>": entry }` map. [unverified that Claude Code does]
+- `.mcp.json` files wrap entries in `{ "mcpServers": { … } }`. [docs: mcp] A bare `{ "<name>": entry }` project
+  `.mcp.json` is ignored by Claude Code. [probe] Plugin files are read either way. [unverified for plugins]
 - `${VAR}` and `${VAR:-default}` expand in `command`, `args`, `env`, `url`, `headers`. [docs: mcp] The docs say an unset
   `${VAR}` without default fails the config; `claude mcp get` showed the entry with the `${VAR}` text unexpanded
   instead. [probe] GUI-launched apps on macOS don't inherit shell-profile variables (the Context7 key case,
