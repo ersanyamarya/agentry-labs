@@ -37,6 +37,13 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 	}, []);
 	const [message, setMessage] = React.useState("");
 	const [picker, setPicker] = React.useState([]);
+	// Redraw with the new layout when the terminal is resized.
+	const [dims, setDims] = React.useState({ cols: stdout?.columns, rows: stdout?.rows });
+	React.useEffect(() => {
+		const onResize = () => setDims({ cols: stdout.columns, rows: stdout.rows });
+		stdout?.on?.("resize", onResize);
+		return () => stdout?.off?.("resize", onResize);
+	}, [stdout]);
 
 	const reload = React.useCallback(
 		() =>
@@ -107,9 +114,9 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		}
 	});
 
-	const layout = layoutFor(size?.cols ?? stdout?.columns ?? 100);
+	const layout = layoutFor(size?.cols ?? dims.cols ?? 100);
 	// Chrome takes about 12 lines; stacked, the details block under the list takes about 10 more.
-	const height = Math.max(6, (size?.rows ?? stdout?.rows ?? 30) - 12 - (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0));
+	const height = Math.max(6, (size?.rows ?? dims.rows ?? 30) - 12 - (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0));
 	const counts = !data ? {} : { Skills: data.status.skills.items.length, MCP: data.status.mcp.servers.length, Hooks: data.status.hooks.items.length, Plugins: data.status.plugins.items.length, Doctor: data.doctor.findings.length };
 	const shared = { data, api, dir, height, layout, notify: setMessage, reload, lock, openFile };
 	const tabs = [

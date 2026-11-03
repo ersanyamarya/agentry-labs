@@ -66,14 +66,17 @@ export const ListPane = ({ rows, cursor, height, width: boxWidth }) => {
 // "label: value" lines show a dim label and the value; a state value gets its badge colour.
 const LABELLED = /^([a-z][a-z ]{0,18}): (.+)$/;
 
-const DetailLine = ({ line, plain }) => {
+const DetailLine = ({ line, plain, inner }) => {
 	const style = useStyle();
 	const match = plain ? undefined : LABELLED.exec(line);
 	if (!match) {
-		return h(Text, { wrap: plain ? "wrap" : "truncate-middle" }, line || " ");
+		return h(Text, { wrap: plain ? "wrap" : "truncate-end" }, plain ? line || " " : middle(line || " ", inner));
 	}
 	// Explanations (why a row cannot be toggled, advice) wrap; paths and values are cut in the middle.
-	return h(Text, { wrap: ["toggle", "note", "advice"].includes(match[1]) ? "wrap" : "truncate-middle" }, h(Text, { dimColor: true }, `${match[1]}: `), h(Text, style(["state", "this project", "global"].includes(match[1]) ? { ...stateStyle(match[2]), bold: true } : {}), match[2]));
+	const wraps = ["toggle", "note", "advice"].includes(match[1]);
+	// Cut by hand (middle …) to the room left after the label: Ink's own truncation of nested text can overrun the border.
+	const value = wraps ? match[2] : middle(match[2], Math.max(inner - match[1].length - 2, 4));
+	return h(Text, { wrap: wraps ? "wrap" : "truncate-end" }, h(Text, { dimColor: true }, `${match[1]}: `), h(Text, style(["state", "this project", "global"].includes(match[1]) ? { ...stateStyle(match[2]), bold: true } : {}), value));
 };
 
 // `lines` replaces the row's own details (a fix preview, a prompt). Sized to its content: a box beside the list, a
@@ -82,8 +85,9 @@ export const DetailsPane = ({ row, lines, title = "Details", height, layout }) =
 	const style = useStyle();
 	const text = (lines ?? row?.details ?? []).map((line) => line.replaceAll("\t", "  "));
 	const stacked = layout.stacked;
+	const inner = stacked ? layout.cols : layout.detailsWidth - 4; // minus border and padding
 	const shown = clipLines(text, stacked ? (lines ? 16 : STACKED_DETAILS_LINES) : Math.max(height, 8));
-	const body = [h(Text, { key: "title", bold: true }, title), ...shown.map((line, index) => (lines && (line.startsWith("+") || line.startsWith("-")) && !line.startsWith("---") && !line.startsWith("+++") ? h(Text, { key: index, wrap: "wrap", ...style({ color: line.startsWith("+") ? "green" : "red" }) }, line) : h(DetailLine, { key: index, line, plain: Boolean(lines) })))];
+	const body = [h(Text, { key: "title", bold: true }, title), ...shown.map((line, index) => (lines && (line.startsWith("+") || line.startsWith("-")) && !line.startsWith("---") && !line.startsWith("+++") ? h(Text, { key: index, wrap: "wrap", ...style({ color: line.startsWith("+") ? "green" : "red" }) }, line) : h(DetailLine, { key: index, line, plain: Boolean(lines), inner })))];
 	return stacked
 		? h(Box, { flexDirection: "column", width: layout.cols, marginTop: 1 }, h(Text, { dimColor: true }, "─".repeat(layout.cols)), ...body)
 		: h(Box, { flexDirection: "column", width: layout.detailsWidth, flexShrink: 0, alignSelf: "flex-start", borderStyle: "single", borderColor: style({ color: "gray" }).color, paddingX: 1 }, ...body);

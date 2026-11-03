@@ -23,7 +23,7 @@ export const squash = (text) => stripAnsi(text).replace(/[│┌┐└┘─╭�
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols: 100, rows: 60 } } = {}) => {
+export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols: 100, rows: 60 }, fit = false } = {}) => {
 	const fx = createFixture({ shelf: { audit: { skills: ["review"] }, video: { skills: ["trim", "ffmpeg-install"] } } });
 	assert.ok(!fx.root.startsWith(homedir()), "TMPDIR must be outside the home directory");
 	writeFileSync(join(fx.configDir, "skill-shelf/video/trim/SKILL.md"), `---\nname: trim\ndescription: ${"x".repeat(40)}\n---\n`);
@@ -55,7 +55,7 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols
 		discover: (roots) => finder.find(roots, { depth: 2 }),
 		env,
 		spawn,
-		size,
+		...(fit ? {} : { size }),
 	};
 	const app = render(React.createElement(App, props));
 
@@ -87,9 +87,16 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols
 		}
 		assert.match(selected(), pattern, `could not select ${pattern}; last frame:\n${app.lastFrame()}`);
 	};
+	// Resizes the fake terminal (columns and rows, as Ink and the app see them) and waits for the redraw.
+	const resize = async (cols, rows) => {
+		Object.defineProperty(app.stdout, "columns", { value: cols, configurable: true });
+		Object.defineProperty(app.stdout, "rows", { value: rows, configurable: true });
+		app.stdout.emit("resize");
+		await wait(120);
+	};
 	const stop = () => {
 		app.unmount();
 		fx.cleanup();
 	};
-	return { fx, plugin: pluginInfo, target, app, until, ready, press, moveTo, stop, frame: () => app.lastFrame(), exists: existsSync };
+	return { fx, plugin: pluginInfo, target, app, until, ready, press, moveTo, resize, stop, frame: () => app.lastFrame(), exists: existsSync };
 };
