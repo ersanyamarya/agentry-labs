@@ -7,6 +7,8 @@ import { createBackups } from "../lib/backups.mjs";
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix } from "../lib/fix.mjs";
 import { createFixUndo } from "../lib/fix-undo.mjs";
+import { createHookToggle } from "../lib/hook-toggle.mjs";
+import { createMcpEdit } from "../lib/mcp-edit.mjs";
 import { createMcpToggle } from "../lib/mcp-toggle.mjs";
 import { createPaths } from "../lib/paths.mjs";
 import { createPluginToggle } from "../lib/plugin-toggle.mjs";
@@ -54,6 +56,19 @@ Commands:
   mcp remove <name> [--dry-run] [--yes]
                                       Delete a user, local or project (.mcp.json) server for good, or a parked copy.
   mcp list-parked                     List the parked servers (names and masked summaries only)
+  mcp add <name> (--command C [--arg=A]... [--env K=V]... | --url U [--header K:V]...) [--scope user|project] [--dry-run] [--yes]
+                                      Add a server: user scope runs claude mcp add-json, project scope edits .mcp.json.
+                                      Never overwrites a name; secrets masked in the preview. Write --arg=-y with = when
+                                      the value starts with a dash
+  mcp set <name> [--env K=V]... [--unset-env K]... [--arg=A]... [--dry-run] [--yes]
+                                      Change env and args of a user-scope server (a text edit of ~/.claude.json,
+                                      backed up, undoable). --arg replaces the whole args list
+  hook list [--json]                  List every hook with its id (hash of event + matcher + command), scope and state,
+                                      plus hooks that were turned off
+  hook disable|enable|remove <id> [--scope user|project|local] [--dry-run] [--yes]
+                                      Turn a settings hook off (parked in <config>/agentry/parked-hooks.json, 0600) and
+                                      back on, or delete it. Previewed as a diff, backed up, undoable with fix --undo.
+                                      Plugin hooks are refused: they belong to the plugin
   ui                                  Open the terminal UI (needs a terminal)
   shelf list                          List shelf groups, their token cost and whether each is on
   shelf status [--json]               Show what is on in this project and globally, plus broken links
@@ -94,7 +109,9 @@ Options:
       --no-backup  With shelf remove: keep no copy of the deleted skill
       --older-than N  With backups prune: backups at least N days old
       --find-skill N, --remove-skill N  With scan: look for or delete .claude/skills/N in every repo found
-      --scope S    With plugin: settings scope to edit (user, project, local); default: the scope that decides today
+      --scope S    With plugin: settings scope to edit (user, project, local); default: the scope that decides today.
+                   With hook: which settings file when the id is in several. With mcp add: user (default) or project
+      --command C, --url U, --arg A, --env K=V, --unset-env K, --header K:V  With mcp add or set: the server's config
   -y, --yes        With fix or plugin: apply without asking (for scripts); exit 1 if a fix or its verification fails
       --undo       With fix: undo a backup set instead of fixing (see above)
       --list       With fix --undo: list the backup sets only
@@ -121,6 +138,12 @@ Examples:
   agentry plugin enable demo@market --scope user --yes
   agentry mcp disable context7 --dry-run
   agentry mcp enable context7 --yes
+  agentry mcp add files --command npx --arg=-y --arg @scope/files-server --env FILES_TOKEN=abc --dry-run
+  agentry mcp add docs --url https://example.com/mcp --header "Authorization: Bearer abc" --scope project --yes
+  agentry mcp set files --env FILES_TOKEN=new --dry-run
+  agentry hook list
+  agentry hook disable 1a2b3c4d --dry-run
+  agentry hook enable 1a2b3c4d --yes
   agentry scan ~/ws --find-skill old-skill
   agentry scan ~/ws --remove-skill old-skill --dry-run
   agentry backups list
@@ -251,6 +274,12 @@ const main = (argv) => {
 				"find-skill": { type: "string" },
 				"remove-skill": { type: "string" },
 				group: { type: "string" },
+				command: { type: "string" },
+				url: { type: "string" },
+				arg: { type: "string", multiple: true },
+				env: { type: "string", multiple: true },
+				"unset-env": { type: "string", multiple: true },
+				header: { type: "string", multiple: true },
 			},
 		});
 	} catch (error) {
@@ -357,19 +386,40 @@ const main = (argv) => {
 	}
 	if (command === "mcp") {
 		const [action, name] = rest;
+		if (values.yes && values["dry-run"]) {
+			return usageError("--yes and --dry-run cannot be used together");
+		}
+		if ((action === "add" || action === "set") && name && rest.length === 2 && !values.json) {
+			const edit = createMcpEdit(createPaths());
+			const common = { name, env: values.env, yes: values.yes, dryRun: values["dry-run"] };
+			return action === "add"
+				? edit.add({ ...common, command: values.command, url: values.url, args: values.arg, headers: values.header, scope: values.scope })
+				: edit.set({ ...common, unsetEnv: values["unset-env"], args: values.arg });
+		}
 		if (action === "list-parked" && rest.length === 1) {
 			const parked = createMcpToggle(createPaths()).listParked();
 			parked.forEach((entry) => console.log(`${entry.name}  parked ${entry.parkedAt ?? ""}  ${entry.summary}`));
 			return 0;
 		}
 		if ((action !== "enable" && action !== "disable" && action !== "remove") || !name || rest.length > 2 || values.json) {
-			return usageError("Usage: agentry mcp disable|enable|remove <name> [--dry-run] [--yes] | agentry mcp list-parked");
+			return usageError("Usage: agentry mcp disable|enable|remove <name> [--dry-run] [--yes] | agentry mcp add <name> (--command C | --url U) ... | agentry mcp set <name> [--env K=V] ... | agentry mcp list-parked");
+		}
+		const toggle = createMcpToggle(createPaths());
+		return action === "remove" ? toggle.remove({ name, yes: values.yes, dryRun: values["dry-run"] }) : toggle.run({ name, enable: action === "enable", yes: values.yes, dryRun: values["dry-run"] });
+	}
+	if (command === "hook") {
+		const [action, selector] = rest;
+		const hooks = createHookToggle(createPaths());
+		if (action === "list" && rest.length === 1) {
+			return hooks.list({ json: values.json });
+		}
+		if (!["disable", "enable", "remove"].includes(action) || !selector || rest.length > 2 || values.json) {
+			return usageError("Usage: agentry hook list [--json] | agentry hook disable|enable|remove <id> [--scope user|project|local] [--dry-run] [--yes]");
 		}
 		if (values.yes && values["dry-run"]) {
 			return usageError("--yes and --dry-run cannot be used together");
 		}
-		const toggle = createMcpToggle(createPaths());
-		return action === "remove" ? toggle.remove({ name, yes: values.yes, dryRun: values["dry-run"] }) : toggle.run({ name, enable: action === "enable", yes: values.yes, dryRun: values["dry-run"] });
+		return hooks.run({ selector, action, scope: values.scope, yes: values.yes, dryRun: values["dry-run"] });
 	}
 	if (command === "shelf") {
 		return runShelf(rest, values);

@@ -3,20 +3,20 @@
 
 import React from "react";
 import { Box, useInput } from "ink";
-import { startMcpRemove, startMcpToggle } from "../mcp-flow.mjs";
+import { startHookRemove, startHookToggle } from "../hook-flow.mjs";
+import { startMcpAdd, startMcpRemove, startMcpSet, startMcpToggle } from "../mcp-flow.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
-import { mcpKeys } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { useFlow } from "../use-flow.mjs";
 import { Panes } from "./list.mjs";
 
 const h = React.createElement;
 
-export const InventoryTab = ({ data, api, dir, makeRows, active, height, layout, openFile, notify, reload, lock, setKeys, copy }) => {
+export const InventoryTab = ({ data, api, dir, makeRows, active, height, layout, openFile, notify, reload, lock, setKeys, rowKeys, canAdd, copy }) => {
 	const rows = React.useMemo(() => makeRows(data), [data, makeRows]);
 	const { cursor, row, move } = useCursor(rows);
 	const flow = useFlow({ lock, notify, reload, copy });
-	const keys = setKeys ? mcpKeys(row) : [];
+	const keys = rowKeys ? rowKeys(row) : [];
 	React.useEffect(() => {
 		if (active && setKeys) {
 			setKeys(keys);
@@ -34,6 +34,14 @@ export const InventoryTab = ({ data, api, dir, makeRows, active, height, layout,
 				openFile(row?.file);
 			} else if (input === " " && row?.plugin) {
 				startPluginToggle({ api, dir, flow, row });
+			} else if (input === "a" && canAdd) {
+				startMcpAdd({ api, dir, flow });
+			} else if (input === "s" && row?.mcpUser) {
+				startMcpSet({ api, dir, flow, row });
+			} else if (input === " " && row?.hook) {
+				startHookToggle({ api, dir, flow, row });
+			} else if (input === "x" && row?.hook) {
+				startHookRemove({ api, dir, flow, row });
 			} else if (input === "x" && row?.mcp) {
 				startMcpRemove({ api, dir, flow, row });
 			} else if (input === " " && row?.mcp) {

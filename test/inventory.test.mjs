@@ -206,7 +206,7 @@ describe("status", () => {
 		assert.deepEqual(Object.keys(data.skills), ["items", "skipped"]);
 		assert.deepEqual(Object.keys(data.skills.items[0]), ["name", "scope", "source", "kind", "state", "tokens"]);
 		assert.deepEqual(Object.keys(data.hooks), ["items", "disableAllHooks"]);
-		assert.deepEqual(Object.keys(data.hooks.items[0]), ["event", "matcher", "type", "command", "scope", "source", "state", "tokens"]);
+		assert.deepEqual(Object.keys(data.hooks.items[0]), ["id", "event", "matcher", "type", "command", "scope", "source", "state", "tokens"]);
 		assert.deepEqual(Object.keys(data.plugins), ["items", "marketplaces"]);
 		assert.deepEqual(Object.keys(data.tokens), ["measured", "unit", "notMeasured"]);
 		assert.deepEqual(data.tokens.notMeasured, ["MCP tool lists", "hook output"]);

@@ -1,7 +1,8 @@
 // A small prompt flow shown in the details pane: pick one of some options, type a name, preview and confirm, show the result.
 // A step is { kind, title, ... }:
 //   pick:    options[], onPick(option) → step | null, onNew?() → step     ↑/↓ choose, enter picks, n types a new name
-//   name:    onSubmit(text) → step | null                                 typed text, enter submits, esc cancels
+//   name:    onSubmit(text) → step | null                                 typed text (shown through display(text) when set,
+//            e.g. to mask secrets), enter submits, esc cancels
 //   confirm: text, appliable, apply() → { ok, text }, done               y applies (only if appliable), n or esc cancels
 //   result:  ok, text                                                     not modal: any move or action clears it
 // While a modal step is open `lock` is true (false when closed, "typing" while a name is typed), so the app keeps
@@ -85,7 +86,7 @@ export const useFlow = ({ lock, notify, reload, copy }) => {
 	if (step?.kind === "pick") {
 		lines = [...(step.intro ?? []), "", ...step.options.map((option, index) => `${index === at ? ">" : " "} ${option}`), "", step.onNew ? "↑/↓ choose, enter select, n new group, esc cancel" : "↑/↓ choose, enter select, esc cancel"];
 	} else if (step?.kind === "name") {
-		lines = [...(step.intro ?? []), "", `${step.label}: ${text}_`, "", "enter confirm, esc cancel"];
+		lines = [...(step.intro ?? []), "", `${step.label}: ${step.display ? step.display(text) : text}_`, "", "enter confirm, esc cancel"];
 	} else if (step?.kind === "confirm") {
 		lines = [...step.text.split("\n"), "", step.appliable ? "Apply this? y = yes, n = cancel, c = copy" : "Nothing can be applied here. n = close, c = copy"];
 	} else if (step?.kind === "result") {

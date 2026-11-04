@@ -6,6 +6,8 @@ import { createCatalog } from "../lib/catalog.mjs";
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix, findingKey } from "../lib/fix.mjs";
 import { createFixUndo } from "../lib/fix-undo.mjs";
+import { createHookToggle } from "../lib/hook-toggle.mjs";
+import { createMcpEdit } from "../lib/mcp-edit.mjs";
 import { createMcpToggle } from "../lib/mcp-toggle.mjs";
 import { createPluginToggle } from "../lib/plugin-toggle.mjs";
 import { createShelf } from "../lib/shelf.mjs";
@@ -50,6 +52,7 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 			}),
 			doctor: attempt("doctor", () => doctorFor(paths).collect(dir), { findings: [], summary: { error: 0, warning: 0, info: 0 }, errors: [] }),
 			backups: attempt("backups", () => createBackups(paths, { ...noIo, now }).entries(), []),
+			parkedHooks: attempt("parked hooks", () => createHookToggle(paths).listParked(), []),
 			parked: attempt("parked", () => createMcpToggle(paths).listParked(), []),
 			groups: attempt("shelf", () => createShelf(paths, noIo).groups(), []),
 			catalog: attempt("catalog", () => {
@@ -133,6 +136,29 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
+	// Hooks in settings files: turn off (parked), on, remove. Preview = the engine's dry run.
+	const hookFor = (dir, io) => createHookToggle(makePaths(dir), { ...io, now });
+	const previewHook = async ({ dir, selector, action, scope }) => {
+		const { code, lines } = await capture((io) => hookFor(dir, io), (hooks) => hooks.run({ selector, action, scope, path: dir, dryRun: true }));
+		return { appliable: code === 0 && lines.some((line) => line.startsWith("[hook-toggle]") || line.startsWith("would delete")), text: lines.join("\n").replace(/\n?Dry run: nothing written\./, "").trim() };
+	};
+	const applyHook = async ({ dir, selector, action, scope }) => {
+		const { code, lines } = await capture((io) => hookFor(dir, io), (hooks) => hooks.run({ selector, action, scope, path: dir, yes: true }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
+	};
+
+	// MCP add (user via claude mcp add-json, project via .mcp.json) and set (env/args of a user server).
+	const editFor = (dir, io) => createMcpEdit(makePaths(dir), { ...io, now });
+	const mcpEdit = (method) => async ({ dir, dryRun, ...args }) => {
+		const { code, lines } = await capture((io) => editFor(dir, io), (edit) => edit[method]({ ...args, path: dir, dryRun, yes: !dryRun }));
+		const text = lines.join("\n").replace(/\n?Dry run: nothing written\./, "").trim();
+		return dryRun ? { appliable: code === 0 && lines.some((line) => line.startsWith("[mcp-edit]")), text } : { ok: code === 0, text };
+	};
+	const previewMcpAdd = (args) => mcpEdit("add")({ ...args, dryRun: true });
+	const applyMcpAdd = (args) => mcpEdit("add")(args);
+	const previewMcpSet = (args) => mcpEdit("set")({ ...args, dryRun: true });
+	const applyMcpSet = (args) => mcpEdit("set")(args);
+
 	const stepsOf = (planned) => planned.edits.length + planned.commands.length;
 
 	// Dry-run preview of one finding's fix: the engine's own masked diff. Nothing is written.
@@ -167,5 +193,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, restoreBackup, pruneBackups, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, restoreBackup, pruneBackups, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewMcpAdd, applyMcpAdd, previewMcpSet, applyMcpSet, previewHook, applyHook, previewFix, applyFix, previewUndo, applyUndo };
 };

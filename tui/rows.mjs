@@ -205,8 +205,10 @@ export const backupRows = (data) =>
 
 export const PLUGIN_NOTE = "applies to new sessions";
 
-export const mcpKeys = (row) => [...(row?.mcp ? [["x", "remove"], ["space", row.mcpEnable ? (row.mcpProject ? "turn on here" : "add back") : row.mcpProject ? "turn off here" : "turn off (saved)", row.mcpEnable ? "on" : "off"]] : []), ...(row?.file ? [["e", "open file", "edit"]] : [])];
-export const HOOKS_KEYS = [["e", "open file", "edit"]];
+export const mcpKeys = (row) => [["a", "add server", "add"], ...(row?.mcp ? [...(row.mcpUser ? [["s", "edit env/args", "edit"]] : []), ["x", "remove"], ["space", row.mcpEnable ? (row.mcpProject ? "turn on here" : "add back") : row.mcpProject ? "turn off here" : "turn off (saved)", row.mcpEnable ? "on" : "off"]] : []), ...(row?.file ? [["e", "open file", "edit"]] : [])];
+
+// Hooks: settings hooks switch off/on and can be removed; plugin hooks only open their file.
+export const hookKeys = (row) => [...(row?.hook ? [["space", row.hookOff ? "turn on" : "turn off (saved)", row.hookOff ? "on" : "off"], ["x", "remove"]] : []), ...(row?.file ? [["e", "open file", "edit"]] : [])];
 
 const MCP_WHY = {
 	plugin: "plugin server: managed by the plugin, switch the plugin instead",
@@ -225,10 +227,10 @@ export const mcpRows = (data) => [
 		return {
 			id: `mcp:${server.scope}:${server.name}:${server.source}`,
 			label: server.name,
-			...(mine ? { mcp: server.name, mcpEnable: server.scope !== "user" && server.state === "disabled", mcpProject: server.scope !== "user" } : { why: MCP_WHY[server.scope] }),
+			...(mine ? { mcp: server.name, mcpUser: server.scope === "user", mcpEnable: server.scope !== "user" && server.state === "disabled", mcpProject: server.scope !== "user" } : { why: MCP_WHY[server.scope] }),
 			...withCells([cell(scopeBadge(server.scope), 8), cell(badge(server.state), 16), cell(seg(server.transport, DIM), 5)]),
 			file: server.source,
-			details: [`server: ${server.name}`, `scope: ${server.scope}`, `state: ${badgeText(server.state)}`, `transport: ${server.transport}`, `${server.url ? "url" : "command"}: ${target}`, ...env, ...headers, `tokens: not measured (tool lists)`, `source: ${server.source}`, `toggle: ${mine ? (server.scope === "user" ? "space turns it off (removes it from user scope, config saved); undo with agentry fix --undo" : "space turns it off for this project only (disabledMcpServers in ~/.claude.json); space again turns it on") : MCP_WHY[server.scope] ?? "not managed here"}`],
+			details: [`server: ${server.name}`, `scope: ${server.scope}`, `state: ${badgeText(server.state)}`, `transport: ${server.transport}`, `${server.url ? "url" : "command"}: ${target}`, ...env, ...headers, `tokens: not measured (tool lists)`, `source: ${server.source}`, `toggle: ${mine ? (server.scope === "user" ? "space turns it off (removes it from user scope, config saved), s edits env and args; undo with agentry fix --undo" : "space turns it off for this project only (disabledMcpServers in ~/.claude.json); space again turns it on") : MCP_WHY[server.scope] ?? "not managed here"}`],
 		};
 	}),
 	...(Array.isArray(data.parked) ? data.parked : []).map((entry) => ({
@@ -241,14 +243,31 @@ export const mcpRows = (data) => [
 	})),
 ];
 
-export const hookRows = (data) =>
-	data.status.hooks.items.map((hook, index) => ({
-		id: `hook:${index}:${hook.source}`,
+const HOOK_WHY = "plugin hook: the plugin manages it; turn the plugin off in the Plugins tab";
+
+export const hookRows = (data) => [
+	...data.status.hooks.items.map((hook, index) => {
+		const mine = hook.scope !== "plugin" && hook.id;
+		return {
+			id: `hook:${index}:${hook.source}`,
+			label: `${hook.event}  ${hook.matcher}`,
+			...(mine ? { hook: hook.id, hookScope: hook.scope, hookOff: false } : { why: HOOK_WHY }),
+			...withCells([cell(scopeBadge(hook.scope), 8), cell(badge(hook.state), 10)]),
+			file: hook.source,
+			details: [`id: ${hook.id ?? "-"}`, `event: ${hook.event}`, `matcher: ${hook.matcher}`, `type: ${hook.type}`, `command: ${hook.command ?? `(${hook.type})`}`, `scope: ${hook.scope}${hook.plugin ? ` (${hook.plugin})` : ""}`, `state: ${hook.state}`, `output: not measured`, `source: ${hook.source}`, `toggle: ${mine ? "space turns it off (moved to ~/.claude/agentry/parked-hooks.json), x removes it; undo with agentry fix --undo" : HOOK_WHY}`],
+		};
+	}),
+	...(Array.isArray(data.parkedHooks) ? data.parkedHooks : []).map((hook) => ({
+		id: `parked-hook:${hook.scope}:${hook.id}`,
 		label: `${hook.event}  ${hook.matcher}`,
-		...withCells([cell(scopeBadge(hook.scope), 8), cell(badge(hook.state), 10)]),
+		hook: hook.id,
+		hookScope: hook.scope,
+		hookOff: true,
+		...withCells([cell(scopeBadge(hook.scope), 8), cell(badge("off"), 10)]),
 		file: hook.source,
-		details: [`event: ${hook.event}`, `matcher: ${hook.matcher}`, `type: ${hook.type}`, `command: ${hook.command ?? `(${hook.type})`}`, `scope: ${hook.scope}${hook.plugin ? ` (${hook.plugin})` : ""}`, `state: ${hook.state}`, `output: not measured`, `source: ${hook.source}`],
-	}));
+		details: [`id: ${hook.id}`, `event: ${hook.event}`, `matcher: ${hook.matcher}`, `command: ${hook.command ?? `(${hook.type})`}`, `scope: ${hook.scope}`, `state: ${badgeText("off")} (saved copy)`, `turned off: ${hook.parkedAt ?? "-"}`, `was in: ${hook.source}`, "toggle: space puts it back in that settings file, x deletes the saved copy"],
+	})),
+];
 
 export const PLUGINS_KEYS = [["space", "enable/disable", "on/off"], ["e", "open file", "edit"]];
 
