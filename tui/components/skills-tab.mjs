@@ -5,6 +5,7 @@ import { Box, Text, useInput } from "ink";
 import { skillKeys, skillRows } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
+import { startScopeMove } from "../move-flow.mjs";
 import { startRemove } from "../remove-flow.mjs";
 import { useFlow } from "../use-flow.mjs";
 import { Panes } from "./list.mjs";
@@ -106,6 +107,11 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 			} else if (input === "x" || input === "X") {
 				const backup = input === "x";
 				row?.kind === "skill" ? startRemove({ api, dir, flow, backup, target: row.target, label: row.target }) : row?.projectOnly ? startRemove({ api, dir, flow, backup, target: row.skill, project: true, label: `${row.skill} (project)` }) : row?.shelvable ? startRemove({ api, dir, flow, backup, target: row.skill, label: `${row.skill} (global)` }) : notify("x removes a shelved, global or project-only skill folder (X keeps no copy): select one.");
+			} else if (input === "a" || input === "o") {
+				const promote = input === "a";
+				(promote ? row?.projectOnly : row?.shelvable)
+					? startScopeMove({ api, dir, flow, skill: row.skill, promote })
+					: notify(promote ? "a moves a project-only skill to ~/.claude/skills (all projects): select one under This project only." : "o moves a global skill into this project only: select one under Global skills.");
 			} else if (input === "e") {
 				openFile(row?.file);
 			}

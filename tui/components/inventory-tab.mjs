@@ -5,14 +5,14 @@ import React from "react";
 import { Box, useInput } from "ink";
 import { startHookRemove, startHookToggle } from "../hook-flow.mjs";
 import { startMcpAdd, startMcpRemove, startMcpSet, startMcpToggle } from "../mcp-flow.mjs";
-import { startPluginToggle } from "../plugin-flow.mjs";
+import { startPluginInstall, startPluginToggle, startPluginUninstall } from "../plugin-flow.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { useFlow } from "../use-flow.mjs";
 import { Panes } from "./list.mjs";
 
 const h = React.createElement;
 
-export const InventoryTab = ({ data, api, dir, makeRows, active, height, layout, openFile, notify, reload, lock, setKeys, rowKeys, canAdd, copy }) => {
+export const InventoryTab = ({ data, api, dir, makeRows, active, height, layout, openFile, notify, reload, lock, setKeys, rowKeys, canAdd, canInstall, copy }) => {
 	const rows = React.useMemo(() => makeRows(data), [data, makeRows]);
 	const { cursor, row, move } = useCursor(rows);
 	const flow = useFlow({ lock, notify, reload, copy });
@@ -34,6 +34,10 @@ export const InventoryTab = ({ data, api, dir, makeRows, active, height, layout,
 				openFile(row?.file);
 			} else if (input === " " && row?.plugin) {
 				startPluginToggle({ api, dir, flow, row });
+			} else if (input === "i" && canInstall) {
+				startPluginInstall({ api, dir, flow });
+			} else if (input === "x" && row?.plugin) {
+				row.pluginScopes.length > 0 ? startPluginUninstall({ api, dir, flow, row }) : notify("Not installed for this project: nothing to uninstall here.");
 			} else if (input === "a" && canAdd) {
 				startMcpAdd({ api, dir, flow });
 			} else if (input === "s" && row?.mcpUser) {

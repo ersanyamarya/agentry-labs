@@ -9,6 +9,7 @@ import { createFixUndo } from "../lib/fix-undo.mjs";
 import { createHookToggle } from "../lib/hook-toggle.mjs";
 import { createMcpEdit } from "../lib/mcp-edit.mjs";
 import { createMcpToggle } from "../lib/mcp-toggle.mjs";
+import { createPluginInstall } from "../lib/plugin-install.mjs";
 import { createPluginToggle } from "../lib/plugin-toggle.mjs";
 import { createShelf } from "../lib/shelf.mjs";
 import { createStatus } from "../lib/status.mjs";
@@ -77,6 +78,9 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 	};
 	const shelveSkill = ({ dir, skill, group, dryRun }) => moveSkill({ dir, action: "shelve", args: [skill, group], dryRun });
 	const unshelveSkill = ({ dir, target, dryRun }) => moveSkill({ dir, action: "unshelve", args: [target], dryRun });
+	// Moves a real skill folder between this project and ~/.claude/skills (lib/shelf.mjs promote/demote). Preview with dryRun.
+	const promoteSkill = ({ dir, skill, dryRun }) => moveSkill({ dir, action: "promote", args: [skill], dryRun });
+	const demoteSkill = ({ dir, skill, dryRun }) => moveSkill({ dir, action: "demote", args: [skill], dryRun });
 	// Deletes a skill after copying it to the backups (see lib/shelf.mjs remove). Preview with dryRun.
 	const removeSkill = ({ dir, target, dryRun, project, backup = true }) => moveSkill({ dir, action: "remove", args: [target], dryRun, options: { project, backup } });
 
@@ -114,6 +118,17 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 	};
 	const applyPlugin = async ({ dir, id, enable }) => {
 		const { code, lines } = await capture((io) => toggleFor(dir, io), (toggle) => toggle.run({ name: id, enable, path: dir, yes: true }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
+	};
+
+	// Plugin install/uninstall through `claude plugin` (lib/plugin-install.mjs): the engine's dry run, then after y the command.
+	const installFor = (dir, io) => createPluginInstall(makePaths(dir), { ...io, now });
+	const previewPluginInstall = async ({ dir, action, name, scope }) => {
+		const { code, lines } = await capture((io) => installFor(dir, io), (install) => install.run({ action, name, scope, path: dir, dryRun: true }));
+		return { appliable: code === 0 && lines.some((line) => line.startsWith("[plugin-install]")), text: lines.join("\n").replace(/\n?Dry run: nothing written\./, "").trim() };
+	};
+	const applyPluginInstall = async ({ dir, action, name, scope }) => {
+		const { code, lines } = await capture((io) => installFor(dir, io), (install) => install.run({ action, name, scope, path: dir, yes: true }));
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
@@ -193,5 +208,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, restoreBackup, pruneBackups, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewMcpAdd, applyMcpAdd, previewMcpSet, applyMcpSet, previewHook, applyHook, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, promoteSkill, demoteSkill, restoreBackup, pruneBackups, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewPluginInstall, applyPluginInstall, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewMcpAdd, applyMcpAdd, previewMcpSet, applyMcpSet, previewHook, applyHook, previewFix, applyFix, previewUndo, applyUndo };
 };

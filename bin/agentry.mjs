@@ -11,6 +11,7 @@ import { createHookToggle } from "../lib/hook-toggle.mjs";
 import { createMcpEdit } from "../lib/mcp-edit.mjs";
 import { createMcpToggle } from "../lib/mcp-toggle.mjs";
 import { createPaths } from "../lib/paths.mjs";
+import { createPluginInstall } from "../lib/plugin-install.mjs";
 import { createPluginToggle } from "../lib/plugin-toggle.mjs";
 import { createScan } from "../lib/scan.mjs";
 import { createCatalog } from "../lib/catalog.mjs";
@@ -48,6 +49,11 @@ Commands:
                                       Switch a plugin on or off by editing enabledPlugins in the settings file that
                                       decides it (or --scope's): previewed as a diff, backed up, undoable with fix
                                       --undo. Refuses when managed settings or a higher scope win. New sessions only
+  plugin install <name>@<marketplace> [--scope user|project|local] [--dry-run] [--yes]
+  plugin uninstall <name> [--scope user|project|local] [--dry-run] [--yes]
+                                      Run claude plugin install|uninstall (the marketplace must already be added to
+                                      claude). Previewed, the scope's settings file backed up first. fix --undo
+                                      restores that file only; undo an install with uninstall and the reverse
   mcp disable|enable <name> [--dry-run] [--yes]   (plugin, project and local servers: off for this project only)
                                       Park a user-scope MCP server (save its config, then claude mcp remove) or add
                                       it back (claude mcp add-json) from the parked copy. Previewed with secrets
@@ -77,6 +83,9 @@ Commands:
   shelf off --all [--global]          Remove every shelf link in this project (or ~/.claude)
   shelf shelve <skill> <group>        Move ~/.claude/skills/<skill> onto the shelf
   shelf unshelve <skill>              Move a shelved skill back to ~/.claude/skills
+  shelf promote <skill> [--dry-run]   Move .claude/skills/<skill> of this project to ~/.claude/skills (every project)
+  shelf demote <skill> [--dry-run]    Move ~/.claude/skills/<skill> into this project's .claude/skills
+                                      (real folders only, never overwrites, no copy kept: it is a move)
   shelf remove <skill> [--project] [--no-backup]
                                       Delete a shelved skill or ~/.claude/skills/<skill> (--project: .claude/skills/<skill> here), keeping a copy under
                                       ~/.claude/backups/agentry/removed/<time>/ unless --no-backup (refuses while it is linked)
@@ -104,7 +113,7 @@ Options:
       --fix        With scan: apply the fixes instead of listing findings (see above)
       --no-cache   With scan: ignore and do not write the scan cache (~/.claude/cache/agentry)
       --all        With shelf off: every shelf link instead of named targets
-      --dry-run    With shelf: print the links and exclude lines a write would change. With fix: show the
+      --dry-run    With shelf: print the links and exclude lines (or the move) a write would change. With fix: show the
                    preview only. Either way nothing is written
       --no-backup  With shelf remove: keep no copy of the deleted skill
       --older-than N  With backups prune: backups at least N days old
@@ -136,6 +145,10 @@ Examples:
   agentry fix ~/ws/my-repo --yes
   agentry plugin disable context-mode --dry-run
   agentry plugin enable demo@market --scope user --yes
+  agentry plugin install demo@market --scope project --dry-run
+  agentry plugin uninstall demo --yes
+  agentry shelf promote my-skill --dry-run
+  agentry shelf demote my-skill
   agentry mcp disable context7 --dry-run
   agentry mcp enable context7 --yes
   agentry mcp add files --command npx --arg=-y --arg @scope/files-server --env FILES_TOKEN=abc --dry-run
@@ -153,7 +166,7 @@ Examples:
   agentry fix --undo --yes`;
 
 const SHELF_USAGE =
-	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | remove <skill> [--project] [--no-backup] [--dry-run]";
+	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | promote <skill> [--dry-run] | demote <skill> [--dry-run] | remove <skill> [--project] [--no-backup] [--dry-run]";
 
 const usageError = (message) => {
 	console.error(`${message}\n\n${USAGE}`);
@@ -180,6 +193,9 @@ const runShelf = (args, { global, json, all, project, "no-backup": noBackup, "dr
 	}
 	if (action === "unshelve" && rest.length === 1) {
 		return shelf.unshelve(rest[0], { dryRun });
+	}
+	if ((action === "promote" || action === "demote") && rest.length === 1) {
+		return shelf[action](rest[0], { dryRun });
 	}
 	if (action === "remove" && rest.length === 1) {
 		return shelf.remove(rest[0], { dryRun, project, backup: !noBackup });
@@ -376,11 +392,14 @@ const main = (argv) => {
 	}
 	if (command === "plugin") {
 		const [action, name] = rest;
-		if ((action !== "enable" && action !== "disable") || !name || rest.length > 2 || values.json) {
-			return usageError("Usage: agentry plugin enable|disable <name> [--scope user|project|local] [--dry-run] [--yes]");
+		if (!["enable", "disable", "install", "uninstall"].includes(action) || !name || rest.length > 2 || values.json) {
+			return usageError("Usage: agentry plugin enable|disable|install|uninstall <name> [--scope user|project|local] [--dry-run] [--yes]");
 		}
 		if (values.yes && values["dry-run"]) {
 			return usageError("--yes and --dry-run cannot be used together");
+		}
+		if (action === "install" || action === "uninstall") {
+			return createPluginInstall(createPaths()).run({ action, name, scope: values.scope, yes: values.yes, dryRun: values["dry-run"] });
 		}
 		return createPluginToggle(createPaths()).run({ name, enable: action === "enable", scope: values.scope, yes: values.yes, dryRun: values["dry-run"] });
 	}

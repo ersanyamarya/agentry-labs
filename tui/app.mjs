@@ -16,12 +16,12 @@ import { TAB_NAMES, TabBar } from "./components/tab-bar.mjs";
 import { copyText } from "./clipboard.mjs";
 import { openInEditor } from "./editor.mjs";
 import { colorEnabled, ThemeContext } from "./theme.mjs";
-import { DOCTOR_KEYS, hookKeys, hookRows, mcpKeys, mcpRows, pluginRows, PLUGINS_KEYS } from "./rows.mjs";
+import { DOCTOR_KEYS, hookKeys, hookRows, mcpKeys, mcpRows, pluginKeys, pluginRows } from "./rows.mjs";
 
 const h = React.createElement;
 
 // Skills and MCP report the keys of their selected row (setKeys); the others use a fixed list.
-const TAB_KEYS = [[], [], [], PLUGINS_KEYS, DOCTOR_KEYS, [], []];
+const TAB_KEYS = [[], [], [], [], DOCTOR_KEYS, [], []];
 
 // `size` ({ cols, rows }) overrides the terminal size, for tests.
 export const App = ({ api, startDir, recents, discover, env = process.env, spawn, size, clipboard }) => {
@@ -131,7 +131,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		h(SkillsTab, { ...shared, setKeys: keysFor(0), active: tab === 0 && !overlay }),
 		h(InventoryTab, { ...shared, makeRows: mcpRows, rowKeys: mcpKeys, canAdd: true, setKeys: keysFor(1), active: tab === 1 && !overlay }),
 		h(InventoryTab, { ...shared, makeRows: hookRows, rowKeys: hookKeys, setKeys: keysFor(2), active: tab === 2 && !overlay }),
-		h(InventoryTab, { ...shared, makeRows: pluginRows, active: tab === 3 && !overlay }),
+		h(InventoryTab, { ...shared, makeRows: pluginRows, rowKeys: pluginKeys, canInstall: true, setKeys: keysFor(3), active: tab === 3 && !overlay }),
 		h(DoctorTab, { ...shared, active: tab === 4 && !overlay }),
 		h(CatalogTab, { ...shared, setKeys: keysFor(5), active: tab === 5 && !overlay }),
 		h(BackupsTab, { ...shared, setKeys: keysFor(6), active: tab === 6 && !overlay }),

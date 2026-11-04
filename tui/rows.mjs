@@ -33,10 +33,10 @@ export const skillKeys = (row) => {
 		return [["space", "enable/disable plugin", "on/off"]];
 	}
 	if (row?.projectOnly) {
-		return [["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]];
+		return [["a", "move to all projects", "all projects"], ["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]];
 	}
 	if (row?.shelvable) {
-		return [["s", "shelve"], ["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]];
+		return [["s", "shelve"], ["o", "move to this project only", "this project"], ["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]];
 	}
 	return row?.file ? [["e", "open file", "edit"]] : [];
 };
@@ -58,10 +58,10 @@ const skillDetails = (skill) => [
 // Why a loaded (non-shelf) skill row cannot be toggled, shown in the status line and the details.
 const whyFixed = (skill) => {
 	if (skill.scope === "project") {
-		return "project skill (this repo's .claude/skills): edit it in the repo, e opens it";
+		return "project skill (this repo's .claude/skills): e opens it, a moves it to ~/.claude/skills (all projects)";
 	}
 	if (skill.kind === "file") {
-		return "global skill (~/.claude/skills, every project): s moves it to the shelf, where it can be turned on per project";
+		return "global skill (~/.claude/skills, every project): s moves it to the shelf (on per project), o moves it into this project only";
 	}
 	return skill.kind === "broken" ? "broken skill: see the Doctor tab" : "global skill is a symlink, not a folder: shelve moves folders only";
 };
@@ -269,12 +269,13 @@ export const hookRows = (data) => [
 	})),
 ];
 
-export const PLUGINS_KEYS = [["space", "enable/disable", "on/off"], ["e", "open file", "edit"]];
+export const pluginKeys = (row) => [["space", "enable/disable", "on/off"], ["i", "install a plugin", "install"], ...(row?.pluginScopes?.length > 0 ? [["x", "uninstall"]] : []), ["e", "open file", "edit"]];
 
 export const pluginRows = (data) =>
 	data.status.plugins.items.map((plugin) => ({
 		id: `plugin:${plugin.id}`,
 		plugin: plugin.id,
+		pluginScopes: plugin.installs.filter((install) => install.appliesHere).map((install) => install.scope),
 		enabled: plugin.state === "active",
 		label: plugin.id,
 		...withCells([cell(plugin.installScope ? scopeBadge(plugin.installScope) : [], 8), cell(seg(plugin.version ?? "", DIM), 8), cell(badge(plugin.state), 10)]),
@@ -287,7 +288,7 @@ export const pluginRows = (data) =>
 			...plugin.installs.map((install) => `install: ${install.scope}${install.projectPath ? ` ${install.projectPath}` : ""}${install.appliesHere ? "" : " (other project)"}`),
 			`enabled by: ${plugin.enabledBy?.source ?? "-"}`,
 			`path: ${plugin.installPath ?? "not installed"}`,
-			`toggle: space ${plugin.state === "active" ? "disables" : "enables"} it`,
+			`toggle: space ${plugin.state === "active" ? "disables" : "enables"} it; x uninstalls it, i installs another`,
 			`note: ${PLUGIN_NOTE}`,
 		],
 	}));

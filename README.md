@@ -106,6 +106,8 @@ agentry shelf off --all                   # remove every shelf link in this proj
 agentry shelf on audit --dry-run          # print the links and exclude lines it would change; write nothing
 agentry shelf shelve pdf docs             # move ~/.claude/skills/pdf onto the shelf as group docs
 agentry shelf unshelve pdf                # move it back to ~/.claude/skills
+agentry shelf promote my-skill            # move this project's .claude/skills/my-skill to ~/.claude/skills (every project)
+agentry shelf demote my-skill             # the reverse: ~/.claude/skills/my-skill into this project (add --dry-run to preview)
 agentry shelf remove docs/pdf             # delete it; a copy is kept in ~/.claude/backups/agentry/removed/<time>/
 agentry shelf remove docs/pdf --no-backup # delete it and keep no copy (add --dry-run to see which it would be)
 agentry backups list [--json]             # fix backup sets and removed-skill copies, with size and age
@@ -146,6 +148,7 @@ agentry mcp disable plugin:context-mode:context-mode   # plugin, project (.mcp.j
 agentry mcp add files --command npx --arg=-y --arg @scope/files --env FILES_TOKEN=abc   # add a server (--url U --header K:V for http; --scope user|project; --dry-run, --yes)
 agentry mcp set files --env FILES_TOKEN=new   # change env/args of a user server (--unset-env K, --arg=A replaces args); backed up, undoable
 agentry hook list              # every hook with an 8-hex id; then: hook disable|enable|remove <id> [--scope S] [--dry-run] [--yes]
+agentry plugin install demo@market --scope project   # claude plugin install through the preview/backup path; also: uninstall demo
 agentry plugin disable demo    # also: enable; --scope user|project|local, --dry-run, --yes; backed up, undo with agentry fix --undo
 agentry ui                     # terminal UI (Ink); a bare `agentry` in a terminal opens it too
 ```
@@ -163,6 +166,8 @@ Start it from the project folder with `agentry ui`, or type a bare `agentry` in 
 - **Changes it can make** (all except the plain shelf toggle are previewed first and wait for `y`):
   - **Skills, shelf:** Each shelf row has two columns, **Project** (this project) and **Global**, each `● on`, `○ off` or `◐ partial`. `space` toggles the Project column of the selected row and `g` toggles the Global column; there is no mode to switch. Same as `agentry shelf on|off [--global]`.
   - **Skills, shelving:** `s` on a global skill (a real folder under `~/.claude/skills`) asks for a shelf group (`↑/↓` and `enter`, or `n` to type a new name), previews the move, and `y` runs `agentry shelf shelve`. Afterwards the skill sits under Shelf, off, and toggles with `space`. `u` on a shelved skill moves it back (`agentry shelf unshelve`). Both refuse to overwrite, and to move a skill that is still linked.
+  - **Skills, scope moves:** `a` on a project-only skill (This project only) previews moving the folder to `~/.claude/skills` so every project loads it; `o` on a global skill folder previews moving it into this project only. `y` moves it (no copy kept); both refuse links and never overwrite. Same as `agentry shelf promote|demote <skill>`.
+  - **Plugins, install:** `i` on the Plugins tab asks for `name@marketplace` (the marketplace must already be added to claude), then a scope, previews the `claude plugin install` command and the settings file it backs up; `x` previews `claude plugin uninstall` (a scope pick when it is installed at several). Same as `agentry plugin install|uninstall`. `fix --undo` restores the settings file only; the cache and `installed_plugins.json` stay as claude left them.
   - **Plugins:** `space` on a plugin row (Plugins tab) or a `plugin:*` row (Skills tab) previews the `enabledPlugins` edit as a diff; `y` writes it with a backup. Same as `agentry plugin enable|disable`, and `agentry fix --undo` restores it. It applies to new sessions only.
   - **Doctor:** `enter` previews a fix as a diff. `y` applies it through the same engine as the CLI, with a backup first. `u` previews undoing the last fix set, and `y` restores it.
   - **MCP:** `space` on a user-scope server previews turning it off (its config is saved, then `claude mcp remove --scope user` runs, with a backup of `~/.claude.json`); turned-off servers stay in the list as `○ off`, and `space` adds them back with `claude mcp add-json`. Same as `agentry mcp disable|enable <name>`, `agentry mcp list-parked`. The saved configs live in `~/.claude/agentry/parked-mcp.json` (mode 0600), with their secrets, exactly as exposed as `~/.claude.json`. Plugin, project `.mcp.json` and desktop servers say who manages them instead.
@@ -183,12 +188,14 @@ Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so noth
 | enter | details, expand a group, preview a fix |
 | space | Skills: shelf row on/off for this project; plugin rows: on/off; MCP: turn off (saved) / add back a user server |
 | g | Skills: shelf row on/off globally |
-| s | Skills: move a global skill onto the shelf |
+| a | MCP: add a server; Skills: move a project-only skill to ~/.claude/skills (all projects) |
+| o | Skills: move a global skill into this project only |
+| s | Skills: move a global skill onto the shelf; MCP: edit env/args |
 | u | Skills: unshelve a skill; Doctor: undo the last fix set; Backups: restore a removed skill |
-| x | Skills, Catalog: remove a skill (previewed; a copy is kept in the backups); Backups: delete a backup |
+| x | Skills, Catalog: remove a skill (previewed; a copy is kept in the backups); Backups: delete a backup; MCP, Hooks: remove; Plugins: uninstall |
 | X | Skills, Catalog: remove a skill and keep no copy |
 | d | Backups: delete the backups 30+ days old |
-| i | Catalog: add the selected skill to the shelf, off |
+| i | Catalog: add the selected skill to the shelf, off; Plugins: install a plugin |
 | f | Catalog: fetch or update the agentry-labs catalog |
 | e | open the selected row's file in $EDITOR |
 | y / n | confirm or cancel a previewed change; c copies the preview |
