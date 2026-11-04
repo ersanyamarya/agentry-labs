@@ -3,7 +3,8 @@
 import React from "react";
 import { Box, Text, useInput } from "ink";
 import { skillKeys, skillRows } from "../rows.mjs";
-import { useCursor } from "../use-cursor.mjs";
+import { startBulk } from "../bulk-flow.mjs";
+import { useList } from "../use-list.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
 import { startScopeMove } from "../move-flow.mjs";
 import { startRemove } from "../remove-flow.mjs";
@@ -15,8 +16,9 @@ const h = React.createElement;
 
 export const SkillsTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile, setKeys, copy }) => {
 	const [expanded, setExpanded] = React.useState(() => new Set());
-	const rows = React.useMemo(() => skillRows(data, expanded), [data, expanded]);
-	const { cursor, row, move } = useCursor(rows);
+	const all = React.useMemo(() => skillRows(data, expanded), [data, expanded]);
+	const list = useList({ rows: all, lock });
+	const { rows, cursor, row, move } = list;
 
 	const flow = useFlow({ lock, notify, reload, copy });
 	// The footer follows the selected row.
@@ -78,9 +80,27 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 		await reload();
 	};
 
+	// Marked rows (m): one combined preview and one y for the whole set, through the same lib calls as a single row.
+	const bulkToggle = (global) => {
+		const items = list.marked.filter((one) => one.kind === "group" || one.kind === "skill");
+		if (items.length === 0) {
+			return notify("Marked rows are not shelf groups or skills: nothing to switch.");
+		}
+		const on = !items.every((one) => (global ? one.globalOn : one.projectOn));
+		const where = global ? "globally" : "for this project";
+		return startBulk({ flow, title: `Turn ${on ? "on" : "off"} ${where}`, items, preview: (one) => ({ appliable: true, text: `${on ? "Link" : "Unlink"} ${one.target} ${where}.` }), apply: async (one) => { const result = await api.toggleShelf({ dir, target: one.target, on, global }); return { ok: result.ok, text: result.message }; }, done: `Turned ${on ? "on" : "off"} ${where}` });
+	};
+	const removeArgs = (one) => (one.kind === "skill" ? { target: one.target } : one.projectOnly ? { target: one.skill, project: true } : one.shelvable ? { target: one.skill } : undefined);
+	const bulkRemove = (backup) => {
+		const items = list.marked.filter(removeArgs);
+		return items.length === 0
+			? notify("Marked rows cannot be removed here (shelved, global or project-only skills only).")
+			: startBulk({ flow, title: "Remove skills", items, preview: async (one) => { const result = await api.removeSkill({ dir, ...removeArgs(one), backup, dryRun: true }); return { appliable: result.ok, text: result.text }; }, apply: (one) => api.removeSkill({ dir, ...removeArgs(one), backup }), done: backup ? "Removed; copies are in ~/.claude/backups/agentry/removed/" : "Removed; no copies were kept" });
+	};
+
 	useInput(
 		(input, key) => {
-			if (flow.handleKey(input, key)) {
+			if (flow.handleKey(input, key) || list.handleKey(input, key)) {
 				return;
 			}
 			if (key.upArrow || key.downArrow) {
@@ -100,6 +120,10 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 					next.has(row.group) ? next.delete(row.group) : next.add(row.group);
 					return next;
 				});
+			} else if ((input === " " || input === "g") && list.marked.length > 0) {
+				bulkToggle(input === "g");
+			} else if ((input === "x" || input === "X") && list.marked.length > 0) {
+				bulkRemove(input === "x");
 			} else if (input === " ") {
 				toggle();
 			} else if (input === "g") {
@@ -123,6 +147,6 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 		Box,
 		{ flexDirection: "column" },
 		h(Legend),
-		h(Panes, { rows, cursor, height, row, lines: flow.lines, title: flow.title, layout }),
+		h(Panes, { rows, cursor, height, row, lines: flow.lines, title: flow.title, layout, marked: list.markedIds, status: list.status }),
 	);
 };

@@ -207,43 +207,42 @@ Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so noth
 | f | Catalog: fetch or update the agentry-labs catalog |
 | e | open the selected row's file in $EDITOR |
 | y / n | confirm or cancel a previewed change; c copies the preview |
+| / | search: type to narrow the rows (label and details), enter keeps the filter, esc clears it; q and the tab keys are text while typing |
+| m / M | mark or unmark the selected row / clear all marks; then space, g, x, X (Skills), space, x (MCP, Hooks, Plugins), i, u, x (Catalog), x (Rules), u, x (Backups) apply to every marked row with one combined preview and one y |
 | r | refresh |
 | p | switch project |
 | ? | this help |
 | q | quit |
 
-Press `?` in the UI to see the same table. Layout: from 110 columns the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its Project/Global badges are never cut (a long name is shortened with `…` in the middle instead). The summary line shortens to fit, and the footer lists only the keys that work on the selected row, in one line. Screenshot below is a plain-text capture of the Skills tab at 100 columns (colours are lost in text; not an image), with the home folder shown as `~`:
+Press `?` in the UI to see the same table. Layout: from 110 columns the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its Project/Global badges are never cut (a long name is shortened with `…` in the middle instead). The summary line shortens to fit, and the footer lists only the keys that work on the selected row, in one line. `/` filters the rows of any tab; `m` marks rows (shown with `*`, counted under the list) so one space or `x` previews and applies to all of them at once. The last Skills row, Token total, breaks the description tokens down into global, this project and plugins. Screenshot below is a plain-text capture of the Skills tab at 100 columns, with two shelf groups marked (colours are lost in text; not an image), with the home folder shown as `~`:
 
 ```text
 agentry  ~/ws/aryantriki/agentry-labs
- 1 Skills (38)    2 MCP (4)    3 Hooks (29)    4 Plugins (5)    5 Doctor (18)
-~2801 skill-description tokens  ·  plugins 2 ● active 3 ○ disabled  ·  0 errors, 18 warnings
+ 1 Skills (24)   2 MCP (4)   3 Hooks   4 Plugins   5 Doctor   6 Catalog (28)   7 Backups   8 Rules
+~1023 skill-description tokens  ·  plugins 2 ● active 3 ○ disabled  ·  no problems
 ● on ○ off ◐ partial  cost: ~<100 ~100-499 ~500+
  Shelf                                                   Skills      Cost  Project      Global
->▸ audit                                                 7 skills   ~1078  ● on         ● on
- ▸ design                                                2 skills    ~296  ○ off        ○ off
+*▸ audit                                                 7 skills   ~1078  ○ off        ○ off
+>▸ design                                                2 skills    ~296  ○ off        ○ off
  ▸ dev-tools                                             1 skills    ~103  ○ off        ○ off
  ▸ flutter-assets                                        4 skills    ~606  ○ off        ○ off
+ ▸ general                                               0 skills      ~0  ○ off        ○ off
  ▸ video                                                 28 skills  ~3001  ○ off        ○ off
  ▸ web-audit                                             1 skills    ~135  ○ off        ○ off
 
 Global skills ──────────────────────────
    humanize-and-unslop                                                ~44               ● active
    run-fallow                                                        ~158               ● active
-   skill-architect                                                    ~96               ● active
-   trail                                                              ~19               ● active
-
-This project only ──────────────────────
-   script-writer                                                      ~60  ● active
-  2/23
+  3/27
+ 2 marked (space/x apply to all, M clears)
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Details
-shelf group: audit (opt-in)
-this project: ● on
-global: ● on
-contains: 7 skills, 1 agent
-cost when on: ~1078 tokens
+shelf group: design (opt-in)
+this project: ○ off
+global: ○ off
+contains: 2 skills
+cost when on: ~296 tokens
 toggle: space = this project, g = global; enter expands
 space project  g global  enter expand  │ ←→ tabs  ? help  q quit
 ```

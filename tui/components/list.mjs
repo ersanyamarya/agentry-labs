@@ -22,7 +22,8 @@ export const rowLine = (row, width, marker = " ") => {
 	return `${marker}${name}${row.cells ? `${" ".repeat(GAP)}${row.cells.map(cellText).join(" ".repeat(GAP))}` : ""}`;
 };
 
-export const ListPane = ({ rows, cursor, height, width: boxWidth }) => {
+// `marked` (a Set of row ids) puts a * before marked rows (the selected row keeps its >; the status line counts the marks); `status` is a dim line under the list (filter, marks).
+export const ListPane = ({ rows, cursor, height, width: boxWidth, marked, status }) => {
 	const width = boxWidth - 1; // one column of air before the details
 	const style = useStyle();
 	const start = Math.max(0, Math.min(cursor - Math.floor(height / 2), rows.length - height));
@@ -46,7 +47,7 @@ export const ListPane = ({ rows, cursor, height, width: boxWidth }) => {
 			return h(
 				Text,
 				{ key: row.id, wrap: "truncate-end" },
-				h(Text, style(row.header ? { bold: true, ...row.labelStyle } : row.labelStyle), ` ${row.cells ? pad(middle(row.label, nameWidth), nameWidth) : end(row.label, nameWidth)}`),
+				h(Text, style(row.header ? { bold: true, ...row.labelStyle } : row.labelStyle), `${marked?.has(row.id) ? "*" : " "}${row.cells ? pad(middle(row.label, nameWidth), nameWidth) : end(row.label, nameWidth)}`),
 				...(row.cells ?? []).flatMap((cell, cellIndex) => {
 					const used = cell.parts.reduce((total, part) => total + [...part.text].length, 0);
 					const filler = Math.max(cell.width - used, 0);
@@ -60,6 +61,7 @@ export const ListPane = ({ rows, cursor, height, width: boxWidth }) => {
 			);
 		}),
 		rows.length > height ? h(Text, { dimColor: true }, `  ${cursor + 1}/${rows.length}`) : null,
+		status ? h(Text, { dimColor: true, wrap: "truncate-end" }, ` ${status}`) : null,
 	);
 };
 
@@ -94,5 +96,5 @@ export const DetailsPane = ({ row, lines, title = "Details", height, layout }) =
 };
 
 // List and details together, side by side or stacked depending on the width.
-export const Panes = ({ rows, cursor, height, row, lines, title, layout }) =>
-	h(Box, { flexDirection: layout.stacked ? "column" : "row" }, h(ListPane, { rows, cursor, height, width: layout.listWidth }), h(DetailsPane, { row, lines, title, height, layout }));
+export const Panes = ({ rows, cursor, height, row, lines, title, layout, marked, status }) =>
+	h(Box, { flexDirection: layout.stacked ? "column" : "row" }, h(ListPane, { rows, cursor, height, width: layout.listWidth, marked, status }), h(DetailsPane, { row, lines, title, height, layout }));

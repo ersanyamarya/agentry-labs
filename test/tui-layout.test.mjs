@@ -19,7 +19,8 @@ test("sections are bold headers with a rule and a blank line between them", () =
 	assert.match(ui.frame(), /^\s*Shelf\s+Skills/m);
 	assert.match(ui.frame(), /^Global skills ─+\s/m);
 	const rows = skillRows({ groups: [], status: { skills: { items: [{ name: "n", scope: "user", kind: "file", source: "/x/n", state: "active", tokens: 1 }] }, plugins: { items: [] } } });
-	assert.deepEqual(rows.map((row) => (row.blank ? "blank" : row.header ? "header" : "row")), ["header", "row", "blank", "header", "row"]);
+	assert.deepEqual(rows.map((row) => (row.blank ? "blank" : row.header ? "header" : "row")), ["header", "row", "blank", "header", "row", "blank", "header", "row"]);
+	assert.equal(rows.at(-1).kind, "total");
 });
 
 test("scope badges tag the rows", async () => {

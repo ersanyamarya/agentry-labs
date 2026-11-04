@@ -19,6 +19,8 @@ export const KEYS = [
 	["d", "Backups: delete the backups 30+ days old"],
 	["i", "Catalog: add the selected skill (to the shelf, off), agent, rule, CLAUDE.md or MCP server; Plugins: install a plugin"],
 	["f", "Catalog: fetch or update the agentry-labs catalog"],
+	["/", "search the rows of the current tab: type, enter keeps it, esc clears it (q and tab keys are text while typing)"],
+	["m / M", "mark or unmark the selected row / clear marks; space, g, x, X, i, u then apply to all marked rows, one preview, one y"],
 	["e", "open the selected row's file in $EDITOR"],
 	["y / n", "confirm or cancel a previewed change; c copies the preview"],
 	["r", "refresh"],
@@ -35,5 +37,5 @@ export const Help = () =>
 		...KEYS.map(([key, what]) => h(Text, { key, wrap: "truncate-end" }, h(Text, { bold: true }, key.padEnd(12)), h(Text, null, ` ${what}`))),
 		h(Text, null, " "),
 		h(Text, { dimColor: true }, "● on / active green, ○ off / disabled gray, ◐ partial yellow. Cost: dim < 100, yellow < 500, red 500+."),
-		h(Text, { dimColor: true }, "No colour: set NO_COLOR. Plugin changes apply to new sessions (undo: agentry fix --undo)."),
+		h(Text, { dimColor: true }, "* marks a row. Skills > Token total: description tokens per global, this project, plugins. No colour: set NO_COLOR. Plugin changes apply to new sessions (undo: agentry fix --undo)."),
 	);

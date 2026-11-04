@@ -6,13 +6,15 @@ import React from "react";
 import { useInput } from "ink";
 import { catalogKeys, catalogRows } from "../rows.mjs";
 import { startRemove } from "../remove-flow.mjs";
-import { useCursor } from "../use-cursor.mjs";
+import { startBulk } from "../bulk-flow.mjs";
+import { useList } from "../use-list.mjs";
 import { useFlow } from "../use-flow.mjs";
 import { Panes } from "./list.mjs";
 
 export const CatalogTab = ({ data, api, dir, active, height, layout, notify, reload, lock, setKeys, copy }) => {
-	const rows = React.useMemo(() => catalogRows(data), [data]);
-	const { cursor, row, move } = useCursor(rows);
+	const all = React.useMemo(() => catalogRows(data), [data]);
+	const list = useList({ rows: all, lock });
+	const { rows, cursor, row, move } = list;
 	const flow = useFlow({ lock, notify, reload, copy });
 	const keys = catalogKeys(row);
 	React.useEffect(() => {
@@ -44,9 +46,17 @@ export const CatalogTab = ({ data, api, dir, active, height, layout, notify, rel
 		flow.begin({ kind: "confirm", title: `Update ${row.item} (preview)`, text: preview.text, appliable: preview.ok, apply: () => api.updateFromCatalog({ dir, names }), done: `Updated ${row.item}; the old copy is in ~/.claude/backups/agentry/updated/.` });
 	};
 
+	// Marked rows (m): i adds, u updates, x removes all of them (the ones it applies to) after one preview and one y.
+	const catalogMarked = (keep) => list.marked.filter((one) => one.kind === "catalog" && keep(one));
+	const bulkCatalog = async (call, items, title, done) => {
+		const names = items.map((one) => one.item);
+		const preview = await api[call]({ dir, names, dryRun: true });
+		flow.begin({ kind: "confirm", title: `${title} ${names.length} (preview)`, text: preview.text, appliable: preview.ok, apply: () => api[call]({ dir, names }), done });
+	};
+
 	useInput(
 		(input, key) => {
-			if (flow.handleKey(input, key)) {
+			if (flow.handleKey(input, key) || list.handleKey(input, key)) {
 				return;
 			}
 			if (key.upArrow || key.downArrow) {
@@ -54,6 +64,13 @@ export const CatalogTab = ({ data, api, dir, active, height, layout, notify, rel
 				move(key.upArrow ? -1 : 1);
 			} else if (input === "f") {
 				fetchCatalog();
+			} else if (input === "i" && catalogMarked((one) => !(one.itemKind === "skill" && one.installed)).length > 0) {
+				bulkCatalog("addFromCatalog", catalogMarked((one) => !(one.itemKind === "skill" && one.installed)), "Add", "Added the marked items (agents and MCP servers to all projects).");
+			} else if (input === "u" && catalogMarked((one) => one.outdated).length > 0) {
+				bulkCatalog("updateFromCatalog", catalogMarked((one) => one.outdated), "Update", "Updated the marked items; the old copies are in ~/.claude/backups/agentry/updated/.");
+			} else if ((input === "x" || input === "X") && catalogMarked((one) => one.itemKind === "skill" && one.installed).length > 0) {
+				const backup = input === "x";
+				startBulk({ flow, title: "Remove skills", items: catalogMarked((one) => one.itemKind === "skill" && one.installed), preview: async (one) => { const result = await api.removeSkill({ dir, target: one.target, backup, dryRun: true }); return { appliable: result.ok, text: result.text }; }, apply: (one) => api.removeSkill({ dir, target: one.target, backup }), done: backup ? "Removed; copies are in ~/.claude/backups/agentry/removed/" : "Removed; no copies were kept" });
 			} else if (input === "i" && row?.kind === "catalog") {
 				row.itemKind === "skill" && row.installed ? notify(`${row.item} is already installed (${row.installed}).`) : startAdd(false);
 			} else if (input === "o" && row?.kind === "catalog") {
@@ -67,5 +84,5 @@ export const CatalogTab = ({ data, api, dir, active, height, layout, notify, rel
 		{ isActive: active },
 	);
 
-	return React.createElement(Panes, { rows, cursor, height, row, lines: flow.lines, title: flow.title, layout });
+	return React.createElement(Panes, { rows, cursor, height, row, lines: flow.lines, title: flow.title, layout, marked: list.markedIds, status: list.status });
 };

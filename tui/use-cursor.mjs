@@ -20,5 +20,5 @@ export const useCursor = (rows) => {
 	const clamped = Math.min(at, rows.length - 1);
 	const cursor = selectable(rows[clamped]) ? clamped : stepCursor(rows, clamped, -1) !== clamped ? stepCursor(rows, clamped, -1) : firstSelectable(rows);
 	const move = (delta) => setAt(stepCursor(rows, cursor, delta));
-	return { cursor, row: rows[cursor], move };
+	return { cursor, row: rows[cursor], move, home: () => setAt(0) };
 };

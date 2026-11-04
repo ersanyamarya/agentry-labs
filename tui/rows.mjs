@@ -66,6 +66,14 @@ const whyFixed = (skill) => {
 	return skill.kind === "broken" ? "broken skill: see the Doctor tab" : "global skill is a symlink, not a folder: shelve moves folders only";
 };
 
+// What the loaded skill descriptions cost, per place they come from. Shelf skills count under the scope they are linked in.
+export const tokenBreakdown = (data) => {
+	const loaded = data.status.skills.items.filter((skill) => skill.state === "active");
+	const sum = (keep) => loaded.filter(keep).reduce((total, skill) => total + (skill.tokens ?? 0), 0);
+	const parts = { global: sum((skill) => skill.scope === "user"), project: sum((skill) => skill.scope === "project"), plugins: sum((skill) => skill.scope === "plugin") };
+	return { ...parts, total: parts.global + parts.project + parts.plugins };
+};
+
 const header = (id, label, extra = {}) => ({ id, header: true, label, ...extra });
 // A blank, unselectable row between sections.
 const spacer = (id) => ({ id: `sp:${id}`, header: true, blank: true, label: "" });
@@ -147,6 +155,14 @@ export const skillRows = (data, expanded = new Set()) => {
 			...skillCells(`${mine.length} skills`, plugin.skillTokens, scopeBadge("plugin"), badge(plugin.state)),
 			details: [`plugin: ${plugin.id}`, `state: ${badgeText(plugin.state)}`, `skills: ${mine.map((skill) => skill.name.split(":").pop()).join(", ")}`, `tokens: ${tokens(plugin.skillTokens)}`, `source: ${plugin.installPath}`, "toggle: plugin skill (comes with a plugin): space toggles the plugin", `note: ${PLUGIN_NOTE}`],
 		};
+	});
+	const sum = tokenBreakdown(data);
+	rows.push(spacer("totals"), header("h:totals", "Totals"), {
+		id: "total:tokens",
+		kind: "total",
+		label: "  Token total (every session)",
+		...skillCells("", sum.total, [], []),
+		details: [`total: ~${sum.total} tokens of skill descriptions loaded in every session`, `in global: ~${sum.global}`, `in this project: ~${sum.project}`, `from plugins: ~${sum.plugins}`, "note: counts skills that are on (shelf skills under the scope they are linked in); off skills, MCP, hooks and rule files cost 0 here (rule files: Rules tab)."],
 	});
 	return rows;
 };

@@ -4,15 +4,16 @@
 import React from "react";
 import { Box, Text, useInput } from "ink";
 import { doctorRows } from "../rows.mjs";
-import { useCursor } from "../use-cursor.mjs";
+import { useList } from "../use-list.mjs";
 import { SEVERITY, useStyle } from "../theme.mjs";
 import { Panes } from "./list.mjs";
 
 const h = React.createElement;
 
 export const DoctorTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile, copy }) => {
-	const rows = React.useMemo(() => doctorRows(data), [data]);
-	const { cursor, row, move } = useCursor(rows);
+	const all = React.useMemo(() => doctorRows(data), [data]);
+	const list = useList({ rows: all, lock, marks: false });
+	const { rows, cursor, row, move } = list;
 	// null | { kind: "fix" | "undo", finding?, text, appliable } waiting for y/n | { kind: "result", ok, text }
 	const [step, setStep] = React.useState(null);
 	const waiting = step && step.kind !== "result";
@@ -40,6 +41,9 @@ export const DoctorTab = ({ data, api, dir, active, height, layout, notify, relo
 
 	useInput(
 		(input, key) => {
+			if (!waiting && list.handleKey(input, key)) {
+				return;
+			}
 			if (input === "c" && step) {
 				copy(step.text);
 				return;
@@ -79,6 +83,6 @@ export const DoctorTab = ({ data, api, dir, active, height, layout, notify, relo
 		Box,
 		{ flexDirection: "column" },
 		h(Text, null, h(Text, style(SEVERITY.error.style), `${error} errors`), ", ", h(Text, style(SEVERITY.warning.style), `${warning} warnings`), ", ", h(Text, style(SEVERITY.info.style), `${info} info`)),
-		h(Panes, { rows, cursor, height, row, lines, title, layout }),
+		h(Panes, { rows, cursor, height, row, lines, title, layout, status: list.status }),
 	);
 };

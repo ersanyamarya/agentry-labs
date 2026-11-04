@@ -6,16 +6,18 @@ import { Text } from "ink";
 
 const h = React.createElement;
 
-export const GLOBAL_KEYS = [["←/→", "tabs"], ["↑/↓", "rows"], ["r", "refresh"], ["p", "switch project"], ["?", "help"], ["q", "quit"]];
+const BASE_GLOBAL = [["←/→", "tabs"], ["↑/↓", "rows"], ["r", "refresh"], ["p", "switch project"], ["?", "help"], ["q", "quit"]];
+export const GLOBAL_KEYS = [...BASE_GLOBAL.slice(0, 2), ["/", "search"], ["m", "mark"], ...BASE_GLOBAL.slice(2)];
+const PLAIN_GLOBAL = BASE_GLOBAL.map((pair, index) => (index === 0 ? GLOBAL_KEYS[0] : pair));
 const CORE_KEYS = [["?", "help"], ["q", "quit"]];
 const SHORT_GLOBAL = [["←→", "tabs"], ["?", "help"], ["q", "quit"]];
 
 const width = (pairs) => pairs.reduce((total, [key, text]) => total + [...key].length + [...text].length + 3, 0);
 const shortForm = (keys) => keys.map(([key, text, short]) => [key, short ?? text]);
 
-// Longest first: everything; short tab keys with the usual global keys; short tab keys with tabs/help/quit; only help/quit.
+// Longest first: everything; the same without search/mark; short tab keys with the usual global keys; short tab keys with tabs/help/quit; only help/quit.
 export const footerKeys = (keys, cols) => {
-	const tries = [[...keys, ...GLOBAL_KEYS], [...shortForm(keys), ...SHORT_GLOBAL], [...shortForm(keys), ...CORE_KEYS], CORE_KEYS];
+	const tries = [[...keys, ...GLOBAL_KEYS], [...keys, ...PLAIN_GLOBAL], [...shortForm(keys), ...SHORT_GLOBAL], [...shortForm(keys), ...CORE_KEYS], CORE_KEYS];
 	const split = (list) => list.findIndex((pair) => pair === GLOBAL_KEYS[0] || pair === SHORT_GLOBAL[0] || pair === CORE_KEYS[0]);
 	const chosen = tries.find((list) => width(list) + 2 <= cols) ?? CORE_KEYS;
 	return { list: chosen, divider: Math.max(split(chosen), 0) };
