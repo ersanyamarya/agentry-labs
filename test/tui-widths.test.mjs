@@ -6,7 +6,7 @@ import { KEYS, createUi, stripAnsi } from "./helpers/tui.mjs";
 let ui;
 afterEach(() => ui?.stop());
 
-const TABS = ["1", "2", "3", "4", "5", "6", "7"];
+const TABS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 const lines = () => stripAnsi(ui.frame()).split("\n");
 
 for (const cols of [80, 100, 130]) {

@@ -39,8 +39,8 @@ Remember, before writing any code:
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
 ├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
 ├── bin/                 # agentry CLI entry and command router (shelf, plugin, mcp, status, doctor, scan, fix, ui)
-├── lib/                 # CLI modules: shelf.mjs, backups.mjs, catalog.mjs, status.mjs, doctor.mjs, scan.mjs, fix.mjs, plugin-toggle.mjs, plugin-install.mjs, mcp-toggle.mjs, mcp-edit.mjs, hook-toggle.mjs, json-edit.mjs, tokens.mjs, mask.mjs, inventory/
-├── tui/                 # agentry ui: Ink terminal UI (app, data, rows, flows: mcp-flow/hook-flow/plugin-flow/move-flow, components/ incl. the Backups tab); loaded lazily by bin/agentry.mjs
+├── lib/                 # CLI modules: shelf.mjs, backups.mjs, catalog.mjs (skills, agents, rules, CLAUDE.md files, MCP servers; outdated + update), rules.mjs (CLAUDE.md and rule files), status.mjs, doctor.mjs, scan.mjs, fix.mjs, plugin-toggle.mjs, plugin-install.mjs, mcp-toggle.mjs, mcp-edit.mjs, hook-toggle.mjs, json-edit.mjs, tokens.mjs, mask.mjs, inventory/
+├── tui/                 # agentry ui: Ink terminal UI (app, data, rows, flows: mcp-flow/hook-flow/plugin-flow/move-flow, components/ incl. the Catalog, Backups and Rules tabs); loaded lazily by bin/agentry.mjs
 ├── docs/                # design plans (shelf-cli-plan.md) and the config-sources spec (claude-config-sources.md)
 ├── test/                # node:test suites for the CLI (npm test)
 └── .github/             # CI (validates every skill) and assets/cover.jpg

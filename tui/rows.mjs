@@ -151,37 +151,96 @@ export const skillRows = (data, expanded = new Set()) => {
 	return rows;
 };
 
+// Agents and MCP servers also install to this project (o); an outdated skill, agent or rule can be updated (u).
 export const catalogKeys = (row) => {
 	if (row?.kind !== "catalog") {
 		return [["f", "fetch catalog", "fetch"]];
 	}
-	return [...(row.installed ? [["x", "remove"], ["X", "remove, no copy", "no copy"]] : [["i", "add to shelf", "add"]]), ["f", "update catalog", "fetch"]];
+	const where = row.itemKind === "agent" || row.itemKind === "mcp";
+	return [
+		["i", row.itemKind === "skill" ? "add to shelf" : where ? "add (all projects)" : "add", "add"],
+		...(where ? [["o", "add to this project", "project"]] : []),
+		...(row.outdated ? [["u", "update"]] : []),
+		...(row.itemKind === "skill" && row.installed ? [["x", "remove"], ["X", "remove, no copy", "no copy"]] : []),
+		["f", "update catalog", "fetch"],
+	];
 };
 
-// The agentry-labs skills by bundle; installed ones show where they are.
+const ITEM_SECTIONS = [["agent", "Agents"], ["rule", "Rules"], ["claude-md", "CLAUDE.md files"], ["mcp", "MCP servers"]];
+
+const catalogToggle = (item) =>
+	({
+		skill: item.installed ? "x removes it (a copy is kept in the backups)" : "i copies it onto the shelf, off; turn it on from the Skills tab",
+		agent: "i copies it to ~/.claude/agents (every project), o to this project's .claude/agents; never overwrites",
+		rule: "i copies it to ~/.claude/rules; never overwrites",
+		"claude-md": "i copies it to this project as CLAUDE.md, only when the project has none",
+		mcp: "i adds it to your user config (claude mcp add-json), o to this project's .mcp.json; the preview masks secrets",
+	})[item.kind] + (item.outdated ? "; u overwrites the installed copy with the catalog's (previewed, the old copy is saved first)" : "");
+
+const catalogRow = (item) => {
+	const installed = item.installed;
+	return {
+		id: `catalog:${item.id}`,
+		kind: "catalog",
+		item: item.id,
+		itemKind: item.kind,
+		installed,
+		outdated: item.outdated,
+		target: item.shelf ? `${item.shelf}/${item.name}` : item.name,
+		label: `  ${item.name}`,
+		...withCells([cell(cost(item.tokens), 5, "right"), cell(installed ? [seg(`● ${installed}`, { color: "green", bold: true }), ...(item.outdated ? [seg(" outdated", { color: "yellow", bold: true })] : [])] : seg("not installed", DIM), 24)]),
+		details: [`item: ${item.id}`, `bundle: ${item.bundle}`, `installed: ${installed ?? "no"}`, ...(item.outdated ? ["status: outdated (a file differs from the catalog copy)"] : []), `tokens: ${item.tokens === null ? "-" : `${tokens(item.tokens)} (${item.kind === "skill" || item.kind === "agent" ? "description" : "whole file"})`}`, `note: ${item.description || "(no description)"}`, `toggle: ${catalogToggle(item)}`],
+	};
+};
+
+// The skills by bundle, then agents, rules, CLAUDE.md files and MCP servers; installed ones show where they are.
 export const catalogRows = (data) => {
 	const { fetched, entries } = data.catalog;
 	if (!fetched) {
-		return [{ id: "none:catalog", label: "  (catalog not fetched)", details: ["The agentry-labs skill catalog is not on this machine yet.", "toggle: press f to fetch it (a shallow git clone of github.com/ersanyamarya/agentry-labs, cached; needs network)."] }];
+		return [{ id: "none:catalog", label: "  (catalog not fetched)", details: ["The agentry-labs catalog is not on this machine yet.", "toggle: press f to fetch it (a shallow git clone of github.com/ersanyamarya/agentry-labs, cached; needs network)."] }];
 	}
 	const rows = [];
 	let bundle;
-	for (const skill of entries) {
+	for (const skill of entries.filter((entry) => entry.kind === "skill")) {
 		if (skill.bundle !== bundle) {
 			bundle = skill.bundle;
 			rows.push(...(rows.length > 0 ? [spacer(bundle)] : []), header(`h:${bundle}`, `${bundle} bundle`));
 		}
-		const where = skill.shelf ? `shelf/${skill.shelf}` : skill.global ? "global" : undefined;
-		rows.push({
-			id: `catalog:${skill.name}`,
-			kind: "catalog",
-			skill: skill.name,
-			installed: where,
-			target: skill.shelf ? `${skill.shelf}/${skill.name}` : skill.name,
-			label: `  ${skill.name}`,
-			...withCells([cell(cost(skill.tokens), 5, "right"), cell(where ? seg(`● ${where}`, { color: "green", bold: true }) : seg("not installed", DIM), 20)]),
-			details: [`skill: ${skill.name}`, `bundle: ${skill.bundle}`, `installed: ${where ?? "no"}`, `tokens: ${tokens(skill.tokens)} (description)`, `note: ${skill.description || "(no description)"}`, `toggle: ${where ? "x removes it (a copy is kept in the backups)" : "i copies it onto the shelf, off; turn it on from the Skills tab"}`],
-		});
+		rows.push(catalogRow(skill));
+	}
+	for (const [kind, title] of ITEM_SECTIONS) {
+		const list = entries.filter((entry) => entry.kind === kind);
+		if (list.length > 0) {
+			rows.push(...(rows.length > 0 ? [spacer(kind)] : []), header(`h:${kind}`, title), ...list.map(catalogRow));
+		}
+	}
+	return rows;
+};
+
+export const ruleKeys = (row) => (row?.ruleFile ? [["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]] : []);
+
+// CLAUDE.md and rule files Claude Code loads every session (lib/rules.mjs), user then project, with their whole-file cost.
+export const ruleRows = (data) => {
+	if (data.rules.length === 0) {
+		return [{ id: "none:rules", label: "  (no CLAUDE.md or rule files)", details: ["No ~/.claude/CLAUDE.md, ~/.claude/rules/*.md, CLAUDE.md or .claude/rules/*.md was found.", "note: the Catalog tab can add a rule (~/.claude/rules) or a CLAUDE.md file."] }];
+	}
+	const rows = [header("h:rules", "Files", withCells([cell(seg("Cost", DIM), 5, "right"), cell(seg("Kind", DIM), 9)]))];
+	for (const [scope, title] of [["user", "User"], ["project", "This project"]]) {
+		const list = data.rules.filter((entry) => entry.scope === scope);
+		if (list.length > 0) {
+			rows.push(spacer(scope), header(`h:${scope}`, title));
+			rows.push(
+				...list.map((entry) => ({
+					id: `rule:${entry.id}`,
+					ruleFile: entry.path,
+					ruleTitle: entry.title,
+					label: `  ${entry.label}`,
+					...withCells([cell(cost(entry.tokens), 5, "right"), cell(seg(entry.kind === "rule" ? "rule" : "CLAUDE.md", DIM), 9)]),
+					details: [`file: ${entry.label}`, `scope: ${title}`, `kind: ${entry.kind === "rule" ? "rule" : "CLAUDE.md"}`, `tokens: ${tokens(entry.tokens)} (whole file)`, `path: ${entry.path}`, "note: loaded into every session of this scope; a rule with a paths: header loads only for matching files, which this estimate does not account for.", "toggle: x removes it (a copy is kept in the backups)"],
+					file: entry.path,
+				})),
+			);
+		}
 	}
 	return rows;
 };
@@ -200,7 +259,7 @@ export const backupRows = (data) =>
 				restorable: entry.kind === "removed" && Boolean(entry.from),
 				label: `  ${entry.name}`,
 				...withCells([cell(seg(entry.kind === "fix" ? "fix set" : "removed", DIM), 8), cell(seg(formatBytes(entry.bytes), DIM), 9, "right"), cell(seg(formatAge(entry.days), DIM), 6, "right")]),
-				details: [`backup: ${entry.id}`, `kind: ${entry.kind === "fix" ? "fix set" : "removed skill"}`, `made: ${entry.date}`, `size: ${formatBytes(entry.bytes)}`, `path: ${entry.path}`, ...(entry.from ? [`from: ${entry.from}`] : []), `note: ${entry.detail}`, entry.kind === "fix" ? "toggle: x deletes it for good" + (entry.undone ? "" : " (fix --undo can then no longer restore it)") : `toggle: ${entry.from ? "u moves it back (never overwrites), " : ""}x deletes it for good`],
+				details: [`backup: ${entry.id}`, `kind: ${entry.kind === "fix" ? "fix set" : entry.detail.replace(/,.*/, "")}`, `made: ${entry.date}`, `size: ${formatBytes(entry.bytes)}`, `path: ${entry.path}`, ...(entry.from ? [`from: ${entry.from}`] : []), `note: ${entry.detail}`, entry.kind === "fix" ? "toggle: x deletes it for good" + (entry.undone ? "" : " (fix --undo can then no longer restore it)") : `toggle: ${entry.from ? "u moves it back (never overwrites), " : ""}x deletes it for good`],
 			}));
 
 export const PLUGIN_NOTE = "applies to new sessions";

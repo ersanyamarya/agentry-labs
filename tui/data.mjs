@@ -11,6 +11,7 @@ import { createMcpEdit } from "../lib/mcp-edit.mjs";
 import { createMcpToggle } from "../lib/mcp-toggle.mjs";
 import { createPluginInstall } from "../lib/plugin-install.mjs";
 import { createPluginToggle } from "../lib/plugin-toggle.mjs";
+import { createRules } from "../lib/rules.mjs";
 import { createShelf } from "../lib/shelf.mjs";
 import { createStatus } from "../lib/status.mjs";
 
@@ -55,6 +56,7 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 			backups: attempt("backups", () => createBackups(paths, { ...noIo, now }).entries(), []),
 			parkedHooks: attempt("parked hooks", () => createHookToggle(paths).listParked(), []),
 			parked: attempt("parked", () => createMcpToggle(paths).listParked(), []),
+			rules: attempt("rules", () => createRules(paths, noIo).entries(), []),
 			groups: attempt("shelf", () => createShelf(paths, noIo).groups(), []),
 			catalog: attempt("catalog", () => {
 				const catalog = createCatalog(paths, { ...noIo, ...catalogOptions });
@@ -96,7 +98,7 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		return { ok: code === 0 && (dryRun ? lines.some((line) => line.startsWith("Would delete")) : true), text };
 	};
 
-	// The agentry-labs catalog: fetch (network, cached) and copy skills onto the shelf. Each returns { ok, text }.
+	// The agentry-labs catalog: fetch (network, cached), install its skills, agents, rules, CLAUDE.md files and MCP servers, update. Each returns { ok, text }.
 	const catalogFor = (dir, io) => createCatalog(makePaths(dir), { ...io, ...catalogOptions });
 	const refreshCatalog = async ({ dir }) => {
 		// one tick, so "Fetching..." can paint before the blocking git call
@@ -104,8 +106,18 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		const { code, lines } = await capture((io) => catalogFor(dir, io), (catalog) => catalog.refresh());
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
-	const addFromCatalog = async ({ dir, names, group, dryRun = false }) => {
-		const { code, lines } = await capture((io) => catalogFor(dir, io), (catalog) => catalog.add(names, { group, dryRun }));
+	// project: agents and MCP servers go to this project. A real run answers the engine's question with y (the UI asked already).
+	const addFromCatalog = async ({ dir, names, group, project, dryRun = false }) => {
+		const { code, lines } = await capture((io) => catalogFor(dir, io), (catalog) => catalog.add(names, { group, project, dryRun, yes: !dryRun }));
+		return { ok: code === 0, text: lines.join("\n").replace(/\n?Dry run: nothing written\./, "").trim() };
+	};
+	const updateFromCatalog = async ({ dir, names, dryRun = false }) => {
+		const { code, lines } = await capture((io) => catalogFor(dir, io), (catalog) => catalog.update(names, { dryRun, yes: !dryRun }));
+		return { ok: code === 0, text: lines.join("\n").replace(/\n?Dry run: nothing changed\./, "").trim() };
+	};
+	// CLAUDE.md and rule files (lib/rules.mjs): delete after a copy to the backups. Preview with dryRun.
+	const removeRule = async ({ dir, target, dryRun = false, backup = true }) => {
+		const { code, lines } = await capture((io) => createRules(makePaths(dir), { ...io, now }), (rules) => rules.remove(target, { dryRun, backup }));
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
@@ -208,5 +220,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, promoteSkill, demoteSkill, restoreBackup, pruneBackups, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewPluginInstall, applyPluginInstall, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewMcpAdd, applyMcpAdd, previewMcpSet, applyMcpSet, previewHook, applyHook, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, promoteSkill, demoteSkill, restoreBackup, pruneBackups, refreshCatalog, addFromCatalog, updateFromCatalog, removeRule, previewPlugin, applyPlugin, previewPluginInstall, applyPluginInstall, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewMcpAdd, applyMcpAdd, previewMcpSet, applyMcpSet, previewHook, applyHook, previewFix, applyFix, previewUndo, applyUndo };
 };

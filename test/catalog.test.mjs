@@ -58,7 +58,7 @@ describe("catalog", () => {
 
 	test("unknown skills and bad group names are refused", () => {
 		catalog("refresh");
-		assert.match(catalog("add", "nope").stderr, /No skill "nope" in the catalog/);
+		assert.match(catalog("add", "nope").stderr, /No item "nope" in the catalog/);
 		assert.match(catalog("add", "alpha", "--group", "a/b").stderr, /Not a usable group name/);
 	});
 

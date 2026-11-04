@@ -117,8 +117,15 @@ agentry backups delete <id>... [--yes]    # delete chosen backups; a fix set not
 agentry scan ~/ws --find-skill pdf        # every repo/worktree with .claude/skills/pdf, git-tracked ones marked
 agentry scan ~/ws --remove-skill pdf --dry-run   # delete that folder from each (no copy; shelf links are skipped)
 agentry catalog refresh                   # fetch the agentry-labs skill catalog (shallow git clone, cached)
-agentry catalog list                      # its skills by bundle, and where each is installed
-agentry catalog add run-fallow --group dev # copy a catalog skill onto the shelf (off); never overwrites
+agentry catalog list [--json]             # skills, agents, rules, CLAUDE.md files and MCP servers (kind/name), where each is installed, "outdated" when it differs
+agentry catalog add run-fallow --group dev # a skill goes onto the shelf (off); never overwrites
+agentry catalog add agent/super-planner [--project]   # agent -> ~/.claude/agents (or .claude/agents)
+agentry catalog add rule/context7          # rule -> ~/.claude/rules
+agentry catalog add claude-md/BASIC_CLAUDE # -> ./CLAUDE.md, refused when the project has one
+agentry catalog add mcp/trail --project --dry-run   # through `mcp add`: masked preview, backup, undo (--yes to apply)
+agentry catalog update --all --dry-run     # or <item>...; lists every file it overwrites, saves the old copy under backups/updated/, asks (--yes for scripts)
+agentry rules list [--json]                # CLAUDE.md and rule files loaded here, with tokens
+agentry rules remove CLAUDE.md [--dry-run] [--no-backup]   # delete one; a copy is kept in the backups
 ```
 
 `list` estimates each group's cost as the frontmatter `description` of its skills and agents, at about four characters
@@ -161,7 +168,7 @@ agentry ui                     # terminal UI (Ink); a bare `agentry` in a termin
 
 Start it from the project folder with `agentry ui`, or type a bare `agentry` in a terminal. It needs a terminal: without one it prints a message and exits `2`. The `p` picker switches to another repo (current repo, recent repos, then repos under the scan roots).
 
-- **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, Catalog, Backups, each with a count. A summary line under them shows the skill-description tokens every session pays and the problems found. A details pane beside the list shows the selected row; the footer lists only the keys that work on the current tab.
+- **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, Catalog, Backups, Rules, each with a count where the width allows (below about 120 columns only the first few show one). A summary line under them shows the skill-description tokens every session pays and the problems found. A details pane beside the list shows the selected row; the footer lists only the keys that work on the current tab.
 - **Copying:** on any preview or result, `c` copies its text (refusals and errors included) to the system clipboard (`pbcopy`, `clip`, `wl-copy` or `xclip`; otherwise the terminal's OSC 52 escape).
 - **Changes it can make** (all except the plain shelf toggle are previewed first and wait for `y`):
   - **Skills, shelf:** Each shelf row has two columns, **Project** (this project) and **Global**, each `● on`, `○ off` or `◐ partial`. `space` toggles the Project column of the selected row and `g` toggles the Global column; there is no mode to switch. Same as `agentry shelf on|off [--global]`.
@@ -175,7 +182,8 @@ Start it from the project folder with `agentry ui`, or type a bare `agentry` in 
   - **Hooks:** `space` on a hook from user, project or local settings previews turning it off: the entry moves out of the settings file into `~/.claude/agentry/parked-hooks.json` (mode 0600, raw command, so as sensitive as the settings file) and shows as `○ off`; `space` again puts it back in the same event and matcher group. `x` deletes it. Plugin hooks say the plugin manages them. Backed up, undo with `agentry fix --undo`; same as `agentry hook disable|enable|remove <id>` (ids come from `agentry hook list`: a hash of event, matcher and command).
   - **Skills, removing:** `x` on a shelved skill, a global skill folder or a project-only skill folder (`agentry shelf remove <skill> --project` on the CLI) previews the delete, saying whether a copy is kept; `y` copies the folder to `~/.claude/backups/agentry/removed/<time>/` and removes it (same as `agentry shelf remove`). `X` does the same but keeps no copy (`--no-backup`). It refuses while the skill is linked into a project.
   - **Backups:** the tab lists the fix sets and removed-skill copies with size and age. `u` previews moving a removed skill back (it never overwrites), `x` previews deleting the selected backup, `d` previews deleting every backup 30 or more days old; `y` applies, `c` copies the preview. Same as `agentry backups restore|delete|prune`. Deleting a fix set that is not undone yet ends `agentry fix --undo` for it, and the preview says so.
-  - **Catalog:** `f` fetches the agentry-labs repo (a shallow git clone under `~/.claude/cache/agentry/catalog`; the only network use), then the tab lists its skills by bundle with where each is installed. `i` previews and `y` copies a skill onto the shelf under its bundle name, off; turn it on from the Skills tab. `x` removes an installed one. Same as `agentry catalog`.
+  - **Catalog:** `f` fetches the agentry-labs repo (a shallow git clone under `~/.claude/cache/agentry/catalog`; the only network use), then the tab lists its skills by bundle, then agents, rules, CLAUDE.md files and MCP servers, with where each is installed. `i` previews and `y` installs the selected item: a skill onto the shelf under its bundle name (off; turn it on from the Skills tab), an agent into `~/.claude/agents`, a rule into `~/.claude/rules`, a CLAUDE.md file as the project's `CLAUDE.md` (refused when it has one), an MCP server through the MCP add path (masked preview, backup, undo). `o` does the same for an agent or MCP server in this project only. `outdated` marks an installed skill, agent or rule whose files differ from the cached clone; `u` previews each file it would overwrite or add (files only in your copy are kept) and `y` replaces them after saving the current copy under `~/.claude/backups/agentry/updated/`. Without a local edit you cannot tell an upstream change from your own edit, so the preview says every overwritten file loses local changes. `x` removes an installed skill. Same as `agentry catalog`.
+  - **Rules:** the CLAUDE.md and rule files Claude Code loads every session: `~/.claude/CLAUDE.md`, `~/.claude/rules/**/*.md`, the project's `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md` and `.claude/rules/**/*.md`, with the token cost of the whole file. `e` opens one; `x` previews removing it (a copy goes to the backups, so the Backups tab restores it) and `y` confirms; `X` keeps no copy. Same as `agentry rules`.
 - **Rows that cannot be toggled** say why in the status line and the details: global skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
 - **Hooks** list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
 
@@ -183,19 +191,19 @@ Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so noth
 
 | Key | Action |
 |---|---|
-| ← / →, 1-7 | switch tab |
+| ← / →, 1-8 | switch tab |
 | ↑ / ↓ | move between rows |
 | enter | details, expand a group, preview a fix |
 | space | Skills: shelf row on/off for this project; plugin rows: on/off; MCP: turn off (saved) / add back a user server |
 | g | Skills: shelf row on/off globally |
 | a | MCP: add a server; Skills: move a project-only skill to ~/.claude/skills (all projects) |
-| o | Skills: move a global skill into this project only |
+| o | Skills: move a global skill into this project only; Catalog: add an agent or MCP server to this project only |
 | s | Skills: move a global skill onto the shelf; MCP: edit env/args |
-| u | Skills: unshelve a skill; Doctor: undo the last fix set; Backups: restore a removed skill |
-| x | Skills, Catalog: remove a skill (previewed; a copy is kept in the backups); Backups: delete a backup; MCP, Hooks: remove; Plugins: uninstall |
-| X | Skills, Catalog: remove a skill and keep no copy |
+| u | Skills: unshelve a skill; Doctor: undo the last fix set; Backups: restore a removed skill; Catalog: update an outdated item |
+| x | Skills, Catalog: remove a skill, Rules: remove a file (previewed; a copy is kept in the backups); Backups: delete a backup; MCP, Hooks: remove; Plugins: uninstall |
+| X | Skills, Catalog, Rules: remove and keep no copy |
 | d | Backups: delete the backups 30+ days old |
-| i | Catalog: add the selected skill to the shelf, off; Plugins: install a plugin |
+| i | Catalog: install the selected item (skill to the shelf, off); Plugins: install a plugin |
 | f | Catalog: fetch or update the agentry-labs catalog |
 | e | open the selected row's file in $EDITOR |
 | y / n | confirm or cancel a previewed change; c copies the preview |

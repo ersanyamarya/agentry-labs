@@ -4,7 +4,7 @@ import { Box, Text } from "ink";
 const h = React.createElement;
 
 export const KEYS = [
-	["← / →, 1-7", "switch tab"],
+	["← / →, 1-8", "switch tab"],
 	["↑ / ↓", "move between rows"],
 	["enter", "details, expand a group, preview a fix"],
 	["space", "Skills: shelf row on/off for this project; plugin rows: on/off; MCP, Hooks: turn off (saved) / add back"],
@@ -12,12 +12,12 @@ export const KEYS = [
 	["g", "Skills: shelf row on/off globally"],
 	["s", "Skills: move a global skill onto the shelf; MCP: edit env/args of a user server"],
 	["a", "Skills: move a project-only skill to ~/.claude/skills (all projects)"],
-	["o", "Skills: move a global skill into this project only"],
-	["u", "Skills: unshelve a skill; Doctor: undo the last fix set; Backups: restore a removed skill"],
-	["x", "Skills, Catalog: remove a skill (a copy is kept in the backups); Backups: delete a backup; MCP, Hooks: remove; Plugins: uninstall"],
-	["X", "Skills, Catalog: remove a skill and keep no copy"],
+	["o", "Skills: move a global skill into this project only; Catalog: add an agent or MCP server to this project only"],
+	["u", "Skills: unshelve a skill; Doctor: undo the last fix set; Backups: restore a removed skill; Catalog: update an outdated item"],
+	["x", "Skills, Catalog: remove a skill (a copy is kept in the backups); Rules: remove a file; Backups: delete a backup; MCP, Hooks: remove; Plugins: uninstall"],
+	["X", "Skills, Catalog, Rules: remove and keep no copy"],
 	["d", "Backups: delete the backups 30+ days old"],
-	["i", "Catalog: add the selected skill to the shelf (off); Plugins: install a plugin"],
+	["i", "Catalog: add the selected skill (to the shelf, off), agent, rule, CLAUDE.md or MCP server; Plugins: install a plugin"],
 	["f", "Catalog: fetch or update the agentry-labs catalog"],
 	["e", "open the selected row's file in $EDITOR"],
 	["y / n", "confirm or cancel a previewed change; c copies the preview"],

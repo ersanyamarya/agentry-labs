@@ -15,6 +15,7 @@ import { createPluginInstall } from "../lib/plugin-install.mjs";
 import { createPluginToggle } from "../lib/plugin-toggle.mjs";
 import { createScan } from "../lib/scan.mjs";
 import { createCatalog } from "../lib/catalog.mjs";
+import { createRules } from "../lib/rules.mjs";
 import { createShelf } from "../lib/shelf.mjs";
 import { createStatus } from "../lib/status.mjs";
 
@@ -96,10 +97,22 @@ Commands:
                                       Delete backups for good: previewed, then asked (or --yes). Deleting a fix set
                                       that is not undone ends fix --undo for it
   catalog refresh                     Fetch the agentry-labs skill catalog (shallow git clone, cached)
-  catalog list [--json]               List the catalog's skills by bundle, with where each is installed
-  catalog add <skill>... [--group G] [--dry-run]
-                                      Copy skills from the catalog onto the shelf (default group: the skill's bundle),
-                                      off until you turn them on. Never overwrites
+  catalog list [--json]               List the catalog's skills, agents, rules, CLAUDE.md files and MCP servers (kind/name),
+                                      with where each is installed and "outdated" when the installed copy differs
+  catalog add <item>... [--group G] [--project] [--dry-run] [--yes]
+                                      Install from the catalog; never overwrites. A skill goes onto the shelf (default group:
+                                      its bundle), off; an agent to ~/.claude/agents (--project: .claude/agents); a rule to
+                                      ~/.claude/rules; a CLAUDE.md file to this project as CLAUDE.md (refused when it has
+                                      one); an MCP server through mcp add (user scope, --project: .mcp.json; --yes skips
+                                      its question). Items are kind/name (agent/super-planner); a bare name works if unique
+  catalog update <item>... | --all [--dry-run] [--yes]
+                                      Replace outdated installed skills, agents and rules with the catalog's copy: lists each
+                                      file it overwrites or adds, saves the current copy under ~/.claude/backups/agentry/updated/,
+                                      then asks (or --yes). Without a terminal it only previews unless --yes
+  rules list [--json]                 List the CLAUDE.md and rule files loaded for this project and the user, with tokens
+  rules remove <file> [--dry-run] [--no-backup]
+                                      Delete one of them (label as list shows it, a path, or a unique file name), keeping a copy
+                                      under ~/.claude/backups/agentry/removed/ unless --no-backup
   help                                Show this help
 
 A target is a group (video), group/skill (video/ffmpeg-install) or a skill name that is unique across groups.
@@ -112,10 +125,11 @@ Options:
       --only-problems  With scan: list only repos with findings
       --fix        With scan: apply the fixes instead of listing findings (see above)
       --no-cache   With scan: ignore and do not write the scan cache (~/.claude/cache/agentry)
-      --all        With shelf off: every shelf link instead of named targets
+      --all        With shelf off: every shelf link instead of named targets. With catalog update: every outdated item
       --dry-run    With shelf: print the links and exclude lines (or the move) a write would change. With fix: show the
                    preview only. Either way nothing is written
-      --no-backup  With shelf remove: keep no copy of the deleted skill
+      --no-backup  With shelf remove or rules remove: keep no copy of the deleted file
+      --project    With shelf remove: the project's skill folder. With catalog add: agents and MCP servers go to this project
       --older-than N  With backups prune: backups at least N days old
       --find-skill N, --remove-skill N  With scan: look for or delete .claude/skills/N in every repo found
       --scope S    With plugin: settings scope to edit (user, project, local); default: the scope that decides today.
@@ -162,6 +176,9 @@ Examples:
   agentry backups list
   agentry backups prune --older-than 30 --dry-run
   agentry shelf remove old-skill --no-backup --dry-run
+  agentry catalog add agent/super-planner --dry-run
+  agentry catalog update --all --dry-run
+  agentry rules list
   agentry fix --undo --list
   agentry fix --undo --yes`;
 
@@ -229,7 +246,7 @@ const runBackups = async (args, { json, all, "older-than": olderThan, "dry-run":
 	return usageError("Usage: agentry backups list [--json] | restore <id> [--dry-run] | delete <id>... [--dry-run] [--yes] | prune (--older-than <days> | --all) [--dry-run] [--yes]");
 };
 
-const runCatalog = async (args, { group, json, "dry-run": dryRun }) => {
+const runCatalog = async (args, { group, json, project, all, yes, "dry-run": dryRun }) => {
 	const [action, ...rest] = args;
 	const catalog = createCatalog(createPaths());
 	if (action === "refresh" && rest.length === 0) {
@@ -238,11 +255,28 @@ const runCatalog = async (args, { group, json, "dry-run": dryRun }) => {
 	if (action === "list" && rest.length === 0) {
 		return catalog.list({ json });
 	}
-	if (action === "add" && rest.length > 0) {
-		return catalog.add(rest, { group, dryRun });
+	if (yes && dryRun) {
+		return usageError("--yes and --dry-run cannot be used together");
 	}
-	console.error("Usage: agentry catalog refresh | list [--json] | add <skill>... [--group G] [--dry-run]");
-	return 2;
+	if (action === "add" && rest.length > 0) {
+		return catalog.add(rest, { group, project, dryRun, yes });
+	}
+	if (action === "update" && (all ? rest.length === 0 : rest.length > 0)) {
+		return catalog.update(rest, { all, dryRun, yes });
+	}
+	return usageError("Usage: agentry catalog refresh | list [--json] | add <item>... [--group G] [--project] [--dry-run] [--yes] | update <item>... | --all [--dry-run] [--yes]");
+};
+
+const runRules = (args, { json, "dry-run": dryRun, "no-backup": noBackup }) => {
+	const [action, target] = args;
+	const rules = createRules(createPaths());
+	if (action === "list" && args.length === 1) {
+		return rules.list({ json });
+	}
+	if (action === "remove" && target && args.length === 2) {
+		return rules.remove(target, { dryRun, backup: !noBackup });
+	}
+	return usageError("Usage: agentry rules list [--json] | remove <file> [--dry-run] [--no-backup]");
 };
 
 // Ink and React load here, on demand, so no other command pays for them.
@@ -448,6 +482,9 @@ const main = (argv) => {
 	}
 	if (command === "catalog") {
 		return runCatalog(rest, values);
+	}
+	if (command === "rules") {
+		return runRules(rest, values);
 	}
 	return usageError(`Unknown command: ${command}`);
 };
