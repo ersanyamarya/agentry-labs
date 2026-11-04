@@ -18,7 +18,7 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" post-edit || exit 0",
+						"command": "node \"${HOME}/.claude/helpers/trail-hooks.cjs\" post-edit || exit 0",
 						"timeout": 10,
 						"type": "command"
 					}
@@ -28,19 +28,19 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" tool-savings || exit 0",
+						"command": "node \"${HOME}/.claude/helpers/trail-hooks.cjs\" tool-savings || exit 0",
 						"timeout": 8,
 						"type": "command"
 					}
 				],
-				"matcher": "Bash|mcp__graft__|mcp__trail__|Read|Grep|Glob|Skill"
+				"matcher": "Bash|mcp__trail__|Read|Grep|Glob|Skill"
 			}
 		],
 		"PostToolUseFailure": [
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" post-bash-fail || exit 0",
+						"command": "node \"${HOME}/.claude/helpers/trail-hooks.cjs\" post-bash-fail || exit 0",
 						"timeout": 5,
 						"type": "command"
 					}
@@ -52,7 +52,7 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" pre-edit || exit 0",
+						"command": "node \"${HOME}/.claude/helpers/trail-hooks.cjs\" pre-edit || exit 0",
 						"timeout": 5,
 						"type": "command"
 					}
@@ -62,7 +62,7 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" pre-bash || exit 0",
+						"command": "node \"${HOME}/.claude/helpers/trail-hooks.cjs\" pre-bash || exit 0",
 						"timeout": 5,
 						"type": "command"
 					}
@@ -74,7 +74,7 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" session-end || exit 0",
+						"command": "node \"${HOME}/.claude/helpers/trail-hooks.cjs\" session-end || exit 0",
 						"timeout": 5,
 						"type": "command"
 					}
@@ -85,7 +85,7 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" session-start || exit 0",
+						"command": "node \"${HOME}/.claude/helpers/trail-hooks.cjs\" session-start || exit 0",
 						"timeout": 10,
 						"type": "command"
 					}
@@ -96,7 +96,7 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" stop || exit 0",
+						"command": "node \"${HOME}/.claude/helpers/trail-hooks.cjs\" stop || exit 0",
 						"timeout": 10,
 						"type": "command"
 					}
@@ -107,7 +107,7 @@
 			{
 				"hooks": [
 					{
-						"command": "node \"${HOME}/.claude/helpers/graft-hooks.cjs\" prompt || exit 0",
+						"command": "node \"${HOME}/.claude/helpers/trail-hooks.cjs\" prompt || exit 0",
 						"timeout": 15,
 						"type": "command"
 					}
@@ -116,11 +116,11 @@
 		]
 	},
 	"statusLine": {
-		"command": "node \"${HOME}/.claude/helpers/graft-statusline.cjs\"",
+		"command": "node \"${HOME}/.claude/helpers/trail-statusline.cjs\"",
 		"type": "command"
 	},
 	"subagentStatusLine": {
-		"command": "node \"${HOME}/.claude/helpers/graft-statusline.cjs\"",
+		"command": "node \"${HOME}/.claude/helpers/trail-statusline.cjs\"",
 		"type": "command"
 	}
 }

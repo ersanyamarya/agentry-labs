@@ -10,7 +10,7 @@ import { Panes } from "./list.mjs";
 
 const h = React.createElement;
 
-export const DoctorTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile }) => {
+export const DoctorTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile, copy }) => {
 	const rows = React.useMemo(() => doctorRows(data), [data]);
 	const { cursor, row, move } = useCursor(rows);
 	// null | { kind: "fix" | "undo", finding?, text, appliable } waiting for y/n | { kind: "result", ok, text }
@@ -40,6 +40,10 @@ export const DoctorTab = ({ data, api, dir, active, height, layout, notify, relo
 
 	useInput(
 		(input, key) => {
+			if (input === "c" && step) {
+				copy(step.text);
+				return;
+			}
 			if (waiting) {
 				if (input === "y" && step.appliable) {
 					confirm();
@@ -66,9 +70,9 @@ export const DoctorTab = ({ data, api, dir, active, height, layout, notify, relo
 	const lines = step
 		? step.kind === "result"
 			? step.text.split("\n")
-			: [...step.text.split("\n"), "", step.appliable ? `${step.kind === "undo" ? "Restore" : "Apply"} this? y = yes, n = cancel` : "Nothing can be applied here. n = close"]
+			: [...step.text.split("\n"), "", step.appliable ? `${step.kind === "undo" ? "Restore" : "Apply"} this? y = yes, n = cancel, c = copy` : "Nothing can be applied here. n = close, c = copy"]
 		: undefined;
-	const title = step ? (step.kind === "result" ? (step.ok ? "Result" : "Result (errors)") : step.kind === "undo" ? "Undo preview" : "Fix preview (dry run)") : "Details";
+	const title = step ? (step.kind === "result" ? (step.ok ? "Result (c = copy)" : "Result (errors, c = copy)") : step.kind === "undo" ? "Undo preview" : "Fix preview (dry run)") : "Details";
 	const style = useStyle();
 	const { error, warning, info } = data.doctor.summary;
 	return h(

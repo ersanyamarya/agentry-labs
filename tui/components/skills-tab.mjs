@@ -12,12 +12,12 @@ import { Legend } from "./legend.mjs";
 
 const h = React.createElement;
 
-export const SkillsTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile, setKeys }) => {
+export const SkillsTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile, setKeys, copy }) => {
 	const [expanded, setExpanded] = React.useState(() => new Set());
 	const rows = React.useMemo(() => skillRows(data, expanded), [data, expanded]);
 	const { cursor, row, move } = useCursor(rows);
 
-	const flow = useFlow({ lock, notify, reload });
+	const flow = useFlow({ lock, notify, reload, copy });
 	// The footer follows the selected row.
 	const keys = skillKeys(row);
 	React.useEffect(() => {
@@ -104,7 +104,7 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 			} else if (input === "g") {
 				toggle(true);
 			} else if (input === "x") {
-				row?.kind === "skill" ? startRemove({ api, dir, flow, target: row.target, label: row.target }) : row?.shelvable ? startRemove({ api, dir, flow, target: row.skill, label: `${row.skill} (global)` }) : notify("x removes a shelved skill or a global skill folder: select one.");
+				row?.kind === "skill" ? startRemove({ api, dir, flow, target: row.target, label: row.target }) : row?.projectOnly ? startRemove({ api, dir, flow, target: row.skill, project: true, label: `${row.skill} (project)` }) : row?.shelvable ? startRemove({ api, dir, flow, target: row.skill, label: `${row.skill} (global)` }) : notify("x removes a shelved, global or project-only skill folder: select one.");
 			} else if (input === "e") {
 				openFile(row?.file);
 			}

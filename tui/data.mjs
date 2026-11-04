@@ -66,14 +66,14 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 
 	// Moves a skill between ~/.claude/skills and the shelf with the shelf's own checks (no overwrite, refuses while linked).
 	// dryRun previews: nothing moves. Returns { ok, text }.
-	const moveSkill = async ({ dir, action, args, dryRun = false }) => {
-		const { code, lines } = await capture((io) => createShelf(makePaths(dir), io), (shelf) => shelf[action](...args, { dryRun }));
+	const moveSkill = async ({ dir, action, args, dryRun = false, options = {} }) => {
+		const { code, lines } = await capture((io) => createShelf(makePaths(dir), io), (shelf) => shelf[action](...args, { dryRun, ...options }));
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 	const shelveSkill = ({ dir, skill, group, dryRun }) => moveSkill({ dir, action: "shelve", args: [skill, group], dryRun });
 	const unshelveSkill = ({ dir, target, dryRun }) => moveSkill({ dir, action: "unshelve", args: [target], dryRun });
 	// Deletes a skill after copying it to the backups (see lib/shelf.mjs remove). Preview with dryRun.
-	const removeSkill = ({ dir, target, dryRun }) => moveSkill({ dir, action: "remove", args: [target], dryRun });
+	const removeSkill = ({ dir, target, dryRun, project }) => moveSkill({ dir, action: "remove", args: [target], dryRun, options: { project } });
 
 	// The agentry-labs catalog: fetch (network, cached) and copy skills onto the shelf. Each returns { ok, text }.
 	const catalogFor = (dir, io) => createCatalog(makePaths(dir), { ...io, ...catalogOptions });
@@ -105,6 +105,14 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 	const previewMcp = async ({ dir, name, enable }) => {
 		const { code, lines } = await capture((io) => mcpFor(dir, io), (toggle) => toggle.run({ name, enable, path: dir, dryRun: true }));
 		return { appliable: code === 0 && lines.some((line) => line.startsWith("[mcp-toggle]")), text: lines.join("\n").replace(/\n?Dry run: nothing written\./, "").trim() };
+	};
+	const previewMcpRemove = async ({ dir, name }) => {
+		const { code, lines } = await capture((io) => mcpFor(dir, io), (toggle) => toggle.remove({ name, path: dir, dryRun: true }));
+		return { appliable: code === 0 && lines.length > 0, text: lines.join("\n").replace(/\n?Dry run: nothing written\./, "").trim() };
+	};
+	const applyMcpRemove = async ({ dir, name }) => {
+		const { code, lines } = await capture((io) => mcpFor(dir, io), (toggle) => toggle.remove({ name, path: dir, yes: true }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 	const applyMcp = async ({ dir, name, enable }) => {
 		const { code, lines } = await capture((io) => mcpFor(dir, io), (toggle) => toggle.run({ name, enable, path: dir, yes: true }));
@@ -145,5 +153,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewMcp, applyMcp, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewFix, applyFix, previewUndo, applyUndo };
 };

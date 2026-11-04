@@ -85,7 +85,7 @@ describe("remove from the Skills tab", () => {
 
 	test("x on a shelved skill removes it from the shelf; on a group row it explains", async () => {
 		await ui.press("x");
-		await ui.until(/x removes a shelved skill or a global skill folder/);
+		await ui.until(/x removes a shelved, global or project-only skill folder/);
 		await ui.moveTo(/^>.* video/);
 		await ui.press(KEYS.enter);
 		await ui.moveTo(/^>\s+trim/);

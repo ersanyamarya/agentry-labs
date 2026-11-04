@@ -9,10 +9,10 @@ import { useCursor } from "../use-cursor.mjs";
 import { useFlow } from "../use-flow.mjs";
 import { Panes } from "./list.mjs";
 
-export const CatalogTab = ({ data, api, dir, active, height, layout, notify, reload, lock, setKeys }) => {
+export const CatalogTab = ({ data, api, dir, active, height, layout, notify, reload, lock, setKeys, copy }) => {
 	const rows = React.useMemo(() => catalogRows(data), [data]);
 	const { cursor, row, move } = useCursor(rows);
-	const flow = useFlow({ lock, notify, reload });
+	const flow = useFlow({ lock, notify, reload, copy });
 	const keys = catalogKeys(row);
 	React.useEffect(() => {
 		if (active) {

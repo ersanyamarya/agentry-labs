@@ -31,6 +31,9 @@ export const skillKeys = (row) => {
 	if (row?.plugin) {
 		return [["space", "enable/disable plugin", "on/off"]];
 	}
+	if (row?.projectOnly) {
+		return [["x", "remove"], ["e", "open file", "edit"]];
+	}
 	if (row?.shelvable) {
 		return [["s", "shelve"], ["x", "remove"], ["e", "open file", "edit"]];
 	}
@@ -120,7 +123,8 @@ export const skillRows = (data, expanded = new Set()) => {
 	const skillRow = (skill) => ({
 		id: `skill:${skill.scope}:${skill.source}`,
 		kind: skill.scope === "user" ? "global" : "loaded",
-		shelvable: skill.kind === "file",
+		shelvable: skill.kind === "file" && skill.scope === "user",
+		projectOnly: skill.kind === "file" && skill.scope === "project",
 		skill: skill.source.split("/").at(-1),
 		why: whyFixed(skill),
 		label: `  ${skill.name}`,
@@ -183,7 +187,7 @@ export const catalogRows = (data) => {
 
 export const PLUGIN_NOTE = "applies to new sessions";
 
-export const mcpKeys = (row) => [...(row?.mcp ? [["space", row.mcpEnable ? "add back" : "turn off (saved)", row.mcpEnable ? "add back" : "off"]] : []), ...(row?.file ? [["e", "open file", "edit"]] : [])];
+export const mcpKeys = (row) => [...(row?.mcp ? [["x", "remove"], ["space", row.mcpEnable ? (row.mcpProject ? "turn on here" : "add back") : row.mcpProject ? "turn off here" : "turn off (saved)", row.mcpEnable ? "on" : "off"]] : []), ...(row?.file ? [["e", "open file", "edit"]] : [])];
 export const HOOKS_KEYS = [["e", "open file", "edit"]];
 
 const MCP_WHY = {
@@ -199,14 +203,14 @@ export const mcpRows = (data) => [
 		const target = server.url ?? [server.command, ...(server.args ?? [])].join(" ");
 		const env = Object.entries(server.env ?? {}).map(([key, value]) => `env ${key}=${value}`);
 		const headers = Object.entries(server.headers ?? {}).map(([key, value]) => `header ${key}: ${value}`);
-		const mine = server.scope === "user";
+		const mine = server.scope === "user" || ["plugin", "project", "local"].includes(server.scope);
 		return {
 			id: `mcp:${server.scope}:${server.name}:${server.source}`,
 			label: server.name,
-			...(mine ? { mcp: server.name, mcpEnable: false } : { why: MCP_WHY[server.scope] }),
+			...(mine ? { mcp: server.name, mcpEnable: server.scope !== "user" && server.state === "disabled", mcpProject: server.scope !== "user" } : { why: MCP_WHY[server.scope] }),
 			...withCells([cell(scopeBadge(server.scope), 8), cell(badge(server.state), 16), cell(seg(server.transport, DIM), 5)]),
 			file: server.source,
-			details: [`server: ${server.name}`, `scope: ${server.scope}`, `state: ${badgeText(server.state)}`, `transport: ${server.transport}`, `${server.url ? "url" : "command"}: ${target}`, ...env, ...headers, `tokens: not measured (tool lists)`, `source: ${server.source}`, `toggle: ${mine ? "space turns it off (removes it from user scope, config saved); undo with agentry fix --undo" : MCP_WHY[server.scope] ?? "not managed here"}`],
+			details: [`server: ${server.name}`, `scope: ${server.scope}`, `state: ${badgeText(server.state)}`, `transport: ${server.transport}`, `${server.url ? "url" : "command"}: ${target}`, ...env, ...headers, `tokens: not measured (tool lists)`, `source: ${server.source}`, `toggle: ${mine ? (server.scope === "user" ? "space turns it off (removes it from user scope, config saved); undo with agentry fix --undo" : "space turns it off for this project only (disabledMcpServers in ~/.claude.json); space again turns it on") : MCP_WHY[server.scope] ?? "not managed here"}`],
 		};
 	}),
 	...(Array.isArray(data.parked) ? data.parked : []).map((entry) => ({

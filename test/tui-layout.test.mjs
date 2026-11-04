@@ -35,7 +35,7 @@ test("scope badges tag the rows", async () => {
 test("the footer lists only the keys of the current tab", async () => {
 	assert.match(ui.frame(), /space project {2}g global {2}enter expand/);
 	await ui.press("2");
-	await ui.until(/e open file/);
+	await ui.until(/e (open file|edit)/);
 	assert.doesNotMatch(ui.frame(), /s shelve/);
 	await ui.press("4");
 	await ui.until(/space on\/off/);

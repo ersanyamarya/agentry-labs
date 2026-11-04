@@ -66,10 +66,12 @@ describe("MCP tab: park and add back user-scope servers", () => {
 		await ui.until(/userdemo\s+global\s+● active/);
 	});
 
-	test("a project .mcp.json server explains who manages it instead of toggling", async () => {
+	test("a project .mcp.json server is turned off for this project from the tab", async () => {
 		await ui.moveTo(/^>\s*demo\s+project/);
 		await ui.press(KEYS.space);
-		await ui.until(/managed by the repo/);
+		await ui.until(/Turn off demo \(preview\)/);
+		await ui.press("y");
+		await ui.until(/demo is turned off/);
 		assert.deepEqual(fake.argv(), []);
 	});
 });

@@ -9,7 +9,7 @@
 
 import React from "react";
 
-export const useFlow = ({ lock, notify, reload }) => {
+export const useFlow = ({ lock, notify, reload, copy }) => {
 	const [step, setStep] = React.useState(null);
 	const [at, setAt] = React.useState(0);
 	const [text, setText] = React.useState("");
@@ -44,6 +44,10 @@ export const useFlow = ({ lock, notify, reload }) => {
 
 	// Returns true when the key was used by an open step.
 	const handleKey = (input, key) => {
+		if (input === "c" && copy && (step?.kind === "confirm" || step?.kind === "result")) {
+			copy(step.text);
+			return true;
+		}
 		if (!modal) {
 			return false;
 		}
@@ -83,10 +87,10 @@ export const useFlow = ({ lock, notify, reload }) => {
 	} else if (step?.kind === "name") {
 		lines = [...(step.intro ?? []), "", `${step.label}: ${text}_`, "", "enter confirm, esc cancel"];
 	} else if (step?.kind === "confirm") {
-		lines = [...step.text.split("\n"), "", step.appliable ? "Apply this? y = yes, n = cancel" : "Nothing can be applied here. n = close"];
+		lines = [...step.text.split("\n"), "", step.appliable ? "Apply this? y = yes, n = cancel, c = copy" : "Nothing can be applied here. n = close, c = copy"];
 	} else if (step?.kind === "result") {
 		lines = step.text.split("\n");
 	}
-	const title = step ? (step.kind === "result" ? (step.ok ? "Result" : "Result (errors)") : step.title) : undefined;
+	const title = step ? (step.kind === "result" ? (step.ok ? "Result (c = copy)" : "Result (errors, c = copy)") : step.title) : undefined;
 	return { step, lines, title, modal, begin, handleKey, clear: () => setStep(null) };
 };

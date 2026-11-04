@@ -23,7 +23,7 @@ export const squash = (text) => stripAnsi(text).replace(/[│┌┐└┘─╭�
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols: 100, rows: 60 }, fit = false, catalogRepo } = {}) => {
+export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols: 100, rows: 60 }, fit = false, catalogRepo, clipboard } = {}) => {
 	const fx = createFixture({ shelf: { audit: { skills: ["review"] }, video: { skills: ["trim", "ffmpeg-install"] } } });
 	assert.ok(!fx.root.startsWith(homedir()), "TMPDIR must be outside the home directory");
 	writeFileSync(join(fx.configDir, "skill-shelf/video/trim/SKILL.md"), `---\nname: trim\ndescription: ${"x".repeat(40)}\n---\n`);
@@ -55,6 +55,7 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols
 		discover: (roots) => finder.find(roots, { depth: 2 }),
 		env,
 		spawn,
+		clipboard,
 		...(fit ? {} : { size }),
 	};
 	const app = render(React.createElement(App, props));

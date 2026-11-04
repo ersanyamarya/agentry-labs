@@ -12,6 +12,7 @@ import { Picker, pickerRows } from "./components/picker.mjs";
 import { CatalogTab } from "./components/catalog-tab.mjs";
 import { SkillsTab } from "./components/skills-tab.mjs";
 import { TAB_NAMES, TabBar } from "./components/tab-bar.mjs";
+import { copyText } from "./clipboard.mjs";
 import { openInEditor } from "./editor.mjs";
 import { colorEnabled, ThemeContext } from "./theme.mjs";
 import { DOCTOR_KEYS, HOOKS_KEYS, hookRows, mcpRows, pluginRows, PLUGINS_KEYS } from "./rows.mjs";
@@ -22,7 +23,7 @@ const h = React.createElement;
 const TAB_KEYS = [[], [], HOOKS_KEYS, PLUGINS_KEYS, DOCTOR_KEYS, []];
 
 // `size` ({ cols, rows }) overrides the terminal size, for tests.
-export const App = ({ api, startDir, recents, discover, env = process.env, spawn, size }) => {
+export const App = ({ api, startDir, recents, discover, env = process.env, spawn, size, clipboard }) => {
 	const { exit } = useApp();
 	const { setRawMode } = useStdin();
 	const { stdout } = useStdout();
@@ -71,6 +72,8 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 			reload();
 		}
 	};
+
+	const copy = (text) => setMessage(copyText(text, clipboard).message);
 
 	const openPicker = () => {
 		const saved = recents.read();
@@ -121,7 +124,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 	// Chrome takes about 12 lines; stacked, the details block under the list takes about 10 more.
 	const height = Math.max(6, (size?.rows ?? dims.rows ?? 30) - 12 - (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0));
 	const counts = !data ? {} : { Skills: data.status.skills.items.length, MCP: data.status.mcp.servers.length, Hooks: data.status.hooks.items.length, Plugins: data.status.plugins.items.length, Doctor: data.doctor.findings.length, ...(data.catalog.fetched && { Catalog: data.catalog.entries.length }) };
-	const shared = { data, api, dir, height, layout, notify: setMessage, reload, lock, openFile };
+	const shared = { data, api, dir, height, layout, notify: setMessage, reload, lock, openFile, copy };
 	const keysFor = (index) => (keys) => setRowKeys((old) => (old.tab === index && old.keys.join() === keys.join() ? old : { tab: index, keys }));
 	const tabs = [
 		h(SkillsTab, { ...shared, setKeys: keysFor(0), active: tab === 0 && !overlay }),

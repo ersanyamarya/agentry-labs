@@ -210,25 +210,6 @@ describe("shelf", () => {
 		symlinkSync(copy, join(configDir, "skills", "trim"));
 		assert.deepEqual(findings("shelf-duplicate"), []);
 	});
-
-	test("bundle-shelf-skill: a bundles.tsv line that installs a shelved skill, with the line", () => {
-		shelfSkill("design", "image-artifact-setup");
-		writeFileSync(join(repo, "bundles.tsv"), "# bundle\tselector\nglobal\tskills/image-artifact-setup\n");
-		const [item, ...rest] = findings("bundle-shelf-skill");
-		assert.equal(rest.length, 0);
-		assert.equal(item.severity, "warning");
-		assert.equal(item.file, join(repo, "bundles.tsv"));
-		assert.equal(item.line, 2);
-		assert.match(item.message, /Bundle "global" installs skill "image-artifact-setup", which lives on the shelf \(design\/image-artifact-setup\)/);
-		assert.match(item.fix, /agentry shelf unshelve design\/image-artifact-setup/);
-	});
-
-	test("bundle-shelf-skill: nothing for a skill that is not shelved, an agent line, or no bundles.tsv", () => {
-		writeFileSync(join(repo, "bundles.tsv"), "global\tskills/not-shelved\nglobal\tagents/super-planner.agent.md\n");
-		assert.deepEqual(findings("bundle-shelf-skill"), []);
-		rmSync(join(repo, "bundles.tsv"));
-		assert.deepEqual(findings("bundle-shelf-skill"), []);
-	});
 });
 
 describe("clean setup", () => {

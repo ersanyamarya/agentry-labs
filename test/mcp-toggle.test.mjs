@@ -125,12 +125,44 @@ describe("refusals and usage", () => {
 		assert.match(mcp(["disable", "demo", "--yes"]).stderr, /already parked with a different config/);
 	});
 
-	test("servers other tools manage get an explanation, not a toggle", () => {
+	test("a project .mcp.json server is turned off for this project only, and back on again", () => {
 		writeFileSync(join(fx.repo, ".mcp.json"), JSON.stringify({ mcpServers: { fromrepo: { command: "echo" } } }));
-		const { status, stderr } = mcp(["disable", "fromrepo", "--yes"]);
-		assert.equal(status, 1);
-		assert.match(stderr, /managed by the repo \(\.mcp\.json\)/);
+		const off = mcp(["disable", "fromrepo", "--yes"]);
+		assert.equal(off.status, 0, off.stderr);
+		const projects = JSON.parse(readFileSync(claudeJson(), "utf8")).projects;
+		assert.deepEqual(Object.values(projects).map((project) => project.disabledMcpServers), [["fromrepo"]]);
+		assert.equal(mcp(["disable", "fromrepo", "--yes"]).status, 0);
+		const on = mcp(["enable", "fromrepo", "--yes"]);
+		assert.equal(on.status, 0, on.stderr);
+		assert.deepEqual(Object.values(JSON.parse(readFileSync(claudeJson(), "utf8")).projects).map((project) => project.disabledMcpServers), [[]]);
 		assert.deepEqual(fake.argv(), []);
+	});
+
+	test("remove deletes a project .mcp.json entry from the file, and a user server through claude mcp remove, without parking", () => {
+		writeFileSync(join(fx.repo, ".mcp.json"), JSON.stringify({ mcpServers: { fromrepo: { command: "echo" }, keep: { command: "echo" } } }));
+		const project = mcp(["remove", "fromrepo", "--yes"]);
+		assert.equal(project.status, 0, project.stderr);
+		assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(fx.repo, ".mcp.json"), "utf8")).mcpServers), ["keep"]);
+		const user = mcp(["remove", "demo", "--yes"]);
+		assert.equal(user.status, 0, user.stderr);
+		assert.deepEqual(fake.argv(), [["mcp", "remove", "demo", "--scope", "user"]]);
+		assert.equal(existsSync(parkedFile()), false);
+		assert.doesNotMatch(user.stdout + user.stderr, new RegExp(SECRET));
+	});
+
+	test("remove --dry-run changes nothing; a parked copy alone can be deleted", () => {
+		assert.equal(mcp(["remove", "demo", "--dry-run"]).status, 0);
+		assert.deepEqual(fake.argv(), []);
+		assert.equal(mcp(["disable", "demo", "--yes"]).status, 0);
+		assert.equal(mcp(["remove", "demo"]).status, 1);
+		assert.equal(mcp(["remove", "demo", "--yes"]).status, 0);
+		assert.deepEqual(Object.keys(JSON.parse(readFileSync(parkedFile(), "utf8")).servers), []);
+	});
+
+	test("desktop servers are still refused with who manages them", () => {
+		const { status, stderr } = mcp(["disable", "nothing-here", "--yes"]);
+		assert.equal(status, 1);
+		assert.match(stderr, /No user-scope MCP server/);
 	});
 
 	test("usage errors exit 2 and the help lists the commands", () => {

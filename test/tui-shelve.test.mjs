@@ -122,3 +122,17 @@ describe("unshelve and why a row cannot be toggled", () => {
 		await ui.until(/s shelves a global skill/);
 	});
 });
+
+describe("remove a project-only skill", () => {
+	test("x on a project skill previews and y deletes its folder; a linked one is refused", async () => {
+		ui = createUi();
+		await ui.ready();
+		await ui.moveTo(/^>\s+proj/);
+		await ui.press("x");
+		await ui.until(/would remove proj \(project\)/);
+		assert.ok(existsSync(join(ui.fx.repo, ".claude/skills/proj")), "a preview deletes nothing");
+		await ui.press("y");
+		await ui.until(/Removed proj \(project\)/);
+		assert.ok(!existsSync(join(ui.fx.repo, ".claude/skills/proj")));
+	});
+});

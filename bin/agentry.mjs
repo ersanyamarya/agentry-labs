@@ -39,11 +39,13 @@ Commands:
                                       Switch a plugin on or off by editing enabledPlugins in the settings file that
                                       decides it (or --scope's): previewed as a diff, backed up, undoable with fix
                                       --undo. Refuses when managed settings or a higher scope win. New sessions only
-  mcp disable|enable <name> [--dry-run] [--yes]
+  mcp disable|enable <name> [--dry-run] [--yes]   (plugin, project and local servers: off for this project only)
                                       Park a user-scope MCP server (save its config, then claude mcp remove) or add
                                       it back (claude mcp add-json) from the parked copy. Previewed with secrets
                                       masked, ~/.claude.json backed up first, undo with fix --undo. Other scopes are
                                       refused. Parked configs hold secrets in <config>/agentry/parked-mcp.json (0600)
+  mcp remove <name> [--dry-run] [--yes]
+                                      Delete a user, local or project (.mcp.json) server for good, or a parked copy.
   mcp list-parked                     List the parked servers (names and masked summaries only)
   ui                                  Open the terminal UI (needs a terminal)
   shelf list                          List shelf groups, their token cost and whether each is on
@@ -53,7 +55,7 @@ Commands:
   shelf off --all [--global]          Remove every shelf link in this project (or ~/.claude)
   shelf shelve <skill> <group>        Move ~/.claude/skills/<skill> onto the shelf
   shelf unshelve <skill>              Move a shelved skill back to ~/.claude/skills
-  shelf remove <skill>                Delete a shelved skill or ~/.claude/skills/<skill>, keeping a copy under
+  shelf remove <skill> [--project]    Delete a shelved skill or ~/.claude/skills/<skill> (--project: .claude/skills/<skill> here), keeping a copy under
                                       ~/.claude/backups/agentry/removed/<time>/ (refuses while it is linked)
   catalog refresh                     Fetch the agentry-labs skill catalog (shallow git clone, cached)
   catalog list [--json]               List the catalog's skills by bundle, with where each is installed
@@ -106,14 +108,14 @@ Examples:
   agentry fix --undo --yes`;
 
 const SHELF_USAGE =
-	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | remove <skill> [--dry-run]";
+	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | remove <skill> [--project] [--dry-run]";
 
 const usageError = (message) => {
 	console.error(`${message}\n\n${USAGE}`);
 	return 2;
 };
 
-const runShelf = (args, { global, json, all, "dry-run": dryRun }) => {
+const runShelf = (args, { global, json, all, project, "dry-run": dryRun }) => {
 	const [action, ...rest] = args;
 	const shelf = createShelf(createPaths());
 	if (action === "list") {
@@ -135,7 +137,7 @@ const runShelf = (args, { global, json, all, "dry-run": dryRun }) => {
 		return shelf.unshelve(rest[0], { dryRun });
 	}
 	if (action === "remove" && rest.length === 1) {
-		return shelf.remove(rest[0], { dryRun });
+		return shelf.remove(rest[0], { dryRun, project });
 	}
 	console.error(SHELF_USAGE);
 	return 2;
@@ -190,6 +192,7 @@ const main = (argv) => {
 				"only-problems": { type: "boolean" },
 				"no-cache": { type: "boolean" },
 				"dry-run": { type: "boolean" },
+				project: { type: "boolean" },
 				yes: { type: "boolean", short: "y" },
 				undo: { type: "boolean" },
 				list: { type: "boolean" },
@@ -291,13 +294,14 @@ const main = (argv) => {
 			parked.forEach((entry) => console.log(`${entry.name}  parked ${entry.parkedAt ?? ""}  ${entry.summary}`));
 			return 0;
 		}
-		if ((action !== "enable" && action !== "disable") || !name || rest.length > 2 || values.json) {
-			return usageError("Usage: agentry mcp disable|enable <name> [--dry-run] [--yes] | agentry mcp list-parked");
+		if ((action !== "enable" && action !== "disable" && action !== "remove") || !name || rest.length > 2 || values.json) {
+			return usageError("Usage: agentry mcp disable|enable|remove <name> [--dry-run] [--yes] | agentry mcp list-parked");
 		}
 		if (values.yes && values["dry-run"]) {
 			return usageError("--yes and --dry-run cannot be used together");
 		}
-		return createMcpToggle(createPaths()).run({ name, enable: action === "enable", yes: values.yes, dryRun: values["dry-run"] });
+		const toggle = createMcpToggle(createPaths());
+		return action === "remove" ? toggle.remove({ name, yes: values.yes, dryRun: values["dry-run"] }) : toggle.run({ name, enable: action === "enable", yes: values.yes, dryRun: values["dry-run"] });
 	}
 	if (command === "shelf") {
 		return runShelf(rest, values);
