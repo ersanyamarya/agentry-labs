@@ -3,6 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
+import { createBackups } from "../lib/backups.mjs";
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix } from "../lib/fix.mjs";
 import { createFixUndo } from "../lib/fix-undo.mjs";
@@ -29,6 +30,12 @@ Commands:
                                       then each repo with findings, previewed and confirmed per repo, with the files
                                       git tracks marked. Backups and undo as for fix. Without a terminal it only
                                       previews unless --yes
+  scan [roots...] --find-skill <name> [--json]
+                                      List every repo and worktree under the roots with .claude/skills/<name>,
+                                      marking the ones git tracks
+  scan [roots...] --remove-skill <name> [--dry-run] [--yes]
+                                      Delete that folder from each of them (previewed; no copy kept; shelf links are
+                                      skipped). Without a terminal it only previews unless --yes
   fix [path] [--dry-run] [--yes]      Preview doctor's automatic fixes as a diff per file (secrets masked), ask, back
                                       each file up under ~/.claude/backups/agentry/<time>/, write, then re-run doctor
                                       to confirm each finding is gone. Without a terminal it only previews unless --yes
@@ -55,8 +62,15 @@ Commands:
   shelf off --all [--global]          Remove every shelf link in this project (or ~/.claude)
   shelf shelve <skill> <group>        Move ~/.claude/skills/<skill> onto the shelf
   shelf unshelve <skill>              Move a shelved skill back to ~/.claude/skills
-  shelf remove <skill> [--project]    Delete a shelved skill or ~/.claude/skills/<skill> (--project: .claude/skills/<skill> here), keeping a copy under
-                                      ~/.claude/backups/agentry/removed/<time>/ (refuses while it is linked)
+  shelf remove <skill> [--project] [--no-backup]
+                                      Delete a shelved skill or ~/.claude/skills/<skill> (--project: .claude/skills/<skill> here), keeping a copy under
+                                      ~/.claude/backups/agentry/removed/<time>/ unless --no-backup (refuses while it is linked)
+  backups list [--json]               List the fix backup sets and the removed-skill copies with size and age
+  backups restore <id> [--dry-run]    Move a removed skill's copy back where it came from (never overwrites)
+  backups delete <id>... [--dry-run] [--yes]
+  backups prune --older-than <days> | --all [--dry-run] [--yes]
+                                      Delete backups for good: previewed, then asked (or --yes). Deleting a fix set
+                                      that is not undone ends fix --undo for it
   catalog refresh                     Fetch the agentry-labs skill catalog (shallow git clone, cached)
   catalog list [--json]               List the catalog's skills by bundle, with where each is installed
   catalog add <skill>... [--group G] [--dry-run]
@@ -77,6 +91,9 @@ Options:
       --all        With shelf off: every shelf link instead of named targets
       --dry-run    With shelf: print the links and exclude lines a write would change. With fix: show the
                    preview only. Either way nothing is written
+      --no-backup  With shelf remove: keep no copy of the deleted skill
+      --older-than N  With backups prune: backups at least N days old
+      --find-skill N, --remove-skill N  With scan: look for or delete .claude/skills/N in every repo found
       --scope S    With plugin: settings scope to edit (user, project, local); default: the scope that decides today
   -y, --yes        With fix or plugin: apply without asking (for scripts); exit 1 if a fix or its verification fails
       --undo       With fix: undo a backup set instead of fixing (see above)
@@ -104,18 +121,23 @@ Examples:
   agentry plugin enable demo@market --scope user --yes
   agentry mcp disable context7 --dry-run
   agentry mcp enable context7 --yes
+  agentry scan ~/ws --find-skill old-skill
+  agentry scan ~/ws --remove-skill old-skill --dry-run
+  agentry backups list
+  agentry backups prune --older-than 30 --dry-run
+  agentry shelf remove old-skill --no-backup --dry-run
   agentry fix --undo --list
   agentry fix --undo --yes`;
 
 const SHELF_USAGE =
-	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | remove <skill> [--project] [--dry-run]";
+	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | remove <skill> [--project] [--no-backup] [--dry-run]";
 
 const usageError = (message) => {
 	console.error(`${message}\n\n${USAGE}`);
 	return 2;
 };
 
-const runShelf = (args, { global, json, all, project, "dry-run": dryRun }) => {
+const runShelf = (args, { global, json, all, project, "no-backup": noBackup, "dry-run": dryRun }) => {
 	const [action, ...rest] = args;
 	const shelf = createShelf(createPaths());
 	if (action === "list") {
@@ -137,10 +159,35 @@ const runShelf = (args, { global, json, all, project, "dry-run": dryRun }) => {
 		return shelf.unshelve(rest[0], { dryRun });
 	}
 	if (action === "remove" && rest.length === 1) {
-		return shelf.remove(rest[0], { dryRun, project });
+		return shelf.remove(rest[0], { dryRun, project, backup: !noBackup });
 	}
 	console.error(SHELF_USAGE);
 	return 2;
+};
+
+const runBackups = async (args, { json, all, "older-than": olderThan, "dry-run": dryRun, yes }) => {
+	const [action, ...rest] = args;
+	const backups = createBackups(createPaths());
+	if (yes && dryRun) {
+		return usageError("--yes and --dry-run cannot be used together");
+	}
+	if (action === "list" && rest.length === 0) {
+		return backups.list({ json });
+	}
+	if (action === "restore" && rest.length === 1) {
+		return backups.restore(rest[0], { dryRun });
+	}
+	if (action === "delete" && rest.length > 0) {
+		return backups.prune({ ids: rest, dryRun, yes });
+	}
+	if (action === "prune" && rest.length === 0 && Boolean(all) !== (olderThan !== undefined)) {
+		const days = olderThan === undefined ? undefined : Number(olderThan);
+		if (olderThan !== undefined && !(Number.isFinite(days) && days >= 0)) {
+			return usageError("--older-than needs a number of days (0 or more)");
+		}
+		return backups.prune({ olderThan: days, all, dryRun, yes });
+	}
+	return usageError("Usage: agentry backups list [--json] | restore <id> [--dry-run] | delete <id>... [--dry-run] [--yes] | prune (--older-than <days> | --all) [--dry-run] [--yes]");
 };
 
 const runCatalog = async (args, { group, json, "dry-run": dryRun }) => {
@@ -199,6 +246,10 @@ const main = (argv) => {
 				force: { type: "boolean" },
 				fix: { type: "boolean" },
 				scope: { type: "string" },
+				"no-backup": { type: "boolean" },
+				"older-than": { type: "string" },
+				"find-skill": { type: "string" },
+				"remove-skill": { type: "string" },
 				group: { type: "string" },
 			},
 		});
@@ -240,6 +291,23 @@ const main = (argv) => {
 		const depth = values.depth === undefined ? 4 : Number(values.depth);
 		if (!Number.isInteger(depth) || depth < 0) {
 			return usageError("--depth needs a whole number of 0 or more");
+		}
+		const [findName, removeName] = [values["find-skill"], values["remove-skill"]];
+		if ((findName !== undefined && (removeName !== undefined || values.fix)) || (removeName !== undefined && values.fix)) {
+			return usageError("Use one of --fix, --find-skill and --remove-skill");
+		}
+		if (findName !== undefined || removeName !== undefined) {
+			const scan = createScan(createPaths({ memoize: true }));
+			if (findName !== undefined) {
+				return (values.yes || values["dry-run"]) ? usageError("--find-skill only lists; --yes and --dry-run go with --remove-skill") : scan.runFindSkill({ roots: rest, depth, name: findName, json: values.json });
+			}
+			if (values.json) {
+				return usageError("--remove-skill takes no --json");
+			}
+			if (values.yes && values["dry-run"]) {
+				return usageError("--yes and --dry-run cannot be used together");
+			}
+			return scan.runRemoveSkill({ roots: rest, depth, name: removeName, yes: values.yes, dryRun: values["dry-run"] });
 		}
 		if ((values.yes || values["dry-run"]) && !values.fix) {
 			return usageError("--yes and --dry-run go with scan --fix");
@@ -305,6 +373,9 @@ const main = (argv) => {
 	}
 	if (command === "shelf") {
 		return runShelf(rest, values);
+	}
+	if (command === "backups") {
+		return runBackups(rest, values);
 	}
 	if (command === "catalog") {
 		return runCatalog(rest, values);

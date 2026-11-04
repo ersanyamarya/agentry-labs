@@ -6,7 +6,7 @@ import { badgeText, stateStyle, useStyle } from "../theme.mjs";
 
 const h = React.createElement;
 
-export const TAB_NAMES = ["Skills", "MCP", "Hooks", "Plugins", "Doctor", "Catalog"];
+export const TAB_NAMES = ["Skills", "MCP", "Hooks", "Plugins", "Doctor", "Catalog", "Backups"];
 
 const problems = ({ error = 0, warning = 0 }) => (error + warning === 0 ? { text: "no problems", color: "green" } : { text: `${error} error${error === 1 ? "" : "s"}, ${warning} warning${warning === 1 ? "" : "s"}`, color: error > 0 ? "red" : "yellow" });
 

@@ -1,6 +1,7 @@
 // The UI's only door to lib/: every read and every action goes through the same functions the CLI uses.
 // `makePaths(dir)` builds the paths for one project folder; options reach the lib factories so tests can inject fixtures.
 
+import { createBackups } from "../lib/backups.mjs";
 import { createCatalog } from "../lib/catalog.mjs";
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix, findingKey } from "../lib/fix.mjs";
@@ -48,6 +49,7 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 				errors: [],
 			}),
 			doctor: attempt("doctor", () => doctorFor(paths).collect(dir), { findings: [], summary: { error: 0, warning: 0, info: 0 }, errors: [] }),
+			backups: attempt("backups", () => createBackups(paths, { ...noIo, now }).entries(), []),
 			parked: attempt("parked", () => createMcpToggle(paths).listParked(), []),
 			groups: attempt("shelf", () => createShelf(paths, noIo).groups(), []),
 			catalog: attempt("catalog", () => {
@@ -73,7 +75,19 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 	const shelveSkill = ({ dir, skill, group, dryRun }) => moveSkill({ dir, action: "shelve", args: [skill, group], dryRun });
 	const unshelveSkill = ({ dir, target, dryRun }) => moveSkill({ dir, action: "unshelve", args: [target], dryRun });
 	// Deletes a skill after copying it to the backups (see lib/shelf.mjs remove). Preview with dryRun.
-	const removeSkill = ({ dir, target, dryRun, project }) => moveSkill({ dir, action: "remove", args: [target], dryRun, options: { project } });
+	const removeSkill = ({ dir, target, dryRun, project, backup = true }) => moveSkill({ dir, action: "remove", args: [target], dryRun, options: { project, backup } });
+
+	// Backups manager (lib/backups.mjs): restore a removed skill, delete or prune backups. Previews are the lib's own dry run.
+	const backupsFor = (dir, io) => createBackups(makePaths(dir), { ...io, now });
+	const restoreBackup = async ({ dir, id, dryRun = false }) => {
+		const { code, lines } = await capture((io) => backupsFor(dir, io), (backups) => backups.restore(id, { dryRun }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
+	};
+	const pruneBackups = async ({ dir, ids, olderThan, all, dryRun = false }) => {
+		const { code, lines } = await capture((io) => backupsFor(dir, io), (backups) => backups.prune({ ids, olderThan, all, dryRun, yes: !dryRun }));
+		const text = lines.join("\n").replace(/\n?Dry run: nothing deleted\./, "").trim();
+		return { ok: code === 0 && (dryRun ? lines.some((line) => line.startsWith("Would delete")) : true), text };
+	};
 
 	// The agentry-labs catalog: fetch (network, cached) and copy skills onto the shelf. Each returns { ok, text }.
 	const catalogFor = (dir, io) => createCatalog(makePaths(dir), { ...io, ...catalogOptions });
@@ -153,5 +167,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, restoreBackup, pruneBackups, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewFix, applyFix, previewUndo, applyUndo };
 };

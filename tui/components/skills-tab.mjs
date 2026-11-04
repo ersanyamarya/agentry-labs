@@ -103,8 +103,9 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 				toggle();
 			} else if (input === "g") {
 				toggle(true);
-			} else if (input === "x") {
-				row?.kind === "skill" ? startRemove({ api, dir, flow, target: row.target, label: row.target }) : row?.projectOnly ? startRemove({ api, dir, flow, target: row.skill, project: true, label: `${row.skill} (project)` }) : row?.shelvable ? startRemove({ api, dir, flow, target: row.skill, label: `${row.skill} (global)` }) : notify("x removes a shelved, global or project-only skill folder: select one.");
+			} else if (input === "x" || input === "X") {
+				const backup = input === "x";
+				row?.kind === "skill" ? startRemove({ api, dir, flow, backup, target: row.target, label: row.target }) : row?.projectOnly ? startRemove({ api, dir, flow, backup, target: row.skill, project: true, label: `${row.skill} (project)` }) : row?.shelvable ? startRemove({ api, dir, flow, backup, target: row.skill, label: `${row.skill} (global)` }) : notify("x removes a shelved, global or project-only skill folder (X keeps no copy): select one.");
 			} else if (input === "e") {
 				openFile(row?.file);
 			}

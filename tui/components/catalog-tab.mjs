@@ -45,8 +45,8 @@ export const CatalogTab = ({ data, api, dir, active, height, layout, notify, rel
 				fetchCatalog();
 			} else if (input === "i" && row?.kind === "catalog") {
 				row.installed ? notify(`${row.skill} is already installed (${row.installed}).`) : startAdd();
-			} else if (input === "x" && row?.kind === "catalog") {
-				row.installed ? startRemove({ api, dir, flow, target: row.target, label: row.target }) : notify(`${row.skill} is not installed.`);
+			} else if ((input === "x" || input === "X") && row?.kind === "catalog") {
+				row.installed ? startRemove({ api, dir, flow, backup: input === "x", target: row.target, label: row.target }) : notify(`${row.skill} is not installed.`);
 			}
 		},
 		{ isActive: active },

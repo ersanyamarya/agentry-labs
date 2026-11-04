@@ -3,6 +3,7 @@
 // is the same text without colour. Everything shown here already passed through lib/mask.mjs (the inventory readers
 // mask before returning).
 
+import { formatAge, formatBytes } from "../lib/backups.mjs";
 import { badgeText, costStyle, plain, SCOPE_NAMES, scopeStyle, seg, SEVERITY, stateStyle } from "./theme.mjs";
 
 const tokens = (count) => (count === null || count === undefined ? "-" : `~${count}`);
@@ -26,16 +27,16 @@ export const skillKeys = (row) => {
 		return [...both, ["enter", "expand"]];
 	}
 	if (row?.kind === "skill") {
-		return [...both, ["u", "unshelve"], ["x", "remove"], ["e", "open file", "edit"]];
+		return [...both, ["u", "unshelve"], ["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]];
 	}
 	if (row?.plugin) {
 		return [["space", "enable/disable plugin", "on/off"]];
 	}
 	if (row?.projectOnly) {
-		return [["x", "remove"], ["e", "open file", "edit"]];
+		return [["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]];
 	}
 	if (row?.shelvable) {
-		return [["s", "shelve"], ["x", "remove"], ["e", "open file", "edit"]];
+		return [["s", "shelve"], ["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]];
 	}
 	return row?.file ? [["e", "open file", "edit"]] : [];
 };
@@ -154,7 +155,7 @@ export const catalogKeys = (row) => {
 	if (row?.kind !== "catalog") {
 		return [["f", "fetch catalog", "fetch"]];
 	}
-	return [...(row.installed ? [["x", "remove"]] : [["i", "add to shelf", "add"]]), ["f", "update catalog", "fetch"]];
+	return [...(row.installed ? [["x", "remove"], ["X", "remove, no copy", "no copy"]] : [["i", "add to shelf", "add"]]), ["f", "update catalog", "fetch"]];
 };
 
 // The agentry-labs skills by bundle; installed ones show where they are.
@@ -184,6 +185,23 @@ export const catalogRows = (data) => {
 	}
 	return rows;
 };
+
+export const BACKUPS_KEYS = [["d", "delete 30+ days old", "prune"]];
+
+export const backupKeys = (row) => [...(row?.backup ? [...(row.restorable ? [["u", "restore"]] : []), ["x", "delete"]] : []), ...BACKUPS_KEYS];
+
+// Fix sets and removed-skill copies, newest first.
+export const backupRows = (data) =>
+	data.backups.length === 0
+		? [{ id: "none:backups", label: "  (no backups)", details: ["Nothing is kept under ~/.claude/backups/agentry yet.", "note: fixes (agentry fix) and skill removals leave a copy here; this tab restores or deletes them."] }]
+		: data.backups.map((entry) => ({
+				id: `backup:${entry.id}`,
+				backup: entry.id,
+				restorable: entry.kind === "removed" && Boolean(entry.from),
+				label: `  ${entry.name}`,
+				...withCells([cell(seg(entry.kind === "fix" ? "fix set" : "removed", DIM), 8), cell(seg(formatBytes(entry.bytes), DIM), 9, "right"), cell(seg(formatAge(entry.days), DIM), 6, "right")]),
+				details: [`backup: ${entry.id}`, `kind: ${entry.kind === "fix" ? "fix set" : "removed skill"}`, `made: ${entry.date}`, `size: ${formatBytes(entry.bytes)}`, `path: ${entry.path}`, ...(entry.from ? [`from: ${entry.from}`] : []), `note: ${entry.detail}`, entry.kind === "fix" ? "toggle: x deletes it for good" + (entry.undone ? "" : " (fix --undo can then no longer restore it)") : `toggle: ${entry.from ? "u moves it back (never overwrites), " : ""}x deletes it for good`],
+			}));
 
 export const PLUGIN_NOTE = "applies to new sessions";
 

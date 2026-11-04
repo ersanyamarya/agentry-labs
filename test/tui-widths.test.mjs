@@ -1,4 +1,4 @@
-// The layout at 80, 100 and 130 columns on all five tabs: no line wider than the terminal, state badges whole, frames stable.
+// The layout at 80, 100 and 130 columns on every tab: no line wider than the terminal, state badges whole, frames stable.
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { KEYS, createUi, stripAnsi } from "./helpers/tui.mjs";
@@ -6,7 +6,7 @@ import { KEYS, createUi, stripAnsi } from "./helpers/tui.mjs";
 let ui;
 afterEach(() => ui?.stop());
 
-const TABS = ["1", "2", "3", "4", "5"];
+const TABS = ["1", "2", "3", "4", "5", "6", "7"];
 const lines = () => stripAnsi(ui.frame()).split("\n");
 
 for (const cols of [80, 100, 130]) {
