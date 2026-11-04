@@ -39,7 +39,7 @@ Remember, before writing any code:
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
 ├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
 ├── bin/                 # agentry CLI entry and command router (shelf, plugin, mcp, status, doctor, scan, fix, ui)
-├── lib/                 # CLI modules: shelf.mjs, status.mjs, doctor.mjs, scan.mjs, fix.mjs, plugin-toggle.mjs, mcp-toggle.mjs, json-edit.mjs, tokens.mjs, mask.mjs, inventory/
+├── lib/                 # CLI modules: shelf.mjs, catalog.mjs, status.mjs, doctor.mjs, scan.mjs, fix.mjs, plugin-toggle.mjs, mcp-toggle.mjs, json-edit.mjs, tokens.mjs, mask.mjs, inventory/
 ├── tui/                 # agentry ui: Ink terminal UI (app, data, rows, components/); loaded lazily by bin/agentry.mjs
 ├── docs/                # design plans (shelf-cli-plan.md) and the config-sources spec (claude-config-sources.md)
 ├── test/                # node:test suites for the CLI (npm test)

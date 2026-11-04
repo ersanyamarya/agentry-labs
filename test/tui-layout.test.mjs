@@ -60,6 +60,6 @@ test("the help overlay lists the new keys and the colour legend", async () => {
 
 test("the footer follows the selected row: a global skill offers shelve and open, not the on/off keys", async () => {
 	await ui.moveTo(/^>\s+notes/);
-	assert.match(ui.frame(), /s shelve {2}e (open file|edit)/);
+	assert.match(ui.frame(), /s shelve {2}x remove {2}e (open file|edit)/);
 	assert.doesNotMatch(ui.frame(), /space project/);
 });

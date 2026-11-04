@@ -9,6 +9,7 @@ import { DoctorTab } from "./components/doctor-tab.mjs";
 import { Help } from "./components/help.mjs";
 import { InventoryTab } from "./components/inventory-tab.mjs";
 import { Picker, pickerRows } from "./components/picker.mjs";
+import { CatalogTab } from "./components/catalog-tab.mjs";
 import { SkillsTab } from "./components/skills-tab.mjs";
 import { TAB_NAMES, TabBar } from "./components/tab-bar.mjs";
 import { openInEditor } from "./editor.mjs";
@@ -18,7 +19,7 @@ import { DOCTOR_KEYS, HOOKS_KEYS, hookRows, mcpRows, pluginRows, PLUGINS_KEYS } 
 const h = React.createElement;
 
 // Skills and MCP report the keys of their selected row (setKeys); the others use a fixed list.
-const TAB_KEYS = [[], [], HOOKS_KEYS, PLUGINS_KEYS, DOCTOR_KEYS];
+const TAB_KEYS = [[], [], HOOKS_KEYS, PLUGINS_KEYS, DOCTOR_KEYS, []];
 
 // `size` ({ cols, rows }) overrides the terminal size, for tests.
 export const App = ({ api, startDir, recents, discover, env = process.env, spawn, size }) => {
@@ -102,7 +103,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 			} else if (key.rightArrow) {
 				setTab((tab + 1) % TAB_NAMES.length);
 				setMessage("");
-			} else if (/^[1-5]$/.test(input)) {
+			} else if (/^[1-6]$/.test(input)) {
 				setTab(Number(input) - 1);
 				setMessage("");
 			} else if (input === "r") {
@@ -119,7 +120,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 	const layout = layoutFor(size?.cols ?? dims.cols ?? 100);
 	// Chrome takes about 12 lines; stacked, the details block under the list takes about 10 more.
 	const height = Math.max(6, (size?.rows ?? dims.rows ?? 30) - 12 - (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0));
-	const counts = !data ? {} : { Skills: data.status.skills.items.length, MCP: data.status.mcp.servers.length, Hooks: data.status.hooks.items.length, Plugins: data.status.plugins.items.length, Doctor: data.doctor.findings.length };
+	const counts = !data ? {} : { Skills: data.status.skills.items.length, MCP: data.status.mcp.servers.length, Hooks: data.status.hooks.items.length, Plugins: data.status.plugins.items.length, Doctor: data.doctor.findings.length, ...(data.catalog.fetched && { Catalog: data.catalog.entries.length }) };
 	const shared = { data, api, dir, height, layout, notify: setMessage, reload, lock, openFile };
 	const keysFor = (index) => (keys) => setRowKeys((old) => (old.tab === index && old.keys.join() === keys.join() ? old : { tab: index, keys }));
 	const tabs = [
@@ -128,6 +129,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		h(InventoryTab, { ...shared, makeRows: hookRows, active: tab === 2 && !overlay }),
 		h(InventoryTab, { ...shared, makeRows: pluginRows, active: tab === 3 && !overlay }),
 		h(DoctorTab, { ...shared, active: tab === 4 && !overlay }),
+		h(CatalogTab, { ...shared, setKeys: keysFor(5), active: tab === 5 && !overlay }),
 	];
 
 	const plugins = data?.status.plugins.items ?? [];

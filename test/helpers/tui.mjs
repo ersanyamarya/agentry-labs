@@ -23,7 +23,7 @@ export const squash = (text) => stripAnsi(text).replace(/[│┌┐└┘─╭�
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols: 100, rows: 60 }, fit = false } = {}) => {
+export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols: 100, rows: 60 }, fit = false, catalogRepo } = {}) => {
 	const fx = createFixture({ shelf: { audit: { skills: ["review"] }, video: { skills: ["trim", "ffmpeg-install"] } } });
 	assert.ok(!fx.root.startsWith(homedir()), "TMPDIR must be outside the home directory");
 	writeFileSync(join(fx.configDir, "skill-shelf/video/trim/SKILL.md"), `---\nname: trim\ndescription: ${"x".repeat(40)}\n---\n`);
@@ -49,7 +49,7 @@ export const createUi = ({ env = {}, spawn, personal = [], plugin, size = { cols
 	const makePaths = (dir) => createPaths({ env: { AGENTRY_HOME: fx.home, CLAUDE_CONFIG_DIR: fx.configDir, AGENTRY_MANAGED_DIR: fx.managedDir }, cwd: dir });
 	const finder = createDiscover();
 	const props = {
-		api: createData({ makePaths, doctorOptions, fixOptions: { fixes } }),
+		api: createData({ makePaths, doctorOptions, fixOptions: { fixes }, ...(catalogRepo ? { catalogOptions: { repo: catalogRepo } } : {}) }),
 		startDir: fx.repo,
 		recents: createRecents(makePaths(fx.repo)),
 		discover: (roots) => finder.find(roots, { depth: 2 }),

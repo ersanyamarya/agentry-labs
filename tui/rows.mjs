@@ -26,13 +26,13 @@ export const skillKeys = (row) => {
 		return [...both, ["enter", "expand"]];
 	}
 	if (row?.kind === "skill") {
-		return [...both, ["u", "unshelve"], ["e", "open file", "edit"]];
+		return [...both, ["u", "unshelve"], ["x", "remove"], ["e", "open file", "edit"]];
 	}
 	if (row?.plugin) {
 		return [["space", "enable/disable plugin", "on/off"]];
 	}
 	if (row?.shelvable) {
-		return [["s", "shelve"], ["e", "open file", "edit"]];
+		return [["s", "shelve"], ["x", "remove"], ["e", "open file", "edit"]];
 	}
 	return row?.file ? [["e", "open file", "edit"]] : [];
 };
@@ -143,6 +143,41 @@ export const skillRows = (data, expanded = new Set()) => {
 			details: [`plugin: ${plugin.id}`, `state: ${badgeText(plugin.state)}`, `skills: ${mine.map((skill) => skill.name.split(":").pop()).join(", ")}`, `tokens: ${tokens(plugin.skillTokens)}`, `source: ${plugin.installPath}`, "toggle: plugin skill (comes with a plugin): space toggles the plugin", `note: ${PLUGIN_NOTE}`],
 		};
 	});
+	return rows;
+};
+
+export const catalogKeys = (row) => {
+	if (row?.kind !== "catalog") {
+		return [["f", "fetch catalog", "fetch"]];
+	}
+	return [...(row.installed ? [["x", "remove"]] : [["i", "add to shelf", "add"]]), ["f", "update catalog", "fetch"]];
+};
+
+// The agentry-labs skills by bundle; installed ones show where they are.
+export const catalogRows = (data) => {
+	const { fetched, entries } = data.catalog;
+	if (!fetched) {
+		return [{ id: "none:catalog", label: "  (catalog not fetched)", details: ["The agentry-labs skill catalog is not on this machine yet.", "toggle: press f to fetch it (a shallow git clone of github.com/ersanyamarya/agentry-labs, cached; needs network)."] }];
+	}
+	const rows = [];
+	let bundle;
+	for (const skill of entries) {
+		if (skill.bundle !== bundle) {
+			bundle = skill.bundle;
+			rows.push(...(rows.length > 0 ? [spacer(bundle)] : []), header(`h:${bundle}`, `${bundle} bundle`));
+		}
+		const where = skill.shelf ? `shelf/${skill.shelf}` : skill.global ? "global" : undefined;
+		rows.push({
+			id: `catalog:${skill.name}`,
+			kind: "catalog",
+			skill: skill.name,
+			installed: where,
+			target: skill.shelf ? `${skill.shelf}/${skill.name}` : skill.name,
+			label: `  ${skill.name}`,
+			...withCells([cell(cost(skill.tokens), 5, "right"), cell(where ? seg(`● ${where}`, { color: "green", bold: true }) : seg("not installed", DIM), 20)]),
+			details: [`skill: ${skill.name}`, `bundle: ${skill.bundle}`, `installed: ${where ?? "no"}`, `tokens: ${tokens(skill.tokens)} (description)`, `note: ${skill.description || "(no description)"}`, `toggle: ${where ? "x removes it (a copy is kept in the backups)" : "i copies it onto the shelf, off; turn it on from the Skills tab"}`],
+		});
+	}
 	return rows;
 };
 

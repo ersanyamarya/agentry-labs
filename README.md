@@ -106,6 +106,10 @@ agentry shelf off --all                   # remove every shelf link in this proj
 agentry shelf on audit --dry-run          # print the links and exclude lines it would change; write nothing
 agentry shelf shelve pdf docs             # move ~/.claude/skills/pdf onto the shelf as group docs
 agentry shelf unshelve pdf                # move it back to ~/.claude/skills
+agentry shelf remove docs/pdf             # delete it for good; a copy is kept in ~/.claude/backups/agentry/removed/<time>/
+agentry catalog refresh                   # fetch the agentry-labs skill catalog (shallow git clone, cached)
+agentry catalog list                      # its skills by bundle, and where each is installed
+agentry catalog add run-fallow --group dev # copy a catalog skill onto the shelf (off); never overwrites
 ```
 
 `list` estimates each group's cost as the frontmatter `description` of its skills and agents, at about four characters
@@ -143,13 +147,15 @@ agentry ui                     # terminal UI (Ink); a bare `agentry` in a termin
 
 Start it from the project folder with `agentry ui`, or type a bare `agentry` in a terminal. It needs a terminal: without one it prints a message and exits `2`. The `p` picker switches to another repo (current repo, recent repos, then repos under the scan roots).
 
-- **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, each with a count. A summary line under them shows the skill-description tokens every session pays and the problems found. A details pane beside the list shows the selected row; the footer lists only the keys that work on the current tab.
+- **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, Catalog, each with a count. A summary line under them shows the skill-description tokens every session pays and the problems found. A details pane beside the list shows the selected row; the footer lists only the keys that work on the current tab.
 - **Changes it can make** (all except the plain shelf toggle are previewed first and wait for `y`):
   - **Skills, shelf:** Each shelf row has two columns, **Project** (this project) and **Global**, each `● on`, `○ off` or `◐ partial`. `space` toggles the Project column of the selected row and `g` toggles the Global column; there is no mode to switch. Same as `agentry shelf on|off [--global]`.
   - **Skills, shelving:** `s` on a global skill (a real folder under `~/.claude/skills`) asks for a shelf group (`↑/↓` and `enter`, or `n` to type a new name), previews the move, and `y` runs `agentry shelf shelve`. Afterwards the skill sits under Shelf, off, and toggles with `space`. `u` on a shelved skill moves it back (`agentry shelf unshelve`). Both refuse to overwrite, and to move a skill that is still linked.
   - **Plugins:** `space` on a plugin row (Plugins tab) or a `plugin:*` row (Skills tab) previews the `enabledPlugins` edit as a diff; `y` writes it with a backup. Same as `agentry plugin enable|disable`, and `agentry fix --undo` restores it. It applies to new sessions only.
   - **Doctor:** `enter` previews a fix as a diff. `y` applies it through the same engine as the CLI, with a backup first. `u` previews undoing the last fix set, and `y` restores it.
   - **MCP:** `space` on a user-scope server previews turning it off (its config is saved, then `claude mcp remove --scope user` runs, with a backup of `~/.claude.json`); turned-off servers stay in the list as `○ off`, and `space` adds them back with `claude mcp add-json`. Same as `agentry mcp disable|enable <name>`, `agentry mcp list-parked`. The saved configs live in `~/.claude/agentry/parked-mcp.json` (mode 0600), with their secrets, exactly as exposed as `~/.claude.json`. Plugin, project `.mcp.json` and desktop servers say who manages them instead.
+  - **Skills, removing:** `x` on a shelved skill or a global skill folder previews the delete; `y` copies the folder to `~/.claude/backups/agentry/removed/<time>/` and removes it (same as `agentry shelf remove`). Move the copy back to restore. It refuses while the skill is linked into a project.
+  - **Catalog:** `f` fetches the agentry-labs repo (a shallow git clone under `~/.claude/cache/agentry/catalog`; the only network use), then the tab lists its skills by bundle with where each is installed. `i` previews and `y` copies a skill onto the shelf under its bundle name, off; turn it on from the Skills tab. `x` removes an installed one. Same as `agentry catalog`.
 - **Rows that cannot be toggled** say why in the status line and the details: global skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
 - **Read-only:** Hooks list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
 
@@ -157,13 +163,16 @@ Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so noth
 
 | Key | Action |
 |---|---|
-| ← / →, 1-5 | switch tab |
+| ← / →, 1-6 | switch tab |
 | ↑ / ↓ | move between rows |
 | enter | details, expand a group, preview a fix |
 | space | Skills: shelf row on/off for this project; plugin rows: on/off; MCP: turn off (saved) / add back a user server |
 | g | Skills: shelf row on/off globally |
 | s | Skills: move a global skill onto the shelf |
 | u | Skills: unshelve a skill; Doctor: undo the last fix set |
+| x | Skills, Catalog: remove a skill (previewed; a copy is kept in the backups) |
+| i | Catalog: add the selected skill to the shelf, off |
+| f | Catalog: fetch or update the agentry-labs catalog |
 | e | open the selected row's file in $EDITOR |
 | y / n | confirm or cancel a previewed fix, undo, shelve or plugin change |
 | r | refresh |
@@ -224,7 +233,7 @@ space project  g global  enter expand  │ ←→ tabs  ? help  q quit
 - `global/`: settings fragment and MCP config merged by `scripts/apply-global.mjs`
 - `scripts/`: installer, global-settings merge, skill drift check and the README cover generator
 - `bin/`: the `agentry` command entry and router
-- `lib/`: the CLI modules (paths, shelf, status, doctor, scan, fix, tokens, inventory)
+- `lib/`: the CLI modules (paths, shelf, catalog, status, doctor, scan, fix, tokens, inventory)
 - `tui/`: the Ink terminal UI behind `agentry ui`
 - `docs/`: design plans, such as `docs/shelf-cli-plan.md`
 - `test/`: tests for the CLI (`npm test`)

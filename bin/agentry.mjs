@@ -10,6 +10,7 @@ import { createMcpToggle } from "../lib/mcp-toggle.mjs";
 import { createPaths } from "../lib/paths.mjs";
 import { createPluginToggle } from "../lib/plugin-toggle.mjs";
 import { createScan } from "../lib/scan.mjs";
+import { createCatalog } from "../lib/catalog.mjs";
 import { createShelf } from "../lib/shelf.mjs";
 import { createStatus } from "../lib/status.mjs";
 
@@ -52,6 +53,13 @@ Commands:
   shelf off --all [--global]          Remove every shelf link in this project (or ~/.claude)
   shelf shelve <skill> <group>        Move ~/.claude/skills/<skill> onto the shelf
   shelf unshelve <skill>              Move a shelved skill back to ~/.claude/skills
+  shelf remove <skill>                Delete a shelved skill or ~/.claude/skills/<skill>, keeping a copy under
+                                      ~/.claude/backups/agentry/removed/<time>/ (refuses while it is linked)
+  catalog refresh                     Fetch the agentry-labs skill catalog (shallow git clone, cached)
+  catalog list [--json]               List the catalog's skills by bundle, with where each is installed
+  catalog add <skill>... [--group G] [--dry-run]
+                                      Copy skills from the catalog onto the shelf (default group: the skill's bundle),
+                                      off until you turn them on. Never overwrites
   help                                Show this help
 
 A target is a group (video), group/skill (video/ffmpeg-install) or a skill name that is unique across groups.
@@ -98,7 +106,7 @@ Examples:
   agentry fix --undo --yes`;
 
 const SHELF_USAGE =
-	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run]";
+	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | remove <skill> [--dry-run]";
 
 const usageError = (message) => {
 	console.error(`${message}\n\n${USAGE}`);
@@ -126,7 +134,26 @@ const runShelf = (args, { global, json, all, "dry-run": dryRun }) => {
 	if (action === "unshelve" && rest.length === 1) {
 		return shelf.unshelve(rest[0], { dryRun });
 	}
+	if (action === "remove" && rest.length === 1) {
+		return shelf.remove(rest[0], { dryRun });
+	}
 	console.error(SHELF_USAGE);
+	return 2;
+};
+
+const runCatalog = async (args, { group, json, "dry-run": dryRun }) => {
+	const [action, ...rest] = args;
+	const catalog = createCatalog(createPaths());
+	if (action === "refresh" && rest.length === 0) {
+		return catalog.refresh();
+	}
+	if (action === "list" && rest.length === 0) {
+		return catalog.list({ json });
+	}
+	if (action === "add" && rest.length > 0) {
+		return catalog.add(rest, { group, dryRun });
+	}
+	console.error("Usage: agentry catalog refresh | list [--json] | add <skill>... [--group G] [--dry-run]");
 	return 2;
 };
 
@@ -169,6 +196,7 @@ const main = (argv) => {
 				force: { type: "boolean" },
 				fix: { type: "boolean" },
 				scope: { type: "string" },
+				group: { type: "string" },
 			},
 		});
 	} catch (error) {
@@ -273,6 +301,9 @@ const main = (argv) => {
 	}
 	if (command === "shelf") {
 		return runShelf(rest, values);
+	}
+	if (command === "catalog") {
+		return runCatalog(rest, values);
 	}
 	return usageError(`Unknown command: ${command}`);
 };

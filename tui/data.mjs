@@ -1,6 +1,7 @@
 // The UI's only door to lib/: every read and every action goes through the same functions the CLI uses.
 // `makePaths(dir)` builds the paths for one project folder; options reach the lib factories so tests can inject fixtures.
 
+import { createCatalog } from "../lib/catalog.mjs";
 import { createDoctor } from "../lib/doctor.mjs";
 import { createFix, findingKey } from "../lib/fix.mjs";
 import { createFixUndo } from "../lib/fix-undo.mjs";
@@ -19,7 +20,7 @@ const capture = async (make, run) => {
 	return { code, lines };
 };
 
-export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now = () => new Date() }) => {
+export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, catalogOptions = {}, now = () => new Date() }) => {
 	const doctorFor = (paths) => createDoctor(paths, { out: () => {}, err: () => {}, ...doctorOptions });
 	const fixFor = (paths, io) => createFix(paths, { ...io, doctor: () => doctorFor(paths), now, ...fixOptions });
 
@@ -49,6 +50,10 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 			doctor: attempt("doctor", () => doctorFor(paths).collect(dir), { findings: [], summary: { error: 0, warning: 0, info: 0 }, errors: [] }),
 			parked: attempt("parked", () => createMcpToggle(paths).listParked(), []),
 			groups: attempt("shelf", () => createShelf(paths, noIo).groups(), []),
+			catalog: attempt("catalog", () => {
+				const catalog = createCatalog(paths, { ...noIo, ...catalogOptions });
+				return { fetched: catalog.fetched(), entries: catalog.entries() };
+			}, { fetched: false, entries: [] }),
 		};
 	};
 
@@ -67,6 +72,21 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 	};
 	const shelveSkill = ({ dir, skill, group, dryRun }) => moveSkill({ dir, action: "shelve", args: [skill, group], dryRun });
 	const unshelveSkill = ({ dir, target, dryRun }) => moveSkill({ dir, action: "unshelve", args: [target], dryRun });
+	// Deletes a skill after copying it to the backups (see lib/shelf.mjs remove). Preview with dryRun.
+	const removeSkill = ({ dir, target, dryRun }) => moveSkill({ dir, action: "remove", args: [target], dryRun });
+
+	// The agentry-labs catalog: fetch (network, cached) and copy skills onto the shelf. Each returns { ok, text }.
+	const catalogFor = (dir, io) => createCatalog(makePaths(dir), { ...io, ...catalogOptions });
+	const refreshCatalog = async ({ dir }) => {
+		// one tick, so "Fetching..." can paint before the blocking git call
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		const { code, lines } = await capture((io) => catalogFor(dir, io), (catalog) => catalog.refresh());
+		return { ok: code === 0, text: lines.join("\n").trim() };
+	};
+	const addFromCatalog = async ({ dir, names, group, dryRun = false }) => {
+		const { code, lines } = await capture((io) => catalogFor(dir, io), (catalog) => catalog.add(names, { group, dryRun }));
+		return { ok: code === 0, text: lines.join("\n").trim() };
+	};
 
 	// Plugin enable/disable: the engine's own preview (dry run), then, after an explicit y, backup + write + verify.
 	const toggleFor = (dir, io) => createPluginToggle(makePaths(dir), { ...io, now });
@@ -125,5 +145,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, now
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, shelveSkill, unshelveSkill, previewPlugin, applyPlugin, previewMcp, applyMcp, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, refreshCatalog, addFromCatalog, previewPlugin, applyPlugin, previewMcp, applyMcp, previewFix, applyFix, previewUndo, applyUndo };
 };

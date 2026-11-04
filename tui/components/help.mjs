@@ -4,13 +4,16 @@ import { Box, Text } from "ink";
 const h = React.createElement;
 
 export const KEYS = [
-	["← / →, 1-5", "switch tab"],
+	["← / →, 1-6", "switch tab"],
 	["↑ / ↓", "move between rows"],
 	["enter", "details, expand a group, preview a fix"],
 	["space", "Skills: shelf row on/off for this project; plugin rows: on/off; MCP: turn off (saved) / add back"],
 	["g", "Skills: shelf row on/off globally"],
 	["s", "Skills: move a global skill onto the shelf"],
 	["u", "Skills: unshelve a skill; Doctor: undo the last fix set"],
+	["x", "Skills, Catalog: remove a skill (a copy is kept in the backups)"],
+	["i", "Catalog: add the selected skill to the shelf (off)"],
+	["f", "Catalog: fetch or update the agentry-labs catalog"],
 	["e", "open the selected row's file in $EDITOR"],
 	["y / n", "confirm or cancel a previewed fix, undo, shelve or plugin change"],
 	["r", "refresh"],

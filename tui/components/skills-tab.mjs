@@ -5,6 +5,7 @@ import { Box, Text, useInput } from "ink";
 import { skillKeys, skillRows } from "../rows.mjs";
 import { useCursor } from "../use-cursor.mjs";
 import { startPluginToggle } from "../plugin-flow.mjs";
+import { startRemove } from "../remove-flow.mjs";
 import { useFlow } from "../use-flow.mjs";
 import { Panes } from "./list.mjs";
 import { Legend } from "./legend.mjs";
@@ -102,6 +103,8 @@ export const SkillsTab = ({ data, api, dir, active, height, layout, notify, relo
 				toggle();
 			} else if (input === "g") {
 				toggle(true);
+			} else if (input === "x") {
+				row?.kind === "skill" ? startRemove({ api, dir, flow, target: row.target, label: row.target }) : row?.shelvable ? startRemove({ api, dir, flow, target: row.skill, label: `${row.skill} (global)` }) : notify("x removes a shelved skill or a global skill folder: select one.");
 			} else if (input === "e") {
 				openFile(row?.file);
 			}
