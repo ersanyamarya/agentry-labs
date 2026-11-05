@@ -62,10 +62,10 @@ The `agentry` CLI (about 8.4k lines of ESM `.mjs` in `bin/`, `lib/`, `tui/`, plu
 
 | Done | Task | Model |
 |---|---|---|
-| [ ] | Convert `tui/components/*` (12 files) to `.tsx` with JSX and typed props. Rename imports to `.js`. | claude-sonnet-5-5 |
-| [ ] | Convert `tui/use-cursor`, `use-list`, `use-flow`, `bulk-flow`, `editor`, `recents`, `clipboard`, `layout`, `rows`, `theme`, `data` to strict TS (`.ts`, or `.tsx` where they render). | claude-sonnet-5-5 |
-| [ ] | Convert the flows (`mcp-flow`, `hook-flow`, `plugin-flow`, `move-flow`, `remove-flow`), `app` and `index` to `.tsx`; make `tsconfig.json` fully strict and delete the `src/tui` exception. | claude-sonnet-5-5 |
-| [ ] | Update the `tui-*` tests and `ink-testing-library` usage to the typed components; fix type errors in `src/test/helpers/`. | claude-sonnet-5-5 |
+| [x] | Convert `tui/components/*` (12 files) to `.tsx` with JSX and typed props. Rename imports to `.js`. | claude-sonnet-5-5 |
+| [x] | Convert `tui/use-cursor`, `use-list`, `use-flow`, `bulk-flow`, `editor`, `recents`, `clipboard`, `layout`, `rows`, `theme`, `data` to strict TS (`.ts`, or `.tsx` where they render). | claude-sonnet-5-5 |
+| [x] | Convert the flows (`mcp-flow`, `hook-flow`, `plugin-flow`, `move-flow`, `remove-flow`), `app` and `index` to `.tsx`; make `tsconfig.json` fully strict and delete the `src/tui` exception. | claude-sonnet-5-5 |
+| [x] | Update the `tui-*` tests and `ink-testing-library` usage to the typed components; fix type errors in `src/test/helpers/`. | claude-sonnet-5-5 |
 
 ## Phase 2.1: Biome and Ultracite for lint and format
 
