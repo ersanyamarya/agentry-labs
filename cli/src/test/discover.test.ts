@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,18 +5,18 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createDiscover } from "../lib/discover.js";
 
-let root;
+let root: string;
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-discover-")));
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const repo = (...parts) => mkdirSync(join(root, ...parts, ".git"), { recursive: true });
-const worktree = (...parts) => {
+const repo = (...parts: string[]) => mkdirSync(join(root, ...parts, ".git"), { recursive: true });
+const worktree = (...parts: string[]) => {
 	mkdirSync(join(root, ...parts), { recursive: true });
 	writeFileSync(join(root, ...parts, ".git"), "gitdir: /elsewhere\n");
 };
-const find = (options, roots = [root]) => createDiscover().find(roots, options).map((item) => `${item.path.slice(root.length)}:${item.kind}`);
+const find = (options?: { depth?: number }, roots: string[] = [root]) => createDiscover().find(roots, options).map((item) => `${item.path.slice(root.length)}:${item.kind}`);
 
 describe("discover", () => {
 	test("finds repos (.git folder) and worktrees (.git file), sorted", () => {

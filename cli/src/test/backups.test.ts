@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -8,20 +7,20 @@ import { createPaths } from "../lib/paths.js";
 import { createShelf } from "../lib/shelf.js";
 import { createFixture } from "./helpers/fixture.js";
 
-let fx;
-let paths;
-let lines;
+let fx: ReturnType<typeof createFixture>;
+let paths: ReturnType<typeof createPaths>;
+let lines: string[];
 const NOW = new Date("2026-11-04T12:00:00.000Z");
-const io = () => ({ out: (line) => lines.push(line), err: (line) => lines.push(line), warn: (line) => lines.push(line), now: () => NOW });
+const io = () => ({ out: (line: string) => lines.push(line), err: (line: string) => lines.push(line), warn: (line: string) => lines.push(line), now: () => NOW });
 const backups = (extra = {}) => createBackups(paths, { ...io(), isTTY: () => false, ...extra });
 const shelf = () => createShelf(paths, io());
 
-const put = (file, text) => {
+const put = (file: string, text: string) => {
 	mkdirSync(dirname(file), { recursive: true });
 	writeFileSync(file, text);
 };
 // A fix-engine set, `days` old.
-const fixSet = (name, days, extra = {}) => {
+const fixSet = (name: string, days: number, extra = {}) => {
 	const createdAt = new Date(NOW.getTime() - days * 86_400_000).toISOString();
 	put(join(paths.backupsDir, name, "manifest.json"), JSON.stringify({ version: 1, createdAt, status: "done", files: [{ path: "/x" }], ...extra }));
 	put(join(paths.backupsDir, name, "files/x"), "original bytes");
@@ -131,8 +130,8 @@ describe("prune and delete", () => {
 	});
 
 	test("--dry-run never deletes, even with a terminal", async () => {
-		const asked = [];
-		assert.equal(await backups({ isTTY: () => true, confirm: async (q) => asked.push(q) }).prune({ all: true, dryRun: true }), 0);
+		const asked: string[] = [];
+		assert.equal(await backups({ isTTY: () => true, confirm: async (q: string) => asked.push(q) > 0 }).prune({ all: true, dryRun: true }), 0);
 		assert.equal(asked.length, 0);
 		assert.equal(readdirSync(paths.backupsDir).length, 3);
 	});
@@ -163,6 +162,7 @@ describe("prune and delete", () => {
 		const old = new Date(NOW.getTime() - 90 * 86_400_000);
 		utimesSync(join(paths.backupsDir, "bare"), old, old);
 		const bare = backups().entries().find((entry) => entry.id === "fix/bare");
+		assert.ok(bare);
 		assert.ok(bare.days > 89 && bare.days < 91);
 		assert.match(bare.detail, /unreadable/);
 	});
@@ -184,7 +184,7 @@ describe("shelf remove --no-backup", () => {
 
 describe("prune --kind and updated copies", () => {
 	// updated/<stamp>/<label> as catalog update writes it, `days` old.
-	const updatedCopy = (days, label, from) => {
+	const updatedCopy = (days: number, label: string, from: string) => {
 		const stamp = new Date(NOW.getTime() - days * 86_400_000).toISOString().replace(/[:.]/g, "-");
 		const dir = join(paths.backupsDir, "updated", stamp);
 		put(join(dir, label, "AGENT.md"), "old body");
@@ -195,6 +195,7 @@ describe("prune --kind and updated copies", () => {
 	test("lists updated copies with size, age and origin", () => {
 		const id = updatedCopy(3, "agent_x_user", join(fx.configDir, "agents/x"));
 		const entry = backups().entries().find((one) => one.id === id);
+		assert.ok(entry);
 		assert.equal(entry.kind, "updated");
 		assert.equal(entry.from, join(fx.configDir, "agents/x"));
 		assert.ok(entry.bytes > 0 && Math.floor(entry.days) === 3);

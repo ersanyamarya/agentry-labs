@@ -1,17 +1,26 @@
-// @ts-nocheck
 // Finds git repos and worktrees under one or more roots: a folder holding `.git` (a folder for a repo, a file for a
 // worktree). Build output, dependency and map folders are skipped; hidden folders are skipped except the ones that
 // hold worktrees. A found repo is still searched for nested repos and worktrees, but its plain subfolders are not reported.
 
-import { readdirSync, statSync } from "node:fs";
+import { type Dirent, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 export const SKIP_DIRS = ["node_modules", ".git", "dist", "build", "out", ".next", ".nuxt", ".turbo", ".cache", "target", ".dart_tool", ".gradle", "Pods", "venv", ".venv", "__pycache__", "coverage", "graft"];
 const HIDDEN_ALLOWED = [".claude", ".worktrees"];
 
-export const createDiscover = ({ skip = SKIP_DIRS, hiddenAllowed = HIDDEN_ALLOWED } = {}) => {
+export interface DiscoverOptions {
+	skip?: string[];
+	hiddenAllowed?: string[];
+}
+
+export interface FoundRepo {
+	path: string;
+	kind: "repo" | "worktree";
+}
+
+export const createDiscover = ({ skip = SKIP_DIRS, hiddenAllowed = HIDDEN_ALLOWED }: DiscoverOptions = {}) => {
 	const skipSet = new Set(skip);
-	const kindOf = (dir) => {
+	const kindOf = (dir: string): FoundRepo["kind"] | undefined => {
 		try {
 			return statSync(join(dir, ".git")).isDirectory() ? "repo" : "worktree";
 		} catch {
@@ -20,9 +29,9 @@ export const createDiscover = ({ skip = SKIP_DIRS, hiddenAllowed = HIDDEN_ALLOWE
 	};
 
 	// Returns [{ path, kind }] sorted by path; `depth` counts folder levels below a root (0 = the root itself).
-	const find = (roots, { depth = 4 } = {}) => {
-		const found = new Map();
-		const walk = (dir, level) => {
+	const find = (roots: string[], { depth = 4 }: { depth?: number } = {}): FoundRepo[] => {
+		const found = new Map<string, FoundRepo>();
+		const walk = (dir: string, level: number): void => {
 			const kind = kindOf(dir);
 			if (kind) {
 				found.set(dir, { path: dir, kind });
@@ -30,7 +39,7 @@ export const createDiscover = ({ skip = SKIP_DIRS, hiddenAllowed = HIDDEN_ALLOWE
 			if (level >= depth) {
 				return;
 			}
-			let entries;
+			let entries: Dirent[];
 			try {
 				entries = readdirSync(dir, { withFileTypes: true });
 			} catch {

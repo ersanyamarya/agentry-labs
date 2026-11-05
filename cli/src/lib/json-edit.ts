@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Text-level JSON editing for `agentry fix`: each operation splices the original text, so every byte outside the edit
 // (indentation, key order, spacing, escapes, trailing newline, line endings) stays identical. Nothing is parsed and
 // re-serialized. Only strict JSON is accepted: a file that does not parse (comments, trailing commas, BOM, junk after
@@ -14,25 +13,44 @@
 //   doc.text                                   // the edited text
 // A path is an array of keys (strings) and indexes (numbers). Each operation re-scans the text it produced.
 
-const fail = (code) => Object.assign(new Error(code === "EJSONPARSE" ? "not valid JSON" : code), { code });
+export type JsonEditCode = "EJSONPARSE" | "EJSONDUP" | "EJSONPATH" | "EJSONROOT";
+
+/** A key (object member) or an index (array element). */
+export type JsonPath = (string | number)[];
+
+type Splice = [start: number, end: number, insert: string];
+
+interface Member {
+	key: string;
+	keyStart: number;
+	keyEnd: number;
+	value: Node;
+}
+
+type Node =
+	| { type: "string" | "literal"; start: number; end: number }
+	| { type: "object"; start: number; end: number; children: Member[] }
+	| { type: "array"; start: number; end: number; children: Node[] };
+
+const fail = (code: JsonEditCode): Error & { code: JsonEditCode } => Object.assign(new Error(code === "EJSONPARSE" ? "not valid JSON" : code), { code });
 
 // ---- scanner ----
 
 // Node: { type, start, end, children? }. Object children: { key, keyStart, keyEnd, value }; array children: the nodes.
-const scan = (text) => {
+const scan = (text: string): Node => {
 	let at = 0;
 	const skip = () => {
 		while (at < text.length && " \t\n\r".includes(text[at])) {
 			at++;
 		}
 	};
-	const expect = (char) => {
+	const expect = (char: string): void => {
 		if (text[at] !== char) {
 			throw fail("EJSONPARSE");
 		}
 		at++;
 	};
-	const string = () => {
+	const string = (): Node => {
 		const start = at;
 		expect('"');
 		while (at < text.length && text[at] !== '"') {
@@ -56,7 +74,7 @@ const scan = (text) => {
 		expect('"');
 		return { type: "string", start, end: at };
 	};
-	const value = () => {
+	const value = (): Node => {
 		skip();
 		const start = at;
 		const char = text[at];
@@ -65,7 +83,7 @@ const scan = (text) => {
 		}
 		if (char === "{") {
 			at++;
-			const children = [];
+			const children: Member[] = [];
 			skip();
 			if (text[at] === "}") {
 				at++;
@@ -88,7 +106,7 @@ const scan = (text) => {
 		}
 		if (char === "[") {
 			at++;
-			const children = [];
+			const children: Node[] = [];
 			skip();
 			if (text[at] === "]") {
 				at++;
@@ -122,32 +140,32 @@ const scan = (text) => {
 
 // ---- helpers ----
 
-const eolOf = (text) => (text.includes("\r\n") ? "\r\n" : "\n");
+const eolOf = (text: string): string => (text.includes("\r\n") ? "\r\n" : "\n");
 
 // The whitespace that starts the line `offset` is on.
-const lineIndent = (text, offset) => {
+const lineIndent = (text: string, offset: number): string => {
 	const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
-	return /^[ \t]*/.exec(text.slice(lineStart))[0];
+	return /^[ \t]*/.exec(text.slice(lineStart))?.[0] ?? "";
 };
 
 // The file's indent unit: the indent of the first member of the first multi-line container ("" when compact).
-const indentUnit = (text, root) => {
-	const first = root.children?.[0];
-	const start = first ? (first.keyStart ?? first.start) : undefined;
+const indentUnit = (text: string, root: Node): string => {
+	const first = "children" in root ? root.children[0] : undefined;
+	const start = first ? ("keyStart" in first ? first.keyStart : first.start) : undefined;
 	if (start === undefined || !/\n[ \t]*$/.test(text.slice(root.start, start))) {
 		return "";
 	}
 	return lineIndent(text, start);
 };
 
-const render = (text, root, value, baseIndent) => {
+const render = (text: string, root: Node, value: unknown, baseIndent: string): string => {
 	const unit = indentUnit(text, root);
 	const eol = eolOf(text);
-	const body = unit === "" ? JSON.stringify(value) : JSON.stringify(value, null, unit);
+	const body = (unit === "" ? JSON.stringify(value) : JSON.stringify(value, null, unit)) as string;
 	return body.split("\n").join(`${eol}${baseIndent}`);
 };
 
-const children = (node, key) => {
+const children = (node: Node, key: string | number): Node | undefined => {
 	if (node.type === "object") {
 		const found = node.children.filter((child) => child.key === key);
 		if (found.length > 1) {
@@ -155,13 +173,13 @@ const children = (node, key) => {
 		}
 		return found[0]?.value;
 	}
-	return node.type === "array" && Number.isInteger(key) ? node.children[key] : undefined;
+	return node.type === "array" && Number.isInteger(key) ? node.children[key as number] : undefined;
 };
 
 // Node at `path`, plus its parent and the member that holds it.
-const locate = (root, path) => {
+const locate = (root: Node, path: JsonPath): { node: Node; parent: Node | undefined } => {
 	let node = root;
-	let parent;
+	let parent: Node | undefined;
 	for (const key of path) {
 		const next = children(node, key);
 		if (!next) {
@@ -174,10 +192,10 @@ const locate = (root, path) => {
 };
 
 // Splice that removes member/element `index` of `container` together with one comma and its whitespace.
-const removal = (container, index) => {
+const removal = (container: Node & { children: (Member | Node)[] }, index: number): Splice => {
 	const items = container.children;
-	const startOf = (item) => item.keyStart ?? item.start;
-	const endOf = (item) => item.value?.end ?? item.end;
+	const startOf = (item: Member | Node): number => ("keyStart" in item ? item.keyStart : item.start);
+	const endOf = (item: Member | Node): number => ("value" in item ? item.value.end : item.end);
 	if (items.length === 1) {
 		return [container.start + 1, container.end - 1, ""];
 	}
@@ -189,16 +207,16 @@ const removal = (container, index) => {
 
 // ---- API ----
 
-export const createJsonEdit = (source) => {
+export const createJsonEdit = (source: string) => {
 	let text = source;
 	let root = scan(text);
-	const splice = ([start, end, insert]) => {
+	const splice = ([start, end, insert]: Splice): void => {
 		const next = text.slice(0, start) + insert + text.slice(end);
 		root = scan(next);
 		text = next;
 	};
 
-	const deleteKey = (path) => {
+	const deleteKey = (path: JsonPath): void => {
 		const { node, parent } = locate(root, path);
 		if (!parent) {
 			throw fail("EJSONROOT");
@@ -209,7 +227,7 @@ export const createJsonEdit = (source) => {
 		splice(removal(parent, parent.children.findIndex((child) => child.value === node)));
 	};
 
-	const deleteElement = (path) => {
+	const deleteElement = (path: JsonPath): void => {
 		const { node, parent } = locate(root, path);
 		if (!parent) {
 			throw fail("EJSONROOT");
@@ -220,13 +238,13 @@ export const createJsonEdit = (source) => {
 		splice(removal(parent, parent.children.indexOf(node)));
 	};
 
-	const set = (path, value) => {
+	const set = (path: JsonPath, value: unknown): void => {
 		if (path.length === 0) {
 			splice([root.start, root.end, render(text, root, value, "")]);
 			return;
 		}
 		const parentPath = path.slice(0, -1);
-		const key = path.at(-1);
+		const key = path.at(-1) as string | number;
 		const { node: parent } = locate(root, parentPath);
 		const existing = children(parent, key);
 		if (existing) {
@@ -236,10 +254,10 @@ export const createJsonEdit = (source) => {
 		if (parent.type !== "object" || typeof key !== "string") {
 			throw fail("EJSONPATH");
 		}
-		const member = (indent) => `${JSON.stringify(key)}: ${render(text, root, value, indent)}`;
+		const member = (indent: string): string => `${JSON.stringify(key)}: ${render(text, root, value, indent)}`;
 		const last = parent.children.at(-1);
 		if (last) {
-			const before = parent.children.length > 1 ? parent.children.at(-2).value.end : parent.start + 1;
+			const before = parent.children.length > 1 ? (parent.children.at(-2) as Member).value.end : parent.start + 1;
 			const lead = text.slice(before, last.keyStart).replace(/^\s*,/, "");
 			splice([last.value.end, last.value.end, `,${lead}${member(lineIndent(text, last.keyStart))}`]);
 			return;
@@ -251,9 +269,9 @@ export const createJsonEdit = (source) => {
 	};
 
 	// Calls `replace(value, path)` for every string value; a different string result replaces it in place.
-	const renameInStrings = (replace) => {
-		const edits = [];
-		const walk = (node, path) => {
+	const renameInStrings = (replace: (value: string, path: JsonPath) => unknown): number => {
+		const edits: Splice[] = [];
+		const walk = (node: Node, path: JsonPath): void => {
 			if (node.type === "string") {
 				const value = JSON.parse(text.slice(node.start, node.end));
 				const next = replace(value, path);
@@ -277,12 +295,12 @@ export const createJsonEdit = (source) => {
 	};
 
 	// The parsed value at `path` (undefined when absent), for fixes that inspect before they edit.
-	const get = (path) => {
+	const get = (path: JsonPath): unknown => {
 		try {
 			const { node } = locate(root, path);
 			return JSON.parse(text.slice(node.start, node.end));
 		} catch (error) {
-			if (error.code === "EJSONPATH") {
+			if ((error as { code?: string }).code === "EJSONPATH") {
 				return undefined;
 			}
 			throw error;
