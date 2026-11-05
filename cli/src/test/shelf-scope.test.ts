@@ -1,11 +1,11 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createFixture } from "./helpers/fixture.js";
 
-let fx;
+let fx: Fixture;
 beforeEach(() => {
 	fx = createFixture();
 });
@@ -13,7 +13,7 @@ afterEach(() => fx.cleanup());
 
 const projectSkill = (name = "mine") => join(fx.repo, ".claude/skills", name);
 const globalSkill = (name = "mine") => join(fx.configDir, "skills", name);
-const make = (dir) => {
+const make = (dir: string) => {
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, "SKILL.md"), "---\nname: mine\n---\n");
 };

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -13,10 +12,10 @@ import { createStatus } from "../lib/status.js";
 import { createFixture } from "./helpers/fixture.js";
 
 // Layout: <root>/home/.claude (config), <root>/home/ws/repo (git repo). Nothing here reads the real home.
-let root;
-let home;
-let configDir;
-let repo;
+let root: string;
+let home: string;
+let configDir: string;
+let repo: string;
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-inv-")));
 	assert.ok(!root.startsWith(realpathSync(homedir())), "TMPDIR must be outside the home directory");
@@ -29,19 +28,19 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const writeJson = (file, value) => {
+const writeJson = (file: string, value: unknown) => {
 	mkdirSync(dirname(file), { recursive: true });
 	writeFileSync(file, JSON.stringify(value));
 };
-const skill = (dir, name, description = "does a thing") => {
+const skill = (dir: string, name: string, description = "does a thing") => {
 	mkdirSync(join(dir, name), { recursive: true });
 	writeFileSync(join(dir, name, "SKILL.md"), `---\nname: ${name}\ndescription: ${description}\n---\n`);
 };
 const paths = () => createPaths({ env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir } });
-const pluginRoot = (name) => join(configDir, "plugins", "cache", "mk", name, "1.0.0");
-const install = (installed) => writeJson(join(configDir, "plugins", "installed_plugins.json"), { version: 2, plugins: installed });
-const settings = (scope, value) => writeJson(scope === "user" ? join(configDir, "settings.json") : join(repo, ".claude", scope === "local" ? "settings.local.json" : "settings.json"), value);
-const names = (items) => items.map((item) => item.name ?? item.id).sort();
+const pluginRoot = (name: string) => join(configDir, "plugins", "cache", "mk", name, "1.0.0");
+const install = (installed: Record<string, unknown>) => writeJson(join(configDir, "plugins", "installed_plugins.json"), { version: 2, plugins: installed });
+const settings = (scope: string, value: unknown) => writeJson(scope === "user" ? join(configDir, "settings.json") : join(repo, ".claude", scope === "local" ? "settings.local.json" : "settings.json"), value);
+const names = (items: Record<string, any>[]) => items.map((item: Record<string, any>) => item.name ?? item.id).sort();
 
 describe("skills reader", () => {
 	test("reads personal, project and plugin skills; skips synced but reports it", () => {
@@ -53,9 +52,9 @@ describe("skills reader", () => {
 		install({ "tools@mk": [{ scope: "user", installPath: dir, version: "1.0.0" }] });
 		const { skills, skipped } = createSkillsReader(paths()).read({ cwd: repo });
 		assert.deepEqual(names(skills), ["mine", "proj", "tools:s1"]);
-		assert.equal(skills.find((item) => item.name === "proj").tokens, 10);
-		assert.equal(skills.find((item) => item.name === "proj").source, join(repo, ".claude", "skills", "proj"));
-		assert.equal(skills.find((item) => item.name === "tools:s1").plugin, "tools@mk");
+		assert.equal(skills.find((item) => item.name === "proj")!.tokens, 10);
+		assert.equal(skills.find((item) => item.name === "proj")!.source, join(repo, ".claude", "skills", "proj"));
+		assert.equal(skills.find((item) => item.name === "tools:s1")!.plugin, "tools@mk");
 		assert.deepEqual(skipped.map(({ path, count }) => ({ path, count })), [{ path: join(configDir, "skills", "synced"), count: 1 }]);
 	});
 
@@ -68,15 +67,15 @@ describe("skills reader", () => {
 		symlinkSync(join(root, "elsewhere", "outside"), join(skills, "outside"));
 		symlinkSync(join(root, "gone"), join(skills, "dangling"));
 		const result = createSkillsReader(paths()).read({ cwd: repo }).skills;
-		const by = (name) => result.find((item) => item.name === name);
-		assert.equal(by("plain").kind, "file");
-		assert.equal(by("trim").kind, "symlink");
-		assert.equal(by("trim").shelfGroup, "video");
-		assert.equal(by("outside").kind, "symlink");
-		assert.equal(by("outside").shelfGroup, undefined);
-		assert.equal(by("dangling").kind, "broken");
-		assert.equal(by("dangling").state, "broken");
-		assert.equal(by("dangling").tokens, null);
+		const by = (name: string) => result.find((item) => item.name === name);
+		assert.equal(by("plain")!.kind, "file");
+		assert.equal(by("trim")!.kind, "symlink");
+		assert.equal(by("trim")!.shelfGroup, "video");
+		assert.equal(by("outside")!.kind, "symlink");
+		assert.equal(by("outside")!.shelfGroup, undefined);
+		assert.equal(by("dangling")!.kind, "broken");
+		assert.equal(by("dangling")!.state, "broken");
+		assert.equal(by("dangling")!.tokens, null);
 	});
 
 	test("a disabled plugin's skills are listed as disabled; a plugin installed for another project adds none", () => {
@@ -95,7 +94,7 @@ describe("skills reader", () => {
 });
 
 describe("hooks reader", () => {
-	const hook = (command, matcher) => ({ hooks: { PreToolUse: [{ ...(matcher && { matcher }), hooks: [{ type: "command", command }] }] } });
+	const hook = (command: string, matcher?: string) => ({ hooks: { PreToolUse: [{ ...(matcher && { matcher }), hooks: [{ type: "command", command }] }] } });
 
 	test("reads user, project and local settings and plugin hooks.json with owner, matcher and masked secrets", () => {
 		writeJson(join(home, ".claude.json"), {});
@@ -162,12 +161,12 @@ describe("plugins reader", () => {
 		writeJson(join(configDir, "plugins", "known_marketplaces.json"), { mk: { source: { source: "github", repo: "o/r" }, installLocation: "/x" } });
 		const { plugins, marketplaces } = createPluginsReader(paths()).read({ cwd: repo });
 		const both = plugins.find((item) => item.id === "both@mk");
-		assert.equal(both.version, "1.1.0");
-		assert.equal(both.installScope, "local");
-		assert.deepEqual(both.installs.map((item) => item.appliesHere), [true, true, false]);
-		assert.equal(both.installs[2].projectPath, join(root, "other"));
-		assert.equal(plugins.find((item) => item.id === "elsewhere@mk").state, "not-here");
-		assert.equal(plugins.find((item) => item.id === "elsewhere@mk").installPath, undefined);
+		assert.equal(both!.version, "1.1.0");
+		assert.equal(both!.installScope, "local");
+		assert.deepEqual(both!.installs.map((item) => item.appliesHere), [true, true, false]);
+		assert.equal(both!.installs[2].projectPath, join(root, "other"));
+		assert.equal(plugins.find((item) => item.id === "elsewhere@mk")!.state, "not-here");
+		assert.equal(plugins.find((item) => item.id === "elsewhere@mk")!.installPath, undefined);
 		assert.deepEqual(marketplaces, [{ name: "mk", source: "o/r", sourceType: "github", installLocation: "/x" }]);
 	});
 
@@ -175,16 +174,16 @@ describe("plugins reader", () => {
 		const a = pluginRoot("a");
 		install({ "a@mk": [{ scope: "user", installPath: a, version: "1.0.0" }] });
 		const state = () => createPluginsReader(paths()).read({ cwd: repo }).plugins.find((item) => item.id === "a@mk");
-		assert.equal(state().state, "disabled");
-		assert.equal(state().enabledBy.scope, "default");
+		assert.equal(state()!.state, "disabled");
+		assert.equal(state()!.enabledBy!.scope, "default");
 		settings("user", { enabledPlugins: { "a@mk": false, "ghost@mk": true } });
-		assert.equal(state().state, "disabled");
-		assert.equal(state().enabledBy.scope, "user");
+		assert.equal(state()!.state, "disabled");
+		assert.equal(state()!.enabledBy!.scope, "user");
 		settings("local", { enabledPlugins: { "a@mk": true } });
-		assert.equal(state().state, "active");
-		assert.equal(state().enabledBy.scope, "local");
+		assert.equal(state()!.state, "active");
+		assert.equal(state()!.enabledBy!.scope, "local");
 		const ghost = createPluginsReader(paths()).read({ cwd: repo }).plugins.find((item) => item.id === "ghost@mk");
-		assert.equal(ghost.state, "not-installed");
+		assert.equal(ghost!.state, "not-installed");
 	});
 
 	test("a project-scope install matches a start folder inside the repo", () => {
@@ -201,7 +200,7 @@ describe("status", () => {
 		writeJson(join(repo, ".mcp.json"), { mcpServers: { api: { type: "http", url: "https://h/mcp", headers: { Authorization: "Bearer sk-live-0123456789abcdef0123456789" } } } });
 		writeJson(join(home, "ws", ".mcp.json"), { mcpServers: { parent: { command: "node", args: ["s.js"], env: { KEY: "supersecretvalue1234567890" } } } });
 		settings("user", { hooks: { Stop: [{ hooks: [{ type: "command", command: "echo done" }] }] } });
-		const lines = [];
+		const lines: string[] = [];
 		const status = createStatus(paths(), { out: (line) => lines.push(line), platform: "linux" });
 		assert.equal(status.run({ path: repo, json: true }), 0);
 		const data = JSON.parse(lines.join("\n"));
@@ -215,19 +214,19 @@ describe("status", () => {
 		assert.deepEqual(Object.keys(data.tokens), ["measured", "unit", "notMeasured"]);
 		assert.deepEqual(data.tokens.notMeasured, ["MCP tool lists", "hook output"]);
 		assert.equal(data.tokens.measured, data.skills.items[0].tokens);
-		assert.deepEqual(data.mcp.servers.map((server) => [server.name, server.scope, server.tokens]).sort(), [
+		assert.deepEqual(data.mcp.servers.map((server: Record<string, any>) => [server.name, server.scope, server.tokens]).sort(), [
 			["api", "project", null],
 			["parent", "project", null],
 		]);
-		assert.equal(data.mcp.servers.find((server) => server.name === "parent").source, join(home, "ws", ".mcp.json"));
+		assert.equal(data.mcp.servers.find((server: Record<string, any>) => server.name === "parent").source, join(home, "ws", ".mcp.json"));
 		assert.equal(data.hooks.items[0].tokens, null);
 		assert.ok(!lines.join("\n").includes("0123456789abcdef0123456789"));
 		assert.ok(!lines.join("\n").includes("supersecretvalue"));
 	});
 
 	test("human output groups Skills, MCP servers, Hooks and Plugins and says what is not measured; errors for a missing folder", () => {
-		const lines = [];
-		const errors = [];
+		const lines: string[] = [];
+		const errors: string[] = [];
 		const status = createStatus(paths(), { out: (line) => lines.push(line), err: (line) => errors.push(line), platform: "linux" });
 		assert.equal(status.run({ path: repo }), 0);
 		const text = lines.join("\n");
@@ -244,7 +243,7 @@ describe("status", () => {
 			skill(join(fixture.repo, ".claude", "skills"), "local-one");
 			const { status, stdout } = fixture.run(["status", "--json"]);
 			assert.equal(status, 0);
-			assert.ok(JSON.parse(stdout).skills.items.some((item) => item.name === "local-one"));
+			assert.ok(JSON.parse(stdout).skills.items.some((item: Record<string, any>) => item.name === "local-one"));
 			assert.equal(fixture.run(["status", fixture.repo, "--json"], { cwd: fixture.root }).status, 0);
 			assert.equal(fixture.run(["status", join(fixture.root, "nope")]).status, 1);
 		} finally {

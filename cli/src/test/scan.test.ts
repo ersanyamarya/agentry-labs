@@ -1,13 +1,13 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createFixture } from "./helpers/fixture.js";
 
-let fx;
-let ws;
+let fx: Fixture;
+let ws: string;
 beforeEach(() => {
 	fx = createFixture();
 	ws = join(fx.root, "ws");
@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 afterEach(() => fx.cleanup());
 
-const newRepo = (name, { mcp, settings } = {}) => {
+const newRepo = (name: string, { mcp, settings }: { mcp?: Record<string, unknown>; settings?: Record<string, unknown> } = {}) => {
 	const dir = join(ws, name);
 	mkdirSync(dir, { recursive: true });
 	execFileSync("git", ["init", "-q"], { cwd: dir });
@@ -30,7 +30,7 @@ const newRepo = (name, { mcp, settings } = {}) => {
 };
 // A permission entry using the old tool name: a stale-name warning for that repo.
 const stale = { permissions: { allow: ["Bash(graft *)"] } };
-const scan = (...args) => {
+const scan = (...args: string[]) => {
 	const { status, stdout, stderr } = fx.run(["scan", ...args, "--json"]);
 	assert.ok(status === 0 || status === 1, stderr);
 	return JSON.parse(stdout);
@@ -41,7 +41,7 @@ describe("scan", () => {
 		newRepo("clean");
 		newRepo("bad", { settings: stale });
 		const data = scan(ws);
-		assert.deepEqual(data.repos.map((row) => row.path.slice(ws.length)), ["/bad", "/clean"]);
+		assert.deepEqual(data.repos.map((row: Record<string, any>) => row.path.slice(ws.length)), ["/bad", "/clean"]);
 		assert.equal(data.repos[0].summary.warning, 1);
 		assert.equal(data.repos[0].findings[0].id, "stale-name");
 		assert.equal(data.repos[1].summary.warning, 0);
@@ -50,7 +50,7 @@ describe("scan", () => {
 		assert.deepEqual(Object.keys(data.repos[0]).sort(), ["counts", "errors", "findings", "kind", "path", "root", "summary", "tokens"]);
 
 		const only = scan(ws, "--only-problems");
-		assert.deepEqual(only.repos.map((row) => row.path.slice(ws.length)), ["/bad"]);
+		assert.deepEqual(only.repos.map((row: Record<string, any>) => row.path.slice(ws.length)), ["/bad"]);
 	});
 
 	test("a finding in a user-level file is reported once under global, not per repo", () => {

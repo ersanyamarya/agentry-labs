@@ -1,7 +1,7 @@
-// @ts-nocheck
 // Runs the real `agentry ui` in a pseudo-terminal (python3 pty, test/helpers/pty-run.py) and looks at the bytes it writes: colour must be real SGR
 // escapes on a TTY, also when TERM is unset, and absent with NO_COLOR. Why colour can go missing: chalk (inside Ink)
 // decides its level once at load from TTY-ness, TERM, COLORTERM and FORCE_COLOR, and never reads NO_COLOR.
+import type { Fixture } from "./helpers/fixture.js";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -12,16 +12,16 @@ const bin = fileURLToPath(new URL("../bin/agentry.js", import.meta.url));
 const runner = fileURLToPath(new URL("../../src/test/helpers/pty-run.py", import.meta.url));
 const hasPython = spawnSync("python3", ["-c", "import pty"]).status === 0;
 
-let fx;
+let fx: Fixture;
 beforeEach(() => {
 	fx = createFixture();
 });
 afterEach(() => fx.cleanup());
 
 // `env` entries set to undefined are removed (TERM, NO_COLOR...).
-const ui = (extra) =>
-	new Promise((resolve) => {
-		const env = { ...process.env, CLAUDE_CONFIG_DIR: fx.configDir, AGENTRY_HOME: fx.home, AGENTRY_MANAGED_DIR: fx.managedDir, ...extra };
+const ui = (extra: Record<string, string | undefined>) =>
+	new Promise<string>((resolve) => {
+		const env: Record<string, string | undefined> = { ...process.env, CLAUDE_CONFIG_DIR: fx.configDir, AGENTRY_HOME: fx.home, AGENTRY_MANAGED_DIR: fx.managedDir, ...extra };
 		for (const key of Object.keys(env)) {
 			if (env[key] === undefined) {
 				delete env[key];
@@ -34,7 +34,7 @@ const ui = (extra) =>
 		}
 		const child = spawn("python3", [runner, process.execPath, bin, "ui"], { cwd: fx.repo, env });
 		let out = "";
-		child.stdout.on("data", (data) => (out += data));
+		child.stdout.on("data", (data: Buffer) => (out += data));
 		child.on("close", () => resolve(out));
 	});
 

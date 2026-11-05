@@ -1,14 +1,13 @@
-// @ts-nocheck
 // The layout at 80, 100 and 130 columns on every tab: no line wider than the terminal, state badges whole, frames stable.
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { KEYS, createUi, stripAnsi } from "./helpers/tui.js";
 
-let ui;
+let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());
 
 const TABS = ["1", "2", "3", "4", "5", "6", "7", "8"];
-const lines = () => stripAnsi(ui.frame()).split("\n");
+const lines = () => stripAnsi(ui.frame()!).split("\n");
 
 for (const cols of [80, 100, 130]) {
 	describe(`${cols} columns`, () => {
@@ -36,7 +35,7 @@ for (const cols of [80, 100, 130]) {
 			for (const line of shelf) {
 				assert.match(line, /○ off\s+○ off/);
 			}
-			assert.doesNotMatch(ui.frame(), /[PG] [●○◐] \w*…/);
+			assert.doesNotMatch(ui.frame()!, /[PG] [●○◐] \w*…/);
 		});
 
 		test("header summary and footer fit on one line each, with the counts first when short", async () => {
@@ -62,11 +61,11 @@ describe("layout by width", () => {
 		await ui.ready();
 		await ui.resize(80, 36);
 		assert.ok(lines().some((line) => /^─{80}$/.test(line)), "stacked details start with a rule");
-		assert.doesNotMatch(ui.frame(), /┌/);
+		assert.doesNotMatch(ui.frame()!, /┌/);
 		await ui.resize(130, 36);
-		assert.match(ui.frame(), /┌─+┐/);
+		assert.match(ui.frame()!, /┌─+┐/);
 		const box = lines().find((line) => line.includes("┌"));
-		assert.ok(box.indexOf("┌") < 70, "the details box sits next to the list, not at the far edge");
+		assert.ok(box!.indexOf("┌") < 70, "the details box sits next to the list, not at the far edge");
 	});
 
 	test("the details box is as tall as its content, not the list", async () => {

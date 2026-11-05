@@ -1,15 +1,14 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { KEYS, createUi } from "./helpers/tui.js";
 
-let ui;
+let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());
 
 const ON = '{\n\t"enabledPlugins": {\n\t\t"demo@mkt": true\n\t}\n}\n';
-const settings = () => readFileSync(ui.plugin.settings, "utf8");
+const settings = () => readFileSync(ui.plugin!.settings, "utf8");
 const backups = () => (existsSync(join(ui.fx.configDir, "backups/agentry")) ? readdirSync(join(ui.fx.configDir, "backups/agentry")) : []);
 
 describe("Plugins tab: enable and disable", () => {
@@ -23,10 +22,10 @@ describe("Plugins tab: enable and disable", () => {
 	test("space previews the diff and the new-session note; n cancels with nothing written", async () => {
 		await ui.press(KEYS.space);
 		await ui.until(/Disable demo@mkt \(preview\)/);
-		assert.match(ui.frame(), /-\s+"demo@mkt": true/);
-		assert.match(ui.frame(), /\+\s+"demo@mkt": false/);
+		assert.match(ui.frame()!, /-\s+"demo@mkt": true/);
+		assert.match(ui.frame()!, /\+\s+"demo@mkt": false/);
 		await ui.until(/sessions started after this/);
-		assert.match(ui.frame(), /Apply this\? y = yes, n = cancel/);
+		assert.match(ui.frame()!, /Apply this\? y = yes, n = cancel/);
 		await ui.press("n");
 		await ui.until(/Cancelled; nothing changed/);
 		assert.equal(settings(), ON);
@@ -75,7 +74,7 @@ describe("Plugins tab: enable and disable", () => {
 		writeFileSync(join(ui.fx.managedDir, "managed-settings.json"), '{"enabledPlugins":{"demo@mkt":true}}');
 		await ui.press(KEYS.space);
 		await ui.until(/set by managed settings/);
-		assert.match(ui.frame(), /Nothing can be applied here/);
+		assert.match(ui.frame()!, /Nothing can be applied here/);
 		await ui.press("y");
 		assert.equal(settings(), ON);
 		assert.deepEqual(backups(), []);
@@ -87,7 +86,7 @@ describe("Skills tab: plugin skills group", () => {
 		ui = createUi({ plugin: { settingsText: ON } });
 		await ui.ready();
 		await ui.moveTo(/^>\s+demo:\*/);
-		assert.match(ui.frame(), /plugin skill \(comes with a/);
+		assert.match(ui.frame()!, /plugin skill \(comes with a/);
 		await ui.press(KEYS.space);
 		await ui.until(/Disable demo@mkt \(preview\)/);
 		await ui.press("y");

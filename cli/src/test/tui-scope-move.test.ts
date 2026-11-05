@@ -1,11 +1,10 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { KEYS, createUi } from "./helpers/tui.js";
 
-let ui;
+let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());
 
 const globalNotes = () => join(ui.fx.configDir, "skills/notes");
@@ -21,7 +20,7 @@ describe("move skills between project and global scope", () => {
 
 	test("o previews the move for a global skill and y moves it into the project", async () => {
 		await ui.moveTo(/^>\s+notes/);
-		assert.match(ui.frame(), /o (move to this project only|this project)/);
+		assert.match(ui.frame()!, /o (move to this project only|this project)/);
 		await ui.press("o");
 		await ui.until(/would demote notes/);
 		assert.ok(existsSync(globalNotes()), "a preview moves nothing");
@@ -33,7 +32,7 @@ describe("move skills between project and global scope", () => {
 
 	test("a previews a project-only skill, n cancels, y moves it to ~/.claude/skills", async () => {
 		await ui.moveTo(/^>\s+proj/);
-		assert.match(ui.frame(), /a (move to all projects|all projects)/);
+		assert.match(ui.frame()!, /a (move to all projects|all projects)/);
 		await ui.press("a");
 		await ui.until(/would promote proj/);
 		await ui.press("n");
@@ -56,7 +55,7 @@ describe("move skills between project and global scope", () => {
 		await ui.moveTo(/^>\s+proj/);
 		await ui.press("a");
 		await ui.until(/already exists; not overwriting/);
-		assert.match(ui.frame(), /Nothing can be applied here/);
+		assert.match(ui.frame()!, /Nothing can be applied here/);
 		await ui.press("y");
 		assert.ok(existsSync(projectProj()));
 	});

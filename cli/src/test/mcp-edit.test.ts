@@ -1,5 +1,5 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
@@ -9,9 +9,9 @@ import { installFakeClaude } from "./helpers/fake-claude.js";
 const SECRET = "sk-supersecretvalue1234567890";
 const DEMO = { type: "stdio", command: "echo", args: ["hi"], env: { API_KEY: SECRET, KEEP: "1" } };
 
-let fx;
-let fake;
-let extra;
+let fx: Fixture;
+let fake: ReturnType<typeof installFakeClaude>;
+let extra: NodeJS.ProcessEnv;
 beforeEach(() => {
 	fx = createFixture();
 	fake = installFakeClaude(join(fx.root, "fakebin"));
@@ -22,7 +22,7 @@ afterEach(() => fx.cleanup());
 
 const claudeJson = () => join(fx.configDir, ".claude.json");
 const servers = () => JSON.parse(readFileSync(claudeJson(), "utf8")).mcpServers;
-const mcp = (args) => fx.run(["mcp", ...args], { env: extra });
+const mcp = (args: string[]) => fx.run(["mcp", ...args], { env: extra });
 
 describe("agentry mcp add", () => {
 	test("--dry-run previews a masked command and runs nothing", () => {

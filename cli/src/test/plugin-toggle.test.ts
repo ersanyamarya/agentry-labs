@@ -1,11 +1,11 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { addPlugin, createFixture } from "./helpers/fixture.js";
 
-let fx;
+let fx: Fixture;
 beforeEach(() => {
 	fx = createFixture();
 });
@@ -133,7 +133,7 @@ describe("refusals and usage", () => {
 		const { createPaths } = await import("../lib/paths.js");
 		addPlugin(fx, { settingsText: ON });
 		const paths = createPaths({ env: { ...process.env, CLAUDE_CONFIG_DIR: fx.configDir, AGENTRY_HOME: fx.home, AGENTRY_MANAGED_DIR: fx.managedDir }, cwd: fx.repo });
-		const errs = [];
+		const errs: string[] = [];
 		const named = createPluginToggle(paths, { err: (m) => errs.push(m), readDefaults: () => '{\n    "other@mkt" = 1;\n    "demo@mkt" = 0;\n}' });
 		assert.equal(await named.run({ name: "demo", enable: false, path: fx.repo, dryRun: true }), 1);
 		assert.match(errs.join(), /macOS MDM/);

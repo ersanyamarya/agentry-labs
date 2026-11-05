@@ -1,5 +1,5 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
@@ -23,7 +23,7 @@ const SETTINGS = `{
 }
 `;
 
-let fx;
+let fx: Fixture;
 beforeEach(() => {
 	fx = createFixture();
 	writeFileSync(settingsPath(), SETTINGS);
@@ -33,9 +33,9 @@ afterEach(() => fx.cleanup());
 const settingsPath = () => join(fx.configDir, "settings.json");
 const settings = () => readFileSync(settingsPath(), "utf8");
 const parkedFile = () => join(fx.configDir, "agentry/parked-hooks.json");
-const hook = (args) => fx.run(["hook", ...args]);
+const hook = (args: (string | undefined)[]) => fx.run(["hook", ...(args as string[])]);
 // id of the listed hook whose line contains `text`
-const idOf = (text) => hook(["list"]).stdout.split("\n").find((line) => line.includes(text))?.slice(0, 8);
+const idOf = (text: string) => hook(["list"]).stdout.split("\n").find((line) => line.includes(text))?.slice(0, 8);
 
 describe("agentry hook list", () => {
 	test("prints id, scope, state, event, matcher and a masked command", () => {
@@ -50,7 +50,7 @@ describe("agentry hook list", () => {
 		assert.equal(idOf("echo two"), idOf("echo two"));
 		const items = JSON.parse(hook(["list", "--json"]).stdout);
 		assert.equal(items.length, 3);
-		assert.ok(items.every((item) => /^[0-9a-f]{8}$/.test(item.id)));
+		assert.ok(items.every((item: Record<string, any>) => /^[0-9a-f]{8}$/.test(item.id)));
 	});
 });
 
@@ -85,7 +85,7 @@ describe("agentry hook disable|enable", () => {
 		const { status, stdout } = hook(["enable", id, "--yes"]);
 		assert.equal(status, 0, stdout);
 		const json = JSON.parse(settings());
-		assert.deepEqual(json.hooks.PreToolUse[0].hooks.map((one) => one.command), [`echo one --token ${SECRET}`, "echo two"]);
+		assert.deepEqual(json.hooks.PreToolUse[0].hooks.map((one: Record<string, any>) => one.command), [`echo one --token ${SECRET}`, "echo two"]);
 		assert.equal(json.hooks.PreToolUse[0].matcher, "Bash");
 		assert.deepEqual(JSON.parse(readFileSync(parkedFile(), "utf8")).hooks, {});
 		assert.equal(idOf("echo two"), id);

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -9,9 +8,9 @@ import { KEYS, createUi } from "./helpers/tui.js";
 const SECRET = "sk-supersecretvalue1234567890";
 const USER_SERVER = { type: "stdio", command: "echo", args: ["hi"], env: { API_KEY: SECRET } };
 
-let ui;
-let oldPath;
-let fake;
+let ui: ReturnType<typeof createUi>;
+let oldPath: string | undefined;
+let fake: ReturnType<typeof installFakeClaude>;
 beforeEach(async () => {
 	ui = createUi();
 	fake = installFakeClaude(join(ui.fx.root, "fakebin"));
@@ -37,9 +36,9 @@ describe("MCP tab: park and add back user-scope servers", () => {
 		await ui.moveTo(/^>\s*userdemo/);
 		await ui.press(KEYS.space);
 		await ui.until(/Turn off userdemo \(preview\)/);
-		assert.match(ui.frame(), /env API_KEY=<masked>/);
-		assert.match(ui.frame(), /claude mcp remove userdemo/);
-		assert.doesNotMatch(ui.frame(), new RegExp(SECRET));
+		assert.match(ui.frame()!, /env API_KEY=<masked>/);
+		assert.match(ui.frame()!, /claude mcp remove userdemo/);
+		assert.doesNotMatch(ui.frame()!, new RegExp(SECRET));
 		await ui.press("n");
 		await ui.until(/Cancelled; nothing changed/);
 		assert.deepEqual(fake.argv(), []);
@@ -54,7 +53,7 @@ describe("MCP tab: park and add back user-scope servers", () => {
 		await ui.until(/userdemo is turned off/);
 		assert.equal(servers().userdemo, undefined);
 		await ui.until(/userdemo\s+global\s+○ off/);
-		assert.doesNotMatch(ui.frame(), new RegExp(SECRET));
+		assert.doesNotMatch(ui.frame()!, new RegExp(SECRET));
 
 		await ui.press(KEYS.up);
 		await ui.moveTo(/^>\s*userdemo\s+global\s+○ off/);

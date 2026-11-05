@@ -1,5 +1,5 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -10,11 +10,11 @@ import { createPaths } from "../lib/paths.js";
 import { createFixture } from "./helpers/fixture.js";
 
 // Layout: <root>/home/.claude (config), <root>/home/ws/repo (git repo), <root>/bin (PATH). Never reads the real home.
-let root;
-let home;
-let configDir;
-let repo;
-let bin;
+let root: string;
+let home: string;
+let configDir: string;
+let repo: string;
+let bin: string;
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-doc-")));
 	assert.ok(!root.startsWith(realpathSync(homedir())), "TMPDIR must be outside the home directory");
@@ -31,21 +31,21 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const writeJson = (file, value) => {
+const writeJson = (file: string, value: unknown) => {
 	mkdirSync(dirname(file), { recursive: true });
 	writeFileSync(file, JSON.stringify(value, null, "\t"));
 };
-const claudeJson = (value) => writeJson(join(configDir, ".claude.json"), value);
-const userSettings = (value) => writeJson(join(configDir, "settings.json"), value);
-const skill = (dir, name) => {
+const claudeJson = (value: unknown) => writeJson(join(configDir, ".claude.json"), value);
+const userSettings = (value: unknown) => writeJson(join(configDir, "settings.json"), value);
+const skill = (dir: string, name: string) => {
 	mkdirSync(join(dir, name), { recursive: true });
 	writeFileSync(join(dir, name, "SKILL.md"), `---\nname: ${name}\ndescription: does a thing\n---\n`);
 };
-const pluginRoot = (name) => join(configDir, "plugins", "cache", "mk", name, "1.0.0");
-const install = (installed) => writeJson(join(configDir, "plugins", "installed_plugins.json"), { version: 2, plugins: installed });
+const pluginRoot = (name: string) => join(configDir, "plugins", "cache", "mk", name, "1.0.0");
+const install = (installed: Record<string, unknown>) => writeJson(join(configDir, "plugins", "installed_plugins.json"), { version: 2, plugins: installed });
 const doctor = ({ launchctl = "" } = {}) =>
 	createDoctor(createPaths({ env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir } }), { out: () => {}, platform: "darwin", env: { PATH: bin }, launchctlGetenv: () => launchctl, renames: { graft: "trail" } });
-const findings = (id, options) => doctor(options).collect(repo).findings.filter((item) => item.id === id);
+const findings = (id: string, options?: { launchctl?: string }) => doctor(options).collect(repo).findings.filter((item) => item.id === id);
 
 describe("duplicates", () => {
 	test("dup-plugin-scope: the same plugin at user and local scope", () => {
@@ -56,7 +56,7 @@ describe("duplicates", () => {
 		assert.equal(rest.length, 0);
 		assert.equal(item.severity, "warning");
 		assert.equal(item.file, join(configDir, "plugins", "installed_plugins.json"));
-		assert.match(item.fix, new RegExp(`cd ${repo} && claude plugin uninstall tools@mk --scope local`));
+		assert.match(item.fix!, new RegExp(`cd ${repo} && claude plugin uninstall tools@mk --scope local`));
 	});
 
 	test("dup-plugin-scope: an install for another project is not a duplicate", () => {
@@ -72,7 +72,7 @@ describe("duplicates", () => {
 		const [item] = findings("dup-skill-name");
 		assert.equal(item.severity, "warning");
 		assert.equal(item.file, join(repo, ".claude", "skills", "same"));
-		assert.match(item.fix, /rm /);
+		assert.match(item.fix!, /rm /);
 	});
 
 	test("dup-mcp-scope: one server name in .mcp.json and user scope, with the line", () => {
@@ -84,7 +84,7 @@ describe("duplicates", () => {
 		assert.equal(item.file, join(repo, ".mcp.json"));
 		assert.equal(item.line, 3);
 		assert.match(item.message, /also in user scope/);
-		assert.match(item.fix, /claude mcp remove dup -s project/);
+		assert.match(item.fix!, /claude mcp remove dup -s project/);
 	});
 
 	test("dup-mcp-plugin: context-mode in .mcp.json while the plugin is enabled", () => {
@@ -97,7 +97,7 @@ describe("duplicates", () => {
 		assert.equal(item.severity, "warning");
 		assert.equal(item.file, join(repo, ".mcp.json"));
 		assert.equal(item.line, 3);
-		assert.match(item.fix, /context-mode@mk|plugin already provides/);
+		assert.match(item.fix!, /context-mode@mk|plugin already provides/);
 	});
 });
 
@@ -108,7 +108,7 @@ describe("broken references", () => {
 		assert.equal(item.severity, "error");
 		assert.equal(item.file, join(configDir, ".claude.json"));
 		assert.equal(item.line, 3);
-		assert.match(item.fix, /claude mcp remove graft -s user/);
+		assert.match(item.fix!, /claude mcp remove graft -s user/);
 		assert.equal(doctor().run({ path: repo }), 1);
 	});
 
@@ -117,7 +117,7 @@ describe("broken references", () => {
 		const [item] = findings("missing-hook-file");
 		assert.equal(item.severity, "error");
 		assert.equal(item.file, join(configDir, "settings.json"));
-		assert.ok(item.line > 0);
+		assert.ok(item.line! > 0);
 		assert.match(item.message, new RegExp(`${home}/hooks/gone.sh`));
 	});
 
@@ -127,7 +127,7 @@ describe("broken references", () => {
 		const [item] = findings("broken-skill-link");
 		assert.equal(item.severity, "warning");
 		assert.equal(item.file, join(configDir, "skills", "dead"));
-		assert.match(item.fix, /rm /);
+		assert.match(item.fix!, /rm /);
 	});
 
 	test("plugin-not-installed: enabledPlugins names a plugin that isn't installed", () => {
@@ -136,7 +136,7 @@ describe("broken references", () => {
 		assert.equal(rest.length, 0);
 		assert.equal(item.file, join(configDir, "settings.json"));
 		assert.equal(item.line, 3);
-		assert.match(item.fix, /claude plugin install ghost@mk/);
+		assert.match(item.fix!, /claude plugin install ghost@mk/);
 	});
 });
 
@@ -149,8 +149,8 @@ describe("placeholders", () => {
 		assert.equal(item.severity, "warning");
 		assert.equal(item.file, join(configDir, ".claude.json"));
 		assert.match(item.message, /\$\{CTX_KEY\}/);
-		assert.match(item.fix, /launchctl setenv CTX_KEY "<value>"/);
-		assert.match(item.fix, /literal value/);
+		assert.match(item.fix!, /launchctl setenv CTX_KEY "<value>"/);
+		assert.match(item.fix!, /literal value/);
 	});
 
 	test("unset-placeholder: nothing when launchd has it, when a default exists, or off macOS; no value is ever read", () => {
@@ -175,14 +175,14 @@ describe("stale names", () => {
 		const items = findings("stale-name");
 		const what = items.map((item) => item.message.split(" still")[0]).sort();
 		assert.deepEqual(what, ['MCP server "graft"', 'MCP server "other"', 'Permission allow entry "Bash(graft:*)"', 'Permission allow entry "mcp__graft__find"', "PreToolUse hook", "PreToolUse hook matcher", "SessionStart hook", "statusLine command"]);
-		assert.ok(items.every((item) => item.severity === "warning" && item.file && /trail/.test(item.fix)));
-		assert.ok(items.find((item) => item.message.startsWith("Permission")).line > 0);
+		assert.ok(items.every((item) => item.severity === "warning" && item.file && /trail/.test(item.fix!)));
+		assert.ok(items.find((item) => item.message.startsWith("Permission"))!.line! > 0);
 	});
 });
 
 describe("shelf", () => {
 	// A skill folder on the shelf, in the group `group`; returns its path.
-	const shelfSkill = (group, name) => {
+	const shelfSkill = (group: string, name: string) => {
 		skill(join(configDir, "skill-shelf", group), name);
 		return join(configDir, "skill-shelf", group, name);
 	};
@@ -196,8 +196,8 @@ describe("shelf", () => {
 		assert.equal(item.severity, "warning");
 		assert.equal(item.file, join(configDir, "skills", "trim"));
 		assert.match(item.message, /video\/trim/);
-		assert.match(item.fix, /rm -r ".*skills\/trim"/);
-		assert.match(item.fix, /agentry shelf on video\/trim/);
+		assert.match(item.fix!, /rm -r ".*skills\/trim"/);
+		assert.match(item.fix!, /agentry shelf on video\/trim/);
 	});
 
 	test("shelf-duplicate: nothing when the file list or the bytes differ, or the global copy is a link into the shelf", () => {
@@ -240,7 +240,7 @@ describe("clean setup", () => {
 });
 
 describe("agentry doctor (CLI)", () => {
-	let fx;
+	let fx: Fixture;
 	beforeEach(() => {
 		fx = createFixture();
 	});

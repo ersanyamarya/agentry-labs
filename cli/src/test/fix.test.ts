@@ -1,5 +1,7 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Rule } from "../lib/doctor-rules.js";
+import type { Finding, FixRegistry, RunCommand } from "../lib/types.js";
+import type { Paths } from "../lib/paths.js";
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -11,12 +13,12 @@ import { createPaths } from "../lib/paths.js";
 import { createFixture } from "./helpers/fixture.js";
 
 // A fake doctor rule flags target.json while it contains BAD; the fake fix rewrites BAD to GOOD. Never the real home.
-let root;
-let home;
-let configDir;
-let repo;
-let target;
-let paths;
+let root: string;
+let home: string;
+let configDir: string;
+let repo: string;
+let target: string;
+let paths: Paths;
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-fix-")));
 	assert.ok(!root.startsWith(realpathSync(homedir())), "TMPDIR must be outside the home directory");
@@ -32,18 +34,18 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const fakeRule = {
+const fakeRule: Rule = {
 	id: "fake-bad",
 	run: () => (existsSync(target) && readFileSync(target, "utf8").includes("BAD") ? [{ id: "fake-bad", severity: "warning", message: "target.json says BAD", file: target }] : []),
 };
-const textFix = (replace = (text) => text.replace("BAD", "GOOD")) => ({
-	"fake-bad": (finding) => ({ ruleId: finding.id, file: finding.file, describe: () => "Replace BAD with GOOD", apply: replace }),
+const textFix = (replace = (text: string | undefined) => (text ?? "").replace("BAD", "GOOD")): FixRegistry => ({
+	"fake-bad": (finding: Finding) => ({ ruleId: finding.id, file: finding.file, describe: () => "Replace BAD with GOOD", apply: replace }),
 });
 
-const setup = ({ fixes = textFix(), tty = false, answers = [], onConfirm = () => {}, runCommand } = {}) => {
-	const lines = [];
-	const asked = [];
-	const ran = [];
+const setup = ({ fixes = textFix(), tty = false, answers = [], onConfirm = () => {}, runCommand }: { fixes?: FixRegistry; tty?: boolean; answers?: boolean[]; onConfirm?: (n: number) => unknown; runCommand?: RunCommand } = {}) => {
+	const lines: string[] = [];
+	const asked: string[] = [];
+	const ran: { argv: string[]; cwd?: string }[] = [];
 	const fix = createFix(paths, {
 		out: (line) => lines.push(line),
 		err: (line) => lines.push(line),
@@ -189,7 +191,7 @@ describe("apply", () => {
 	});
 
 	test("verify reports a finding that is still there and exits 1", async () => {
-		const { fix, output } = setup({ fixes: textFix((text) => text.replace('"keep": true', '"keep": false')) });
+		const { fix, output } = setup({ fixes: textFix((text) => (text ?? "").replace('"keep": true', '"keep": false')) });
 		assert.equal(await fix.run({ path: repo, yes: true }), 1);
 		assert.match(output(), /verify \[fake-bad\] target\.json says BAD: still reported/);
 	});
@@ -211,7 +213,7 @@ describe("concurrent modification", () => {
 		const { fix, asked, output } = setup({
 			tty: true,
 			answers: [true, true],
-			onConfirm: (n) => n === 1 && writeFileSync(target, original().replace('"keep": true', '"keep": true,\n\t"added": 1')),
+			onConfirm: (n: number) => n === 1 && writeFileSync(target, original().replace('"keep": true', '"keep": true,\n\t"added": 1')),
 		});
 		assert.equal(await fix.run({ path: repo }), 0);
 		assert.equal(asked.length, 2);
@@ -227,7 +229,7 @@ describe("concurrent modification", () => {
 		const { fix, asked, output } = setup({
 			tty: true,
 			answers: [true, true, true],
-			onConfirm: (n) => writeFileSync(target, `${original()}\n`.repeat(n)),
+			onConfirm: (n: number) => writeFileSync(target, `${original()}\n`.repeat(n)),
 		});
 		assert.equal(await fix.run({ path: repo }), 1);
 		assert.equal(asked.length, 3);
@@ -239,7 +241,7 @@ describe("concurrent modification", () => {
 
 describe("command fixes", () => {
 	const commandFix = {
-		"fake-bad": (finding) => ({
+		"fake-bad": (finding: Finding) => ({
 			ruleId: finding.id,
 			file: finding.file,
 			describe: () => "Run the cleaner",
@@ -266,7 +268,7 @@ describe("command fixes", () => {
 			fixes: commandFix,
 			tty: true,
 			answers: [true],
-			runCommand: (argv, { cwd }) => {
+			runCommand: (argv: string[], { cwd }) => {
 				ran.push({ argv, cwd });
 				writeFileSync(target, "{}\n");
 				return { status: 0, stdout: "removed sk-abcdef1234567890xyz\n", stderr: "" };

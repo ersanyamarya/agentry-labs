@@ -1,5 +1,6 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Finding, FixRegistry, RunCommand, TextFix, UnfixableFix } from "../lib/types.js";
+import type { Paths } from "../lib/paths.js";
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -12,12 +13,12 @@ import { createFixUndo } from "../lib/fix-undo.js";
 import { createPaths } from "../lib/paths.js";
 
 // Layout: <root>/home/.claude (config), <root>/home/ws/repo (git repo), <root>/bin (PATH with a fake `trail`). Never the real home.
-let root;
-let home;
-let configDir;
-let repo;
-let bin;
-let paths;
+let root: string;
+let home: string;
+let configDir: string;
+let repo: string;
+let bin: string;
+let paths: Paths;
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-fixrules-")));
 	assert.ok(!root.startsWith(realpathSync(homedir())), "TMPDIR must be outside the home directory");
@@ -36,18 +37,18 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const put = (file, text) => {
+const put = (file: string, text: string) => {
 	mkdirSync(dirname(file), { recursive: true });
 	writeFileSync(file, text);
 };
-const json = (value) => `${JSON.stringify(value, null, "\t")}\n`;
+const json = (value: unknown) => `${JSON.stringify(value, null, "\t")}\n`;
 const settings = () => join(configDir, "settings.json");
 const dotClaudeJson = () => join(configDir, ".claude.json");
 const mcpJson = () => join(repo, ".mcp.json");
 
-const setup = ({ runCommand, renames = { graft: "trail" } } = {}) => {
-	const lines = [];
-	const ran = [];
+const setup = ({ runCommand, renames = { graft: "trail" } }: { runCommand?: RunCommand; renames?: Record<string, string> } = {}) => {
+	const lines: string[] = [];
+	const ran: { argv: string[]; cwd?: string }[] = [];
 	const fix = createFix(paths, {
 		out: (line) => lines.push(line),
 		err: (line) => lines.push(line),
@@ -65,11 +66,11 @@ const setup = ({ runCommand, renames = { graft: "trail" } } = {}) => {
 	return { fix, lines, ran, output: () => lines.join("\n") };
 };
 const undo = async () => {
-	const lines = [];
+	const lines: string[] = [];
 	const code = await createFixUndo(paths, { out: (line) => lines.push(line), err: (line) => lines.push(line) }).run({ yes: true });
 	return { code, output: lines.join("\n") };
 };
-const dirTree = (dir) => (existsSync(dir) ? readdirSync(dir, { recursive: true }).sort() : []);
+const dirTree = (dir: string) => (existsSync(dir) ? readdirSync(dir, { recursive: true }).sort() : []);
 
 describe("stale-name", () => {
 	test("swaps a permission, a command found on PATH and a matcher; formatting and other bytes untouched", async () => {
@@ -167,14 +168,14 @@ describe("MCP entries", () => {
 	test("an unparsable file is refused, not rewritten", () => {
 		const fixes = createFixes({ renames: { graft: "trail" }, env: { PATH: bin } });
 		put(settings(), '{ "permissions": { "allow": ["Bash(graft x)",] } }');
-		const finding = { id: "stale-name", file: settings(), message: 'Permission allow entry "Bash(graft x)" still uses the old name "graft" (now "trail")' };
-		assert.match(fixes["stale-name"](finding, { paths, cwd: repo, project: { root: repo } }).unfixable, /not valid JSON/);
+		const finding: Finding = { id: "stale-name", severity: "warning", file: settings(), message: 'Permission allow entry "Bash(graft x)" still uses the old name "graft" (now "trail")' };
+		assert.match((fixes["stale-name"]!(finding, { paths, cwd: repo, project: { cwd: repo, root: repo }, findings: [] }) as UnfixableFix).unfixable, /not valid JSON/);
 		put(mcpJson(), '{"mcpServers": {"a": {"command": "/no/cmd"},}}');
-		const second = fixes["missing-mcp-command"]({ id: "missing-mcp-command", file: mcpJson(), message: 'MCP server "a" runs "/no/cmd", which is not on PATH or does not exist' }, { paths, cwd: repo });
-		assert.match(second.unfixable, /not valid JSON/);
+		const second = fixes["missing-mcp-command"]!({ id: "missing-mcp-command", severity: "warning", file: mcpJson(), message: 'MCP server "a" runs "/no/cmd", which is not on PATH or does not exist' }, { paths, cwd: repo, project: { cwd: repo, root: repo }, findings: [] });
+		assert.match((second as UnfixableFix).unfixable, /not valid JSON/);
 		// A file that went bad after planning: apply throws a typed error that carries no file content.
-		const removal = fixes["dup-mcp-plugin"]({ id: "dup-mcp-plugin", file: mcpJson(), message: 'MCP server "a" (project) duplicates the server of enabled plugin p@m' }, { paths, cwd: repo });
-		assert.throws(() => removal.apply('{"mcpServers": {"a": {},}}'), (error) => error.code === "EJSONPARSE" && !error.message.includes("mcpServers"));
+		const removal = fixes["dup-mcp-plugin"]!({ id: "dup-mcp-plugin", severity: "warning", file: mcpJson(), message: 'MCP server "a" (project) duplicates the server of enabled plugin p@m' }, { paths, cwd: repo, project: { cwd: repo, root: repo }, findings: [] });
+		assert.throws(() => (removal as TextFix).apply('{"mcpServers": {"a": {},}}'), (error: NodeJS.ErrnoException) => error.code === "EJSONPARSE" && !error.message.includes("mcpServers"));
 	});
 });
 
@@ -183,7 +184,7 @@ describe("links, skills and plugins", () => {
 		const link = join(configDir, "skills", "ghost");
 		mkdirSync(dirname(link), { recursive: true });
 		symlinkSync(join(root, "nowhere"), link);
-		const { fix, output } = setup({ runCommand: (argv, { cwd }) => {
+		const { fix, output } = setup({ runCommand: (argv: string[], { cwd }) => {
 			execFileSync(argv[0], argv.slice(1), { cwd });
 			return { status: 0, stdout: "", stderr: "" };
 		} });
@@ -202,7 +203,7 @@ describe("links, skills and plugins", () => {
 		put(join(configDir, "skills", "dupe", "notes", "a.txt"), "a\n");
 		put(join(configDir, "skill-shelf", "misc", "dupe", "SKILL.md"), body);
 		put(join(configDir, "skill-shelf", "misc", "dupe", "notes", "a.txt"), "a\n");
-		const { fix, output } = setup({ runCommand: (argv, { cwd }) => {
+		const { fix, output } = setup({ runCommand: (argv: string[], { cwd }) => {
 			execFileSync(argv[0], argv.slice(1), { cwd });
 			return { status: 0, stdout: "", stderr: "" };
 		} });
@@ -221,7 +222,7 @@ describe("links, skills and plugins", () => {
 		const both = json({ version: 2, plugins: { "tools@mk": [{ scope: "user", installPath: dir }, { scope: "local", projectPath: repo, installPath: dir }] } });
 		put(file, both);
 		const { fix, output, ran } = setup({
-			runCommand: (argv, { cwd }) => {
+			runCommand: (argv: string[], { cwd }) => {
 				ran.push({ argv, cwd });
 				writeFileSync(file, json({ version: 2, plugins: { "tools@mk": [{ scope: "user", installPath: dir }] } }));
 				return { status: 0, stdout: "", stderr: "" };

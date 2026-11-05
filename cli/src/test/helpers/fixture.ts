@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Builds a throwaway home with a shelf and a git repo, and runs the CLI against it. Never touches the real ~/.claude.
 
 import { execFileSync, spawnSync } from "node:child_process";
@@ -9,8 +8,10 @@ import { fileURLToPath } from "node:url";
 
 const bin = fileURLToPath(new URL("../../bin/agentry.js", import.meta.url));
 
+export type Fixture = ReturnType<typeof createFixture>;
+
 // A plugin installed for the user scope, with one skill; `enabled` (default true, null for no entry) goes into <config>/settings.json.
-export const addPlugin = (fx, { id = "demo@mkt", enabled = true, settingsText } = {}) => {
+export const addPlugin = (fx: Pick<Fixture, "configDir">, { id = "demo@mkt", enabled = true, settingsText }: { id?: string; enabled?: boolean | null; settingsText?: string } = {}) => {
 	const [name] = id.split("@");
 	const installPath = join(fx.configDir, "plugins/cache/mkt", name, "1.0.0");
 	mkdirSync(join(installPath, "skills/hello"), { recursive: true });
@@ -26,7 +27,7 @@ export const addPlugin = (fx, { id = "demo@mkt", enabled = true, settingsText } 
 };
 
 // shelf: { group: { skills: [names], agents: [file names] } }
-export const createFixture = ({ shelf = { video: { skills: ["ffmpeg-install", "trim"], agents: ["editor.md"] }, audit: { skills: ["review"] } } } = {}) => {
+export const createFixture = ({ shelf = { video: { skills: ["ffmpeg-install", "trim"], agents: ["editor.md"] }, audit: { skills: ["review"] } } }: { shelf?: Record<string, { skills?: string[]; agents?: string[] }> } = {}) => {
 	const root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-")));
 	const home = join(root, "home");
 	const configDir = join(home, ".claude");
@@ -47,7 +48,7 @@ export const createFixture = ({ shelf = { video: { skills: ["ffmpeg-install", "t
 
 	const managedDir = join(root, "managed");
 	const env = { ...process.env, CLAUDE_CONFIG_DIR: configDir, AGENTRY_HOME: home, AGENTRY_MANAGED_DIR: managedDir };
-	const run = (args, { cwd = repo, env: extra = {} } = {}) => {
+	const run = (args: string[], { cwd = repo, env: extra = {} }: { cwd?: string; env?: NodeJS.ProcessEnv } = {}) => {
 		const { status, stdout, stderr } = spawnSync(process.execPath, [bin, ...args], { cwd, env: { ...env, ...extra }, encoding: "utf8" });
 		return { status, stdout, stderr };
 	};

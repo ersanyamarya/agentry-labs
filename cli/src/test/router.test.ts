@@ -1,10 +1,10 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createFixture } from "./helpers/fixture.js";
 
-let fx;
+let fx: Fixture;
 beforeEach(() => {
 	fx = createFixture();
 });
