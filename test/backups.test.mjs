@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readdirSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createBackups } from "../lib/backups.mjs";
@@ -178,6 +178,64 @@ describe("shelf remove --no-backup", () => {
 		assert.equal(shelf().remove("video/ffmpeg-install"), 0);
 		assert.match(lines.join("\n"), /a copy is in/);
 		assert.equal(backups().entries().length, 1);
+	});
+});
+
+describe("prune --kind and updated copies", () => {
+	// updated/<stamp>/<label> as catalog update writes it, `days` old.
+	const updatedCopy = (days, label, from) => {
+		const stamp = new Date(NOW.getTime() - days * 86_400_000).toISOString().replace(/[:.]/g, "-");
+		const dir = join(paths.backupsDir, "updated", stamp);
+		put(join(dir, label, "AGENT.md"), "old body");
+		put(join(dir, "meta.json"), JSON.stringify({ updatedAt: new Date(NOW.getTime() - days * 86_400_000).toISOString(), items: { [label]: { from, what: "agent" } } }));
+		return `updated/${stamp}/${label}`;
+	};
+
+	test("lists updated copies with size, age and origin", () => {
+		const id = updatedCopy(3, "agent_x_user", join(fx.configDir, "agents/x"));
+		const entry = backups().entries().find((one) => one.id === id);
+		assert.equal(entry.kind, "updated");
+		assert.equal(entry.from, join(fx.configDir, "agents/x"));
+		assert.ok(entry.bytes > 0 && Math.floor(entry.days) === 3);
+		assert.match(entry.detail, /updated agent, from /);
+	});
+
+	test("--kind narrows --older-than and --all; bad kinds and ids with kind are refused", async () => {
+		fixSet("oldfix", 40);
+		updatedCopy(40, "agent_x_user", "/x");
+		put(join(paths.backupsDir, "removed/2026-09-01T00-00-00-000Z/s/SKILL.md"), "x");
+		put(join(paths.backupsDir, "removed/2026-09-01T00-00-00-000Z/meta.json"), JSON.stringify({ label: "s", from: "/s", removedAt: "2026-09-01T00:00:00.000Z" }));
+		assert.equal(await backups().prune({ olderThan: 30, kind: "removed", yes: true }), 0);
+		assert.deepEqual(backups().entries().map((one) => one.kind).sort(), ["fix", "updated"]);
+		assert.equal(await backups().prune({ all: true, kind: "updated", yes: true }), 0);
+		assert.deepEqual(backups().entries().map((one) => one.kind), ["fix"]);
+		assert.ok(!existsSync(join(paths.backupsDir, "updated")));
+		assert.equal(await backups().prune({ all: true, kind: "nope" }), 2);
+		assert.equal(await backups().prune({ ids: ["fix/oldfix"], kind: "fix" }), 2);
+	});
+
+	test("restore puts the old copy back, keeping the current one under removed/; delete drops it", async () => {
+		const from = join(fx.configDir, "agents/x");
+		put(join(from, "AGENT.md"), "new body");
+		const id = updatedCopy(1, "agent_x_user", from);
+		assert.equal(await backups().restore(id, { dryRun: true }), 0);
+		assert.equal(readFileSync(join(from, "AGENT.md"), "utf8"), "new body");
+		assert.equal(await backups().restore(id), 0);
+		assert.equal(readFileSync(join(from, "AGENT.md"), "utf8"), "old body");
+		assert.ok(!existsSync(join(paths.backupsDir, "updated")));
+		const kept = backups().entries();
+		assert.equal(kept.length, 1);
+		assert.equal(readFileSync(join(kept[0].path, "AGENT.md"), "utf8"), "new body");
+		const again = updatedCopy(2, "agent_y_user", "/y");
+		assert.equal(await backups().prune({ ids: [again], yes: true }), 0);
+		assert.ok(!existsSync(join(paths.backupsDir, "updated")));
+	});
+
+	test("the CLI takes --kind", () => {
+		fixSet("a", 40);
+		assert.equal(fx.run(["backups", "prune", "--all", "--kind", "bogus"]).status, 2);
+		assert.match(fx.run(["backups", "prune", "--older-than", "30", "--kind", "removed"]).stdout, /Nothing to delete/);
+		assert.match(fx.run(["backups", "prune", "--older-than", "30", "--kind", "fix"]).stdout, /Would delete 1 backup/);
 	});
 });
 

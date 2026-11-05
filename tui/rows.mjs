@@ -177,7 +177,7 @@ export const catalogKeys = (row) => {
 		["i", row.itemKind === "skill" ? "add to shelf" : where ? "add (all projects)" : "add", "add"],
 		...(where ? [["o", "add to this project", "project"]] : []),
 		...(row.outdated ? [["u", "update"]] : []),
-		...(row.itemKind === "skill" && row.installed ? [["x", "remove"], ["X", "remove, no copy", "no copy"]] : []),
+		...((row.itemKind === "skill" || row.itemKind === "agent" || row.itemKind === "rule") && row.installed ? [["x", "remove"], ["X", "remove, no copy", "no copy"]] : []),
 		["f", "update catalog", "fetch"],
 	];
 };
@@ -191,7 +191,7 @@ const catalogToggle = (item) =>
 		rule: "i copies it to ~/.claude/rules; never overwrites",
 		"claude-md": "i copies it to this project as CLAUDE.md, only when the project has none",
 		mcp: "i adds it to your user config (claude mcp add-json), o to this project's .mcp.json; the preview masks secrets",
-	})[item.kind] + (item.outdated ? "; u overwrites the installed copy with the catalog's (previewed, the old copy is saved first)" : "");
+	})[item.kind] + (item.installed && (item.kind === "agent" || item.kind === "rule") ? "; x removes it (a copy is kept in the backups)" : "") + (item.outdated ? (item.kind === "mcp" ? "; u sets the catalog's args and any env key you lack (masked preview, backed up, undoable)" : "; u overwrites the installed copy with the catalog's (previewed, the old copy is saved first)") : "");
 
 const catalogRow = (item) => {
 	const installed = item.installed;
@@ -203,6 +203,7 @@ const catalogRow = (item) => {
 		installed,
 		outdated: item.outdated,
 		target: item.shelf ? `${item.shelf}/${item.name}` : item.name,
+		installs: item.installs,
 		label: `  ${item.name}`,
 		...withCells([cell(cost(item.tokens), 5, "right"), cell(installed ? [seg(`● ${installed}`, { color: "green", bold: true }), ...(item.outdated ? [seg(" outdated", { color: "yellow", bold: true })] : [])] : seg("not installed", DIM), 24)]),
 		details: [`item: ${item.id}`, `bundle: ${item.bundle}`, `installed: ${installed ?? "no"}`, ...(item.outdated ? ["status: outdated (a file differs from the catalog copy)"] : []), `tokens: ${item.tokens === null ? "-" : `${tokens(item.tokens)} (${item.kind === "skill" || item.kind === "agent" ? "description" : "whole file"})`}`, `note: ${item.description || "(no description)"}`, `toggle: ${catalogToggle(item)}`],

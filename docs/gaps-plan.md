@@ -1,5 +1,8 @@
 # Gap closing plan
 
+**Status: all five phases are merged into `main`.** Remaining items are listed under "Open items" in
+`docs/shelf-cli-plan.md`. This file is kept as the record of the scope.
+
 Five clubbed phases, run one after another (each starts from the previous branch, because they all touch `tui/rows.mjs`,
 `tui/data.mjs`, `tui/app.mjs`, `bin/agentry.mjs` and the README). Conventions: CLAUDE.md and the existing `lib/` and `tui/`
 style (plain `.mjs`, stdlib only, factory functions, tabs, `node:test`). Every change is previewed, confirmed with `y`,
