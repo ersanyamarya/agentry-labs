@@ -108,9 +108,14 @@ Commands:
                                       one); an MCP server through mcp add (user scope, --project: .mcp.json; --yes skips
                                       its question). Items are kind/name (agent/super-planner); a bare name works if unique
   catalog update <item>... | --all [--dry-run] [--yes]
-                                      Replace outdated installed skills, agents and rules with the catalog's copy: lists each
-                                      file it overwrites or adds, saves the current copy under ~/.claude/backups/agentry/updated/,
-                                      then asks (or --yes). Without a terminal it only previews unless --yes
+                                      Replace outdated installed skills, agents, rules and CLAUDE.md files with the catalog's
+                                      copy: lists each file it overwrites or adds, saves the current copy under
+                                      ~/.claude/backups/agentry/updated/, then asks (or --yes). An MCP server (user scope) gets
+                                      the catalog's args and any env key it lacks, through mcp set (masked, backed up, undoable).
+                                      Without a terminal it only previews unless --yes
+  catalog remove agent/<name>... [--project] [--no-backup] [--dry-run] [--yes]
+                                      Remove an installed agent (~/.claude/agents, or --project: .claude/agents), keeping a copy
+                                      under ~/.claude/backups/agentry/removed/ unless --no-backup; previews, then asks (or --yes)
   rules list [--json]                 List the CLAUDE.md and rule files loaded for this project and the user, with tokens
   rules remove <file> [--dry-run] [--no-backup]
                                       Delete one of them (label as list shows it, a path, or a unique file name), keeping a copy
@@ -249,7 +254,7 @@ const runBackups = async (args, { json, all, "older-than": olderThan, kind, "dry
 	return usageError("Usage: agentry backups list [--json] | restore <id> [--dry-run] | delete <id>... [--dry-run] [--yes] | prune (--older-than <days> | --all) [--kind fix|removed|updated] [--dry-run] [--yes]");
 };
 
-const runCatalog = async (args, { group, json, project, all, yes, "dry-run": dryRun }) => {
+const runCatalog = async (args, { group, json, project, all, yes, "dry-run": dryRun, "no-backup": noBackup }) => {
 	const [action, ...rest] = args;
 	const catalog = createCatalog(createPaths());
 	if (action === "refresh" && rest.length === 0) {
@@ -267,7 +272,10 @@ const runCatalog = async (args, { group, json, project, all, yes, "dry-run": dry
 	if (action === "update" && (all ? rest.length === 0 : rest.length > 0)) {
 		return catalog.update(rest, { all, dryRun, yes });
 	}
-	return usageError("Usage: agentry catalog refresh | list [--json] | add <item>... [--group G] [--project] [--dry-run] [--yes] | update <item>... | --all [--dry-run] [--yes]");
+	if (action === "remove" && rest.length > 0) {
+		return catalog.remove(rest, { project, dryRun, yes, backup: !noBackup });
+	}
+	return usageError("Usage: agentry catalog refresh | list [--json] | add <item>... [--group G] [--project] [--dry-run] [--yes] | update <item>... | --all [--dry-run] [--yes] | remove agent/<name>... [--project] [--no-backup] [--dry-run] [--yes]");
 };
 
 const runRules = (args, { json, "dry-run": dryRun, "no-backup": noBackup }) => {

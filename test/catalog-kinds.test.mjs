@@ -218,7 +218,7 @@ describe("catalog update", () => {
 		assert.match(missing.stderr, /not installed; agentry catalog add agent\/helper/);
 		const mcp = catalog("update", "mcp/docs");
 		assert.equal(mcp.status, 1);
-		assert.match(mcp.stderr, /nothing to update/);
+		assert.match(mcp.stderr, /mcp\/docs is not installed/);
 		assert.match(catalog("update", "--all").stdout, /Everything installed is up to date/);
 		assert.equal(catalog("update").status, 2);
 		assert.equal(catalog("update", "alpha", "--yes", "--dry-run").status, 2);
@@ -270,5 +270,119 @@ describe("rules", () => {
 		assert.equal(existsSync(join(fx.configDir, "rules/style.md")), false);
 		assert.equal(existsSync(join(fx.configDir, "backups/agentry/removed")), false);
 		assert.equal(fx.run(["rules", "remove"]).status, 2);
+	});
+});
+
+describe("catalog remove agent", () => {
+	test("previews, needs --yes without a terminal, keeps a copy that backups restore puts back", () => {
+		catalog("refresh");
+		catalog("add", "agent/helper");
+		const dry = catalog("remove", "agent/helper", "--dry-run");
+		assert.equal(dry.status, 0, dry.stderr);
+		assert.match(dry.stdout, /remove agent\/helper: ~\/.claude\/agents\/helper.agent.md/);
+		assert.match(dry.stdout, /Dry run: nothing changed/);
+		assert.equal(existsSync(agentFile()), true);
+		assert.match(catalog("remove", "agent/helper").stdout, /run again with --yes/);
+		assert.equal(existsSync(agentFile()), true);
+		const ok = catalog("remove", "helper", "--yes");
+		assert.equal(ok.status, 0, ok.stderr);
+		assert.match(ok.stdout, /removed agent\/helper/);
+		assert.equal(existsSync(agentFile()), false);
+		const [stamp] = readdirSync(join(fx.configDir, "backups/agentry/removed"));
+		const meta = JSON.parse(readFileSync(join(fx.configDir, "backups/agentry/removed", stamp, "meta.json"), "utf8"));
+		assert.equal(meta.what, "agent");
+		assert.equal(meta.from, agentFile());
+		const restored = fx.run(["backups", "restore", `removed/${stamp}/agent_helper`]);
+		assert.equal(restored.status, 0, restored.stderr);
+		assert.match(readFileSync(agentFile(), "utf8"), /body v1/);
+	});
+
+	test("--project removes the project copy only; --no-backup keeps no copy; not installed and other kinds are refused", () => {
+		catalog("refresh");
+		catalog("add", "agent/helper");
+		catalog("add", "agent/helper", "--project");
+		const ok = catalog("remove", "agent/helper", "--project", "--no-backup", "--yes");
+		assert.equal(ok.status, 0, ok.stderr);
+		assert.equal(existsSync(join(fx.repo, ".claude/agents/helper.agent.md")), false);
+		assert.equal(existsSync(agentFile()), true);
+		assert.equal(existsSync(join(fx.configDir, "backups/agentry/removed")), false);
+		const again = catalog("remove", "agent/helper", "--project", "--yes");
+		assert.equal(again.status, 1);
+		assert.match(again.stderr, /not installed in this project/);
+		const skill = catalog("remove", "skill/alpha", "--yes");
+		assert.equal(skill.status, 1);
+		assert.match(skill.stderr, /agentry shelf remove/);
+		assert.equal(catalog("remove").status, 2);
+	});
+});
+
+describe("catalog update: CLAUDE.md files and MCP servers", () => {
+	const claudeMd = () => join(fx.repo, "CLAUDE.md");
+
+	test("CLAUDE.md: outdated when the project copy differs from the catalog's, update saves the old copy under updated/", () => {
+		catalog("refresh");
+		catalog("add", "claude-md/BASIC_CLAUDE");
+		assert.doesNotMatch(catalog("list").stdout, /outdated/);
+		write(join(origin, "claude-md-files/BASIC_CLAUDE.md"), "# Project guide\nnew rule\n");
+		commit("v2");
+		catalog("refresh");
+		assert.match(catalog("list").stdout, /claude-md\/BASIC_CLAUDE .*project {2}outdated$/m);
+		const dry = catalog("update", "claude-md/BASIC_CLAUDE", "--dry-run");
+		assert.match(dry.stdout, /update claude-md\/BASIC_CLAUDE at .*CLAUDE.md:/);
+		assert.match(dry.stdout, /overwrite CLAUDE.md/);
+		assert.equal(readFileSync(claudeMd(), "utf8"), "# Project guide\n");
+		const done = catalog("update", "--all", "--yes");
+		assert.equal(done.status, 0, done.stderr);
+		assert.match(done.stdout, /updated claude-md\/BASIC_CLAUDE \(project\)/);
+		assert.equal(readFileSync(claudeMd(), "utf8"), "# Project guide\nnew rule\n");
+		const [stamp] = readdirSync(join(fx.configDir, "backups/agentry/updated"));
+		const dir = join(fx.configDir, "backups/agentry/updated", stamp);
+		assert.equal(readFileSync(join(dir, "claude-md_BASIC_CLAUDE_project"), "utf8"), "# Project guide\n");
+		assert.equal(JSON.parse(readFileSync(join(dir, "meta.json"), "utf8")).items["claude-md_BASIC_CLAUDE_project"].what, "claude-md");
+		assert.doesNotMatch(catalog("list").stdout, /outdated/);
+	});
+
+	test("CLAUDE.md: a project file with another heading is not the catalog's and is never touched", () => {
+		catalog("refresh");
+		write(claudeMd(), "# My own notes\n");
+		const json = JSON.parse(catalog("list", "--json").stdout);
+		assert.equal(json.find((entry) => entry.id === "claude-md/BASIC_CLAUDE").installed, undefined);
+		assert.equal(catalog("update", "claude-md/BASIC_CLAUDE", "--yes").status, 1);
+		assert.equal(readFileSync(claudeMd(), "utf8"), "# My own notes\n");
+	});
+
+	const userServers = (servers) => write(join(fx.configDir, ".claude.json"), `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`);
+	const servers = () => JSON.parse(readFileSync(join(fx.configDir, ".claude.json"), "utf8")).mcpServers;
+
+	test("MCP: new args and missing env keys go through mcp set, masked; existing env values stay; undo works", () => {
+		catalog("refresh");
+		userServers({ tool: { type: "stdio", command: "echo", args: ["old"], env: { OTHER: "mine" } } });
+		assert.match(catalog("list").stdout, /mcp\/tool .*user {2}outdated$/m);
+		const dry = catalog("update", "mcp/tool", "--dry-run");
+		assert.equal(dry.status, 0, dry.stderr);
+		assert.match(dry.stdout, /update mcp\/tool in your user config/);
+		assert.match(dry.stdout, /Edit user MCP server tool/);
+		assert.ok(!dry.stdout.includes(SECRET), "the secret never prints");
+		assert.deepEqual(servers().tool.args, ["old"]);
+		const done = catalog("update", "mcp/tool", "--yes");
+		assert.equal(done.status, 0, done.stderr);
+		assert.ok(!done.stdout.includes(SECRET));
+		assert.deepEqual(servers().tool.args, ["hi"]);
+		assert.deepEqual(servers().tool.env, { OTHER: "mine", TOOL_TOKEN: SECRET });
+		assert.doesNotMatch(catalog("list").stdout, /outdated/);
+		assert.match(catalog("update", "mcp/tool").stdout, /mcp\/tool is up to date/);
+		const undo = fx.run(["fix", "--undo", "--yes"]);
+		assert.equal(undo.status, 0, undo.stderr);
+		assert.deepEqual(servers().tool.args, ["old"]);
+	});
+
+	test("MCP: an env value you already have is never replaced; url servers and other commands are left alone", () => {
+		catalog("refresh");
+		userServers({ tool: { type: "stdio", command: "echo", args: ["hi"], env: { TOOL_TOKEN: "mine-123" } }, docs: { type: "http", url: "https://old.example/mcp" }, shared: { type: "stdio", command: "other", args: ["x"] } });
+		assert.doesNotMatch(catalog("list").stdout, /outdated/);
+		assert.match(catalog("update", "--all").stdout, /Everything installed is up to date/);
+		userServers({ tool: { type: "stdio", command: "echo", args: ["old"], env: { TOOL_TOKEN: "mine-123" } } });
+		assert.equal(catalog("update", "mcp/tool", "--yes").status, 0);
+		assert.deepEqual(servers().tool, { type: "stdio", command: "echo", args: ["hi"], env: { TOOL_TOKEN: "mine-123" } });
 	});
 });

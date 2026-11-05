@@ -115,6 +115,11 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		const { code, lines } = await capture((io) => catalogFor(dir, io), (catalog) => catalog.update(names, { dryRun, yes: !dryRun }));
 		return { ok: code === 0, text: lines.join("\n").replace(/\n?Dry run: nothing changed\./, "").trim() };
 	};
+	// An installed catalog agent (target: agent/<name>): delete after a copy to the backups. Preview with dryRun.
+	const removeAgent = async ({ dir, target, project, dryRun = false, backup = true }) => {
+		const { code, lines } = await capture((io) => catalogFor(dir, { ...io, now }), (catalog) => catalog.remove([target], { project, dryRun, backup, yes: !dryRun }));
+		return { ok: code === 0, text: lines.join("\n").replace(/\n?Dry run: nothing changed\./, "").trim() };
+	};
 	// CLAUDE.md and rule files (lib/rules.mjs): delete after a copy to the backups. Preview with dryRun.
 	const removeRule = async ({ dir, target, dryRun = false, backup = true }) => {
 		const { code, lines } = await capture((io) => createRules(makePaths(dir), { ...io, now }), (rules) => rules.remove(target, { dryRun, backup }));
@@ -220,5 +225,5 @@ export const createData = ({ makePaths, doctorOptions = {}, fixOptions = {}, cat
 		return { ok: code === 0, text: lines.join("\n").trim() };
 	};
 
-	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, promoteSkill, demoteSkill, restoreBackup, pruneBackups, refreshCatalog, addFromCatalog, updateFromCatalog, removeRule, previewPlugin, applyPlugin, previewPluginInstall, applyPluginInstall, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewMcpAdd, applyMcpAdd, previewMcpSet, applyMcpSet, previewHook, applyHook, previewFix, applyFix, previewUndo, applyUndo };
+	return { load, toggleShelf, shelveSkill, unshelveSkill, removeSkill, promoteSkill, demoteSkill, restoreBackup, pruneBackups, refreshCatalog, addFromCatalog, updateFromCatalog, removeAgent, removeRule, previewPlugin, applyPlugin, previewPluginInstall, applyPluginInstall, previewMcp, applyMcp, previewMcpRemove, applyMcpRemove, previewMcpAdd, applyMcpAdd, previewMcpSet, applyMcpSet, previewHook, applyHook, previewFix, applyFix, previewUndo, applyUndo };
 };

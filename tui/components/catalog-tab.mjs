@@ -1,6 +1,6 @@
 // Catalog tab: the agentry-labs skills (by bundle), agents, rules, CLAUDE.md files and MCP servers. f fetches (or updates)
 // the cached clone, i installs the selected item (o: into this project, for agents and MCP servers), u overwrites an
-// outdated installed one with the catalog's copy, x removes an installed skill. Each is previewed and waits for y.
+// outdated installed one with the catalog's copy (an MCP server: its args and missing env keys), x removes an installed skill, agent or rule. Each is previewed and waits for y.
 
 import React from "react";
 import { useInput } from "ink";
@@ -54,6 +54,21 @@ export const CatalogTab = ({ data, api, dir, active, height, layout, notify, rel
 		flow.begin({ kind: "confirm", title: `${title} ${names.length} (preview)`, text: preview.text, appliable: preview.ok, apply: () => api[call]({ dir, names }), done });
 	};
 
+	// x/X on an installed skill, agent or rule: an agent's global copy (else the project's); a rule by its file.
+	const removeRow = (backup) => {
+		if (!["skill", "agent", "rule"].includes(row.itemKind)) {
+			return notify("x removes a skill, agent or rule here; remove an MCP server from the MCP tab, CLAUDE.md from the Rules tab.");
+		}
+		if (!row.installed) {
+			return notify(`${row.item} is not installed.`);
+		}
+		if (row.itemKind === "skill") {
+			return startRemove({ api, dir, flow, backup, target: row.target, label: row.target });
+		}
+		const install = row.installs.find((one) => one.scope === "user") ?? row.installs[0];
+		return row.itemKind === "agent" ? startRemove({ api, dir, flow, backup, target: row.item, label: row.item, project: install.scope === "project", call: "removeAgent" }) : startRemove({ api, dir, flow, backup, target: install.path, label: row.item, call: "removeRule" });
+	};
+
 	useInput(
 		(input, key) => {
 			if (flow.handleKey(input, key) || list.handleKey(input, key)) {
@@ -78,7 +93,7 @@ export const CatalogTab = ({ data, api, dir, active, height, layout, notify, rel
 			} else if (input === "u" && row?.kind === "catalog") {
 				row.outdated ? startUpdate() : notify(row.installed ? `${row.item} is up to date.` : `${row.item} is not installed.`);
 			} else if ((input === "x" || input === "X") && row?.kind === "catalog") {
-				row.itemKind !== "skill" ? notify("x removes skills here; remove a rule from the Rules tab, an MCP server from the MCP tab.") : row.installed ? startRemove({ api, dir, flow, backup: input === "x", target: row.target, label: row.target }) : notify(`${row.item} is not installed.`);
+				removeRow(input === "x");
 			}
 		},
 		{ isActive: active },
