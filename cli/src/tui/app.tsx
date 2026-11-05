@@ -1,4 +1,3 @@
-// @ts-nocheck
 // The UI shell: project, tabs, overlays (help, picker) and the key map. Tabs get data and actions as props, so the
 // whole tree runs on injected data in tests. Every action goes through the api (tui/data.mjs), i.e. through lib/.
 
@@ -17,44 +16,60 @@ import { SkillsTab } from "./components/skills-tab.js";
 import { TAB_NAMES, TabBar } from "./components/tab-bar.js";
 import { copyText } from "./clipboard.js";
 import { openInEditor } from "./editor.js";
+import type { Api, Data, KeyHint, Lock } from "./types.js";
+import type { createRecents } from "./recents.js";
+import type { CopyOptions } from "./clipboard.js";
+import type { EditorOptions } from "./editor.js";
+import type { PickerRow } from "./components/picker.js";
 import { colorEnabled, ThemeContext } from "./theme.js";
 import { DOCTOR_KEYS, hookKeys, hookRows, mcpKeys, mcpRows, pluginKeys, pluginRows } from "./rows.js";
 
-const h = React.createElement;
-
 // Skills and MCP report the keys of their selected row (setKeys); the others use a fixed list.
-const TAB_KEYS = [[], [], [], [], DOCTOR_KEYS, [], [], []];
+const TAB_KEYS: KeyHint[][] = [[], [], [], [], DOCTOR_KEYS, [], [], []];
 
 // `size` ({ cols, rows }) overrides the terminal size, for tests.
-export const App = ({ api, startDir, recents, discover, env = process.env, spawn, size, clipboard }) => {
+export interface AppProps {
+	api: Api;
+	startDir: string;
+	recents: ReturnType<typeof createRecents>;
+	discover: (roots: string[]) => { path: string }[];
+	env?: NodeJS.ProcessEnv;
+	spawn?: EditorOptions["spawn"];
+	size?: { cols?: number; rows?: number };
+	clipboard?: CopyOptions;
+}
+
+export const App = ({ api, startDir, recents, discover, env = process.env, spawn, size, clipboard }: AppProps) => {
 	const { exit } = useApp();
 	const { setRawMode } = useStdin();
-	const { stdout } = useStdout();
+	const stdout = useStdout().stdout as NodeJS.WriteStream | undefined;
 	const [dir, setDir] = React.useState(startDir);
-	const [data, setData] = React.useState(null);
+	const [data, setData] = React.useState<Data | null>(null);
 	const [tab, setTab] = React.useState(0);
-	const [overlay, setOverlay] = React.useState(null);
-	const [locked, setLocked] = React.useState(false);
+	const [overlay, setOverlay] = React.useState<"help" | "picker" | null>(null);
+	const [locked, setLocked] = React.useState<Lock>(false);
 	// Read by the key handler, which can run before a render after lock() has re-subscribed it.
-	const lockedRef = React.useRef(false);
-	const lock = React.useCallback((value) => {
+	const lockedRef = React.useRef<Lock>(false);
+	const lock = React.useCallback((value: Lock) => {
 		lockedRef.current = value;
 		setLocked(value);
 	}, []);
 	const [message, setMessage] = React.useState("");
-	const [rowKeys, setRowKeys] = React.useState({ tab: -1, keys: [] });
-	const [picker, setPicker] = React.useState([]);
+	const [rowKeys, setRowKeys] = React.useState<{ tab: number; keys: KeyHint[] }>({ tab: -1, keys: [] });
+	const [picker, setPicker] = React.useState<PickerRow[]>([]);
 	// Redraw with the new layout when the terminal is resized.
 	const [dims, setDims] = React.useState({ cols: stdout?.columns, rows: stdout?.rows });
 	React.useEffect(() => {
-		const onResize = () => setDims({ cols: stdout.columns, rows: stdout.rows });
+		const onResize = () => setDims({ cols: stdout?.columns, rows: stdout?.rows });
 		stdout?.on?.("resize", onResize);
-		return () => stdout?.off?.("resize", onResize);
+		return () => {
+			stdout?.off?.("resize", onResize);
+		};
 	}, [stdout]);
 
 	const reload = React.useCallback(
 		() =>
-			new Promise((resolve) => {
+			new Promise<void>((resolve) => {
 				// One tick later, so "Loading..." can paint before the synchronous lib reads run.
 				setTimeout(() => {
 					setData(api.load(dir));
@@ -68,7 +83,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		reload();
 	}, [reload]);
 
-	const openFile = (file) => {
+	const openFile = (file: string | undefined) => {
 		const result = openInEditor(file, { env, spawn, setRawMode });
 		setMessage(result.message);
 		if (result.ok) {
@@ -76,7 +91,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		}
 	};
 
-	const copy = (text) => setMessage(copyText(text, clipboard).message);
+	const copy = (text: string) => setMessage(copyText(text, clipboard).message);
 
 	const openPicker = () => {
 		const saved = recents.read();
@@ -85,7 +100,7 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 		setOverlay("picker");
 	};
 
-	const pick = (path) => {
+	const pick = (path: string) => {
 		recents.add(path);
 		setOverlay(null);
 		setMessage(`Project: ${path}`);
@@ -127,38 +142,53 @@ export const App = ({ api, startDir, recents, discover, env = process.env, spawn
 	// Chrome takes about 12 lines; stacked, the details block under the list takes about 10 more.
 	const height = Math.max(6, (size?.rows ?? dims.rows ?? 30) - 12 - (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0));
 	const counts = !data ? {} : { Skills: data.status.skills.items.length, MCP: data.status.mcp.servers.length, Hooks: data.status.hooks.items.length, Plugins: data.status.plugins.items.length, Doctor: data.doctor.findings.length, ...(data.catalog.fetched && { Catalog: data.catalog.entries.length }), Backups: data.backups.length, Rules: data.rules.length };
-	const shared = { data, api, dir, height, layout, notify: setMessage, reload, lock, openFile, copy };
-	const keysFor = (index) => (keys) => setRowKeys((old) => (old.tab === index && old.keys.join() === keys.join() ? old : { tab: index, keys }));
-	const tabs = [
-		h(SkillsTab, { ...shared, setKeys: keysFor(0), active: tab === 0 && !overlay }),
-		h(InventoryTab, { ...shared, makeRows: mcpRows, rowKeys: mcpKeys, canAdd: true, setKeys: keysFor(1), active: tab === 1 && !overlay }),
-		h(InventoryTab, { ...shared, makeRows: hookRows, rowKeys: hookKeys, setKeys: keysFor(2), active: tab === 2 && !overlay }),
-		h(InventoryTab, { ...shared, makeRows: pluginRows, rowKeys: pluginKeys, canInstall: true, setKeys: keysFor(3), active: tab === 3 && !overlay }),
-		h(DoctorTab, { ...shared, active: tab === 4 && !overlay }),
-		h(CatalogTab, { ...shared, setKeys: keysFor(5), active: tab === 5 && !overlay }),
-		h(BackupsTab, { ...shared, setKeys: keysFor(6), active: tab === 6 && !overlay }),
-		h(RulesTab, { ...shared, setKeys: keysFor(7), active: tab === 7 && !overlay }),
-	];
+	const shared = data && { data, api, dir, height, layout, notify: setMessage, reload, lock, openFile, copy };
+	const keysFor = (index: number) => (keys: KeyHint[]) => setRowKeys((old) => (old.tab === index && old.keys.join() === keys.join() ? old : { tab: index, keys }));
+	const tabs = shared ? [
+		<SkillsTab {...shared} setKeys={keysFor(0)} active={tab === 0 && !overlay} />,
+		<InventoryTab {...shared} makeRows={mcpRows} rowKeys={mcpKeys} canAdd={true} setKeys={keysFor(1)} active={tab === 1 && !overlay} />,
+		<InventoryTab {...shared} makeRows={hookRows} rowKeys={hookKeys} setKeys={keysFor(2)} active={tab === 2 && !overlay} />,
+		<InventoryTab {...shared} makeRows={pluginRows} rowKeys={pluginKeys} canInstall={true} setKeys={keysFor(3)} active={tab === 3 && !overlay} />,
+		<DoctorTab {...shared} active={tab === 4 && !overlay} />,
+		<CatalogTab {...shared} setKeys={keysFor(5)} active={tab === 5 && !overlay} />,
+		<BackupsTab {...shared} setKeys={keysFor(6)} active={tab === 6 && !overlay} />,
+		<RulesTab {...shared} setKeys={keysFor(7)} active={tab === 7 && !overlay} />,
+	] : [];
 
+	const errors = data ? [...data.status.errors, ...data.doctor.errors] : [];
 	const plugins = data?.status.plugins.items ?? [];
-	const summary = data && { tokens: data.status.tokens.measured, ...data.doctor.summary, active: plugins.filter((plugin) => plugin.state === "active").length, disabled: plugins.filter((plugin) => plugin.state === "disabled").length };
+	const summary = data ? { tokens: data.status.tokens.measured, ...data.doctor.summary, active: plugins.filter((plugin) => plugin.state === "active").length, disabled: plugins.filter((plugin) => plugin.state === "disabled").length } : undefined;
 	const theme = React.useMemo(() => ({ color: colorEnabled(env) }), [env]);
 
-	return h(
-		ThemeContext.Provider,
-		{ value: theme },
-		h(
-			Box,
-			{ flexDirection: "column" },
-			h(TabBar, { tab, project: dir, counts, summary, cols: layout.cols }),
-			overlay === "help" ? h(Help) : null,
-			overlay === "picker" ? h(Picker, { rows: picker, onPick: pick, onClose: () => setOverlay(null) }) : null,
-			!data
-				? h(Text, { dimColor: true }, "Loading...")
-				: h(Box, { flexDirection: "column", display: overlay ? "none" : "flex" }, ...tabs.map((content, index) => h(Box, { key: TAB_NAMES[index], flexDirection: "column", display: index === tab ? "flex" : "none" }, content))),
-			data?.status.errors.length > 0 || data?.doctor.errors.length > 0 ? h(Text, { color: theme.color ? "yellow" : undefined, wrap: "truncate-end" }, `warning: ${[...data.status.errors, ...data.doctor.errors][0].message}`) : null,
-			message ? h(Text, { color: theme.color ? "green" : undefined, wrap: "truncate-middle" }, message) : null,
-			h(Footer, { keys: rowKeys.tab === tab ? rowKeys.keys : TAB_KEYS[tab], cols: layout.cols }),
-		),
+	return (
+		<ThemeContext.Provider value={theme}>
+			<Box flexDirection="column">
+				<TabBar tab={tab} project={dir} counts={counts} summary={summary} cols={layout.cols} />
+				{overlay === "help" ? <Help /> : null}
+				{overlay === "picker" ? <Picker rows={picker} onPick={pick} onClose={() => setOverlay(null)} /> : null}
+				{!data ? (
+					<Text dimColor>Loading...</Text>
+				) : (
+					<Box flexDirection="column" display={overlay ? "none" : "flex"}>
+						{tabs.map((content, index) => (
+							<Box key={TAB_NAMES[index]} flexDirection="column" display={index === tab ? "flex" : "none"}>
+								{content}
+							</Box>
+						))}
+					</Box>
+				)}
+				{errors.length > 0 ? (
+					<Text color={theme.color ? "yellow" : undefined} wrap="truncate-end">
+						{`warning: ${errors[0]?.message}`}
+					</Text>
+				) : null}
+				{message ? (
+					<Text color={theme.color ? "green" : undefined} wrap="truncate-middle">
+						{message}
+					</Text>
+				) : null}
+				<Footer keys={rowKeys.tab === tab ? rowKeys.keys : TAB_KEYS[tab]} cols={layout.cols} />
+			</Box>
+		</ThemeContext.Provider>
 	);
 };

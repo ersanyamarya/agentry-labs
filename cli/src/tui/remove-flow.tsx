@@ -1,12 +1,13 @@
-// @ts-nocheck
 // Confirm step for deleting a skill (or, with call "removeRule", a CLAUDE.md or rule file): the preview is the lib's own dry run, and nothing is deleted until y. A copy of
 // the folder is kept under ~/.claude/backups/agentry/removed/ (Backups tab: u restores) unless backup is false (X key).
 
-// Only the call signature is typed so far; the body stays unchecked until the flows are converted.
+import type { Api } from "./types.js";
+import type { useFlow } from "./use-flow.js";
+
 interface RemoveArgs {
-	api: any;
+	api: Api;
 	dir: string;
-	flow: any;
+	flow: ReturnType<typeof useFlow>;
 	target: string;
 	label?: string;
 	project?: boolean;
