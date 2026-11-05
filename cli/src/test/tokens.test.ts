@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,13 +5,13 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { descriptionTokens, estimateTokens, readDescription } from "../lib/tokens.js";
 
-let dir;
+let dir: string;
 beforeEach(() => {
 	dir = mkdtempSync(join(tmpdir(), "agentry-tokens-"));
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-const write = (text) => {
+const write = (text: string) => {
 	const file = join(dir, "SKILL.md");
 	writeFileSync(file, text);
 	return file;

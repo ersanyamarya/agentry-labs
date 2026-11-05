@@ -1,4 +1,3 @@
-// @ts-nocheck
 // `agentry fix`: plan → preview (a unified diff per file, secrets masked) → confirm → backup → write → verify.
 // The engine knows no concrete fix; those live in lib/fix-rules.mjs, keyed by doctor rule id.
 //
@@ -47,6 +46,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
+import type { Stats } from "node:fs";
 import { chmodSync, closeSync, copyFileSync, cpSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { basename, dirname, join, resolve } from "node:path";
@@ -54,25 +54,110 @@ import { createDoctor } from "./doctor.js";
 import { fixes as defaultFixes } from "./fix-rules.js";
 import { packageVersion } from "./version.js";
 import { maskArgs, maskHeader, maskShell, maskUrl, maskValue, SECRET_NAME } from "./mask.js";
+import type { Paths } from "./paths.js";
+import type { DoctorLike, Finding, Fix, FixOptions, FixRunArgs, ReadError, RunCommand, TextFix, UnfixableFix } from "./types.js";
 
 const MAX_ATTEMPTS = 3;
 const CONTEXT = 3;
 const URL_LIKE = /^[a-z][a-z0-9+.-]*:\/\//i;
 const STRING_TOKEN = /"(?:[^"\\\n]|\\.)*"/g;
 
-export const findingKey = (finding) => [finding.id, finding.file, finding.message].join("\0");
+export type SnapKind = "missing" | "file" | "directory" | "symlink" | "other";
 
-const sha256 = (data) => createHash("sha256").update(data).digest("hex");
+/** What a file looked like when planned. `text` is set for kind "file". */
+export interface Snapshot {
+	path: string;
+	realPath: string;
+	kind: SnapKind;
+	mtimeMs: number | null;
+	mode: number | null;
+	sha256: string | null;
+	text?: string;
+}
+
+/** One file of a backup set (see the manifest layout above). */
+export interface ManifestFile {
+	path: string;
+	realPath: string;
+	kind: SnapKind;
+	backup: string | null;
+	mtimeMs: number | null;
+	mode: number | null;
+	sha256: string | null;
+	gitTracked: boolean;
+	ruleIds: string[];
+	result: "pending" | "written" | "skipped" | "failed" | "command";
+	linkTarget?: string;
+	writtenSha256?: string;
+}
+
+export interface ManifestCommand {
+	ruleId: string;
+	command: string[];
+	cwd: string;
+	exitCode: number | null;
+}
+
+export interface Manifest {
+	version: 1;
+	tool: string;
+	createdAt: string;
+	cwd: string;
+	status: "writing" | "done" | "partial";
+	files: ManifestFile[];
+	commands: ManifestCommand[];
+}
+
+type Op = [tag: " " | "-" | "+", line: string];
+type Row = { tag: Op[0]; line: string; oldNo: number; newNo: number };
+
+interface PlanItem {
+	finding: Finding;
+	fix: TextFix;
+}
+
+interface PlanEdit {
+	snap: Snapshot;
+	after: string;
+	items: PlanItem[];
+	entry?: ManifestFile;
+	written?: boolean;
+}
+
+interface PlanStep {
+	snap?: Snapshot;
+	command: string[];
+	cwd: string;
+	item: PlanItem;
+	entry?: ManifestFile;
+	done?: boolean;
+}
+
+/** What `plan` found for one folder. A finding with no automatic fix carries the fix's reason when it gave one. */
+export interface Planned {
+	findings: Finding[];
+	edits: PlanEdit[];
+	commands: PlanStep[];
+	unfixable: (Finding & { reason?: string })[];
+	failures: { finding: Finding; reason: string }[];
+	errors: ReadError[];
+}
+
+const isUnfixable = (fix: Fix): fix is UnfixableFix => typeof (fix as UnfixableFix).unfixable === "string";
+
+export const findingKey = (finding: Pick<Finding, "id" | "file" | "message">): string => [finding.id, finding.file, finding.message].join("\0");
+
+const sha256 = (data: string | Buffer): string => createHash("sha256").update(data).digest("hex");
 
 // What a file looks like now; compared after confirm to catch edits made since the preview.
-export const snapshot = (file) => {
+export const snapshot = (file: string): Snapshot => {
 	let realPath = file;
 	try {
 		realPath = realpathSync(file);
 	} catch {
 		// missing, or a broken symlink: lstat below tells which
 	}
-	let stat;
+	let stat: Stats;
 	try {
 		stat = lstatSync(realPath);
 	} catch {
@@ -86,18 +171,18 @@ export const snapshot = (file) => {
 	return { ...base, kind: stat.isDirectory() ? "directory" : stat.isSymbolicLink() ? "symlink" : "other" };
 };
 
-const unchanged = (before) => {
+const unchanged = (before: Snapshot): boolean => {
 	const now = snapshot(before.path);
 	return now.kind === before.kind && now.realPath === before.realPath && now.mtimeMs === before.mtimeMs && now.sha256 === before.sha256;
 };
 
 // ---- diff ----
 
-const splitLines = (text) => text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+const splitLines = (text: string): string[] => text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
 
 // Line ops [tag, line] with tag " ", "-" or "+". Common head and tail are trimmed first so a small edit in a
 // large file (~/.claude.json) stays cheap; a huge middle falls back to "remove all, add all".
-const diffOps = (a, b) => {
+const diffOps = (a: string[], b: string[]): Op[] => {
 	let start = 0;
 	while (start < a.length && start < b.length && a[start] === b[start]) {
 		start++;
@@ -108,7 +193,7 @@ const diffOps = (a, b) => {
 		endA--;
 		endB--;
 	}
-	const ops = a.slice(0, start).map((line) => [" ", line]);
+	const ops: Op[] = a.slice(0, start).map((line): Op => [" ", line]);
 	const midA = a.slice(start, endA);
 	const midB = b.slice(start, endB);
 	const n = midA.length;
@@ -134,24 +219,24 @@ const diffOps = (a, b) => {
 				ops.push(["+", midB[j++]]);
 			}
 		}
-		ops.push(...midA.slice(i).map((line) => ["-", line]), ...midB.slice(j).map((line) => ["+", line]));
+		ops.push(...midA.slice(i).map((line): Op => ["-", line]), ...midB.slice(j).map((line): Op => ["+", line]));
 	} else {
-		ops.push(...midA.map((line) => ["-", line]), ...midB.map((line) => ["+", line]));
+		ops.push(...midA.map((line): Op => ["-", line]), ...midB.map((line): Op => ["+", line]));
 	}
-	ops.push(...a.slice(endA).map((line) => [" ", line]));
+	ops.push(...a.slice(endA).map((line): Op => [" ", line]));
 	return ops;
 };
 
-const renderHunks = (ops) => {
+const renderHunks = (ops: Op[]): string[] => {
 	let oldNo = 1;
 	let newNo = 1;
 	const rows = ops.map(([tag, line]) => {
-		const row = { tag, line, oldNo, newNo };
+		const row: Row = { tag, line, oldNo, newNo };
 		oldNo += tag === "+" ? 0 : 1;
 		newNo += tag === "-" ? 0 : 1;
 		return row;
 	});
-	const ranges = [];
+	const ranges: { start: number; end: number }[] = [];
 	rows.forEach((row, index) => {
 		if (row.tag === " ") {
 			return;
@@ -178,7 +263,7 @@ const renderHunks = (ops) => {
 // ---- masking for previews ----
 
 // Every string in a parsed JSON value that the readers would mask, mapped to its masked form.
-const collectSensitive = (value, map, key = "", within = "") => {
+const collectSensitive = (value: unknown, map: Map<string, string>, key = "", within = ""): void => {
 	if (typeof value === "string") {
 		const masked = within === "headers" ? maskHeader(value) : within === "env" || SECRET_NAME.test(key) ? maskValue(value) : URL_LIKE.test(value) ? maskUrl(value) : maskShell(value);
 		if (masked !== value) {
@@ -194,27 +279,28 @@ const collectSensitive = (value, map, key = "", within = "") => {
 			}
 		});
 	} else if (value && typeof value === "object") {
-		for (const [name, item] of Object.entries(value)) {
+		for (const [name, item] of Object.entries(value as Record<string, unknown>)) {
 			collectSensitive(item, map, name, name === "env" || name === "headers" ? name : within);
 		}
 	}
 };
 
 // The diff of `before` → `after` with secrets masked, or `{ hidden }` (a reason) when it cannot be shown safely.
-export const previewDiff = (file, before, after) => {
+export const previewDiff = (file: string, before: string, after: string): { text: string; hidden?: undefined } | { hidden: string; text?: undefined } => {
 	if (before === after) {
 		return { text: "" };
 	}
 	const rawOps = diffOps(splitLines(before), splitLines(after));
 	const counts = `+${rawOps.filter(([tag]) => tag === "+").length} -${rawOps.filter(([tag]) => tag === "-").length} lines`;
-	let maskLine = maskShell;
-	let sensitive;
+	let maskLine: (line: string) => string = maskShell;
+	let sensitive: Map<string, string> | undefined;
 	if (file.endsWith(".json") || /^\s*[[{]/.test(before) || /^\s*[[{]/.test(after)) {
-		sensitive = new Map();
+		const found = new Map<string, string>();
+		sensitive = found;
 		for (const text of [before, after]) {
 			try {
 				if (text.trim() !== "") {
-					collectSensitive(JSON.parse(text), sensitive);
+					collectSensitive(JSON.parse(text), found);
 				}
 			} catch {
 				return { hidden: `not valid JSON, so secrets cannot be found; ${counts}` };
@@ -224,7 +310,7 @@ export const previewDiff = (file, before, after) => {
 			line.replace(STRING_TOKEN, (token) => {
 				try {
 					const value = JSON.parse(token);
-					return sensitive.has(value) ? JSON.stringify(sensitive.get(value)) : token;
+					return found.has(value) ? JSON.stringify(found.get(value)) : token;
 				} catch {
 					return token;
 				}
@@ -246,12 +332,16 @@ export const previewDiff = (file, before, after) => {
 // ---- writing ----
 
 // Temp file in the same folder, fsync, old mode, rename: readers see the old or the new file, never half of one.
-export const atomicWrite = (file, text, mode = 0o600) => {
+export const atomicWrite = (file: string, text: string | Buffer, mode = 0o600): void => {
 	const temp = join(dirname(file), `.${basename(file)}.agentry-${process.pid}-${randomBytes(4).toString("hex")}.tmp`);
 	try {
 		const fd = openSync(temp, "wx", 0o600);
 		try {
-			writeSync(fd, text);
+			if (typeof text === "string") {
+				writeSync(fd, text);
+			} else {
+				writeSync(fd, text);
+			}
 			fsyncSync(fd);
 		} finally {
 			closeSync(fd);
@@ -264,7 +354,7 @@ export const atomicWrite = (file, text, mode = 0o600) => {
 	}
 };
 
-const gitTracked = (file) => {
+const gitTracked = (file: string): boolean => {
 	try {
 		execFileSync("git", ["ls-files", "--error-unmatch", "--", basename(file)], { cwd: dirname(file), stdio: "ignore" });
 		return true;
@@ -273,39 +363,39 @@ const gitTracked = (file) => {
 	}
 };
 
-const createBackupSet = (paths, { now, cwd, version }) => {
+const createBackupSet = (paths: Paths, { now, cwd, version }: { now: () => Date; cwd: string; version: string }) => {
 	mkdirSync(paths.backupsDir, { recursive: true, mode: 0o700 });
 	const createdAt = now().toISOString();
 	const stamp = createdAt.replace(/[:.]/g, "-");
-	let dir;
+	let dir: string;
 	for (let n = 0; ; n++) {
 		dir = join(paths.backupsDir, n ? `${stamp}-${n}` : stamp);
 		try {
 			mkdirSync(dir, { mode: 0o700 });
 			break;
 		} catch (error) {
-			if (error.code !== "EEXIST") {
+			if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
 				throw error;
 			}
 		}
 	}
-	const manifest = { version: 1, tool: `agentry ${version}`, createdAt, cwd, status: "writing", files: [], commands: [] };
-	const byPath = new Map();
-	const add = (snap, ruleIds) => {
-		if (byPath.has(snap.realPath)) {
-			const entry = byPath.get(snap.realPath);
-			entry.ruleIds = [...new Set([...entry.ruleIds, ...ruleIds])];
-			return entry;
+	const manifest: Manifest = { version: 1, tool: `agentry ${version}`, createdAt, cwd, status: "writing", files: [], commands: [] };
+	const byPath = new Map<string, ManifestFile>();
+	const add = (snap: Snapshot, ruleIds: string[]): ManifestFile => {
+		const known = byPath.get(snap.realPath);
+		if (known) {
+			known.ruleIds = [...new Set([...known.ruleIds, ...ruleIds])];
+			return known;
 		}
 		const copyable = snap.kind === "file" || snap.kind === "directory";
 		const backup = copyable ? join("files", snap.path.replace(/^\/+/, "")) : null;
 		if (snap.kind === "file") {
-			mkdirSync(dirname(join(dir, backup)), { recursive: true, mode: 0o700 });
-			copyFileSync(snap.realPath, join(dir, backup));
+			mkdirSync(dirname(join(dir, backup as string)), { recursive: true, mode: 0o700 });
+			copyFileSync(snap.realPath, join(dir, backup as string));
 		} else if (snap.kind === "directory") {
-			cpSync(snap.realPath, join(dir, backup), { recursive: true, verbatimSymlinks: true });
+			cpSync(snap.realPath, join(dir, backup as string), { recursive: true, verbatimSymlinks: true });
 		}
-		const entry = { path: snap.path, realPath: snap.realPath, kind: snap.kind, backup, mtimeMs: snap.mtimeMs, mode: snap.mode, sha256: snap.sha256, gitTracked: snap.kind === "missing" ? false : gitTracked(snap.realPath), ruleIds, result: "pending" };
+		const entry: ManifestFile = { path: snap.path, realPath: snap.realPath, kind: snap.kind, backup, mtimeMs: snap.mtimeMs, mode: snap.mode, sha256: snap.sha256, gitTracked: snap.kind === "missing" ? false : gitTracked(snap.realPath), ruleIds, result: "pending" };
 		if (snap.kind === "symlink") {
 			entry.linkTarget = readlinkSync(snap.path);
 		}
@@ -319,7 +409,7 @@ const createBackupSet = (paths, { now, cwd, version }) => {
 
 // ---- engine ----
 
-const defaultConfirm = async (question) => {
+const defaultConfirm = async (question: string): Promise<boolean> => {
 	const prompt = createInterface({ input: process.stdin, output: process.stdout });
 	try {
 		return /^y(es)?$/i.test((await prompt.question(question)).trim());
@@ -328,13 +418,13 @@ const defaultConfirm = async (question) => {
 	}
 };
 
-const defaultRunCommand = (argv, { cwd }) => {
+const defaultRunCommand: RunCommand = (argv, { cwd }) => {
 	const result = spawnSync(argv[0], argv.slice(1), { cwd, encoding: "utf8" });
-	return { status: result.error ? null : result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "", error: result.error?.code };
+	return { status: result.error ? null : result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "", error: (result.error as NodeJS.ErrnoException | undefined)?.code };
 };
 
 export const createFix = (
-	paths,
+	paths: Paths,
 	{
 		out = console.log,
 		err = console.error,
@@ -344,48 +434,51 @@ export const createFix = (
 		confirm = defaultConfirm,
 		runCommand = defaultRunCommand,
 		now = () => new Date(),
-	} = {},
+	}: FixOptions = {},
 ) => {
-	const tilde = (text) => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
-	const failure = (error) => error?.code ?? error?.name ?? "error";
+	const tilde = (text: unknown): string => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
+	const failure = (error: unknown): string => {
+		const known = error as { code?: string; name?: string } | undefined;
+		return known?.code ?? known?.name ?? "error";
+	};
 
 	// Pure: reads the files, asks every registered fix what it would do, writes nothing.
 	// → { findings, edits[{ snap, after, items[] }], commands[{ snap?, command, cwd, item }], unfixable[], failures[], errors }
 	// `include(finding)` limits the plan to some findings (scan --fix splits user-level from per-repo ones).
-	const plan = (cwd, { include = () => true } = {}) => {
+	const plan = (cwd: string, { include = () => true }: Pick<FixRunArgs, "include"> = {}): Planned => {
 		const data = doctor().collect(cwd);
 		const ctx = { paths, cwd, project: data.project, findings: data.findings };
 		data.findings = data.findings.filter(include);
-		const snaps = new Map();
-		const snapOf = (file) => {
+		const snaps = new Map<string, Snapshot>();
+		const snapOf = (file: string): Snapshot => {
 			if (!snaps.has(file)) {
 				snaps.set(file, snapshot(file));
 			}
-			return snaps.get(file);
+			return snaps.get(file) as Snapshot;
 		};
-		const edits = new Map();
-		const commands = [];
-		const unfixable = [];
-		const failures = [];
+		const edits = new Map<string, PlanEdit>();
+		const commands: PlanStep[] = [];
+		const unfixable: Planned["unfixable"] = [];
+		const failures: Planned["failures"] = [];
 		for (const finding of data.findings) {
 			const make = fixes[finding.id];
 			if (!make) {
 				unfixable.push(finding);
 				continue;
 			}
-			let made;
+			let made: Fix[];
 			try {
-				made = [make(finding, ctx)].flat().filter(Boolean);
+				made = [make(finding, ctx)].flat().filter((one): one is Fix => Boolean(one));
 			} catch (error) {
 				failures.push({ finding, reason: `could not plan (${failure(error)})` });
 				continue;
 			}
 			for (const fix of made) {
-				if (typeof fix.unfixable === "string") {
+				if (isUnfixable(fix)) {
 					unfixable.push({ ...finding, reason: fix.unfixable });
 					continue;
 				}
-				const item = { finding, fix };
+				const item: PlanItem = { finding, fix };
 				try {
 					const snap = fix.file ? snapOf(resolve(fix.file)) : undefined;
 					const edit = snap && edits.get(snap.realPath);
@@ -409,10 +502,10 @@ export const createFix = (
 		return { findings: data.findings, edits: [...edits.values()], commands, unfixable, failures, errors: data.errors };
 	};
 
-	const label = (item) => `[${item.finding.id}] ${item.fix.describe?.() ?? item.finding.message}`;
-	const commandLine = (command) => maskArgs(command).join(" ");
+	const label = (item: PlanItem): string => `[${item.finding.id}] ${item.fix.describe?.() ?? item.finding.message}`;
+	const commandLine = (command: string[]): string => maskArgs(command).join(" ");
 
-	const preview = (planned) => {
+	const preview = (planned: Planned): void => {
 		for (const edit of planned.edits) {
 			for (const item of edit.items) {
 				out(label(item));
@@ -422,7 +515,7 @@ export const createFix = (
 				out(`(${shown} is tracked in git: the change also shows in git diff)`);
 			}
 			out(`--- ${edit.snap.kind === "missing" ? "/dev/null" : shown}\n+++ ${shown}`);
-			const diff = previewDiff(edit.snap.path, edit.snap.kind === "missing" ? "" : edit.snap.text, edit.after);
+			const diff = previewDiff(edit.snap.path, edit.snap.kind === "missing" ? "" : (edit.snap.text as string), edit.after);
 			out(diff.text ?? `(diff hidden: ${diff.hidden})`);
 		}
 		for (const step of planned.commands) {
@@ -440,7 +533,7 @@ export const createFix = (
 		}
 	};
 
-	const apply = (planned, cwd) => {
+	const apply = (planned: Planned, cwd: string): boolean => {
 		const set = createBackupSet(paths, { now, cwd, version: packageVersion() });
 		let ok = true;
 		for (const edit of planned.edits) {
@@ -452,20 +545,21 @@ export const createFix = (
 		set.save();
 		out(`\nBackup: ${tilde(set.dir)}`);
 		for (const edit of planned.edits) {
+			const entry = edit.entry as ManifestFile; // set above
 			if (!unchanged(edit.snap)) {
-				edit.entry.result = "skipped";
+				entry.result = "skipped";
 				err(`error  ${tilde(edit.snap.path)} changed on disk after the preview; not written. Run agentry fix again.`);
 				ok = false;
 				continue;
 			}
 			try {
 				atomicWrite(edit.snap.realPath, edit.after, edit.snap.mode ?? 0o600);
-				edit.entry.result = "written";
-				edit.entry.writtenSha256 = sha256(edit.after);
+				entry.result = "written";
+				entry.writtenSha256 = sha256(edit.after);
 				edit.written = true;
 				out(`wrote ${tilde(edit.snap.path)}`);
 			} catch (error) {
-				edit.entry.result = "failed";
+				entry.result = "failed";
 				err(`error  could not write ${tilde(edit.snap.path)} (${failure(error)})`);
 				ok = false;
 			}
@@ -491,7 +585,7 @@ export const createFix = (
 		return ok;
 	};
 
-	const verify = (planned, cwd) => {
+	const verify = (planned: Planned, cwd: string): boolean => {
 		const still = new Set(doctor().collect(cwd).findings.map(findingKey));
 		const fixed = [...planned.edits.filter((edit) => edit.written).flatMap((edit) => edit.items), ...planned.commands.filter((step) => step.done).map((step) => step.item)];
 		const seen = new Set();
@@ -511,7 +605,7 @@ export const createFix = (
 
 	// Returns the exit code (see the header). Async only because of the confirm prompt.
 	// `include` and `label` are for scan --fix: a plan limited to some findings, and a heading naming the repo.
-	const run = async ({ path, yes = false, dryRun = false, include, label: heading } = {}) => {
+	const run = async ({ path, yes = false, dryRun = false, include, label: heading }: FixRunArgs = {}): Promise<number> => {
 		const cwd = resolve(path ?? process.cwd());
 		if (!existsSync(cwd) || !statSync(cwd).isDirectory()) {
 			err(`Not a folder: ${cwd}`);
@@ -538,7 +632,7 @@ export const createFix = (
 				out("Nothing written.");
 				return 0;
 			}
-			const moved = [...planned.edits, ...planned.commands].map((step) => step.snap).filter((snap) => snap && !unchanged(snap));
+			const moved = [...planned.edits, ...planned.commands].map((step) => step.snap).filter((snap): snap is Snapshot => snap !== undefined && !unchanged(snap));
 			if (moved.length > 0) {
 				const names = [...new Set(moved.map((snap) => tilde(snap.path)))].join(", ");
 				if (attempt >= MAX_ATTEMPTS) {

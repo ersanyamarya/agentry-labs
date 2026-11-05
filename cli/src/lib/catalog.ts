@@ -1,4 +1,3 @@
-// @ts-nocheck
 // The agentry-labs catalog: a shallow git clone of the repo, cached under <cacheDir>/catalog. It lists five kinds of item:
 //   skill      skills/<name>/               -> the shelf, off (group = its bundle in bundles.tsv; none = "extras")
 //   agent      agents/<name>.agent.md       -> ~/.claude/agents/, or <project>/.claude/agents/ with project
@@ -21,37 +20,108 @@ import { defaultConfirm, noteUpdatedCopy, removedCopyPath, saveRemovedCopy } fro
 import { isObject, readJson } from "./inventory/common.js";
 import { createMcpReader } from "./inventory/mcp.js";
 import { createMcpEdit } from "./mcp-edit.js";
+import type { BuildArgs, McpEditOptions } from "./mcp-edit.js";
 import { summarize } from "./mcp-toggle.js";
+import type { Paths } from "./paths.js";
 import { createShelf } from "./shelf.js";
 import { descriptionTokens, estimateTokens, readDescription } from "./tokens.js";
+import type { ClaudeJson, McpJson, McpServerRaw } from "./types.js";
 
 export const CATALOG_REPO = "https://github.com/ersanyamarya/agentry-labs.git";
 
-export const KINDS = ["skill", "agent", "rule", "claude-md", "mcp"];
-const UPDATABLE = new Set(["skill", "agent", "rule", "claude-md", "mcp"]);
+export type CatalogKind = "skill" | "agent" | "rule" | "claude-md" | "mcp";
+
+export const KINDS: CatalogKind[] = ["skill", "agent", "rule", "claude-md", "mcp"];
+const isKind = (value: string): value is CatalogKind => (KINDS as string[]).includes(value);
+const UPDATABLE = new Set<CatalogKind>(KINDS);
 const IGNORED = new Set([".DS_Store", "node_modules"]);
-const BUNDLE_DIRS = { skills: "skill", agents: "agent", rules: "rule", "claude-md-files": "claude-md" };
+const BUNDLE_DIRS: Record<string, CatalogKind> = { skills: "skill", agents: "agent", rules: "rule", "claude-md-files": "claude-md" };
 
-const git = (args) => execFileSync("git", args, { stdio: ["ignore", "pipe", "pipe"], timeout: 120000 });
+/** One place an item is installed. File kinds have a path; an MCP server does not. */
+export interface CatalogInstall {
+	scope: string;
+	label: string;
+	path?: string;
+	outdated: boolean;
+}
 
-const filesIn = (dir, base = dir) =>
+type FileInstall = CatalogInstall & { path: string };
+
+/** What `catalog list --json` shows for an item. */
+export interface CatalogEntry {
+	kind: CatalogKind;
+	name: string;
+	id: string;
+	bundle: string;
+	description: string;
+	tokens: number | null;
+	installed?: string;
+	outdated: boolean;
+	installs: CatalogInstall[];
+	shelf?: string | null;
+	global?: boolean;
+}
+
+/** An entry plus what installing needs. `source` and `file` are set for the kinds that copy files (not mcp), `raw` for mcp. */
+export interface CatalogItem extends CatalogEntry {
+	source: string;
+	file: string;
+	raw: McpServerRaw;
+}
+
+interface InstallInput {
+	scope: string;
+	label: string;
+	path?: string;
+	outdated?: boolean;
+}
+
+interface ItemFields {
+	source?: string;
+	file?: string;
+	raw?: McpServerRaw;
+	description: string;
+	tokens: number | null;
+	shelf?: string | null;
+	global?: boolean;
+	installs?: (InstallInput | null | false | undefined)[];
+}
+
+type McpChange = { args?: string[]; env: string[] };
+type McpServerJob = { entry: CatalogItem; change: McpChange };
+type Picked = { entry: CatalogItem; error?: undefined } | { error: string; entry?: undefined };
+
+export interface CatalogOptions {
+	out?: (text: string) => void;
+	err?: (text: string) => void;
+	repo?: string;
+	run?: (args: string[]) => unknown;
+	now?: () => Date;
+	isTTY?: () => boolean;
+	confirm?: (question: string) => Promise<boolean>;
+	mcp?: McpEditOptions;
+}
+
+const git = (args: string[]): Buffer => execFileSync("git", args, { stdio: ["ignore", "pipe", "pipe"], timeout: 120000 });
+
+const filesIn = (dir: string, base: string = dir): string[] =>
 	readdirSync(dir, { withFileTypes: true })
 		.filter((entry) => !IGNORED.has(entry.name))
 		.flatMap((entry) => (entry.isDirectory() ? filesIn(join(dir, entry.name), base) : [relative(base, join(dir, entry.name))]))
 		.sort();
 
 // Line endings are ignored, so a CRLF checkout does not make everything look edited.
-const sameFile = (a, b) => readFileSync(a, "latin1").replace(/\r\n/g, "\n") === readFileSync(b, "latin1").replace(/\r\n/g, "\n");
+const sameFile = (a: string, b: string): boolean => readFileSync(a, "latin1").replace(/\r\n/g, "\n") === readFileSync(b, "latin1").replace(/\r\n/g, "\n");
 
 // How the installed copy `dest` differs from the catalog's `source` (a folder or a file): { changed, added, extra } as
 // relative names ("" for a single file). Files only in the installed copy (extra) do not make it outdated and are never touched.
-const diffOf = (source, dest) => {
+const diffOf = (source: string, dest: string): { changed: string[]; added: string[]; extra: string[] } => {
 	const folder = statSync(source).isDirectory();
 	if (statSync(dest).isDirectory() !== folder) {
 		return { changed: [""], added: [], extra: [] };
 	}
 	const [wanted, have] = folder ? [filesIn(source), filesIn(dest)] : [[""], [""]];
-	const at = (root, name) => (name ? join(root, name) : root);
+	const at = (root: string, name: string): string => (name ? join(root, name) : root);
 	return {
 		changed: wanted.filter((name) => have.includes(name) && !sameFile(at(source, name), at(dest, name))),
 		added: wanted.filter((name) => !have.includes(name)),
@@ -60,7 +130,7 @@ const diffOf = (source, dest) => {
 };
 
 // A real (not linked) installed skill, agent or rule that lacks or differs from a file of the catalog's copy.
-const isOutdated = (kind, source, path) => {
+const isOutdated = (kind: CatalogKind, source: string, path: string | undefined): boolean => {
 	if (!path || !UPDATABLE.has(kind) || lstatSync(path).isSymbolicLink()) {
 		return false;
 	}
@@ -70,32 +140,32 @@ const isOutdated = (kind, source, path) => {
 
 // What `update` changes on a user-scope command server: { args?, env: ["K=V"...] } (env keys the entry lacks), or null.
 // Existing env values are yours (tokens) and stay; url servers and a different command are left alone.
-const mcpChangeOf = (raw, current) => {
+const mcpChangeOf = (raw: McpServerRaw, current: unknown): McpChange | null => {
 	if (!isObject(current) || typeof raw.command !== "string" || current.command !== raw.command) {
 		return null;
 	}
 	const env = Object.entries(isObject(raw.env) ? raw.env : {}).filter(([key]) => !(isObject(current.env) && key in current.env)).map(([key, value]) => `${key}=${value}`);
-	const args = JSON.stringify(raw.args ?? []) === JSON.stringify(current.args ?? []) ? undefined : [...(raw.args ?? [])];
+	const args = JSON.stringify(raw.args ?? []) === JSON.stringify(current.args ?? []) ? undefined : [...((raw.args ?? []) as string[])];
 	return args === undefined && env.length === 0 ? null : { ...(args !== undefined && { args }), env };
 };
 
 // Where an install of each kind lives, as `catalog list` words it.
-const WHERE = { skill: "~/.claude/skills", agent: "~/.claude/agents", rule: "~/.claude/rules" };
+const WHERE: Record<string, string> = { skill: "~/.claude/skills", agent: "~/.claude/agents", rule: "~/.claude/rules" };
 
-const firstHeading = (file) => readFileSync(file, "utf8").split("\n").find((line) => /^#\s/.test(line))?.replace(/^#\s+/, "") ?? "";
+const firstHeading = (file: string): string => readFileSync(file, "utf8").split("\n").find((line) => /^#\s/.test(line))?.replace(/^#\s+/, "") ?? "";
 
 // MCP options for lib/mcp-edit.mjs `add` from a catalog server config ({ url, headers } or { command, args, env }).
-const mcpOptionsOf = (raw) =>
+const mcpOptionsOf = (raw: McpServerRaw): BuildArgs =>
 	raw.url !== undefined
-		? { url: raw.url, headers: Object.entries(raw.headers ?? {}).map(([key, value]) => `${key}:${value}`) }
-		: { command: raw.command, args: raw.args ?? [], env: Object.entries(raw.env ?? {}).map(([key, value]) => `${key}=${value}`) };
+		? { url: raw.url as string, headers: Object.entries((raw.headers ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}:${value}`) }
+		: { command: raw.command as string, args: (raw.args ?? []) as string[], env: Object.entries((raw.env ?? {}) as Record<string, unknown>).map(([key, value]) => `${key}=${value}`) };
 
-export const createCatalog = (paths, { out = console.log, err = console.error, repo = process.env.AGENTRY_CATALOG_REPO || CATALOG_REPO, run = git, now = () => new Date(), isTTY = () => Boolean(process.stdin.isTTY && process.stdout.isTTY), confirm = defaultConfirm, mcp = {} } = {}) => {
+export const createCatalog = (paths: Paths, { out = console.log, err = console.error, repo = process.env.AGENTRY_CATALOG_REPO || CATALOG_REPO, run = git, now = () => new Date(), isTTY = () => Boolean(process.stdin.isTTY && process.stdout.isTTY), confirm = defaultConfirm, mcp = {} }: CatalogOptions = {}) => {
 	const dir = join(paths.cacheDir, "catalog");
 	const fetched = () => existsSync(join(dir, "skills"));
-	const tilde = (text) => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
+	const tilde = (text: unknown): string => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
 
-	const refresh = () => {
+	const refresh = (): number => {
 		try {
 			if (existsSync(join(dir, ".git"))) {
 				// A depth-1 clone cannot fast-forward (its history is rewritten), so fetch the tip and move to it.
@@ -106,7 +176,7 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 				run(["clone", "--depth", "1", repo, dir]);
 			}
 		} catch (error) {
-			err(`Could not fetch the catalog from ${repo}: ${String(error.stderr ?? error.message).trim().split("\n").at(-1)}`);
+			err(`Could not fetch the catalog from ${repo}: ${String((error as { stderr?: unknown; message: string }).stderr ?? (error as Error).message).trim().split("\n").at(-1)}`);
 			return 1;
 		}
 		out(`catalog up to date (${entries().length} items)`);
@@ -114,9 +184,9 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 	};
 
 	// kind/name -> bundle, from the selectors of bundles.tsv (skills/x, agents/x.agent.md, rules/x.md, claude-md-files/x.md).
-	const bundleOf = () => {
+	const bundleOf = (): Map<string, string> => {
 		const file = join(dir, "bundles.tsv");
-		const map = new Map();
+		const map = new Map<string, string>();
 		for (const line of existsSync(file) ? readFileSync(file, "utf8").split("\n") : []) {
 			const [bundle, selector] = line.split("\t");
 			const [folder, ...rest] = (selector ?? "").split("/");
@@ -128,12 +198,12 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 	};
 
 	const root = () => paths.projectRoot();
-	const agentPath = (project, file) => (project ? join(root(), ".claude", "agents", file) : join(paths.configDir, "agents", file));
+	const agentPath = (project: boolean, file: string): string => (project ? join(root(), ".claude", "agents", file) : join(paths.configDir, "agents", file));
 	const claudeMdPaths = () => [join(root(), "CLAUDE.md"), join(root(), ".claude", "CLAUDE.md")];
 
-	const mcpInstalled = () => {
+	const mcpInstalled = (): Map<string, string[]> => {
 		try {
-			const found = new Map();
+			const found = new Map<string, string[]>();
 			for (const server of createMcpReader(paths).read({ cwd: root() }).servers) {
 				found.set(server.name, [...(found.get(server.name) ?? []), server.scope]);
 			}
@@ -144,18 +214,18 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 	};
 
 	// Every item with its install state, [] until the catalog is fetched. Internal: carries `source` and `raw`.
-	const items = () => {
+	const items = (): CatalogItem[] => {
 		if (!fetched()) {
 			return [];
 		}
 		const bundles = bundleOf();
-		const shelved = new Map(createShelf(paths, { out: () => {}, err: () => {}, warn: () => {} }).groups().flatMap((group) => group.items.filter((item) => item.kind === "skills").map((item) => [item.name, group.name])));
-		const found = [];
-		const item = (kind, name, fields) => {
+		const shelved = new Map(createShelf(paths, { out: () => {}, err: () => {}, warn: () => {} }).groups().flatMap((group) => group.items.filter((item) => item.kind === "skills").map((item): [string, string] => [item.name, group.name])));
+		const found: CatalogItem[] = [];
+		const item = (kind: CatalogKind, name: string, fields: ItemFields): void => {
 			const bundle = bundles.get(`${kind}/${name}`) ?? (kind === "mcp" ? "global" : "extras");
-			const installs = (fields.installs ?? []).filter(Boolean).map((one) => ({ ...one, outdated: Boolean(one.outdated) || isOutdated(kind, fields.source, one.path) }));
+			const installs = (fields.installs ?? []).filter((one): one is InstallInput => Boolean(one)).map((one): CatalogInstall => ({ ...one, outdated: Boolean(one.outdated) || isOutdated(kind, fields.source as string, one.path) }));
 			const { installs: _unused, ...rest } = fields;
-			found.push({ kind, name, id: `${kind}/${name}`, bundle, ...rest, installs, installed: installs.length > 0 ? installs.map((one) => one.label).join(", ") : undefined, outdated: installs.some((one) => one.outdated) });
+			found.push({ kind, name, id: `${kind}/${name}`, bundle, ...rest, installs, installed: installs.length > 0 ? installs.map((one) => one.label).join(", ") : undefined, outdated: installs.some((one) => one.outdated) } as CatalogItem);
 		};
 
 		const skillsDir = join(dir, "skills");
@@ -172,7 +242,7 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 				installs: [shelf ? { scope: "shelf", label: `shelf/${shelf}`, path: join(paths.shelfDir, shelf, name) } : global ? { scope: "user", label: "global", path: join(paths.configDir, "skills", name) } : null],
 			});
 		}
-		const files = (folder, suffix) => (existsSync(join(dir, folder)) ? readdirSync(join(dir, folder), { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(suffix) && entry.name !== "README.md").map((entry) => entry.name) : []);
+		const files = (folder: string, suffix: string): string[] => (existsSync(join(dir, folder)) ? readdirSync(join(dir, folder), { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(suffix) && entry.name !== "README.md").map((entry) => entry.name) : []);
 		for (const file of files("agents", ".agent.md")) {
 			const source = join(dir, "agents", file);
 			const [user, project] = [agentPath(false, file), agentPath(true, file)];
@@ -184,7 +254,7 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 				installs: [existsSync(user) && { scope: "user", label: "global", path: user }, existsSync(project) && { scope: "project", label: "project", path: project }],
 			});
 		}
-		for (const [kind, folder] of [["rule", "rules"], ["claude-md", "claude-md-files"]]) {
+		for (const [kind, folder] of [["rule", "rules"], ["claude-md", "claude-md-files"]] as const) {
 			for (const file of files(folder, ".md")) {
 				const source = join(dir, folder, file);
 				const to = kind === "rule" ? join(paths.configDir, "rules", file) : claudeMdPaths().find((one) => existsSync(one)) ?? claudeMdPaths()[0];
@@ -198,24 +268,24 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 				});
 			}
 		}
-		const servers = (() => {
+		const servers = ((): Record<string, McpServerRaw> => {
 			try {
-				return JSON.parse(readFileSync(join(dir, "global", "mcp.json"), "utf8")).mcpServers ?? {};
+				return ((JSON.parse(readFileSync(join(dir, "global", "mcp.json"), "utf8")) as McpJson).mcpServers ?? {}) as Record<string, McpServerRaw>;
 			} catch {
 				return {};
 			}
 		})();
 		const present = mcpInstalled();
 		for (const [name, raw] of Object.entries(servers)) {
-			item("mcp", name, { raw, description: summarize(raw), tokens: null, installs: present.has(name) ? [{ scope: "mcp", label: present.get(name).join(", "), outdated: mcpChangeOf(raw, readJson(paths.claudeJson, [])?.mcpServers?.[name]) !== null }] : [] });
+			item("mcp", name, { raw, description: summarize(raw), tokens: null, installs: present.has(name) ? [{ scope: "mcp", label: (present.get(name) as string[]).join(", "), outdated: mcpChangeOf(raw, readJson<ClaudeJson>(paths.claudeJson, [])?.mcpServers?.[name]) !== null }] : [] });
 		}
 		return found.sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind) || a.bundle.localeCompare(b.bundle) || a.name.localeCompare(b.name));
 	};
 
 	// [{ kind, name, id, bundle, description, tokens, installed (text or undefined), outdated, installs[], shelf?, global? }]
-	const entries = () => items().map(({ source, raw, file, ...rest }) => rest);
+	const entries = (): CatalogEntry[] => items().map(({ source, raw, file, ...rest }) => rest);
 
-	const needFetched = () => {
+	const needFetched = (): boolean => {
 		if (!fetched()) {
 			err("The catalog is not fetched yet: run agentry catalog refresh");
 			return false;
@@ -223,7 +293,7 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 		return true;
 	};
 
-	const list = ({ json = false } = {}) => {
+	const list = ({ json = false }: { json?: boolean } = {}): number => {
 		if (!needFetched()) {
 			return 1;
 		}
@@ -240,9 +310,9 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 	};
 
 	// A bare name works when exactly one item has it; kind/name always does.
-	const pick = (all, ref) => {
+	const pick = (all: CatalogItem[], ref: string): Picked => {
 		const slash = ref.indexOf("/");
-		if (slash > 0 && KINDS.includes(ref.slice(0, slash))) {
+		if (slash > 0 && isKind(ref.slice(0, slash))) {
 			const entry = all.find((one) => one.id === ref);
 			return entry ? { entry } : { error: `No ${ref.slice(0, slash)} "${ref.slice(slash + 1)}" in the catalog. See agentry catalog list` };
 		}
@@ -254,7 +324,7 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 	};
 
 	// Copies source to `to` (never over something there) and says so. `where` words the destination.
-	const place = (entry, to, where, { dryRun }) => {
+	const place = (entry: CatalogItem, to: string, where: string, { dryRun }: { dryRun: boolean }): number => {
 		if (existsSync(to) || lstatSync(to, { throwIfNoEntry: false })) {
 			err(`refused: ${tilde(to)} already exists; not overwriting it${UPDATABLE.has(entry.kind) ? ` (agentry catalog update ${entry.id} refreshes an installed copy)` : ""}.`);
 			return 1;
@@ -271,7 +341,7 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 
 	// Copies each item into place (skills onto the shelf, group default: their bundle). Stops at the first problem; nothing
 	// is overwritten. project: agents and MCP servers go to this project instead of the user. dryRun previews.
-	const add = async (refs, { group, project = false, dryRun = false, yes = false } = {}) => {
+	const add = async (refs: string[], { group, project = false, dryRun = false, yes = false }: { group?: string; project?: boolean; dryRun?: boolean; yes?: boolean } = {}): Promise<number> => {
 		if (!needFetched()) {
 			return 1;
 		}
@@ -282,7 +352,7 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 		const all = items();
 		for (const ref of refs) {
 			const { entry, error } = pick(all, ref);
-			if (error) {
+			if (error !== undefined) {
 				err(error);
 				return 1;
 			}
@@ -324,15 +394,15 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 	// Replaces each outdated installed skill, agent, rule or CLAUDE.md (all: every outdated one) with the catalog's copy.
 	// Previews the files that change, saves the current copy under <backups>/updated/<time>/, then writes; asks y (or --yes)
 	// first. An outdated MCP server goes through mcp-edit `set` (its own masked preview, backup and undo).
-	const update = async (refs, { all = false, dryRun = false, yes = false } = {}) => {
+	const update = async (refs: string[], { all = false, dryRun = false, yes = false }: { all?: boolean; dryRun?: boolean; yes?: boolean } = {}): Promise<number> => {
 		if (!needFetched()) {
 			return 1;
 		}
 		const every = items();
-		const chosen = [];
+		const chosen: CatalogItem[] = [];
 		for (const ref of all ? [] : refs) {
 			const { entry, error } = pick(every, ref);
-			if (error || !entry.installed) {
+			if (error !== undefined || !entry.installed) {
 				err(error ?? `${entry.id} is not installed; agentry catalog add ${entry.id}`);
 				return 1;
 			}
@@ -340,8 +410,8 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 		}
 		const todo = all ? every.filter((entry) => entry.outdated) : chosen.filter((entry) => entry.outdated);
 		chosen.filter((entry) => !entry.outdated).forEach((entry) => out(`${entry.id} is up to date`));
-		const jobs = todo.filter((entry) => entry.kind !== "mcp").flatMap((entry) => entry.installs.filter((one) => one.outdated).map((install) => ({ entry, install, diff: diffOf(entry.source, install.path) })));
-		const servers = todo.filter((entry) => entry.kind === "mcp").map((entry) => ({ entry, change: mcpChangeOf(entry.raw, readJson(paths.claudeJson, [])?.mcpServers?.[entry.name]) })).filter((one) => one.change);
+		const jobs = todo.filter((entry) => entry.kind !== "mcp").flatMap((entry) => entry.installs.filter((one): one is FileInstall => one.outdated).map((install) => ({ entry, install, diff: diffOf(entry.source, install.path) })));
+		const servers = todo.filter((entry) => entry.kind === "mcp").map((entry) => ({ entry, change: mcpChangeOf(entry.raw, readJson<ClaudeJson>(paths.claudeJson, [])?.mcpServers?.[entry.name]) })).filter((one): one is McpServerJob => one.change !== null);
 		if (jobs.length + servers.length === 0) {
 			all && out("Everything installed is up to date.");
 			return 0;
@@ -354,14 +424,14 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 		const saveIn = join(paths.backupsDir, "updated", n ? `${stamp}-${n}` : stamp);
 		for (const { entry, install, diff } of jobs) {
 			out(`update ${entry.id} at ${tilde(install.path)}:`);
-			const name = (one) => one || basename(install.path);
+			const name = (one: string): string => one || basename(install.path);
 			diff.changed.forEach((one) => out(`  overwrite ${name(one)}  (differs from the catalog copy: a local edit in it is replaced)`));
 			diff.added.forEach((one) => out(`  add ${name(one)}`));
 			diff.extra.forEach((one) => out(`  keep ${name(one)}  (only in your copy; not touched)`));
 		}
 		jobs.length > 0 && out(`The current copy of each is saved under ${tilde(saveIn)} first.`);
 		const edit = createMcpEdit(paths, { out, err, ...mcp });
-		const setServer = ({ entry, change }, options) => edit.set({ name: entry.name, env: change.env, args: change.args, path: root(), ...options });
+		const setServer = ({ entry, change }: McpServerJob, options: { dryRun?: boolean; yes?: boolean }): Promise<number> => edit.set({ name: entry.name, env: change.env, args: change.args, path: root(), ...options });
 		for (const one of servers) {
 			out(`update ${one.entry.id} in your user config (args replaced, missing env keys added; existing env values stay):`);
 			if ((await setServer(one, { dryRun: true })) !== 0) {
@@ -399,15 +469,15 @@ export const createCatalog = (paths, { out = console.log, err = console.error, r
 
 	// Removes each installed agent (user ~/.claude/agents, or this project's with project): previews, keeps a copy under
 	// <backups>/removed/ unless backup is false, asks y (or --yes) first. Rules are `rules remove`, skills `shelf remove`.
-	const remove = async (refs, { project = false, dryRun = false, yes = false, backup = true } = {}) => {
+	const remove = async (refs: string[], { project = false, dryRun = false, yes = false, backup = true }: { project?: boolean; dryRun?: boolean; yes?: boolean; backup?: boolean } = {}): Promise<number> => {
 		if (!needFetched()) {
 			return 1;
 		}
 		const every = items();
-		const chosen = [];
+		const chosen: { entry: CatalogItem; to: string }[] = [];
 		for (const ref of refs) {
 			const { entry, error } = pick(every, ref);
-			if (error || entry.kind !== "agent") {
+			if (error !== undefined || entry.kind !== "agent") {
 				err(error ?? `refused: catalog remove takes agents; remove ${entry.id} with ${entry.kind === "skill" ? "agentry shelf remove" : entry.kind === "rule" ? "agentry rules remove" : entry.kind === "mcp" ? "agentry mcp remove" : "agentry rules remove"}.`);
 				return 1;
 			}

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Fixes for doctor findings, keyed by rule id; `agentry fix` (lib/fix.mjs) plans, previews, backs up and applies them.
 // An entry is `(finding, ctx) => fix | fix[] | undefined`; the fix shape and `ctx` are documented at the top of lib/fix.mjs.
 // A fix that cannot be made safe returns `{ ruleId, unfixable: "why" }` (or nothing), and the finding stays advice only.
@@ -13,13 +12,22 @@ import { delimiter, dirname, join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { extraPluginInstalls, renamePattern } from "./doctor-rules.js";
 import { createJsonEdit } from "./json-edit.js";
+import type { JsonPath } from "./json-edit.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import { maskShell } from "./mask.js";
+import type { ClaudeJson, ClaudeProject, Finding, Fix, FixContext, FixMaker, FixRegistry, TextFix, UnfixableFix } from "./types.js";
 import renamesData from "./renames.json" with { type: "json" };
 
-const defaultRenames = () => renamesData;
+const defaultRenames = (): Record<string, string> => renamesData;
 
-const isExecutable = (file) => {
+type OnPath = (command: string, ctx: FixContext) => boolean;
+
+// Which strings of a settings or MCP file a stale-name finding covers; `match` gets the string's path and value.
+type StaleScope =
+	| { label: string; kind: "plain"; match: (path: JsonPath, value: string) => boolean; dedupe?: boolean; isCommand?: undefined; keyHolds?: undefined }
+	| { label: string; kind: "command"; match: (path: JsonPath, value: string) => boolean; isCommand: (path: JsonPath) => boolean; keyHolds?: (pattern: RegExp) => boolean; dedupe?: undefined };
+
+const isExecutable = (file: string): boolean => {
 	try {
 		accessSync(file, constants.X_OK);
 		return statSync(file).isFile();
@@ -28,7 +36,7 @@ const isExecutable = (file) => {
 	}
 };
 
-const readJson = (file) => {
+const readJson = (file: string): unknown => {
 	try {
 		return JSON.parse(readFileSync(file, "utf8"));
 	} catch {
@@ -36,23 +44,23 @@ const readJson = (file) => {
 	}
 };
 
-const getPath = (json, path) => path.reduce((node, key) => (node !== null && typeof node === "object" ? node[key] : undefined), json);
+const getPath = (json: unknown, path: JsonPath): unknown => path.reduce((node: unknown, key) => (node !== null && typeof node === "object" ? (node as Record<string | number, unknown>)[key] : undefined), json);
 
 // Where an MCP server entry lives in its file: local servers sit under the project's key in ~/.claude.json.
-const serverPath = (ctx, scope, name) => (scope === "local" ? ["projects", ctx.paths.repoKey(ctx.cwd), "mcpServers", name] : ["mcpServers", name]);
+const serverPath = (ctx: FixContext, scope: string, name: string): JsonPath => (scope === "local" ? ["projects", ctx.paths.repoKey(ctx.cwd), "mcpServers", name] : ["mcpServers", name]);
 
-const unfixable = (finding, reason) => ({ ruleId: finding.id, unfixable: reason });
+const unfixable = (finding: Finding, reason: string): UnfixableFix => ({ ruleId: finding.id, unfixable: reason });
 
 // ---- MCP entries ----
 
-const removeServer = (finding, ctx, { scope, name, describe }) => {
+const removeServer = (finding: Finding, ctx: FixContext, { scope, name, describe }: { scope: string; name: string; describe: string }): TextFix => {
 	const path = serverPath(ctx, scope, name);
 	return {
 		ruleId: finding.id,
 		file: finding.file,
 		describe: () => describe,
-		apply: (text) => {
-			const doc = createJsonEdit(text);
+		apply: (text: string | undefined) => {
+			const doc = createJsonEdit(text as string);
 			if (doc.get(path) === undefined) {
 				return text;
 			}
@@ -66,7 +74,7 @@ const REMOVABLE_SCOPES = new Set(["local", "project", "user", "desktop-config"])
 
 // The finding points at the entry that wins (the narrower scope); the broader copy is shared with other repos and stays.
 // Removing the winner only changes nothing when both entries are the same, so differing entries are left to the user.
-const dupMcpScope = (finding, ctx) => {
+const dupMcpScope: FixMaker = (finding, ctx) => {
 	const match = /^MCP server "(.*)" is defined in (\S+) scope \((.*)\) and also in (\S+) scope \((.*)\); the /.exec(finding.message);
 	if (!match) {
 		return undefined;
@@ -86,7 +94,7 @@ const dupMcpScope = (finding, ctx) => {
 	return removeServer(finding, ctx, { scope: winnerScope, name, describe: `Remove "${name}" from the ${winnerScope} scope; the identical ${shadowedScope} entry stays` });
 };
 
-const dupMcpPlugin = (finding, ctx) => {
+const dupMcpPlugin: FixMaker = (finding, ctx) => {
 	const match = /^MCP server "(.*)" \((\S+)\) duplicates the server of enabled plugin (.+)$/.exec(finding.message);
 	if (!match) {
 		return undefined;
@@ -99,7 +107,7 @@ const dupMcpPlugin = (finding, ctx) => {
 };
 
 // The entry the reader found active: the local one in ~/.claude.json wins over the user one.
-const missingMcpCommand = (finding, ctx) => {
+const missingMcpCommand: FixMaker = (finding, ctx) => {
 	const match = /^MCP server "(.*)" runs ".*", which is not on PATH or does not exist$/.exec(finding.message);
 	if (!match) {
 		return undefined;
@@ -124,7 +132,7 @@ const PATH_LIKE = /^(~|\.{1,2}\/|\/|\$\{?HOME\}?|\$\{?CLAUDE_PROJECT_DIR\}?)/;
 // Whether `changed` (a command string whose old name was just swapped) still points at things that exist: every word
 // the swap touched must be a path that exists or, as the command itself, a program found on PATH. Anything else
 // (a bare argument, a package name, an unexpanded variable) cannot be checked, so it is not safe. → reason | undefined
-const unsafeWord = (before, changed, { commandPosition, ctx, onPath }) => {
+const unsafeWord = (before: string, changed: string, { commandPosition, ctx, onPath }: { commandPosition: boolean; ctx: FixContext; onPath: OnPath }): string | undefined => {
 	const words = changed.split(/(\s+)/);
 	const old = before.split(/(\s+)/);
 	let first = true;
@@ -160,8 +168,8 @@ const unsafeWord = (before, changed, { commandPosition, ctx, onPath }) => {
 const STALE_MESSAGE = /^(.*) still uses the old name "([^"]*)" \(now "([^"]*)"\)$/s;
 
 // Which strings of a settings or MCP file a stale-name finding covers, from the doctor's wording. → { label, match(path), kind }
-const staleScope = (what, json) => {
-	let found;
+const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
+	let found: RegExpExecArray | null;
 	if ((found = /^Permission (allow|deny|ask) entry "(.*)"$/s.exec(what))) {
 		const [, list, entry] = found;
 		return { label: `permission ${list} entry`, kind: "plain", match: (path, value) => path[0] === "permissions" && path[1] === list && typeof path[2] === "number" && path.length === 3 && maskShell(value) === entry };
@@ -180,26 +188,29 @@ const staleScope = (what, json) => {
 		};
 	}
 	if ((found = /^(\S+) command$/.exec(what))) {
-		return { label: `${found[1]} command`, kind: "command", isCommand: () => true, match: (path) => path.length === 2 && path[0] === found[1] && path[1] === "command" };
+		const event = found[1];
+		return { label: `${event} command`, kind: "command", isCommand: () => true, match: (path) => path.length === 2 && path[0] === event && path[1] === "command" };
 	}
 	if ((found = /^(\S+) hook matcher$/.exec(what))) {
-		return { label: `${found[1]} hook matcher`, kind: "plain", dedupe: true, match: (path) => path[0] === "hooks" && path[1] === found[1] && path.at(-1) === "matcher" };
+		const event = found[1];
+		return { label: `${event} hook matcher`, kind: "plain", dedupe: true, match: (path) => path[0] === "hooks" && path[1] === event && path.at(-1) === "matcher" };
 	}
 	if ((found = /^(\S+) hook$/.exec(what))) {
-		return { label: `${found[1]} hook command`, kind: "command", isCommand: () => true, match: (path) => path[0] === "hooks" && path[1] === found[1] && path.at(-1) === "command" };
+		const event = found[1];
+		return { label: `${event} hook command`, kind: "command", isCommand: () => true, match: (path) => path[0] === "hooks" && path[1] === event && path.at(-1) === "command" };
 	}
 	return undefined;
 };
 
-const serverMaps = (json) => [json?.mcpServers, ...Object.values(json?.projects ?? {}).map((project) => project?.mcpServers)].filter((map) => map && typeof map === "object");
+const serverMaps = (json: ClaudeJson | undefined): Record<string, unknown>[] => [json?.mcpServers, ...Object.values(json?.projects ?? {}).map((project) => (project as ClaudeProject | undefined)?.mcpServers)].filter((map): map is Record<string, unknown> => Boolean(map) && typeof map === "object");
 
-const staleName = (finding, ctx, { renames, onPath }) => {
+const staleName = (finding: Finding, ctx: FixContext, { renames, onPath }: { renames: Record<string, string>; onPath: OnPath }): Fix | undefined => {
 	const found = STALE_MESSAGE.exec(finding.message);
 	if (!found || !(found[2] in renames)) {
 		return undefined;
 	}
 	const [, what, from, to] = found;
-	let json;
+	let json: ClaudeJson;
 	try {
 		json = JSON.parse(readFileSync(finding.file, "utf8"));
 	} catch {
@@ -212,14 +223,14 @@ const staleName = (finding, ctx, { renames, onPath }) => {
 	const pattern = renamePattern(from);
 	const global = new RegExp(pattern.source, "g");
 	// Pure over the text: the swapped text plus the first reason a swap was unsafe.
-	const swap = (text) => {
+	const swap = (text: string): { text: string; count: number; blocked?: string } => {
 		const doc = createJsonEdit(text);
-		let blocked;
+		let blocked: string | undefined;
 		const count = doc.renameInStrings((value, path) => {
 			if (!scope.match(path, value) || !pattern.test(value)) {
 				return undefined;
 			}
-			const swapped = value.replace(global, to);
+			const swapped = (value as string).replace(global, to);
 			// A matcher that already lists the new name would list it twice.
 			const next = scope.dedupe ? [...new Set(swapped.split("|"))].join("|") : swapped;
 			if (scope.kind === "command") {
@@ -232,11 +243,11 @@ const staleName = (finding, ctx, { renames, onPath }) => {
 		}
 		return { text: doc.text, count, blocked };
 	};
-	let planned;
+	let planned: ReturnType<typeof swap>;
 	try {
 		planned = swap(readFileSync(finding.file, "utf8"));
 	} catch (error) {
-		return unfixable(finding, `could not edit the file (${error.code ?? error.name})`);
+		return unfixable(finding, `could not edit the file (${(error as { code?: string; name?: string }).code ?? (error as Error).name})`);
 	}
 	if (planned.blocked) {
 		return unfixable(finding, `swapping "${from}" for "${to}" in the ${scope.label} would break it: ${planned.blocked}`);
@@ -248,8 +259,8 @@ const staleName = (finding, ctx, { renames, onPath }) => {
 		ruleId: finding.id,
 		file: finding.file,
 		describe: () => `Replace "${from}" with "${to}" in the ${scope.label}`,
-		apply: (text) => {
-			const result = swap(text);
+		apply: (text: string | undefined) => {
+			const result = swap(text as string);
 			return result.blocked ? text : result.text;
 		},
 	};
@@ -257,7 +268,7 @@ const staleName = (finding, ctx, { renames, onPath }) => {
 
 // ---- links, skills, plugins ----
 
-const brokenSkillLink = (finding) => {
+const brokenSkillLink = (finding: Finding): Fix | undefined => {
 	const name = /^Skill link "(.*)" points at /.exec(finding.message)?.[1] ?? "skill";
 	try {
 		if (!lstatSync(finding.file).isSymbolicLink()) {
@@ -271,7 +282,7 @@ const brokenSkillLink = (finding) => {
 
 // The shelf keeps an identical copy, so removing the global one loses nothing; the skill loads again with `agentry shelf on`.
 // (`agentry shelf shelve` cannot be used: it refuses to overwrite the existing shelf copy.)
-const shelfDuplicate = (finding) => {
+const shelfDuplicate = (finding: Finding): Fix | undefined => {
 	const found = /^Global skill "(.*)" is identical to the shelved copy ([^,;]+)/.exec(finding.message);
 	if (!found) {
 		return undefined;
@@ -293,7 +304,7 @@ const shelfDuplicate = (finding) => {
 };
 
 // One `claude plugin uninstall` per extra install, run from the install's project folder.
-const dupPluginScope = (finding, ctx) => {
+const dupPluginScope: FixMaker = (finding, ctx) => {
 	const id = /^(\S+) is installed at /.exec(finding.message)?.[1];
 	const plugin = createPluginsReader(ctx.paths).read({ cwd: ctx.cwd }).plugins.find((item) => item.id === id);
 	if (!plugin) {
@@ -305,14 +316,14 @@ const dupPluginScope = (finding, ctx) => {
 			ruleId: finding.id,
 			file: finding.file,
 			describe: () => `Uninstall ${id} from ${install.scope} scope${install.projectPath ? ` (project ${install.projectPath})` : ""}`,
-			apply: () => (existsSync(cwd) ? { command: ["claude", "plugin", "uninstall", id, "--scope", install.scope], cwd } : undefined),
+			apply: () => (existsSync(cwd) ? { command: ["claude", "plugin", "uninstall", plugin.id, "--scope", install.scope], cwd } : undefined),
 		};
 	});
 };
 
-export const createFixes = ({ renames = defaultRenames(), env = process.env } = {}) => {
+export const createFixes = ({ renames = defaultRenames(), env = process.env }: { renames?: Record<string, string>; env?: NodeJS.ProcessEnv } = {}): FixRegistry => {
 	// A bare command found on PATH (or ~-prefixed path) that is executable.
-	const onPath = (command) => (env.PATH ?? "").split(delimiter).some((dir) => dir && isExecutable(join(dir, command)));
+	const onPath = (command: string): boolean => (env.PATH ?? "").split(delimiter).some((dir) => dir && isExecutable(join(dir, command)));
 	return {
 		"dup-mcp-scope": dupMcpScope,
 		"dup-mcp-plugin": dupMcpPlugin,

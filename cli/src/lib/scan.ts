@@ -1,4 +1,3 @@
-// @ts-nocheck
 // `agentry scan [roots...]`: runs the status and doctor collectors over every git repo and worktree under the roots and
 // prints one row per repo. Findings in user-level files are reported once in a "global" block, not per repo. Read-only;
 // per-repo results are cached (lib/scan-cache.mjs) until a file they read changes.
@@ -6,18 +5,94 @@
 // each repo with findings on its own, previewed and confirmed per repo.
 
 import { execFileSync } from "node:child_process";
+import type { Stats } from "node:fs";
 import { lstatSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import { removedCopyPath, saveRemovedCopy } from "./backups.js";
 import { createDiscover } from "./discover.js";
+import type { FoundRepo } from "./discover.js";
 import { createDoctor, defaultLaunchctlGetenv } from "./doctor.js";
+import type { DoctorReport } from "./doctor.js";
 import { createFix } from "./fix.js";
+import type { Paths } from "./paths.js";
 import { createScanCache } from "./scan-cache.js";
 import { createStatus } from "./status.js";
+import type { StatusData } from "./status.js";
+import type { Finding, FixOptions, ReadError, Severity } from "./types.js";
 import { packageVersion } from "./version.js";
 
-const defaultConfirm = async (question) => {
+type Summary = Record<Severity, number>;
+type Counts = { skills: number; mcp: number; hooks: number; plugins: number };
+type Loadable = { state: string; scope?: string };
+
+/** One repo as scanned (and cached): user-level counts are kept so the global block can use them. */
+interface RepoResult {
+	path: string;
+	kind: FoundRepo["kind"];
+	root: string;
+	counts: Counts;
+	userCounts: Counts;
+	tokens: number;
+	userTokens: number;
+	findings: Finding[];
+	errors: ReadError[];
+}
+
+/** One repo row of the scan: its own findings only (user-level ones are in `global`). */
+export interface RepoRow {
+	path: string;
+	kind: FoundRepo["kind"];
+	root: string;
+	counts: Counts;
+	tokens: number;
+	findings: Finding[];
+	summary: Summary;
+	errors: ReadError[];
+}
+
+/** The `agentry scan --json` document. */
+export interface ScanData {
+	version: 1;
+	roots: string[];
+	depth: number;
+	global: { counts: Counts; tokens: number; findings: Finding[]; summary: Summary; errors: ReadError[] };
+	repos: RepoRow[];
+	totals: { repos: number } & Summary;
+	cache: { enabled: boolean; hits: number; misses: number };
+}
+
+export interface ScanOptions {
+	out?: (text: string) => void;
+	err?: (text: string) => void;
+	platform?: NodeJS.Platform;
+	env?: NodeJS.ProcessEnv;
+	now?: () => Date;
+	status?: { collect: (cwd?: string) => StatusData };
+	doctor?: { collect: (cwd?: string) => DoctorReport };
+	discover?: Pick<ReturnType<typeof createDiscover>, "find">;
+	fixOptions?: FixOptions;
+}
+
+export interface ScanArgs {
+	roots?: string[];
+	depth?: number;
+	json?: boolean;
+	onlyProblems?: boolean;
+	cache?: boolean;
+}
+
+/** A `.claude/skills/<name>` found under the roots (or in the user config with global). */
+export interface SkillHit {
+	repo: string;
+	kind: string;
+	path: string;
+	link: boolean;
+	tracked: boolean;
+	global?: boolean;
+}
+
+const defaultConfirm = async (question: string): Promise<boolean> => {
 	const prompt = createInterface({ input: process.stdin, output: process.stdout });
 	try {
 		return /^y(es)?$/i.test((await prompt.question(question)).trim());
@@ -26,14 +101,14 @@ const defaultConfirm = async (question) => {
 	}
 };
 
-const SEVERITIES = ["error", "warning", "info"];
+const SEVERITIES: Severity[] = ["error", "warning", "info"];
 
 const here = new URL(".", import.meta.url).pathname;
 
 // Cache version: package version plus the newest mtime of the CLI's own code, so a changed rule never serves old results.
 const codeVersion = () => {
 	let newest = 0;
-	const visit = (dir) => {
+	const visit = (dir: string): void => {
 		for (const entry of readdirSync(dir, { withFileTypes: true })) {
 			const file = join(dir, entry.name);
 			if (entry.isDirectory()) {
@@ -51,31 +126,31 @@ const codeVersion = () => {
 	}
 };
 
-const summarize = (findings) => Object.fromEntries(SEVERITIES.map((severity) => [severity, findings.filter((item) => item.severity === severity).length]));
+const summarize = (findings: Finding[]): Summary => Object.fromEntries(SEVERITIES.map((severity) => [severity, findings.filter((item) => item.severity === severity).length])) as Summary;
 
-export const createScan = (paths, { out = console.log, err = console.error, platform = process.platform, env = process.env, now = () => new Date(), status, doctor, discover = createDiscover(), fixOptions = {} } = {}) => {
+export const createScan = (paths: Paths, { out = console.log, err = console.error, platform = process.platform, env = process.env, now = () => new Date(), status, doctor, discover = createDiscover(), fixOptions = {} }: ScanOptions = {}) => {
 	const statusCollector = status ?? createStatus(paths, { platform });
-	const launchctlAnswers = new Map();
-	const launchctlGetenv = (name) => {
+	const launchctlAnswers = new Map<string, string>();
+	const launchctlGetenv = (name: string): string => {
 		if (!launchctlAnswers.has(name)) {
 			launchctlAnswers.set(name, defaultLaunchctlGetenv(name));
 		}
-		return launchctlAnswers.get(name);
+		return launchctlAnswers.get(name) as string;
 	};
 	const doctorCollector = doctor ?? createDoctor(paths, { platform, env, launchctlGetenv });
-	const under = (file, dir) => file === dir || file.startsWith(dir + sep);
+	const under = (file: string, dir: string): boolean => file === dir || file.startsWith(dir + sep);
 
 	// A finding is global when it lives in a user-level file. A local-scope server entry also lives in ~/.claude.json
 	// but belongs to one repo, so `dup-mcp-scope` (which points at the winning, narrower entry) stays with the repo.
-	const isGlobal = (item) => {
+	const isGlobal = (item: Finding): boolean => {
 		const userDirs = [paths.configDir, paths.desktopDir, paths.pluginsDir];
 		return userDirs.some((dir) => under(item.file, dir)) || (item.file === paths.claudeJson && item.id !== "dup-mcp-scope");
 	};
 
 	// Every file a repo's result depends on: the places the readers look (so a new file is noticed) plus every source
 	// the result names. Folders are included so an added or removed entry changes the stamp.
-	const touchedFiles = (repo, data, findings) => {
-		const files = [
+	const touchedFiles = (repo: string, data: StatusData, findings: Finding[]): string[] => {
+		const files: (string | undefined)[] = [
 			join(paths.configDir, "settings.json"),
 			join(paths.configDir, "skills"),
 			join(paths.configDir, "skill-shelf"),
@@ -109,22 +184,22 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 			files.push(plugin.installPath, plugin.enabledBy?.source);
 		}
 		files.push(...data.errors.map((error) => error.source), ...findings.map((item) => item.file));
-		return files.filter((file) => typeof file === "string" && file.startsWith("/"));
+		return files.filter((file): file is string => typeof file === "string" && file.startsWith("/"));
 	};
 
-	const loading = (item) => item.state === "active";
+	const loading = (item: Loadable): boolean => item.state === "active";
 
-	const scanRepo = (repo) => {
+	const scanRepo = (repo: FoundRepo): { result: RepoResult; files: string[] } => {
 		const data = statusCollector.collect(repo.path);
 		const diagnosis = doctorCollector.collect(repo.path);
-		const userScope = (item) => item.scope === "user" || item.scope === "desktop-config" || item.scope === "desktop-extension";
-		const countOf = (filter) => ({
+		const userScope = (item: Loadable): boolean => item.scope === "user" || item.scope === "desktop-config" || item.scope === "desktop-extension";
+		const countOf = (filter: (item: Loadable) => boolean): Counts => ({
 			skills: data.skills.items.filter((item) => loading(item) && filter(item)).length,
 			mcp: data.mcp.servers.filter((item) => loading(item) && filter(item)).length,
 			hooks: data.hooks.items.filter((item) => loading(item) && filter(item)).length,
 			plugins: data.plugins.items.filter((item) => loading(item) && filter(item)).length,
 		});
-		const result = {
+		const result: RepoResult = {
 			path: repo.path,
 			kind: repo.kind,
 			root: data.project.root,
@@ -138,8 +213,8 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 		return { result, files: touchedFiles(repo.path, data, diagnosis.findings) };
 	};
 
-	const gather = (roots, { depth = 4, cache = true } = {}) => {
-		const store = createScanCache(paths, { enabled: cache, version: codeVersion() });
+	const gather = (roots: string[], { depth = 4, cache = true }: { depth?: number; cache?: boolean } = {}): { data: ScanData; origins: string[] } => {
+		const store = createScanCache<RepoResult>(paths, { enabled: cache, version: codeVersion() });
 		const repos = discover.find(roots, { depth });
 		let hits = 0;
 		const results = repos.map((repo) => {
@@ -153,10 +228,10 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 			return result;
 		});
 
-		const globalFindings = new Map();
-		const origins = new Map();
-		const rows = results.map((result) => {
-			const mine = [];
+		const globalFindings = new Map<string, Finding>();
+		const origins = new Map<string, string>();
+		const rows = results.map((result): RepoRow => {
+			const mine: Finding[] = [];
 			for (const item of result.findings) {
 				if (isGlobal(item)) {
 					const key = JSON.stringify([item.id, item.file, item.line, item.message]);
@@ -175,7 +250,7 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 		const globalList = [...globalFindings.values()].sort((a, b) => SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity) || a.id.localeCompare(b.id) || a.file.localeCompare(b.file));
 		const globalErrors = results.flatMap((result) => result.errors).filter((error, at, all) => (under(error.source, paths.configDir) || error.source === paths.claudeJson) && all.findIndex((other) => other.source === error.source && other.message === error.message) === at);
 		const total = summarize([...globalList, ...rows.flatMap((row) => row.findings)]);
-		const data = {
+		const data: ScanData = {
 			version: 1,
 			roots: roots.map((root) => resolve(root)),
 			depth,
@@ -187,13 +262,13 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 		return { data, origins: [...new Set(origins.values())] };
 	};
 
-	const collect = (roots, options) => gather(roots, options).data;
+	const collect = (roots: string[], options?: { depth?: number; cache?: boolean }): ScanData => gather(roots, options).data;
 
-	const printHuman = (data, { onlyProblems }) => {
-		const tilde = (text) => (paths.home ? text.replaceAll(`${paths.home}/`, "~/") : text);
+	const printHuman = (data: ScanData, { onlyProblems }: { onlyProblems: boolean }): void => {
+		const tilde = (text: string): string => (paths.home ? text.replaceAll(`${paths.home}/`, "~/") : text);
 		const shown = onlyProblems ? data.repos.filter((row) => row.findings.length > 0) : data.repos;
-		const label = (row) => `${tilde(row.path)}${row.kind === "worktree" ? " (worktree)" : ""}`;
-		const problems = (summary) => (summary.error + summary.warning + summary.info === 0 ? "-" : `${summary.error}E ${summary.warning}W${summary.info ? ` ${summary.info}I` : ""}`);
+		const label = (row: RepoRow): string => `${tilde(row.path)}${row.kind === "worktree" ? " (worktree)" : ""}`;
+		const problems = (summary: Summary): string => (summary.error + summary.warning + summary.info === 0 ? "-" : `${summary.error}E ${summary.warning}W${summary.info ? ` ${summary.info}I` : ""}`);
 
 		const g = data.global;
 		out(`Global (user-level): ${g.counts.skills} skills (~${g.tokens} tokens), ${g.counts.mcp} MCP, ${g.counts.hooks} hooks, ${g.counts.plugins} plugins; ${problems(g.summary) === "-" ? "no findings" : problems(g.summary)}`);
@@ -209,7 +284,7 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 		const header = ["repo", "skills", "mcp", "hooks", "plugins", "~tokens", "findings"];
 		const body = shown.map((row) => [label(row), row.counts.skills, row.counts.mcp, row.counts.hooks, row.counts.plugins, row.tokens, problems(row.summary)].map(String));
 		const widths = header.map((title, at) => Math.max(title.length, ...body.map((cells) => cells[at].length)));
-		const line = (cells) => cells.map((cell, at) => (at === 0 || at === 6 ? cell.padEnd(widths[at]) : cell.padStart(widths[at]))).join("  ").trimEnd();
+		const line = (cells: string[]): string => cells.map((cell, at) => (at === 0 || at === 6 ? cell.padEnd(widths[at]) : cell.padStart(widths[at]))).join("  ").trimEnd();
 		if (shown.length === 0) {
 			out(onlyProblems ? "No repos with findings." : "No git repos found.");
 		} else {
@@ -229,7 +304,7 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 	};
 
 	// Returns the exit code: 1 when any error-severity finding exists, 2 for a missing root.
-	const run = ({ roots = [], depth = 4, json = false, onlyProblems = false, cache = true } = {}) => {
+	const run = ({ roots = [], depth = 4, json = false, onlyProblems = false, cache = true }: ScanArgs = {}): number => {
 		const list = roots.length > 0 ? roots : [process.cwd()];
 		if (missingRoot(list)) {
 			return 2;
@@ -243,7 +318,7 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 		return data.totals.error > 0 ? 1 : 0;
 	};
 
-	const missingRoot = (list) => {
+	const missingRoot = (list: string[]): boolean => {
 		for (const root of list) {
 			try {
 				if (!statSync(root).isDirectory()) {
@@ -260,16 +335,16 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 	// Fixes through the engine: user-level findings once (from the first repo that shows them), then each repo with
 	// findings on its own. The engine previews and asks per call; without a terminal it previews only unless `yes`.
 	// Returns the worst exit code of the runs (see lib/fix.mjs), 2 for a missing root.
-	const runFix = async ({ roots = [], depth = 4, yes = false, dryRun = false, cache = true } = {}) => {
+	const runFix = async ({ roots = [], depth = 4, yes = false, dryRun = false, cache = true }: ScanArgs & { yes?: boolean; dryRun?: boolean } = {}): Promise<number> => {
 		const list = roots.length > 0 ? roots : [process.cwd()];
 		if (missingRoot(list)) {
 			return 2;
 		}
 		const { data, origins } = gather(list, { depth, cache });
 		const fixer = createFix(paths, { out, err, ...fixOptions });
-		const tilde = (text) => (paths.home ? text.replaceAll(`${paths.home}/`, "~/") : text);
+		const tilde = (text: string): string => (paths.home ? text.replaceAll(`${paths.home}/`, "~/") : text);
 		const userLevel = isGlobal;
-		const repoLevel = (item) => !isGlobal(item);
+		const repoLevel = (item: Finding): boolean => !isGlobal(item);
 		const targets = [...origins.map((path) => ({ path, include: userLevel, label: "user-level (applied once)" })), ...data.repos.filter((row) => row.findings.length > 0).map((row) => ({ path: row.path, include: repoLevel, label: row.path }))];
 		let code = 0;
 		let touched = 0;
@@ -287,24 +362,24 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 
 	// Every repo or worktree under the roots with .claude/skills/<name>: { repo, kind, path, link, tracked }.
 	// A link there belongs to the shelf (agentry shelf off), so it is listed but never removed. tracked: git has files in it.
-	const findSkill = (roots, name, { depth = 4, global = false } = {}) => {
-		const tracked = (repo, rel) => {
+	const findSkill = (roots: string[], name: string, { depth = 4, global = false }: { depth?: number; global?: boolean } = {}): SkillHit[] => {
+		const tracked = (repo: string, rel: string): boolean => {
 			try {
 				return execFileSync("git", ["ls-files", "--", rel], { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() !== "";
 			} catch {
 				return false;
 			}
 		};
-		const user = [];
+		const user: SkillHit[] = [];
 		if (global) {
 			const path = join(paths.configDir, "skills", name);
 			const info = lstatSync(path, { throwIfNoEntry: false });
 			info && user.push({ repo: paths.configDir, kind: "global", path, link: info.isSymbolicLink(), tracked: false, global: true });
 		}
-		return user.concat(discover.find(roots, { depth }).flatMap((repo) => {
+		return user.concat(discover.find(roots, { depth }).flatMap((repo): SkillHit[] => {
 			const rel = join(".claude", "skills", name);
 			const path = join(repo.path, rel);
-			let info;
+			let info: Stats;
 			try {
 				info = lstatSync(path);
 			} catch {
@@ -314,18 +389,18 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 		}));
 	};
 
-	const skillNameError = (name) => (!name || name.includes("/") || name.startsWith(".") ? `"${name ?? ""}" is not a skill folder name.` : undefined);
+	const skillNameError = (name: string | undefined): string | undefined => (!name || name.includes("/") || name.startsWith(".") ? `"${name ?? ""}" is not a skill folder name.` : undefined);
 
-	const describeHit = (hit) => `${paths.home ? hit.path.replaceAll(`${paths.home}/`, "~/") : hit.path}${hit.link ? "  (link into the shelf: use agentry shelf off)" : hit.global ? "  (global)" : hit.tracked ? "  (git-tracked)" : "  (not tracked by git)"}`;
+	const describeHit = (hit: SkillHit): string => `${paths.home ? hit.path.replaceAll(`${paths.home}/`, "~/") : hit.path}${hit.link ? "  (link into the shelf: use agentry shelf off)" : hit.global ? "  (global)" : hit.tracked ? "  (git-tracked)" : "  (not tracked by git)"}`;
 
 	// Lists the hits. Returns the exit code (2 for a bad name or root).
-	const runFindSkill = ({ roots = [], depth = 4, name, json = false, global = false } = {}) => {
+	const runFindSkill = ({ roots = [], depth = 4, name, json = false, global = false }: ScanArgs & { name?: string; global?: boolean } = {}): number => {
 		const list = roots.length > 0 ? roots : [process.cwd()];
 		if (skillNameError(name) || missingRoot(list)) {
-			skillNameError(name) && err(skillNameError(name));
+			skillNameError(name) && err(skillNameError(name) as string);
 			return 2;
 		}
-		const hits = findSkill(list, name, { depth, global });
+		const hits = findSkill(list, name as string, { depth, global });
 		if (json) {
 			out(JSON.stringify({ skill: name, roots: list.map((root) => resolve(root)), hits }, null, 2));
 		} else {
@@ -337,13 +412,13 @@ export const createScan = (paths, { out = console.log, err = console.error, plat
 
 	// Deletes .claude/skills/<name> from every hit that is a real folder, previewed first. No copy is kept (git restores
 	// tracked ones); the preview says which are not tracked. Without a terminal it only previews unless `yes`.
-	const runRemoveSkill = async ({ roots = [], depth = 4, name, yes = false, dryRun = false, global = false, backup = true } = {}) => {
+	const runRemoveSkill = async ({ roots = [], depth = 4, name, yes = false, dryRun = false, global = false, backup = true }: ScanArgs & { name?: string; yes?: boolean; dryRun?: boolean; global?: boolean; backup?: boolean } = {}): Promise<number> => {
 		const list = roots.length > 0 ? roots : [process.cwd()];
 		if (skillNameError(name) || missingRoot(list)) {
-			skillNameError(name) && err(skillNameError(name));
+			skillNameError(name) && err(skillNameError(name) as string);
 			return 2;
 		}
-		const hits = findSkill(list, name, { depth, global });
+		const hits = findSkill(list, name as string, { depth, global });
 		const doomed = hits.filter((hit) => !hit.link);
 		hits.filter((hit) => hit.link).forEach((hit) => out(`skip ${describeHit(hit)}`));
 		if (doomed.length === 0) {

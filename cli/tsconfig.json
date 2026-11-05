@@ -1,11 +1,15 @@
 {
 	"compilerOptions": {
 		"target": "ES2022",
+		"lib": ["ES2023"],
 		"module": "nodenext",
 		"moduleResolution": "nodenext",
 		"rootDir": "src",
 		"outDir": "dist",
-		"strict": false,
+		// Strict everywhere. src/tui and the tests still start with `// @ts-nocheck`, which skips their type errors file by file;
+		// Phase 2 of docs/ts-migration-plan.md removes those lines. Chosen over a second tsconfig because the TUI imports lib/
+		// and the tests import the TUI, so one program cannot hold both a strict and a non-strict part.
+		"strict": true,
 		"resolveJsonModule": true,
 		"jsx": "react-jsx",
 		"skipLibCheck": true,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // `agentry fix --undo [timestamp]` and `--list`: put back what a backup set (lib/fix.mjs header) recorded.
 // The set is the newest one unless a timestamp (its folder name, or the createdAt ISO time) is given.
 // Per manifest file, by `result` and `kind`:
@@ -16,11 +15,48 @@ import { cpSync, existsSync, lstatSync, readdirSync, readFileSync, readlinkSync,
 import { createInterface } from "node:readline/promises";
 import { join } from "node:path";
 import { atomicWrite, snapshot } from "./fix.js";
+import type { Manifest, ManifestFile } from "./fix.js";
 import { maskArgs } from "./mask.js";
+import type { Paths } from "./paths.js";
 
 const MANIFEST = "manifest.json";
 
-const defaultConfirm = async (question) => {
+/** A manifest as stored: `undoneAt` is added once a set has been undone. */
+export interface StoredManifest extends Manifest {
+	undoneAt?: string;
+}
+
+interface BackupSet {
+	name: string;
+	dir: string;
+	manifest: StoredManifest | null;
+}
+
+type Action = "none" | "restore" | "delete" | "link";
+
+export interface PlannedEntry {
+	entry: ManifestFile;
+	action: Action;
+	conflict?: string;
+}
+
+export interface FixUndoOptions {
+	out?: (text: string) => void;
+	err?: (text: string) => void;
+	isTTY?: () => boolean;
+	confirm?: (question: string) => Promise<boolean>;
+	now?: () => Date;
+}
+
+export interface FixUndoArgs {
+	timestamp?: string;
+	list?: boolean;
+	yes?: boolean;
+	dryRun?: boolean;
+	force?: boolean;
+}
+
+const defaultConfirm = async (question: string): Promise<boolean> => {
 	const prompt = createInterface({ input: process.stdin, output: process.stdout });
 	try {
 		return /^y(es)?$/i.test((await prompt.question(question)).trim());
@@ -30,16 +66,16 @@ const defaultConfirm = async (question) => {
 };
 
 // Backup sets oldest first. A set whose manifest does not parse is kept with manifest: null, so --list can say so.
-const loadSets = (paths) => {
+const loadSets = (paths: Paths): BackupSet[] => {
 	if (!existsSync(paths.backupsDir)) {
 		return [];
 	}
 	return readdirSync(paths.backupsDir)
 		.filter((name) => existsSync(join(paths.backupsDir, name, MANIFEST)))
-		.map((name) => {
+		.map((name): BackupSet => {
 			const dir = join(paths.backupsDir, name);
 			try {
-				return { name, dir, manifest: JSON.parse(readFileSync(join(dir, MANIFEST), "utf8")) };
+				return { name, dir, manifest: JSON.parse(readFileSync(join(dir, MANIFEST), "utf8")) as StoredManifest };
 			} catch {
 				return { name, dir, manifest: null };
 			}
@@ -48,7 +84,7 @@ const loadSets = (paths) => {
 };
 
 // What is at `path` now: null (nothing), the link target of a symlink, or "other" (a file or folder).
-const linkState = (path) => {
+const linkState = (path: string): string | null => {
 	try {
 		return lstatSync(path).isSymbolicLink() ? readlinkSync(path) : "other";
 	} catch {
@@ -58,8 +94,8 @@ const linkState = (path) => {
 
 // One manifest entry → { entry, action, conflict? }. action: "none" | "restore" | "delete" | "link".
 // A conflict keeps the action that --force would take.
-export const planEntry = (entry) => {
-	const plan = (action, conflict) => ({ entry, action, ...(conflict ? { conflict } : {}) });
+export const planEntry = (entry: ManifestFile): PlannedEntry => {
+	const plan = (action: Action, conflict?: string): PlannedEntry => ({ entry, action, ...(conflict ? { conflict } : {}) });
 	if (entry.result === "skipped" || entry.result === "pending") {
 		return plan("none");
 	}
@@ -99,38 +135,38 @@ export const planEntry = (entry) => {
 };
 
 // Makes the change for one planned entry; returns what it did, for the output.
-const restore = ({ entry, action }, dir) => {
+const restore = ({ entry, action }: PlannedEntry, dir: string): string => {
 	if (action === "delete") {
 		rmSync(entry.realPath, { force: true });
 		return `deleted ${entry.path}`;
 	}
 	if (action === "link") {
 		rmSync(entry.path, { force: true });
-		symlinkSync(entry.linkTarget, entry.path);
+		symlinkSync(entry.linkTarget as string, entry.path);
 		return `linked ${entry.path} -> ${entry.linkTarget}`;
 	}
 	if (entry.kind === "directory") {
 		rmSync(entry.realPath, { recursive: true, force: true });
-		cpSync(join(dir, entry.backup), entry.realPath, { recursive: true, verbatimSymlinks: true });
+		cpSync(join(dir, entry.backup as string), entry.realPath, { recursive: true, verbatimSymlinks: true });
 		return `restored folder ${entry.path}`;
 	}
-	atomicWrite(entry.realPath, readFileSync(join(dir, entry.backup)), entry.mode ?? 0o600);
+	atomicWrite(entry.realPath, readFileSync(join(dir, entry.backup as string)), entry.mode ?? 0o600);
 	return `restored ${entry.path}`;
 };
 
 export const createFixUndo = (
-	paths,
+	paths: Paths,
 	{
 		out = console.log,
 		err = console.error,
 		isTTY = () => Boolean(process.stdin.isTTY && process.stdout.isTTY),
 		confirm = defaultConfirm,
 		now = () => new Date(),
-	} = {},
+	}: FixUndoOptions = {},
 ) => {
-	const tilde = (text) => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
+	const tilde = (text: unknown): string => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
 
-	const label = ({ entry, action, conflict }, force) => {
+	const label = ({ entry, action, conflict }: PlannedEntry, force: boolean): string => {
 		const shown = tilde(entry.path);
 		if (conflict) {
 			return `conflict  ${shown} (${conflict}); ${force ? "overwritten: --force" : "skipped: pass --force to overwrite"}`;
@@ -144,10 +180,10 @@ export const createFixUndo = (
 		return `restore   ${shown}${entry.gitTracked ? " (git-tracked)" : ""}`;
 	};
 
-	const commandLines = (manifest) =>
+	const commandLines = (manifest: StoredManifest): string[] =>
 		(manifest.commands ?? []).map((step) => `  [${step.ruleId}] ${tilde(maskArgs(step.command).join(" "))}  (in ${tilde(step.cwd)})`);
 
-	const list = (sets) => {
+	const list = (sets: BackupSet[]): number => {
 		if (sets.length === 0) {
 			out(`No backup sets in ${tilde(paths.backupsDir)} yet.`);
 			return 0;
@@ -166,12 +202,12 @@ export const createFixUndo = (
 	};
 
 	// Returns the exit code (see the header). Async only because of the confirm prompt.
-	const run = async ({ timestamp, list: listOnly = false, yes = false, dryRun = false, force = false } = {}) => {
+	const run = async ({ timestamp, list: listOnly = false, yes = false, dryRun = false, force = false }: FixUndoArgs = {}): Promise<number> => {
 		const sets = loadSets(paths);
 		if (listOnly) {
 			return list(sets);
 		}
-		let chosen;
+		let chosen: BackupSet | undefined;
 		if (timestamp === undefined) {
 			chosen = sets.at(-1);
 			if (!chosen) {
@@ -234,7 +270,7 @@ export const createFixUndo = (
 				out(tilde(restore(item, dir)));
 			} catch (error) {
 				ok = false;
-				err(`error  could not restore ${tilde(item.entry.path)} (${error?.code ?? error?.name ?? "error"})`);
+				err(`error  could not restore ${tilde(item.entry.path)} (${(error as { code?: string; name?: string } | undefined)?.code ?? (error as { name?: string } | undefined)?.name ?? "error"})`);
 			}
 		}
 		const tracked = work.filter((item) => item.entry.gitTracked).map((item) => tilde(item.entry.path));

@@ -1,13 +1,12 @@
-// @ts-nocheck
 // Estimates what a skill or agent costs in every session: its frontmatter `description`, at about 4 characters per token.
 
 import { existsSync, readFileSync } from "node:fs";
 
-export const estimateTokens = (text) => Math.ceil(text.length / 4);
+export const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
 
 // Reads `description` from the YAML frontmatter of a SKILL.md or agent .md file. Handles plain, quoted and
 // folded (>) or literal (|) values; returns "" when the file or the field is missing.
-export const readDescription = (file) => {
+export const readDescription = (file: string): string => {
 	if (!existsSync(file)) {
 		return "";
 	}
@@ -17,9 +16,9 @@ export const readDescription = (file) => {
 	if (start === -1) {
 		return "";
 	}
-	const value = lines[start].slice("description:".length).trim();
+	const value = (lines[start] ?? "").slice("description:".length).trim();
 	if (/^[>|][+-]?$/.test(value)) {
-		const block = [];
+		const block: string[] = [];
 		for (const line of lines.slice(start + 1)) {
 			if (!/^\s/.test(line)) {
 				break;
@@ -31,4 +30,4 @@ export const readDescription = (file) => {
 	return value.replace(/^(["'])(.*)\1$/, "$2");
 };
 
-export const descriptionTokens = (file) => estimateTokens(readDescription(file));
+export const descriptionTokens = (file: string): number => estimateTokens(readDescription(file));

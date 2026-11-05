@@ -1,4 +1,3 @@
-// @ts-nocheck
 // `agentry plugin install <name>@<marketplace> [--scope user|project|local]` and `agentry plugin uninstall <name>`:
 // run `claude plugin install|uninstall <id> --scope <scope>` through the fix engine (lib/fix.mjs), so the command is
 // previewed, confirmed (or --yes) and the scope's settings file (where enabledPlugins lives) is backed up first.
@@ -15,32 +14,43 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { createFix } from "./fix.js";
 import { createPluginsReader } from "./inventory/plugins.js";
+import type { Paths } from "./paths.js";
 import { APPLIES_NOTE, SCOPES, scopeSettingsFile } from "./plugin-toggle.js";
+import type { DoctorLike, Finding, FixOptions, FixRegistry, RunCommand, Scope } from "./types.js";
 
 const RULE = "plugin-install";
 const ID = /^[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+$/;
 
-export const createPluginInstall = (paths, { out = console.log, err = console.error, ...fixOptions } = {}) => {
+export interface PluginInstallArgs {
+	action: "install" | "uninstall";
+	name?: string;
+	scope?: string;
+	path?: string;
+	yes?: boolean;
+	dryRun?: boolean;
+}
+
+export const createPluginInstall = (paths: Paths, { out = console.log, err = console.error, ...fixOptions }: FixOptions = {}) => {
 	const reader = createPluginsReader(paths);
-	const tilde = (text) => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
-	const runCommand =
+	const tilde = (text: unknown): string => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
+	const runCommand: RunCommand =
 		fixOptions.runCommand ??
 		((command, options) => {
 			const result = spawnSync(command[0], command.slice(1), { cwd: options.cwd, encoding: "utf8" });
-			return { status: result.error ? null : result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "", error: result.error?.code };
+			return { status: result.error ? null : result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "", error: (result.error as NodeJS.ErrnoException | undefined)?.code };
 		});
 
 	// Is `id` installed at `scope` for the folder? (a user install, or a project/local one whose project is this one)
-	const installedAt = (id, scope, cwd) => reader.read({ cwd }).plugins.find((plugin) => plugin.id === id)?.installs.some((install) => install.scope === scope && install.appliesHere) ?? false;
+	const installedAt = (id: string, scope: string, cwd: string): boolean => reader.read({ cwd }).plugins.find((plugin) => plugin.id === id)?.installs.some((install) => install.scope === scope && install.appliesHere) ?? false;
 
-	const run = async ({ action, name, scope, path, yes = false, dryRun = false }) => {
+	const run = async ({ action, name, scope, path, yes = false, dryRun = false }: PluginInstallArgs): Promise<number> => {
 		const install = action === "install";
 		const cwd = resolve(path ?? process.cwd());
-		if (scope !== undefined && !SCOPES.includes(scope)) {
+		if (scope !== undefined && !SCOPES.includes(scope as Scope)) {
 			err(`--scope must be one of ${SCOPES.join(", ")}`);
 			return 2;
 		}
-		let id = name;
+		let id = name as string;
 		let chosen = scope ?? "user";
 		if (install) {
 			if (!ID.test(name ?? "")) {
@@ -72,17 +82,17 @@ export const createPluginInstall = (paths, { out = console.log, err = console.er
 			err(`refused: ${id} is not installed at ${chosen} scope.`);
 			return 1;
 		}
-		const file = scopeSettingsFile(paths, chosen, cwd);
+		const file = scopeSettingsFile(paths, chosen as Scope, cwd);
 		if (!existsSync(dirname(file))) {
 			err(`refused: ${tilde(dirname(file))} does not exist, so ${chosen} scope cannot be used here.`);
 			return 1;
 		}
-		const finding = { id: RULE, severity: "info", message: `${id} should be ${install ? "installed" : "uninstalled"} at ${chosen} scope`, file };
-		const doctor = () => ({
+		const finding: Finding = { id: RULE, severity: "info", message: `${id} should be ${install ? "installed" : "uninstalled"} at ${chosen} scope`, file };
+		const doctor = (): DoctorLike => ({
 			collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: installedAt(id, chosen, cwd) === install ? [] : [finding], errors: [] }),
 		});
 		const command = ["claude", "plugin", action, id, "--scope", chosen];
-		const fixes = { [RULE]: () => ({ ruleId: RULE, file, describe: () => `${install ? "Install" : "Uninstall"} plugin ${id} at ${chosen} scope`, apply: () => ({ command, cwd: paths.projectRoot(cwd) }) }) };
+		const fixes: FixRegistry = { [RULE]: () => ({ ruleId: RULE, file, describe: () => `${install ? "Install" : "Uninstall"} plugin ${id} at ${chosen} scope`, apply: () => ({ command, cwd: paths.projectRoot(cwd) }) }) };
 		const code = await createFix(paths, { out, err, doctor, fixes, ...fixOptions, runCommand }).run({ path: cwd, yes, dryRun });
 		if (code === 0 && !dryRun && installedAt(id, chosen, cwd) === install) {
 			out(`${id} is ${install ? "installed" : "uninstalled"} at ${chosen} scope. ${APPLIES_NOTE}`);

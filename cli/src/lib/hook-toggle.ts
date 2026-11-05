@@ -1,4 +1,3 @@
-// @ts-nocheck
 // `agentry hook list|disable|enable|remove`: switch a hook from the user, project or local settings file off and back on, or
 // delete it. Claude Code has no per-hook off switch (only `disableAllHooks`), so "disable" PARKS the hook: its entry is
 // removed from the settings file and saved in <config dir>/agentry/parked-hooks.json; "enable" puts it back in the same
@@ -26,52 +25,107 @@ import { createHooksReader, hookId } from "./inventory/hooks.js";
 import { isObject, list, readJson } from "./inventory/common.js";
 import { createJsonEdit } from "./json-edit.js";
 import { maskShell } from "./mask.js";
+import type { Paths } from "./paths.js";
+import type { DoctorLike, Finding, FixOptions, FixRegistry, HookEntry, HookGroup, HookItem, HookState, Scope, SettingsJson } from "./types.js";
 
 const RULE = "hook-toggle";
-export const SCOPES = ["user", "project", "local"];
+export const SCOPES: Scope[] = ["user", "project", "local"];
 export const APPLIES_NOTE = "Applies to sessions started after this.";
 
 // [group index, hook index, group, hook] of the hook with this id under settings.hooks[event]; undefined when absent.
-const locate = (json, event, id) => {
+interface Located {
+	gi: number;
+	hi: number;
+	group: HookGroup;
+	hook: HookEntry;
+}
+
+const locate = (json: SettingsJson | undefined, event: string, id: string): Located | undefined => {
 	const groups = list(isObject(json?.hooks) ? json.hooks[event] : undefined);
 	for (const [gi, group] of groups.entries()) {
-		for (const [hi, hook] of list(group?.hooks).entries()) {
-			if (isObject(hook) && hookId(event, group.matcher, hook) === id) {
-				return { gi, hi, group, hook };
+		const found = group as HookGroup | undefined;
+		for (const [hi, hook] of list(found?.hooks).entries()) {
+			if (isObject(hook) && hookId(event, found?.matcher, hook) === id) {
+				return { gi, hi, group: found as HookGroup, hook: hook as HookEntry };
 			}
 		}
 	}
 	return undefined;
 };
 
-const describeHook = ({ event, matcher, hook }) => `${event} ${matcher || "*"} ${hook?.command === undefined ? `(${hook?.type ?? "hook"})` : maskShell(String(hook.command))}`;
+const describeHook = ({ event, matcher, hook }: { event: string; matcher?: string; hook?: HookEntry }): string => `${event} ${matcher || "*"} ${hook?.command === undefined ? `(${hook?.type ?? "hook"})` : maskShell(String(hook.command))}`;
 
-export const createHookToggle = (paths, { out = console.log, err = console.error, ...fixOptions } = {}) => {
+/** A hook taken out of a settings file by `hook disable`; the raw entry is kept so `hook enable` can put it back. */
+export interface ParkedHook {
+	id: string;
+	scope: string;
+	file: string;
+	event: string;
+	matcher: string;
+	hook: HookEntry;
+	parkedAt: string;
+}
+
+export interface ParkedHooksStore {
+	version: number;
+	hooks: Record<string, ParkedHook>;
+}
+
+/** A parked hook shaped like an active row of `hook list`. */
+export interface ParkedRow {
+	id: string;
+	event: string;
+	matcher: string;
+	type: string;
+	command?: string;
+	scope: string;
+	source: string;
+	state: HookState | "off";
+	parkedAt: string;
+	plugin?: undefined;
+}
+
+export type HookAction = "disable" | "enable" | "remove";
+
+export interface HookArgs {
+	selector: string;
+	action: HookAction;
+	scope?: string;
+	path?: string;
+}
+
+/** What `inspect` found: a refusal (with exit code), an "already so" note, or the hook to act on (active and/or parked). */
+export type Inspected =
+	| { refusal: string; code: number; already?: undefined; cwd?: undefined; active?: undefined; parked?: undefined }
+	| { already: string; refusal?: undefined; code?: undefined; cwd?: undefined; active?: undefined; parked?: undefined }
+	| { cwd: string; active?: HookItem; parked?: ParkedHook; refusal?: undefined; code?: undefined; already?: undefined };
+
+export const createHookToggle = (paths: Paths, { out = console.log, err = console.error, ...fixOptions }: FixOptions = {}) => {
 	const reader = createHooksReader(paths);
-	const tilde = (text) => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
+	const tilde = (text: unknown): string => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
 
-	const readParked = () => {
+	const readParked = (): ParkedHooksStore => {
 		try {
-			const store = JSON.parse(readFileSync(paths.parkedHooks, "utf8"));
-			return isObject(store?.hooks) ? store : { version: 1, hooks: {} };
+			const store = JSON.parse(readFileSync(paths.parkedHooks, "utf8")) as ParkedHooksStore | null;
+			return isObject(store?.hooks) ? (store as ParkedHooksStore) : { version: 1, hooks: {} };
 		} catch {
 			return { version: 1, hooks: {} };
 		}
 	};
-	const writeParked = (store) => {
+	const writeParked = (store: ParkedHooksStore): void => {
 		mkdirSync(dirname(paths.parkedHooks), { recursive: true, mode: 0o700 });
 		atomicWrite(paths.parkedHooks, `${JSON.stringify(store, null, "\t")}\n`, 0o600);
 	};
-	const keyOf = (scope, id) => `${scope}:${id}`;
+	const keyOf = (scope: string, id: string): string => `${scope}:${id}`;
 
 	// Parked hooks for display: masked, with the same fields as an active row.
-	const listParked = () =>
+	const listParked = (): ParkedRow[] =>
 		Object.values(readParked().hooks)
 			.filter((entry) => isObject(entry))
-			.map((entry) => ({ id: entry.id, event: entry.event, matcher: entry.matcher || "*", type: entry.hook?.type ?? "command", command: typeof entry.hook?.command === "string" ? maskShell(entry.hook.command) : undefined, scope: entry.scope, source: entry.file, state: "off", parkedAt: entry.parkedAt }));
+			.map((entry): ParkedRow => ({ id: entry.id, event: entry.event, matcher: entry.matcher || "*", type: entry.hook?.type ?? "command", command: typeof entry.hook?.command === "string" ? maskShell(entry.hook.command) : undefined, scope: entry.scope, source: entry.file, state: "off", parkedAt: entry.parkedAt }));
 
 	// Prints the hooks (active, then parked) one per line, or as JSON.
-	const runList = ({ path, json = false } = {}) => {
+	const runList = ({ path, json = false }: { path?: string; json?: boolean } = {}): number => {
 		const cwd = resolve(path ?? process.cwd());
 		const active = reader.read({ cwd }).hooks;
 		const all = [...active, ...listParked()];
@@ -86,22 +140,22 @@ export const createHookToggle = (paths, { out = console.log, err = console.error
 	};
 
 	// → { active?: item, parked?: entry } for the selector, or { refusal, code }.
-	const inspect = ({ selector, action, scope, path }) => {
+	const inspect = ({ selector, action, scope, path }: HookArgs): Inspected => {
 		const cwd = resolve(path ?? process.cwd());
-		const refuse = (refusal, code = 1) => ({ refusal, code });
-		if (scope !== undefined && !SCOPES.includes(scope)) {
+		const refuse = (refusal: string, code = 1): Inspected => ({ refusal, code });
+		if (scope !== undefined && !SCOPES.includes(scope as Scope)) {
 			return refuse(`--scope must be one of ${SCOPES.join(", ")}`, 2);
 		}
 		if (!/^[0-9a-f]{4,8}$/.test(selector ?? "")) {
 			return refuse("The selector is the id column of agentry hook list (4 to 8 hex characters).", 2);
 		}
-		const wanted = (item) => item.id.startsWith(selector) && (scope === undefined || item.scope === scope);
+		const wanted = (item: { id: string; scope: string }): boolean => item.id.startsWith(selector) && (scope === undefined || item.scope === scope);
 		const active = reader.read({ cwd }).hooks.filter(wanted);
 		const parked = Object.values(readParked().hooks).filter((entry) => isObject(entry) && wanted({ id: String(entry.id), scope: entry.scope }));
 		const own = active.filter((item) => item.scope !== "plugin");
 		const plugin = active.filter((item) => item.scope === "plugin");
-		const pool = action === "enable" ? [] : own;
-		const poolParked = action === "disable" ? [] : parked;
+		const pool: HookItem[] = action === "enable" ? [] : own;
+		const poolParked: ParkedHook[] = action === "disable" ? [] : parked;
 		const ids = new Set([...pool, ...poolParked].map((item) => item.id));
 		if (ids.size > 1) {
 			return refuse(`"${selector}" matches several hooks (${[...ids].join(", ")}); use more characters.`, 2);
@@ -125,17 +179,18 @@ export const createHookToggle = (paths, { out = console.log, err = console.error
 		return { cwd, active: pool[0], parked: poolParked[0] };
 	};
 
-	const run = async ({ selector, action, scope, path, yes = false, dryRun = false }) => {
+	const run = async ({ selector, action, scope, path, yes = false, dryRun = false }: HookArgs & { yes?: boolean; dryRun?: boolean }): Promise<number> => {
 		const found = inspect({ selector, action, scope, path });
-		if (found.refusal) {
+		if (found.refusal !== undefined) {
 			err(`refused: ${found.refusal}`);
 			return found.code;
 		}
-		if (found.already) {
+		if (found.already !== undefined) {
 			out(found.already);
 			return 0;
 		}
-		const { cwd, active, parked } = found;
+		const { cwd, active } = found;
+		const parked = found.parked as ParkedHook; // set whenever `active` is not
 
 		// remove of a hook that is only parked: delete the saved copy, no file involved
 		if (action === "remove" && !active) {
@@ -158,7 +213,7 @@ export const createHookToggle = (paths, { out = console.log, err = console.error
 		const hookScope = (active ?? parked).scope;
 		const file = active?.source ?? parked.file;
 		const event = (active ?? parked).event;
-		const raw = active ? locate(readJson(file, []), event, id) : { group: { matcher: parked.matcher || undefined }, hook: parked.hook };
+		const raw = active ? locate(readJson<SettingsJson>(file, []), event, id) : { group: { matcher: parked.matcher || undefined }, hook: parked.hook };
 		if (!raw) {
 			err(`refused: ${selector} is not in ${tilde(file)} any more; run agentry hook list.`);
 			return 1;
@@ -166,7 +221,7 @@ export const createHookToggle = (paths, { out = console.log, err = console.error
 		const matcherRaw = typeof raw.group.matcher === "string" ? raw.group.matcher : undefined;
 		const label = describeHook({ event, matcher: matcherRaw, hook: raw.hook });
 		const wantPresent = action === "enable";
-		const present = () => locate(readJson(file, []), event, id) !== undefined;
+		const present = () => locate(readJson<SettingsJson>(file, []), event, id) !== undefined;
 		if (wantPresent && present()) {
 			out(`${selector} is already in ${tilde(file)}; the saved copy stays (agentry hook remove ${selector} --scope ${hookScope} deletes it).`);
 			return 0;
@@ -176,13 +231,13 @@ export const createHookToggle = (paths, { out = console.log, err = console.error
 			return 1;
 		}
 
-		const removeText = (text) => {
-			const doc = createJsonEdit(text);
-			const at = locate(doc.get([]), event, id);
+		const removeText = (text: string | undefined): string | undefined => {
+			const doc = createJsonEdit(text as string);
+			const at = locate(doc.get([]) as SettingsJson, event, id);
 			if (!at) {
 				return text;
 			}
-			const groups = doc.get(["hooks", event]);
+			const groups = doc.get(["hooks", event]) as unknown[];
 			if (list(at.group.hooks).length > 1) {
 				doc.deleteElement(["hooks", event, at.gi, "hooks", at.hi]);
 			} else if (groups.length > 1) {
@@ -192,7 +247,7 @@ export const createHookToggle = (paths, { out = console.log, err = console.error
 			}
 			return doc.text;
 		};
-		const insertText = (text) => {
+		const insertText = (text: string | undefined): string => {
 			const group = { ...(matcherRaw !== undefined && { matcher: matcherRaw }), hooks: [raw.hook] };
 			if (text === undefined || text.trim() === "") {
 				return `${JSON.stringify({ hooks: { [event]: [group] } }, null, "\t")}\n`;
@@ -215,9 +270,9 @@ export const createHookToggle = (paths, { out = console.log, err = console.error
 		};
 
 		const verb = { disable: "Turn off", enable: "Turn on", remove: "Remove" }[action];
-		const finding = { id: RULE, severity: "info", message: `hook ${selector} should be ${wantPresent ? "back in" : "out of"} ${hookScope} settings`, file };
-		const doctor = () => ({ collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: present() === wantPresent ? [] : [finding], errors: [] }) });
-		const fixes = { [RULE]: () => ({ ruleId: RULE, file, describe: () => `${verb} hook ${id}: ${label} (${hookScope} settings)`, apply: wantPresent ? insertText : removeText }) };
+		const finding: Finding = { id: RULE, severity: "info", message: `hook ${selector} should be ${wantPresent ? "back in" : "out of"} ${hookScope} settings`, file };
+		const doctor = (): DoctorLike => ({ collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: present() === wantPresent ? [] : [finding], errors: [] }) });
+		const fixes: FixRegistry = { [RULE]: () => ({ ruleId: RULE, file, describe: () => `${verb} hook ${id}: ${label} (${hookScope} settings)`, apply: wantPresent ? insertText : removeText }) };
 		const code = await createFix(paths, { out, err, doctor, fixes, ...fixOptions }).run({ path: cwd, yes, dryRun });
 		if (code !== 0 || dryRun || present() !== wantPresent) {
 			return code;

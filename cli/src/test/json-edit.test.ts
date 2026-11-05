@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createJsonEdit } from "../lib/json-edit.js";
@@ -87,7 +86,7 @@ describe("set and rename", () => {
 
 	test("renameInStrings passes the path and leaves text alone when nothing changes", () => {
 		const doc = createJsonEdit(tabs);
-		const seen = [];
+		const seen: string[] = [];
 		assert.equal(
 			doc.renameInStrings((value, path) => {
 				seen.push(path.join("."));
@@ -105,7 +104,7 @@ describe("refusal", () => {
 		test(`rejects ${JSON.stringify(text).slice(0, 30)} without quoting it`, () => {
 			assert.throws(
 				() => createJsonEdit(text),
-				(error) => error.code === "EJSONPARSE" && error.message === "not valid JSON",
+				(error: Error & { code?: string }) => error.code === "EJSONPARSE" && error.message === "not valid JSON",
 			);
 		});
 	}

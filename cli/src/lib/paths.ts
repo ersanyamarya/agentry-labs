@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Every path the CLI touches resolves here, so tests can redirect it with CLAUDE_CONFIG_DIR / AGENTRY_HOME.
 // AGENTRY_HOME replaces the home directory (default: the OS home); CLAUDE_CONFIG_DIR replaces <home>/.claude.
 // Facts behind the Claude Code paths: docs/claude-config-sources.md.
@@ -7,12 +6,20 @@ import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
-const runGit = (args, cwd) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+const runGit = (args: string[], cwd: string): string => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 
 // `memoize` keeps each git answer for the life of this object: for long scans over many folders, not for code that edits repos.
-export const createPaths = ({ env = process.env, cwd = process.cwd(), memoize = false } = {}) => {
-	const answers = new Map();
-	const git = (args, dir) => {
+export interface PathsOptions {
+	env?: NodeJS.ProcessEnv;
+	cwd?: string;
+	memoize?: boolean;
+}
+
+export type Paths = ReturnType<typeof createPaths>;
+
+export const createPaths = ({ env = process.env, cwd = process.cwd(), memoize = false }: PathsOptions = {}) => {
+	const answers = new Map<string, { value: string } | { error: unknown }>();
+	const git = (args: string[], dir: string): string => {
 		if (!memoize) {
 			return runGit(args, dir);
 		}
@@ -24,8 +31,8 @@ export const createPaths = ({ env = process.env, cwd = process.cwd(), memoize = 
 				answers.set(key, { error });
 			}
 		}
-		const answer = answers.get(key);
-		if (answer.error) {
+		const answer = answers.get(key) as { value: string } | { error: unknown };
+		if ("error" in answer) {
 			throw answer.error;
 		}
 		return answer.value;
@@ -33,7 +40,7 @@ export const createPaths = ({ env = process.env, cwd = process.cwd(), memoize = 
 	const home = env.AGENTRY_HOME || homedir();
 	const configDir = env.CLAUDE_CONFIG_DIR || join(home, ".claude");
 
-	const projectRoot = (dir = cwd) => {
+	const projectRoot = (dir: string = cwd): string => {
 		try {
 			return git(["rev-parse", "--show-toplevel"], dir);
 		} catch {
@@ -42,7 +49,7 @@ export const createPaths = ({ env = process.env, cwd = process.cwd(), memoize = 
 	};
 
 	// The key of a project's entry in .claude.json: the main checkout's root, also from a worktree or a subfolder.
-	const repoKey = (dir = cwd) => {
+	const repoKey = (dir: string = cwd): string => {
 		try {
 			const common = git(["rev-parse", "--path-format=absolute", "--git-common-dir"], dir);
 			return basename(common) === ".git" ? dirname(common) : projectRoot(dir);
@@ -52,7 +59,7 @@ export const createPaths = ({ env = process.env, cwd = process.cwd(), memoize = 
 	};
 
 	// In a worktree .git is a file, so ask git where info/exclude lives; undefined outside a git repo.
-	const excludeFile = (root) => {
+	const excludeFile = (root: string): string | undefined => {
 		try {
 			return resolve(root, git(["rev-parse", "--git-path", "info/exclude"], root));
 		} catch {
