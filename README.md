@@ -112,9 +112,9 @@ agentry shelf remove docs/pdf             # delete it; a copy is kept in ~/.clau
 agentry shelf remove docs/pdf --no-backup # delete it and keep no copy (add --dry-run to see which it would be)
 agentry backups list [--json]             # fix backup sets and removed-skill copies, with size and age
 agentry backups restore <id> [--dry-run]  # move a removed skill back where it came from; never overwrites
-agentry backups prune --older-than 30 --dry-run   # or --all; previewed, then asked (--yes for scripts)
+agentry backups prune --older-than 30 --kind removed --dry-run   # or --all; --kind fix|removed|updated; previewed, then asked (--yes for scripts)
 agentry backups delete <id>... [--yes]    # delete chosen backups; a fix set not yet undone can then not be undone
-agentry scan ~/ws --find-skill pdf        # every repo/worktree with .claude/skills/pdf, git-tracked ones marked
+agentry scan ~/ws --find-skill pdf        # every repo/worktree with .claude/skills/pdf, git-tracked ones marked; --global adds ~/.claude/skills (--remove-skill keeps a copy unless --no-backup)
 agentry scan ~/ws --remove-skill pdf --dry-run   # delete that folder from each (no copy; shelf links are skipped)
 agentry catalog refresh                   # fetch the agentry-labs skill catalog (shallow git clone, cached)
 agentry catalog list [--json]             # skills, agents, rules, CLAUDE.md files and MCP servers (kind/name), where each is installed, "outdated" when it differs

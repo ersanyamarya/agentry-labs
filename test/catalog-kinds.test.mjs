@@ -204,6 +204,9 @@ describe("catalog update", () => {
 		assert.equal(readFileSync(join(fx.configDir, "skill-shelf/web/alpha/mine.md"), "utf8"), "my notes\n");
 		const [stamp] = readdirSync(join(fx.configDir, "backups/agentry/updated"));
 		assert.match(readFileSync(join(fx.configDir, "backups/agentry/updated", stamp, "agent_helper_user"), "utf8"), /body v1/);
+		const meta = JSON.parse(readFileSync(join(fx.configDir, "backups/agentry/updated", stamp, "meta.json"), "utf8"));
+		assert.equal(meta.items.agent_helper_user.what, "agent");
+		assert.ok(meta.items.agent_helper_user.from.endsWith("helper.md") || meta.items.agent_helper_user.from.includes("helper"));
 		assert.doesNotMatch(catalog("list").stdout, /outdated/);
 		assert.match(catalog("update", "agent/helper").stdout, /agent\/helper is up to date/);
 	});

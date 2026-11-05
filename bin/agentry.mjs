@@ -34,12 +34,14 @@ Commands:
                                       then each repo with findings, previewed and confirmed per repo, with the files
                                       git tracks marked. Backups and undo as for fix. Without a terminal it only
                                       previews unless --yes
-  scan [roots...] --find-skill <name> [--json]
+  scan [roots...] --find-skill <name> [--global] [--json]
                                       List every repo and worktree under the roots with .claude/skills/<name>,
-                                      marking the ones git tracks
-  scan [roots...] --remove-skill <name> [--dry-run] [--yes]
+                                      marking the ones git tracks; --global adds ~/.claude/skills/<name>
+  scan [roots...] --remove-skill <name> [--global] [--no-backup] [--dry-run] [--yes]
                                       Delete that folder from each of them (previewed; no copy kept; shelf links are
-                                      skipped). Without a terminal it only previews unless --yes
+                                      skipped). --global also deletes ~/.claude/skills/<name>, keeping a copy under
+                                      ~/.claude/backups/agentry/removed/ unless --no-backup. Without a terminal it
+                                      only previews unless --yes
   fix [path] [--dry-run] [--yes]      Preview doctor's automatic fixes as a diff per file (secrets masked), ask, back
                                       each file up under ~/.claude/backups/agentry/<time>/, write, then re-run doctor
                                       to confirm each finding is gone. Without a terminal it only previews unless --yes
@@ -93,7 +95,7 @@ Commands:
   backups list [--json]               List the fix backup sets and the removed-skill copies with size and age
   backups restore <id> [--dry-run]    Move a removed skill's copy back where it came from (never overwrites)
   backups delete <id>... [--dry-run] [--yes]
-  backups prune --older-than <days> | --all [--dry-run] [--yes]
+  backups prune --older-than <days> | --all [--kind fix|removed|updated] [--dry-run] [--yes]
                                       Delete backups for good: previewed, then asked (or --yes). Deleting a fix set
                                       that is not undone ends fix --undo for it
   catalog refresh                     Fetch the agentry-labs skill catalog (shallow git clone, cached)
@@ -128,9 +130,10 @@ Options:
       --all        With shelf off: every shelf link instead of named targets. With catalog update: every outdated item
       --dry-run    With shelf: print the links and exclude lines (or the move) a write would change. With fix: show the
                    preview only. Either way nothing is written
-      --no-backup  With shelf remove or rules remove: keep no copy of the deleted file
+      --no-backup  With shelf remove, rules remove or scan --remove-skill --global: keep no copy of the deleted file
       --project    With shelf remove: the project's skill folder. With catalog add: agents and MCP servers go to this project
       --older-than N  With backups prune: backups at least N days old
+      --kind K        With backups prune: only fix, removed or updated backups
       --find-skill N, --remove-skill N  With scan: look for or delete .claude/skills/N in every repo found
       --scope S    With plugin: settings scope to edit (user, project, local); default: the scope that decides today.
                    With hook: which settings file when the id is in several. With mcp add: user (default) or project
@@ -221,7 +224,7 @@ const runShelf = (args, { global, json, all, project, "no-backup": noBackup, "dr
 	return 2;
 };
 
-const runBackups = async (args, { json, all, "older-than": olderThan, "dry-run": dryRun, yes }) => {
+const runBackups = async (args, { json, all, "older-than": olderThan, kind, "dry-run": dryRun, yes }) => {
 	const [action, ...rest] = args;
 	const backups = createBackups(createPaths());
 	if (yes && dryRun) {
@@ -241,9 +244,9 @@ const runBackups = async (args, { json, all, "older-than": olderThan, "dry-run":
 		if (olderThan !== undefined && !(Number.isFinite(days) && days >= 0)) {
 			return usageError("--older-than needs a number of days (0 or more)");
 		}
-		return backups.prune({ olderThan: days, all, dryRun, yes });
+		return backups.prune({ olderThan: days, all, kind, dryRun, yes });
 	}
-	return usageError("Usage: agentry backups list [--json] | restore <id> [--dry-run] | delete <id>... [--dry-run] [--yes] | prune (--older-than <days> | --all) [--dry-run] [--yes]");
+	return usageError("Usage: agentry backups list [--json] | restore <id> [--dry-run] | delete <id>... [--dry-run] [--yes] | prune (--older-than <days> | --all) [--kind fix|removed|updated] [--dry-run] [--yes]");
 };
 
 const runCatalog = async (args, { group, json, project, all, yes, "dry-run": dryRun }) => {
@@ -321,6 +324,7 @@ const main = (argv) => {
 				scope: { type: "string" },
 				"no-backup": { type: "boolean" },
 				"older-than": { type: "string" },
+				kind: { type: "string" },
 				"find-skill": { type: "string" },
 				"remove-skill": { type: "string" },
 				group: { type: "string" },
@@ -378,7 +382,7 @@ const main = (argv) => {
 		if (findName !== undefined || removeName !== undefined) {
 			const scan = createScan(createPaths({ memoize: true }));
 			if (findName !== undefined) {
-				return (values.yes || values["dry-run"]) ? usageError("--find-skill only lists; --yes and --dry-run go with --remove-skill") : scan.runFindSkill({ roots: rest, depth, name: findName, json: values.json });
+				return (values.yes || values["dry-run"]) ? usageError("--find-skill only lists; --yes and --dry-run go with --remove-skill") : scan.runFindSkill({ roots: rest, depth, name: findName, json: values.json, global: values.global });
 			}
 			if (values.json) {
 				return usageError("--remove-skill takes no --json");
@@ -386,7 +390,7 @@ const main = (argv) => {
 			if (values.yes && values["dry-run"]) {
 				return usageError("--yes and --dry-run cannot be used together");
 			}
-			return scan.runRemoveSkill({ roots: rest, depth, name: removeName, yes: values.yes, dryRun: values["dry-run"] });
+			return scan.runRemoveSkill({ roots: rest, depth, name: removeName, yes: values.yes, dryRun: values["dry-run"], global: values.global, backup: !values["no-backup"] });
 		}
 		if ((values.yes || values["dry-run"]) && !values.fix) {
 			return usageError("--yes and --dry-run go with scan --fix");

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
+import { createBackups } from "../lib/backups.mjs";
 import { createPaths } from "../lib/paths.mjs";
 import { createScan } from "../lib/scan.mjs";
 import { createFixture } from "./helpers/fixture.mjs";
@@ -92,6 +93,45 @@ describe("scan --remove-skill", () => {
 	test("nothing to remove is not an error", async () => {
 		assert.equal(await scan().runRemoveSkill({ roots: [ws], name: "ghost", yes: true }), 0);
 		assert.match(text(), /Nothing to remove/);
+	});
+});
+
+describe("scan --global", () => {
+	const globalSkill = () => join(paths.configDir, "skills/old");
+	beforeEach(() => {
+		mkdirSync(globalSkill(), { recursive: true });
+		writeFileSync(join(globalSkill(), "SKILL.md"), "global body");
+	});
+
+	test("--find-skill lists the global copy only with global", () => {
+		scan().runFindSkill({ roots: [ws], name: "old" });
+		assert.doesNotMatch(text(), /\(global\)/);
+		lines = [];
+		scan().runFindSkill({ roots: [ws], name: "old", global: true });
+		assert.match(text(), /~\/\.claude\/skills\/old {2}\(global\)/);
+		assert.match(text(), /4 projects with/);
+	});
+
+	test("--remove-skill leaves the global copy without global, previews with it, then deletes and keeps a copy", async () => {
+		await scan().runRemoveSkill({ roots: [ws], name: "old", global: true, dryRun: true });
+		assert.match(text(), /from 2 projects and ~\/\.claude\/skills/);
+		assert.ok(existsSync(globalSkill()));
+		await scan({ tty: true }).runRemoveSkill({ roots: [ws], name: "old" });
+		assert.ok(existsSync(globalSkill()), "no global flag, no global delete");
+		lines = [];
+		await scan({ tty: true }).runRemoveSkill({ roots: [ws], name: "old", global: true });
+		assert.ok(!existsSync(globalSkill()));
+		const [entry] = createBackups(paths, { out() {}, err() {} }).entries();
+		assert.equal(entry.id.startsWith("removed/"), true);
+		assert.equal(entry.from, globalSkill());
+		assert.equal(readFileSync(join(entry.path, "SKILL.md"), "utf8"), "global body");
+	});
+
+	test("--no-backup keeps no copy and the preview says so", async () => {
+		await scan().runRemoveSkill({ roots: [ws], name: "old", global: true, backup: false, yes: true });
+		assert.ok(!existsSync(globalSkill()));
+		assert.equal(createBackups(paths, { out() {}, err() {} }).entries().length, 0);
+		assert.match(text(), /\(no copy kept\)/);
 	});
 });
 
