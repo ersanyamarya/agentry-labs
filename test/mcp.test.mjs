@@ -171,6 +171,7 @@ describe("MCP reader: plugins", () => {
 		writeJson(join(dir, ".claude-plugin", "plugin.json"), { name: "tools", mcpServers: { inline: { command: "${CLAUDE_PLUGIN_ROOT}/bin/server", args: ["${CLAUDE_PLUGIN_ROOT}/cfg.json"] } } });
 		writeJson(join(dir, ".mcp.json"), { mcpServers: { file: { command: "node", args: ["x.js"] } } });
 		install("tools@mk", [{ scope: "user", installPath: dir, version: "1.0.0" }]);
+		writeJson(join(configDir, "settings.json"), { enabledPlugins: { "tools@mk": true } });
 		const result = read();
 		const inline = one(result, "plugin:tools:inline");
 		assert.equal(inline.command, join(dir, "bin", "server"));

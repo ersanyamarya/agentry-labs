@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url";
 
 const bin = fileURLToPath(new URL("../../bin/agentry.mjs", import.meta.url));
 
-// A plugin installed for the user scope, with one skill; `enabled` goes into <config>/settings.json when not undefined.
-export const addPlugin = (fx, { id = "demo@mkt", enabled, settingsText } = {}) => {
+// A plugin installed for the user scope, with one skill; `enabled` (default true, null for no entry) goes into <config>/settings.json.
+export const addPlugin = (fx, { id = "demo@mkt", enabled = true, settingsText } = {}) => {
 	const [name] = id.split("@");
 	const installPath = join(fx.configDir, "plugins/cache/mkt", name, "1.0.0");
 	mkdirSync(join(installPath, "skills/hello"), { recursive: true });
@@ -18,7 +18,7 @@ export const addPlugin = (fx, { id = "demo@mkt", enabled, settingsText } = {}) =
 	const settings = join(fx.configDir, "settings.json");
 	if (settingsText !== undefined) {
 		writeFileSync(settings, settingsText);
-	} else if (enabled !== undefined) {
+	} else if (enabled !== null) {
 		writeFileSync(settings, `{\n\t"enabledPlugins": {\n\t\t"${id}": ${enabled}\n\t}\n}\n`);
 	}
 	return { id, settings };

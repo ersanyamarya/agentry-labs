@@ -105,6 +105,7 @@ describe("hooks reader", () => {
 		const dir = pluginRoot("tools");
 		writeJson(join(dir, "hooks", "hooks.json"), hook("${CLAUDE_PLUGIN_ROOT}/run.sh", "Write"));
 		install({ "tools@mk": [{ scope: "user", installPath: dir, version: "1.0.0" }] });
+		writeJson(join(repo, ".claude", "settings.local.json"), { ...hook("echo local"), enabledPlugins: { "tools@mk": true } });
 		const { hooks, trusted } = createHooksReader(paths()).read({ cwd: repo });
 		assert.equal(trusted, true);
 		assert.deepEqual(hooks.map((item) => [item.scope, item.event, item.matcher, item.state]), [
@@ -169,14 +170,15 @@ describe("plugins reader", () => {
 		assert.deepEqual(marketplaces, [{ name: "mk", source: "o/r", sourceType: "github", installLocation: "/x" }]);
 	});
 
-	test("enabledPlugins: local beats project beats user; defaults to enabled; unknown ids are not-installed", () => {
+	test("enabledPlugins: local beats project beats user; no entry means disabled; unknown ids are not-installed", () => {
 		const a = pluginRoot("a");
 		install({ "a@mk": [{ scope: "user", installPath: a, version: "1.0.0" }] });
 		const state = () => createPluginsReader(paths()).read({ cwd: repo }).plugins.find((item) => item.id === "a@mk");
-		assert.equal(state().state, "active");
+		assert.equal(state().state, "disabled");
 		assert.equal(state().enabledBy.scope, "default");
 		settings("user", { enabledPlugins: { "a@mk": false, "ghost@mk": true } });
 		assert.equal(state().state, "disabled");
+		assert.equal(state().enabledBy.scope, "user");
 		settings("local", { enabledPlugins: { "a@mk": true } });
 		assert.equal(state().state, "active");
 		assert.equal(state().enabledBy.scope, "local");
@@ -187,6 +189,7 @@ describe("plugins reader", () => {
 	test("a project-scope install matches a start folder inside the repo", () => {
 		const a = pluginRoot("a");
 		install({ "a@mk": [{ scope: "project", projectPath: repo, installPath: a, version: "1.0.0" }] });
+		settings("project", { enabledPlugins: { "a@mk": true } });
 		assert.equal(createPluginsReader(paths()).read({ cwd: join(repo, "sub") }).plugins[0].state, "active");
 	});
 });

@@ -180,8 +180,8 @@ errors are reported as "invalid JSON" plus the file path only.
 
 - One key can hold several installs at different scopes (here `diagram-design` is installed `user` **and** `local` for
   another project). [file]
-- `local` (and presumably `project`) installs carry `projectPath`. [file] Whether `projectPath` is matched against
-  `<repo>` or `<cwd>`, and how worktrees match: **[unverified]**, the Plugins reader must probe it.
+- `local` and `project` installs carry `projectPath` (the folder `claude plugin install` ran in). [file] [probe]
+  Claude Code 2.1.316 does not match it against the start folder at all, see "Probe results".
 - The top-level `enabledPlugins` here is undocumented and disagrees with `settings.json` (only one entry). [file]
   Readers ignore it; settings decide. [unverified]
 
@@ -199,12 +199,15 @@ errors are reported as "invalid JSON" plus the file path only.
 
 - Scopes: user `<config>/settings.json`, project `.claude/settings.json`, local `.claude/settings.local.json`, managed.
   Higher scope wins (local > project > user); managed can force-enable or block. [docs: settings]
-- A plugin with no entry anywhere uses its `defaultEnabled` from the manifest. [docs: settings] The default of
-  `defaultEnabled` itself: [unverified], readers assume `true`.
+- A plugin with no entry anywhere is **off**, whatever its manifest `defaultEnabled` says. [probe, 2.1.316, see "Probe
+  results"] (The docs describe `defaultEnabled`; `claude plugin install` writes `false` for a manifest that sets it
+  to `false` and `true` otherwise, so a missing entry only happens after hand edits.) Readers treat no entry as disabled.
 - `claude plugin install --scope user|project|local` writes the `enabledPlugins` entry into the matching settings
   file. [docs: plugins-reference]
 - A plugin loads when it is installed for this project (a `user` install, or a `local`/`project` install whose
-  `projectPath` matches) **and** enabled. [docs + unverified matching]
+  `projectPath` matches) **and** enabled. [docs] In 2.1.316 the `projectPath` part is not checked (probe); in practice
+  a project-scope plugin is enabled in that project's own settings, so it still only loads there. The reader keeps
+  the `projectPath` match, which differs only when such a plugin is enabled from user settings.
 
 ### Plugin layout and what it provides
 
@@ -302,7 +305,7 @@ its frontmatter `description` in every session (`lib/tokens.mjs`).
 
 | Precedence | Source | Path (macOS) |
 |---|---|---|
-| 1 | Managed | server-managed > MDM (`com.anthropic.claudecode` domain) > `/Library/Application Support/ClaudeCode/managed-settings.json` + `managed-settings.d/*.json` |
+| 1 | Managed | server-managed > MDM (`com.anthropic.claudecode` domain) > `/Library/Application Support/ClaudeCode/managed-settings.json` + `managed-settings.d/*.json`; see "Managed sources" |
 | 2 | CLI flags | `--settings <file-or-json>` and others; session only |
 | 3 | Local project | `.claude/settings.local.json` |
 | 4 | Shared project | `.claude/settings.json` |
@@ -347,3 +350,36 @@ Each server:
 
 Not read by the MCP reader: managed MCP and policy (none deployed here), claude.ai connectors, app built-in servers
 (no file), `--mcp-config`/`--plugin-dir` (session flags).
+
+## Managed sources (MDM, server-managed)
+
+[docs: managed-settings, admin-setup, claude-apps-gateway-config; checked with Context7]
+
+- Order, highest first: remote (server-managed from claude.ai, or a Claude apps gateway) > MDM/OS policy (macOS plist,
+  Windows HKLM) > managed files (`managed-settings.d/*.json` merged with `managed-settings.json`) > Windows HKCU.
+  A plist or registry policy **replaces** the file instead of merging with it (apart from a few keys read from every
+  source).
+- macOS MDM: the `com.anthropic.claudecode` managed preferences domain (a configuration profile). It uses the same
+  top-level keys as `managed-settings.json`; nested settings are dictionaries, lists are arrays. So plugins forced on or
+  off are the `enabledPlugins` dictionary of that domain, key `name@marketplace`, value boolean.
+- `agentry plugin enable|disable` reads `defaults read com.anthropic.claudecode enabledPlugins` (`readDefaults` is
+  injectable) and refuses, exit 1 and nothing written, when the plugin id is a key there. No domain, no key or not macOS
+  means no policy. A profile installed on this machine could not be tested here (the domain does not exist on this Mac);
+  the reader is covered by a fixture test with a fake `defaults`. Only the `enabledPlugins` key is read.
+- Server-managed settings are fetched from Anthropic's servers and kept in a local cache Claude Code manages; there is
+  no documented file to read, so the tool cannot see them offline. Documented as unreadable; the toggle may then edit a
+  plugin the server pins, and Claude Code still applies the server value.
+
+## Probe results
+
+Claude Code 2.1.316, throwaway `CLAUDE_CONFIG_DIR` and `HOME` under a temp folder, a local directory marketplace with
+four test plugins, a git repo with a subfolder and a `git worktree`. Read-only commands only (`plugin list --json`,
+`mcp list`, `plugin details`); nothing ran against the real home. `mcp list` is the load check: plugin servers show
+up there only for plugins that load.
+
+| Question | Result |
+|---|---|
+| `projectPath` for subfolders and worktrees | **Not matched.** A `project` install for `<repo>` loaded in `<repo>`, `<repo>/sub`, a worktree and an unrelated folder when `enabledPlugins` named it in **user** settings. With the entry only in `<repo>/.claude/settings.json` it loaded in `<repo>` and not in the subfolder or worktree: that is the settings file (read from the start folder only), not `projectPath`. `plugin list` shows the same `enabled` everywhere. |
+| `defaultEnabled` default | **No entry means disabled.** With `enabledPlugins` emptied, plugins with no `defaultEnabled`, `defaultEnabled: true` and `defaultEnabled: false` all listed `enabled: false`. `plugin install` writes the entry itself (`false` when the manifest says `defaultEnabled: false`, with "disabled by default" in its output, else `true`). |
+| Hooks of a disabled plugin | **Could not be probed.** Needs a running session with a login; the throwaway home has none. `plugin details` counts the hooks of a plugin regardless of its state. A disabled plugin's MCP server did not load (`mcp list`), and the hooks reader keeps flagging a disabled plugin's hooks as inactive, which is consistent with that but unproven. |
+| Bare-map plugin `.mcp.json` (`{ "name": {command...} }`, no `mcpServers` key) | **Loaded.** `claude mcp list` showed `plugin:p1:bare`. The MCP reader already accepts bare maps in plugin files. |

@@ -323,12 +323,9 @@ Phases 0 to 8 and all five gaps-plan phases are merged into `main` (425 tests pa
 
 ### Open items
 
-- Managed-settings check in the plugin toggle ignores server-managed settings and MDM (`com.anthropic.claudecode`).
-- `~/.claude/skills/<name>` is not part of the cross-project `scan --remove-skill` sweep; `prune --older-than` has no
-  per-kind filter.
-- Catalog: no removal of installed agents; update does not cover CLAUDE.md and MCP items; `updated/` copies cannot be
-  restored or pruned from `backups`.
-- Unverified against a fresh Claude Code session: `projectPath` matching for worktrees and subfolders, `defaultEnabled`
-  default, whether hooks of a disabled plugin are skipped, bare-map plugin `.mcp.json`; that the desktop app's GUI
-  environment lacks the shell profile (assumed from the Context7 key incident).
+- Server-managed settings cannot be read offline, so the plugin toggle ignores them (documented in
+  `docs/claude-config-sources.md`, "Managed sources"). The macOS MDM check is done.
+- Not probable without a logged-in session: whether hooks of a disabled plugin are skipped; that the desktop app's GUI
+  environment lacks the shell profile (assumed from the Context7 key incident). Probe results for `projectPath`,
+  `defaultEnabled` and bare-map plugin `.mcp.json` are in `docs/claude-config-sources.md`.
 - `unset-placeholder`, curl | bash clone path of `install.sh` and Windows were never exercised.

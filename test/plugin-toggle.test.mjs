@@ -61,22 +61,22 @@ describe("agentry plugin disable|enable", () => {
 	});
 
 	test("adds the entry or the whole enabledPlugins object when missing, creates a missing settings file", () => {
-		addPlugin(fx, {});
-		assert.match(fx.run(["plugin", "disable", "demo", "--yes"]).stdout, /wrote/);
-		assert.equal(settings(), '{\n\t"enabledPlugins": {\n\t\t"demo@mkt": false\n\t}\n}\n');
+		addPlugin(fx, { enabled: null });
+		assert.match(fx.run(["plugin", "enable", "demo", "--yes"]).stdout, /wrote/);
+		assert.equal(settings(), '{\n\t"enabledPlugins": {\n\t\t"demo@mkt": true\n\t}\n}\n');
 		writeFileSync(settingsPath(), '{\n  "model": "x"\n}\n');
-		assert.equal(fx.run(["plugin", "disable", "demo", "--yes"]).status, 0);
-		assert.equal(settings(), '{\n  "model": "x",\n  "enabledPlugins": {\n    "demo@mkt": false\n  }\n}\n');
+		assert.equal(fx.run(["plugin", "enable", "demo", "--yes"]).status, 0);
+		assert.equal(settings(), '{\n  "model": "x",\n  "enabledPlugins": {\n    "demo@mkt": true\n  }\n}\n');
 	});
 
-	test("a default-enabled plugin says so", () => {
-		addPlugin(fx, {});
-		assert.match(fx.run(["plugin", "enable", "demo"]).stdout, /already enabled \(by default\)/);
+	test("a plugin with no enabledPlugins entry is disabled by default and says so", () => {
+		addPlugin(fx, { enabled: null });
+		assert.match(fx.run(["plugin", "disable", "demo"]).stdout, /already disabled \(by default\)/);
 	});
 
 	test("refuses an unparsable settings file without touching it", () => {
 		addPlugin(fx, { settingsText: "{ not json" });
-		const { status } = fx.run(["plugin", "disable", "demo", "--yes"]);
+		const { status } = fx.run(["plugin", "enable", "demo", "--yes"]);
 		assert.notEqual(status, 0);
 		assert.equal(settings(), "{ not json");
 	});
@@ -84,14 +84,14 @@ describe("agentry plugin disable|enable", () => {
 
 describe("refusals and usage", () => {
 	test("unknown plugin exits 1 and lists the installed ones", () => {
-		addPlugin(fx, {});
+		addPlugin(fx, { enabled: null });
 		const { status, stderr } = fx.run(["plugin", "disable", "nope"]);
 		assert.equal(status, 1);
 		assert.match(stderr, /refused: No plugin "nope". Plugins: demo@mkt/);
 	});
 
 	test("a bare name in two marketplaces is ambiguous (exit 2)", () => {
-		const first = addPlugin(fx, {});
+		const first = addPlugin(fx, { enabled: null });
 		const installed = JSON.parse(readFileSync(join(fx.configDir, "plugins/installed_plugins.json"), "utf8"));
 		installed.plugins["demo@other"] = installed.plugins[first.id];
 		writeFileSync(join(fx.configDir, "plugins/installed_plugins.json"), JSON.stringify(installed));
@@ -112,6 +112,34 @@ describe("refusals and usage", () => {
 		assert.deepEqual(backups(), []);
 	});
 
+	test("macOS MDM (fake defaults on PATH) that names the plugin wins: refused naming the domain, nothing written", () => {
+		addPlugin(fx, { settingsText: ON });
+		const bin = join(fx.root, "fakebin");
+		mkdirSync(bin, { recursive: true });
+		writeFileSync(join(bin, "defaults"), '#!/bin/sh\nif [ "$1 $2 $3" = "read com.anthropic.claudecode enabledPlugins" ]; then printf \'{\\n    "demo@mkt" = 1;\\n}\\n\'; else exit 1; fi\n', { mode: 0o755 });
+		const env = { PATH: `${bin}:${process.env.PATH}` };
+		const { status, stderr } = fx.run(["plugin", "disable", "demo", "--yes"], { env });
+		if (process.platform === "darwin") {
+			assert.equal(status, 1);
+			assert.match(stderr, /macOS MDM managed settings \(com\.anthropic\.claudecode\)/);
+			assert.equal(settings(), ON);
+			assert.deepEqual(backups(), []);
+		}
+	});
+
+	test("MDM reader is injectable: a plugin the domain does not name is toggled", async () => {
+		const { createPluginToggle } = await import("../lib/plugin-toggle.mjs");
+		const { createPaths } = await import("../lib/paths.mjs");
+		addPlugin(fx, { settingsText: ON });
+		const paths = createPaths({ env: { ...process.env, CLAUDE_CONFIG_DIR: fx.configDir, AGENTRY_HOME: fx.home, AGENTRY_MANAGED_DIR: fx.managedDir }, cwd: fx.repo });
+		const errs = [];
+		const named = createPluginToggle(paths, { err: (m) => errs.push(m), readDefaults: () => '{\n    "other@mkt" = 1;\n    "demo@mkt" = 0;\n}' });
+		assert.equal(await named.run({ name: "demo", enable: false, path: fx.repo, dryRun: true }), 1);
+		assert.match(errs.join(), /macOS MDM/);
+		const clear = createPluginToggle(paths, { out: () => {}, err: (m) => errs.push(m), readDefaults: () => undefined });
+		assert.equal(await clear.run({ name: "demo", enable: false, path: fx.repo, dryRun: true }), 0);
+	});
+
 	test("a higher scope that names the plugin wins: refused unless --scope targets it", () => {
 		addPlugin(fx, { settingsText: ON });
 		mkdirSync(join(fx.repo, ".claude"), { recursive: true });
@@ -128,13 +156,13 @@ describe("refusals and usage", () => {
 	});
 
 	test("--scope local creates settings.local.json when the folder exists, and refuses when it does not", () => {
-		addPlugin(fx, {});
-		const missing = fx.run(["plugin", "disable", "demo", "--scope", "local", "--yes"]);
+		addPlugin(fx, { enabled: null });
+		const missing = fx.run(["plugin", "enable", "demo", "--scope", "local", "--yes"]);
 		assert.equal(missing.status, 1);
 		assert.match(missing.stderr, /does not exist/);
 		mkdirSync(join(fx.repo, ".claude"));
-		assert.equal(fx.run(["plugin", "disable", "demo", "--scope", "local", "--yes"]).status, 0);
-		assert.equal(readFileSync(join(fx.repo, ".claude/settings.local.json"), "utf8"), '{\n\t"enabledPlugins": {\n\t\t"demo@mkt": false\n\t}\n}\n');
+		assert.equal(fx.run(["plugin", "enable", "demo", "--scope", "local", "--yes"]).status, 0);
+		assert.equal(readFileSync(join(fx.repo, ".claude/settings.local.json"), "utf8"), '{\n\t"enabledPlugins": {\n\t\t"demo@mkt": true\n\t}\n}\n');
 		assert.match(fx.run(["fix", "--undo", "--yes"]).stdout, /deleted .*settings\.local\.json/);
 		assert.ok(!existsSync(join(fx.repo, ".claude/settings.local.json")));
 	});
@@ -142,7 +170,7 @@ describe("refusals and usage", () => {
 	test("bad usage exits 2 and the help lists the command", () => {
 		assert.equal(fx.run(["plugin"]).status, 2);
 		assert.equal(fx.run(["plugin", "toggle", "x"]).status, 2);
-		addPlugin(fx, {});
+		addPlugin(fx, { enabled: null });
 		assert.equal(fx.run(["plugin", "disable", "demo", "--scope", "everywhere"]).status, 2);
 		assert.equal(fx.run(["plugin", "disable", "demo", "--yes", "--dry-run"]).status, 2);
 		assert.match(fx.run(["--help"]).stdout, /plugin enable\|disable <name> \[--scope/);
