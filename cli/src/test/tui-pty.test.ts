@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createFixture } from "./helpers/fixture.js";
 
-const bin = fileURLToPath(new URL("../bin/agentry.mjs", import.meta.url));
-const runner = fileURLToPath(new URL("./helpers/pty-run.py", import.meta.url));
+const bin = fileURLToPath(new URL("../bin/agentry.js", import.meta.url));
+const runner = fileURLToPath(new URL("../../src/test/helpers/pty-run.py", import.meta.url));
 const hasPython = spawnSync("python3", ["-c", "import pty"]).status === 0;
 
 let fx;

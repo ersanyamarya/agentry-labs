@@ -52,6 +52,7 @@ import { createInterface } from "node:readline/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { createDoctor } from "./doctor.js";
 import { fixes as defaultFixes } from "./fix-rules.js";
+import { packageVersion } from "./version.js";
 import { maskArgs, maskHeader, maskShell, maskUrl, maskValue, SECRET_NAME } from "./mask.js";
 
 const MAX_ATTEMPTS = 3;
@@ -331,8 +332,6 @@ const defaultRunCommand = (argv, { cwd }) => {
 	const result = spawnSync(argv[0], argv.slice(1), { cwd, encoding: "utf8" });
 	return { status: result.error ? null : result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "", error: result.error?.code };
 };
-
-const packageVersion = () => JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
 export const createFix = (
 	paths,

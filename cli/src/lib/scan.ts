@@ -15,6 +15,7 @@ import { createDoctor, defaultLaunchctlGetenv } from "./doctor.js";
 import { createFix } from "./fix.js";
 import { createScanCache } from "./scan-cache.js";
 import { createStatus } from "./status.js";
+import { packageVersion } from "./version.js";
 
 const defaultConfirm = async (question) => {
 	const prompt = createInterface({ input: process.stdin, output: process.stdout });
@@ -44,7 +45,7 @@ const codeVersion = () => {
 	};
 	try {
 		visit(here);
-		return `${JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version}:${newest}`;
+		return `${packageVersion()}:${newest}`;
 	} catch {
 		return "";
 	}

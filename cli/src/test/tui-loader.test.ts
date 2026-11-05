@@ -7,14 +7,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+// dist/test -> the package root (cli/), so the copy keeps the dist/ layout that packageVersion() relies on.
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const agentry = (dir, args, options = {}) =>
-	spawnSync(process.execPath, [join(dir, "bin/agentry.mjs"), ...args], { encoding: "utf8", ...options });
+	spawnSync(process.execPath, [join(dir, "dist/bin/agentry.js"), ...args], { encoding: "utf8", ...options });
 
 test("help runs without node_modules, so Ink and React are never loaded for it", () => {
 	const copy = mkdtempSync(join(tmpdir(), "agentry-no-deps-"));
 	try {
-		for (const entry of ["bin", "lib", "package.json"]) {
+		for (const entry of ["dist/bin", "dist/lib", "package.json"]) {
 			cpSync(join(root, entry), join(copy, entry), { recursive: true });
 		}
 		for (const args of [["--help"], ["--version"], ["shelf", "list"]]) {

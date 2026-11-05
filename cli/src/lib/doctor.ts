@@ -11,10 +11,11 @@ import { createMcpReader } from "./inventory/mcp.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import { createSkillsReader } from "./inventory/skills.js";
 import { rules as defaultRules } from "./doctor-rules.js";
+import renamesData from "./renames.json" with { type: "json" };
 
 const SEVERITIES = ["error", "warning", "info"];
 
-const defaultRenames = () => JSON.parse(readFileSync(new URL("./renames.json", import.meta.url), "utf8"));
+const defaultRenames = () => renamesData;
 
 // Only whether the variable is set matters; the value is never read into output.
 export const defaultLaunchctlGetenv = (name) => {

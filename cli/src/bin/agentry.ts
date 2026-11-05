@@ -2,7 +2,6 @@
 // @ts-nocheck
 // agentry: shows and manages what a Claude Code session loads. Run `agentry --help`.
 
-import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { createBackups } from "../lib/backups.js";
 import { createDoctor } from "../lib/doctor.js";
@@ -19,6 +18,7 @@ import { createCatalog } from "../lib/catalog.js";
 import { createRules } from "../lib/rules.js";
 import { createShelf } from "../lib/shelf.js";
 import { createStatus } from "../lib/status.js";
+import { packageVersion } from "../lib/version.js";
 
 const USAGE = `Usage: agentry <command> [options]
 
@@ -354,7 +354,7 @@ const main = (argv) => {
 	} = parsed;
 
 	if (values.version) {
-		console.log(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version);
+		console.log(packageVersion());
 		return 0;
 	}
 	if (!command && !values.help && process.stdin.isTTY && process.stdout.isTTY) {

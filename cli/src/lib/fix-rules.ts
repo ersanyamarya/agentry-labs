@@ -15,8 +15,9 @@ import { extraPluginInstalls, renamePattern } from "./doctor-rules.js";
 import { createJsonEdit } from "./json-edit.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import { maskShell } from "./mask.js";
+import renamesData from "./renames.json" with { type: "json" };
 
-const defaultRenames = () => JSON.parse(readFileSync(new URL("./renames.json", import.meta.url), "utf8"));
+const defaultRenames = () => renamesData;
 
 const isExecutable = (file) => {
 	try {

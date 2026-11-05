@@ -10,7 +10,7 @@ beforeEach(() => {
 });
 afterEach(() => fx.cleanup());
 
-const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+const { version } = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
 describe("router", () => {
 	test("--help, -h, help and no arguments print usage with examples", () => {

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const bin = fileURLToPath(new URL("../../bin/agentry.mjs", import.meta.url));
+const bin = fileURLToPath(new URL("../../bin/agentry.js", import.meta.url));
 
 // A plugin installed for the user scope, with one skill; `enabled` (default true, null for no entry) goes into <config>/settings.json.
 export const addPlugin = (fx, { id = "demo@mkt", enabled = true, settingsText } = {}) => {
