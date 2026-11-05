@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 // agentry: shows and manages what a Claude Code session loads. Run `agentry --help`.
 
 import { parseArgs } from "node:util";
@@ -8,6 +7,7 @@ import { createDoctor } from "../lib/doctor.js";
 import { createFix } from "../lib/fix.js";
 import { createFixUndo } from "../lib/fix-undo.js";
 import { createHookToggle } from "../lib/hook-toggle.js";
+import type { HookAction } from "../lib/hook-toggle.js";
 import { createMcpEdit } from "../lib/mcp-edit.js";
 import { createMcpToggle } from "../lib/mcp-toggle.js";
 import { createPaths } from "../lib/paths.js";
@@ -194,12 +194,52 @@ Examples:
 const SHELF_USAGE =
 	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | promote <skill> [--dry-run] | demote <skill> [--dry-run] | remove <skill> [--project] [--no-backup] [--dry-run]";
 
-const usageError = (message) => {
+const parseCli = (argv: string[]) =>
+	parseArgs({
+		args: argv,
+		allowPositionals: true,
+		options: {
+			help: { type: "boolean", short: "h" },
+			version: { type: "boolean" },
+			global: { type: "boolean" },
+			json: { type: "boolean" },
+			all: { type: "boolean" },
+			depth: { type: "string" },
+			"only-problems": { type: "boolean" },
+			"no-cache": { type: "boolean" },
+			"dry-run": { type: "boolean" },
+			project: { type: "boolean" },
+			yes: { type: "boolean", short: "y" },
+			undo: { type: "boolean" },
+			list: { type: "boolean" },
+			force: { type: "boolean" },
+			fix: { type: "boolean" },
+			scope: { type: "string" },
+			"no-backup": { type: "boolean" },
+			"older-than": { type: "string" },
+			kind: { type: "string" },
+			"find-skill": { type: "string" },
+			"remove-skill": { type: "string" },
+			group: { type: "string" },
+			command: { type: "string" },
+			url: { type: "string" },
+			arg: { type: "string", multiple: true },
+			env: { type: "string", multiple: true },
+			"unset-env": { type: "string", multiple: true },
+			header: { type: "string", multiple: true },
+		},
+	});
+
+type Values = ReturnType<typeof parseCli>["values"];
+
+const isHookAction = (action: string): action is HookAction => ["disable", "enable", "remove"].includes(action);
+
+const usageError = (message: string): number => {
 	console.error(`${message}\n\n${USAGE}`);
 	return 2;
 };
 
-const runShelf = (args, { global, json, all, project, "no-backup": noBackup, "dry-run": dryRun }) => {
+const runShelf = (args: string[], { global, json, all, project, "no-backup": noBackup, "dry-run": dryRun }: Values): number => {
 	const [action, ...rest] = args;
 	const shelf = createShelf(createPaths());
 	if (action === "list") {
@@ -230,7 +270,7 @@ const runShelf = (args, { global, json, all, project, "no-backup": noBackup, "dr
 	return 2;
 };
 
-const runBackups = async (args, { json, all, "older-than": olderThan, kind, "dry-run": dryRun, yes }) => {
+const runBackups = async (args: string[], { json, all, "older-than": olderThan, kind, "dry-run": dryRun, yes }: Values): Promise<number> => {
 	const [action, ...rest] = args;
 	const backups = createBackups(createPaths());
 	if (yes && dryRun) {
@@ -247,7 +287,7 @@ const runBackups = async (args, { json, all, "older-than": olderThan, kind, "dry
 	}
 	if (action === "prune" && rest.length === 0 && Boolean(all) !== (olderThan !== undefined)) {
 		const days = olderThan === undefined ? undefined : Number(olderThan);
-		if (olderThan !== undefined && !(Number.isFinite(days) && days >= 0)) {
+		if (olderThan !== undefined && !(Number.isFinite(days) && (days as number) >= 0)) {
 			return usageError("--older-than needs a number of days (0 or more)");
 		}
 		return backups.prune({ olderThan: days, all, kind, dryRun, yes });
@@ -255,7 +295,7 @@ const runBackups = async (args, { json, all, "older-than": olderThan, kind, "dry
 	return usageError("Usage: agentry backups list [--json] | restore <id> [--dry-run] | delete <id>... [--dry-run] [--yes] | prune (--older-than <days> | --all) [--kind fix|removed|updated] [--dry-run] [--yes]");
 };
 
-const runCatalog = async (args, { group, json, project, all, yes, "dry-run": dryRun, "no-backup": noBackup }) => {
+const runCatalog = async (args: string[], { group, json, project, all, yes, "dry-run": dryRun, "no-backup": noBackup }: Values): Promise<number> => {
 	const [action, ...rest] = args;
 	const catalog = createCatalog(createPaths());
 	if (action === "refresh" && rest.length === 0) {
@@ -279,7 +319,7 @@ const runCatalog = async (args, { group, json, project, all, yes, "dry-run": dry
 	return usageError("Usage: agentry catalog refresh | list [--json] | add <item>... [--group G] [--project] [--dry-run] [--yes] | update <item>... | --all [--dry-run] [--yes] | remove agent/<name>... [--project] [--no-backup] [--dry-run] [--yes]");
 };
 
-const runRules = (args, { json, "dry-run": dryRun, "no-backup": noBackup }) => {
+const runRules = (args: string[], { json, "dry-run": dryRun, "no-backup": noBackup }: Values): number => {
 	const [action, target] = args;
 	const rules = createRules(createPaths());
 	if (action === "list" && args.length === 1) {
@@ -295,58 +335,25 @@ const runRules = (args, { json, "dry-run": dryRun, "no-backup": noBackup }) => {
 // Chalk (inside Ink) picks its colour level once, when it loads, from TERM, COLORTERM and FORCE_COLOR, and never reads
 // NO_COLOR. A terminal that leaves TERM unset (some app-embedded terminals) would get level 0 and no colour at all, so on a
 // TTY we ask for the basic 16 colours unless the user opted out (NO_COLOR, FORCE_COLOR, TERM=dumb).
-const preferColor = () => {
+const preferColor = (): void => {
 	const { env } = process;
 	if (process.stdout.isTTY && !env.NO_COLOR && !("FORCE_COLOR" in env) && env.TERM !== "dumb") {
 		env.FORCE_COLOR = "1";
 	}
 };
 
-const runUi = async (argv) => {
+const runUi = async (): Promise<number> => {
 	preferColor();
 	const { run } = await import("../tui/index.js");
-	return run({ argv, paths: createPaths(), io: { stdin: process.stdin, stdout: process.stdout, stderr: process.stderr } });
+	return run({ io: { stdin: process.stdin, stdout: process.stdout, stderr: process.stderr } });
 };
 
-const main = (argv) => {
-	let parsed;
+const main = (argv: string[]): number | Promise<number> => {
+	let parsed: ReturnType<typeof parseCli>;
 	try {
-		parsed = parseArgs({
-			args: argv,
-			allowPositionals: true,
-			options: {
-				help: { type: "boolean", short: "h" },
-				version: { type: "boolean" },
-				global: { type: "boolean" },
-				json: { type: "boolean" },
-				all: { type: "boolean" },
-				depth: { type: "string" },
-				"only-problems": { type: "boolean" },
-				"no-cache": { type: "boolean" },
-				"dry-run": { type: "boolean" },
-				project: { type: "boolean" },
-				yes: { type: "boolean", short: "y" },
-				undo: { type: "boolean" },
-				list: { type: "boolean" },
-				force: { type: "boolean" },
-				fix: { type: "boolean" },
-				scope: { type: "string" },
-				"no-backup": { type: "boolean" },
-				"older-than": { type: "string" },
-				kind: { type: "string" },
-				"find-skill": { type: "string" },
-				"remove-skill": { type: "string" },
-				group: { type: "string" },
-				command: { type: "string" },
-				url: { type: "string" },
-				arg: { type: "string", multiple: true },
-				env: { type: "string", multiple: true },
-				"unset-env": { type: "string", multiple: true },
-				header: { type: "string", multiple: true },
-			},
-		});
+		parsed = parseCli(argv);
 	} catch (error) {
-		return usageError(error.message);
+		return usageError((error as Error).message);
 	}
 	const {
 		values,
@@ -358,14 +365,14 @@ const main = (argv) => {
 		return 0;
 	}
 	if (!command && !values.help && process.stdin.isTTY && process.stdout.isTTY) {
-		return runUi(rest);
+		return runUi();
 	}
 	if (values.help || !command || command === "help") {
 		console.log(USAGE);
 		return 0;
 	}
 	if (command === "ui") {
-		return runUi(rest);
+		return runUi();
 	}
 	if (command === "status") {
 		if (rest.length > 1) {
@@ -479,7 +486,7 @@ const main = (argv) => {
 		if (action === "list" && rest.length === 1) {
 			return hooks.list({ json: values.json });
 		}
-		if (!["disable", "enable", "remove"].includes(action) || !selector || rest.length > 2 || values.json) {
+		if (!isHookAction(action) || !selector || rest.length > 2 || values.json) {
 			return usageError("Usage: agentry hook list [--json] | agentry hook disable|enable|remove <id> [--scope user|project|local] [--dry-run] [--yes]");
 		}
 		if (values.yes && values["dry-run"]) {
