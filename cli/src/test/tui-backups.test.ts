@@ -1,12 +1,11 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { KEYS, createUi } from "./helpers/tui.js";
 
-let ui;
-const put = (file, text) => {
+let ui: ReturnType<typeof createUi>;
+const put = (file: string, text: string) => {
 	mkdirSync(dirname(file), { recursive: true });
 	writeFileSync(file, text);
 };
@@ -26,7 +25,7 @@ const removeNotes = async (key = "x") => {
 describe("remove with and without a copy", () => {
 	test("x says a copy is kept, X says none is, and X really keeps none", async () => {
 		await removeNotes("X");
-		assert.match(ui.frame(), /no copy kept/);
+		assert.match(ui.frame()!, /no copy kept/);
 		await ui.press("y");
 		await ui.until(/no copy was kept/);
 		assert.ok(!existsSync(join(ui.fx.configDir, "skills/notes")));
@@ -35,9 +34,9 @@ describe("remove with and without a copy", () => {
 
 	test("x keeps the copy and the footer offers X", async () => {
 		await ui.moveTo(/^>\s+notes/);
-		assert.match(ui.frame(), /X (remove, no copy|no copy)/);
+		assert.match(ui.frame()!, /X (remove, no copy|no copy)/);
 		await removeNotes();
-		assert.match(ui.frame(), /copy kept in/);
+		assert.match(ui.frame()!, /copy kept in/);
 		await ui.press("y");
 		await ui.until(/Backups tab restores it/);
 		assert.equal(readdirSync(join(backupsDir(), "removed")).length, 1);
@@ -48,14 +47,14 @@ describe("Backups tab", () => {
 	test("is tab 7 with a count, says when empty, and lists a removed skill after x", async () => {
 		await ui.press("7");
 		await ui.until(/\(no backups\)/);
-		assert.match(ui.frame(), /7 Backups \(0\)/);
+		assert.match(ui.frame()!, /7 Backups \(0\)/);
 		await ui.press("1");
 		await removeNotes();
 		await ui.press("y");
 		await ui.until(/Backups tab restores it/);
 		await ui.press("7");
 		await ui.until(/notes \(global\)\s+removed\s+\d+ B\s+today/);
-		assert.match(ui.frame(), /7 Backups \(1\)/);
+		assert.match(ui.frame()!, /7 Backups \(1\)/);
 		await ui.until(/u restore {2}x delete/);
 	});
 
@@ -67,7 +66,7 @@ describe("Backups tab", () => {
 		await ui.until(/removed\s+\d+ B/);
 		await ui.press("u");
 		await ui.until(/Restore notes \(global\) \(preview\)/);
-		assert.match(ui.frame(), /would restore notes \(global\)/);
+		assert.match(ui.frame()!, /would restore notes \(global\)/);
 		await ui.press("n");
 		await ui.until(/Cancelled/);
 		assert.ok(!existsSync(join(ui.fx.configDir, "skills/notes")));
@@ -84,10 +83,10 @@ describe("Backups tab", () => {
 		await ui.press("r");
 		await ui.press("7");
 		await ui.until(/fix set/);
-		assert.doesNotMatch(ui.frame(), /u restore/);
+		assert.doesNotMatch(ui.frame()!, /u restore/);
 		await ui.press("x");
 		await ui.until(/Delete 2026-10-01T00-00-00-000Z \(preview\)/);
-		assert.match(ui.frame(), /fix --undo can no longer restore it/);
+		assert.match(ui.frame()!, /fix --undo can no longer restore it/);
 		assert.ok(existsSync(join(backupsDir(), "2026-10-01T00-00-00-000Z")), "a preview deletes nothing");
 		await ui.press("y");
 		await ui.until(/Deleted that backup/);
@@ -95,7 +94,7 @@ describe("Backups tab", () => {
 	});
 
 	test("d previews the 30+ days prune, c copies the preview, y deletes only the old ones", async () => {
-		const copied = [];
+		const copied: string[] = [];
 		ui.stop();
 		ui = createUi({ clipboard: { spawn: (_command, _args, options) => (copied.push(options.input), { status: 0 }), platform: "darwin" } });
 		await ui.ready();
@@ -106,7 +105,7 @@ describe("Backups tab", () => {
 		await ui.until(/7 Backups \(2\)/);
 		await ui.press("d");
 		await ui.until(/Delete backups 30\+ days old \(preview\)/);
-		assert.match(ui.frame(), /Would delete 1 backup/);
+		assert.match(ui.frame()!, /Would delete 1 backup/);
 		await ui.press("c");
 		await ui.until(/Copied to the clipboard/);
 		assert.match(copied[0] ?? "", /Would delete 1 backup/);

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -9,13 +8,13 @@ import { KEYS, createUi, stripAnsi } from "./helpers/tui.js";
 
 const SECRET = "sk-supersecretvalue1234567890";
 
-let ui;
-let origin;
-const write = (file, text) => {
+let ui: ReturnType<typeof createUi>;
+let origin: string;
+const write = (file: string, text: string) => {
 	mkdirSync(join(file, ".."), { recursive: true });
 	writeFileSync(file, text);
 };
-const git = (...args) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: origin, stdio: "ignore" });
+const git = (...args: string[]) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: origin, stdio: "ignore" });
 beforeEach(async () => {
 	origin = mkdtempSync(join(tmpdir(), "agentry-origin-"));
 	write(join(origin, "skills/alpha/SKILL.md"), "---\nname: alpha\ndescription: alpha does a thing\n---\n");
@@ -34,21 +33,21 @@ beforeEach(async () => {
 });
 afterEach(() => ui?.stop());
 
-const configFile = (...parts) => join(ui.fx.configDir, ...parts);
+const configFile = (...parts: string[]) => join(ui.fx.configDir, ...parts);
 
 describe("Catalog tab beyond skills", () => {
 	test("lists agents, rules, CLAUDE.md files and MCP servers in their own sections", async () => {
 		await ui.moveTo(/^>\s+helper/);
-		const frame = stripAnsi(ui.frame());
+		const frame = stripAnsi(ui.frame()!);
 		assert.match(frame, /Agents/);
 		assert.match(frame, /Catalog \(6\)/);
-		assert.match(ui.frame(), /\bi add/);
-		assert.match(ui.frame(), /\bo (add to this )?project/);
+		assert.match(ui.frame()!, /\bi add/);
+		assert.match(ui.frame()!, /\bo (add to this )?project/);
 		await ui.moveTo(/^>\s+style/);
 		await ui.moveTo(/^>\s+BASIC_CLAUDE/);
 		await ui.moveTo(/^>\s+docs/);
-		assert.match(stripAnsi(ui.frame()), /MCP servers/);
-		assert.match(ui.frame(), /item: mcp\/docs/);
+		assert.match(stripAnsi(ui.frame()!), /MCP servers/);
+		assert.match(ui.frame()!, /item: mcp\/docs/);
 	});
 
 	test("i on an agent previews, c copies, y adds it to ~/.claude/agents and the row shows where", async () => {
@@ -109,10 +108,10 @@ describe("Catalog tab beyond skills", () => {
 		await ui.press("o");
 		await ui.until(/Add mcp\/docs to this project \(preview\)/);
 		await ui.until(/Add project MCP server docs/);
-		assert.ok(!ui.frame().includes(SECRET), "the secret never shows");
+		assert.ok(!ui.frame()!.includes!(SECRET), "the secret never shows");
 		await ui.press("y");
 		await ui.until(/Added docs as an MCP server/);
-		assert.ok(!ui.frame().includes(SECRET));
+		assert.ok(!ui.frame()!.includes!(SECRET));
 		assert.equal(JSON.parse(readFileSync(join(ui.fx.repo, ".mcp.json"), "utf8")).mcpServers.docs.url, "https://example.com/mcp");
 		await ui.until(/docs\s+-\s+● project/);
 	});
@@ -123,7 +122,7 @@ describe("Catalog tab beyond skills", () => {
 		await ui.until(/Add agent/);
 		await ui.press("y");
 		await ui.until(/helper\s+~\d+\s+● global\s*$/m);
-		assert.doesNotMatch(ui.frame(), /outdated/);
+		assert.doesNotMatch(ui.frame()!, /outdated/);
 		await ui.press("u");
 		await ui.until(/helper is up to date/);
 
@@ -153,7 +152,7 @@ describe("Catalog tab beyond skills", () => {
 		await ui.press("u");
 		await ui.until(/Update mcp\/tool \(preview\)/);
 		await ui.until(/Edit user MCP server tool/);
-		assert.ok(!ui.frame().includes(SECRET), "the secret never shows");
+		assert.ok(!ui.frame()!.includes!(SECRET), "the secret never shows");
 		await ui.press("y");
 		await ui.until(/Updated mcp\/tool/);
 		const tool = JSON.parse(readFileSync(configFile(".claude.json"), "utf8")).mcpServers.tool;
@@ -209,12 +208,12 @@ describe("Rules tab", () => {
 		await ui.press("r", "8");
 		await ui.until(/8 Rules/);
 		await ui.until(/style\.md\s+~\d+\s+rule/);
-		const frame = stripAnsi(ui.frame());
+		const frame = stripAnsi(ui.frame()!);
 		assert.match(frame, /User/);
 		assert.match(frame, /This project/);
 		assert.match(frame, /^\s*>?\s+CLAUDE\.md\s+~\d+\s+CLAUDE\.md$/m);
 		await ui.moveTo(/^>.*rules\/style\.md/);
-		assert.match(ui.frame(), /x remove/);
+		assert.match(ui.frame()!, /x remove/);
 		await ui.press("x");
 		await ui.until(/Remove style\.md \(user rule\) \(preview\)/);
 		await ui.until(/would remove style\.md \(user rule\)/);
@@ -229,18 +228,18 @@ describe("Rules tab", () => {
 		assert.equal(existsSync(configFile("backups/agentry/removed")), true);
 		await ui.press("7");
 		await ui.until(/style\.md \(user rule\)/);
-		assert.match(stripAnsi(ui.frame()), /removed rule/);
+		assert.match(stripAnsi(ui.frame()!), /removed rule/);
 	});
 
 	test("X keeps no copy; e opens the file", async () => {
-		const calls = [];
+		const calls: [string, string[]][] = [];
 		await ui.stop?.();
 		ui = createUi({ catalogRepo: origin, env: { EDITOR: "myedit" }, spawn: (command, args) => (calls.push([command, args]), { status: 0 }) });
 		write(configFile("rules/style.md"), "# Style\n");
 		await ui.ready();
 		await ui.press("8");
 		await ui.until(/style\.md\s+~\d+\s+rule/);
-		assert.match(ui.frame(), /x remove/);
+		assert.match(ui.frame()!, /x remove/);
 		await ui.moveTo(/^>.*rules\/style\.md/);
 		await ui.press("e");
 		assert.equal(calls.length, 1);

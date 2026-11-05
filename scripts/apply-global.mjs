@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Merges global/settings.fragment.json into ~/.claude/settings.json and global/mcp.json into ~/.claude.json.
-// Only adds what is missing (hooks, plugins, env, statusLine, MCP servers) and never removes anything. Prints the plan; pass --write to apply it.
+// Merges global/settings.fragment.json into ~/.claude/settings.json and global/mcp.json into ~/.claude.json, and copies
+// global/hooks/*.mjs to ~/.claude/hooks/.
+// Only adds what is missing (hooks, plugins, env, statusLine, MCP servers) and never removes anything; a changed hook script is replaced after a backup. Prints the plan; pass --write to apply it.
 //
 // Usage: node scripts/apply-global.mjs [--write] [--home <dir>]
 
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -53,6 +54,19 @@ for (const key of ["statusLine", "subagentStatusLine"]) {
 	actions.push(`settings.json: add ${key}`);
 }
 
+// Hook scripts: global/hooks/*.mjs (not the tests) are copied to ~/.claude/hooks/, a changed copy replaces the old one after a backup.
+const hookFiles = [];
+const hooksDir = join(root, "global/hooks");
+for (const name of existsSync(hooksDir) ? readdirSync(hooksDir) : []) {
+	if (!name.endsWith(".mjs") || name.endsWith(".test.mjs")) continue;
+	const target = join(home, ".claude/hooks", name);
+	const content = readFileSync(join(hooksDir, name), "utf8");
+	const current = existsSync(target) ? readFileSync(target, "utf8") : null;
+	if (current === content) continue;
+	hookFiles.push({ target, content, backup: current !== null });
+	actions.push(`hooks/${name}: ${current === null ? "add" : "update (backup kept)"}`);
+}
+
 const warnings = [];
 for (const [name, server] of Object.entries(mcp.mcpServers)) {
 	userConfig.mcpServers ??= {};
@@ -75,6 +89,11 @@ if (write && actions.length > 0) {
 	for (const path of [settingsPath, mcpPath]) if (existsSync(path)) copyFileSync(path, `${path}.bak-${stamp}`);
 	writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
 	writeFileSync(mcpPath, `${JSON.stringify(userConfig, null, 2)}\n`);
+	for (const { target, content, backup } of hookFiles) {
+		mkdirSync(dirname(target), { recursive: true });
+		if (backup) copyFileSync(target, `${target}.bak-${stamp}`);
+		writeFileSync(target, content);
+	}
 	console.log("Written. Backups saved next to each file.");
 } else if (!write) {
 	console.log("Dry run. Re-run with --write to apply.");

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // A small prompt flow shown in the details pane: pick one of some options, type a name, preview and confirm, show the result.
 // A step is { kind, title, ... }:
 //   pick:    options[], onPick(option) → step | null, onNew?() → step     ↑/↓ choose, enter picks, n types a new name
@@ -9,34 +8,54 @@
 // While a modal step is open `lock` is true (false when closed, "typing" while a name is typed), so the app keeps
 // quit/tab keys away from it. Nothing is written without a y on a confirm step.
 
+import type { Key } from "ink";
 import React from "react";
+import type { SetLock } from "./types.js";
 
-export const useFlow = ({ lock, notify, reload, copy }) => {
-	const [step, setStep] = React.useState(null);
+type Outcome = { ok: boolean; text: string };
+type Next = Step | null | undefined | Promise<Step | null | undefined>;
+export type Step =
+	| { kind: "pick"; title: string; intro?: string[]; options: string[]; onPick: (option: string) => Next; onNew?: () => Step | null }
+	| { kind: "name"; title: string; label: string; intro?: string[]; display?: (text: string) => string; onSubmit: (text: string) => Next }
+	| { kind: "confirm"; title: string; text: string; appliable: boolean; apply: () => Outcome | Promise<Outcome>; done: string }
+	| { kind: "result"; ok: boolean; text: string };
+
+export interface FlowOptions {
+	lock: SetLock;
+	notify: (message: string) => void;
+	reload: () => Promise<void> | void;
+	copy?: (text: string) => void;
+}
+
+export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
+	const [step, setStep] = React.useState<Step | null>(null);
 	const [at, setAt] = React.useState(0);
 	const [text, setText] = React.useState("");
 	const modal = Boolean(step && step.kind !== "result");
-	React.useEffect(() => lock(!modal ? false : step.kind === "name" ? "typing" : true), [modal, step?.kind]);
+	React.useEffect(() => lock(!modal ? false : step?.kind === "name" ? "typing" : true), [modal, step?.kind]);
 
 	// Locks at once rather than from the effect below, so a key pressed right after the prompt opens is already guarded.
-	const begin = (next) => {
+	const begin = (next: Step | null | undefined) => {
 		notify("");
 		lock(!next || next.kind === "result" ? false : next.kind === "name" ? "typing" : true);
 		setAt(0);
 		setText("");
-		setStep(next);
+		setStep(next ?? null);
 	};
 	const cancel = () => {
 		setStep(null);
 		notify("Cancelled; nothing changed.");
 	};
-	const advance = async (next) => {
+	const advance = async (next: Next) => {
 		const resolved = await next;
 		begin(resolved ?? null);
 	};
 
 	const confirm = async () => {
 		const current = step;
+		if (current?.kind !== "confirm") {
+			return;
+		}
 		setStep({ kind: "result", ok: true, text: "Working..." });
 		const result = await current.apply();
 		setStep({ kind: "result", ...result });
@@ -45,12 +64,12 @@ export const useFlow = ({ lock, notify, reload, copy }) => {
 	};
 
 	// Returns true when the key was used by an open step.
-	const handleKey = (input, key) => {
+	const handleKey = (input: string, key: Key): boolean => {
 		if (input === "c" && copy && (step?.kind === "confirm" || step?.kind === "result")) {
 			copy(step.text);
 			return true;
 		}
-		if (!modal) {
+		if (!modal || !step) {
 			return false;
 		}
 		if (step.kind === "pick") {
@@ -75,7 +94,7 @@ export const useFlow = ({ lock, notify, reload, copy }) => {
 			} else if (input && !key.ctrl && !key.meta) {
 				setText(text + input);
 			}
-		} else if (input === "y" && step.appliable) {
+		} else if (input === "y" && step.kind === "confirm" && step.appliable) {
 			confirm();
 		} else if (input === "n" || key.escape) {
 			cancel();
@@ -83,7 +102,7 @@ export const useFlow = ({ lock, notify, reload, copy }) => {
 		return true;
 	};
 
-	let lines;
+	let lines: string[] | undefined;
 	if (step?.kind === "pick") {
 		lines = [...(step.intro ?? []), "", ...step.options.map((option, index) => `${index === at ? ">" : " "} ${option}`), "", step.onNew ? "↑/↓ choose, enter select, n new group, esc cancel" : "↑/↓ choose, enter select, esc cancel"];
 	} else if (step?.kind === "name") {

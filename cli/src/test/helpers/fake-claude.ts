@@ -1,4 +1,3 @@
-// @ts-nocheck
 // A stand-in `claude` for tests: handles `mcp remove|add-json <name> ... --scope user` by editing the user-scope
 // `mcpServers` of <CLAUDE_CONFIG_DIR>/.claude.json, and records every argv (one JSON line) in <fake dir>/argv.log.
 // `plugin install|uninstall <id> --scope S` records the install in <config>/plugins/installed_plugins.json and sets (or removes)
@@ -7,9 +6,9 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const require_log = (dir) => (existsSync(join(dir, "argv.log")) ? readFileSync(join(dir, "argv.log"), "utf8").trim().split("\n").map((line) => JSON.parse(line)) : []);
+const require_log = (dir: string) => (existsSync(join(dir, "argv.log")) ? readFileSync(join(dir, "argv.log"), "utf8").trim().split("\n").map((line) => JSON.parse(line)) : []);
 
-export const installFakeClaude = (dir) => {
+export const installFakeClaude = (dir: string) => {
 	mkdirSync(dir, { recursive: true });
 	const bin = join(dir, "claude");
 	writeFileSync(

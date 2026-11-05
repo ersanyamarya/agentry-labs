@@ -1,8 +1,8 @@
-// @ts-nocheck
 // Colour is Ink props, not raw ANSI. FORCE_COLOR makes the test renderer emit real escape codes so the props can be seen.
 process.env.FORCE_COLOR = "1";
 process.env.NO_COLOR = "";
 
+import type { Data } from "../tui/types.js";
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { costStyle, colorEnabled, scopeStyle, SEVERITY, stateStyle } from "../tui/theme.js";
@@ -16,7 +16,7 @@ const GRAY = "\u001B[90m";
 const RED = "\u001B[31m";
 const COLOUR_CODE = /\u001B\[(3[0-7]|9[0-7])m/;
 
-let ui;
+let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());
 
 describe("theme helpers", () => {
@@ -53,13 +53,13 @@ describe("theme helpers", () => {
 });
 
 describe("rows carry the styles", () => {
-	const item = (name, project, global) => ({ kind: "skills", name, source: `/s/${name}`, tokens: 120, project, global });
-	const data = (items) => ({ groups: [{ name: "g", tokens: 240, state: "off", items }], status: { skills: { items: [] }, plugins: { items: [] } } });
+	const item = (name: string, project: boolean, global: boolean) => ({ kind: "skills", name, source: `/s/${name}`, tokens: 120, project, global });
+	const data = (items: Record<string, unknown>[]) => ({ groups: [{ name: "g", tokens: 240, state: "off", items }], status: { skills: { items: [] }, plugins: { items: [] } } }) as unknown as Data;
 
 	test("a group is off, partial or on, with the matching badge and a cost style", () => {
-		const badgeOf = (items) => {
+		const badgeOf = (items: Record<string, unknown>[]) => {
 			const row = skillRows(data(items)).find((candidate) => candidate.kind === "group");
-			const badges = row.cells.flatMap((one) => one.parts).filter((part) => /^[●○◐] /.test(part.text));
+			const badges = row!.cells!.flatMap((one) => one.parts).filter((part) => /^[●○◐] /.test(part.text));
 			return { project: badges[0], global: badges[1] };
 		};
 		const off = { text: "○ off", style: { color: "gray", bold: true } };
@@ -69,15 +69,15 @@ describe("rows carry the styles", () => {
 		assert.deepEqual(badgeOf([item("a", true, false), item("b", true, false)]), { project: on, global: off });
 		assert.deepEqual(badgeOf([item("a", false, true), item("b", false, true)]), { project: off, global: on });
 		const group = skillRows(data([item("a", false, false)])).find((candidate) => candidate.kind === "group");
-		assert.deepEqual(group.cells.flatMap((one) => one.parts).find((part) => part.text.startsWith("~")).style, { color: "yellow" });
-		assert.match(group.note, /1 skills\s+~240\s+○ off\s+○ off/);
+		assert.deepEqual(group!.cells!.flatMap((one) => one.parts).find((part) => part.text.startsWith("~"))!.style, { color: "yellow" });
+		assert.match(group!.note!, /1 skills\s+~240\s+○ off\s+○ off/);
 	});
 
 	test("doctor rows use the severity icon and colour", () => {
-		const rows = doctorRows({ doctor: { findings: [{ id: "x", severity: "error", message: "m", file: "/f" }, { id: "y", severity: "info", message: "n", file: "/f" }] } });
+		const rows = doctorRows({ doctor: { findings: [{ id: "x", severity: "error", message: "m", file: "/f" }, { id: "y", severity: "info", message: "n", file: "/f" }] } } as unknown as Data);
 		assert.equal(rows[0].label, "✖ Errors (1)");
 		assert.deepEqual(rows[0].labelStyle, { color: "red" });
-		assert.equal(rows.find((row) => row.kind === "finding" && row.severity === "info").label, "  ℹ [y] n");
+		assert.equal(rows.find((row) => row.kind === "finding" && row.severity === "info")!.label, "  ℹ [y] n");
 	});
 });
 
@@ -86,7 +86,7 @@ describe("rendered with real escape codes", () => {
 		ui = createUi();
 		await ui.ready();
 		const frame = ui.frame();
-		assert.ok(frame.includes(`${GRAY}○ off`), "off badge is gray");
+		assert.ok(frame!.includes(`${GRAY}○ off`), "off badge is gray");
 		await ui.moveTo(/video/);
 		await ui.press(KEYS.enter);
 		await ui.moveTo(/trim/);
@@ -94,23 +94,23 @@ describe("rendered with real escape codes", () => {
 		await ui.until(/video\/trim on in/);
 		await ui.until(/\u001B\[32m● on/);
 		await ui.moveTo(/^.{0,12}video/, KEYS.up);
-		assert.ok(ui.frame().includes(`${YELLOW}◐ partial`), "a group with one of two skills linked is partial");
+		assert.ok(ui.frame()!.includes!(`${YELLOW}◐ partial`), "a group with one of two skills linked is partial");
 		await ui.press("5");
 		await ui.until(/\[fake-bad\]/);
-		assert.ok(ui.frame().includes(`${YELLOW}▲`), "warning icon is yellow");
-		assert.ok(ui.frame().includes("\u001B[34mℹ"), "info icon is blue");
+		assert.ok(ui.frame()!.includes!(`${YELLOW}▲`), "warning icon is yellow");
+		assert.ok(ui.frame()!.includes!("\u001B[34mℹ"), "info icon is blue");
 	});
 
 	test("NO_COLOR keeps the words and the marker but emits no colour codes", async () => {
 		ui = createUi({ env: { NO_COLOR: "1" } });
 		await ui.ready();
 		await ui.press(KEYS.enter);
-		assert.doesNotMatch(ui.frame(), COLOUR_CODE);
-		assert.match(stripAnsi(ui.frame()), /off/);
-		assert.match(stripAnsi(ui.frame()), /● on ○ off ◐ partial/);
+		assert.doesNotMatch(ui.frame()!, COLOUR_CODE);
+		assert.match(stripAnsi(ui.frame()!), /off/);
+		assert.match(stripAnsi(ui.frame()!), /● on ○ off ◐ partial/);
 		await ui.press("5");
 		await ui.until(/\[fake-bad\]/);
-		assert.doesNotMatch(ui.frame(), COLOUR_CODE);
-		assert.match(stripAnsi(ui.frame()), /▲ Warnings/);
+		assert.doesNotMatch(ui.frame()!, COLOUR_CODE);
+		assert.match(stripAnsi(ui.frame()!), /▲ Warnings/);
 	});
 });

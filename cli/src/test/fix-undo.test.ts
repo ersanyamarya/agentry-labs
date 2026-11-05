@@ -1,5 +1,7 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Rule } from "../lib/doctor-rules.js";
+import type { Finding, FixRegistry, RunCommand } from "../lib/types.js";
+import type { Paths } from "../lib/paths.js";
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -12,12 +14,12 @@ import { createPaths } from "../lib/paths.js";
 import { createFixture } from "./helpers/fixture.js";
 
 // Same fake rule as test/fix.test.mjs: target.json is reported while it contains BAD. Never the real home.
-let root;
-let home;
-let configDir;
-let repo;
-let target;
-let paths;
+let root: string;
+let home: string;
+let configDir: string;
+let repo: string;
+let target: string;
+let paths: Paths;
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-undo-")));
 	assert.ok(!root.startsWith(realpathSync(homedir())), "TMPDIR must be outside the home directory");
@@ -35,18 +37,18 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 const original = () => '{\n\t"name": "demo",\n\t"value": "BAD",\n\t"keep": true\n}\n';
 const fixed = () => original().replace("BAD", "GOOD");
-const fakeRule = {
+const fakeRule: Rule = {
 	id: "fake-bad",
 	run: () => (existsSync(target) && readFileSync(target, "utf8").includes("BAD") ? [{ id: "fake-bad", severity: "warning", message: "target.json says BAD", file: target }] : []),
 };
 const now = () => new Date("2026-11-03T10:20:30.456Z");
 const SET = "2026-11-03T10-20-30-456Z";
 
-const replaceFix = (finding) => ({ ruleId: finding.id, file: finding.file, describe: () => "Replace BAD with GOOD", apply: (text) => text.replace("BAD", "GOOD") });
+const replaceFix = (finding: Finding) => ({ ruleId: finding.id, file: finding.file, describe: () => "Replace BAD with GOOD", apply: (text: string | undefined) => (text ?? "").replace("BAD", "GOOD") });
 
 // Runs `agentry fix`'s engine with the given fixes (default: replace BAD) and returns the fix's exit code.
-const applyFix = async ({ fixes = { "fake-bad": replaceFix }, runCommand } = {}) => {
-	const lines = [];
+const applyFix = async ({ fixes = { "fake-bad": replaceFix }, runCommand }: { fixes?: FixRegistry; runCommand?: RunCommand } = {}) => {
+	const lines: string[] = [];
 	const fix = createFix(paths, {
 		out: (line) => lines.push(line),
 		err: (line) => lines.push(line),
@@ -59,9 +61,9 @@ const applyFix = async ({ fixes = { "fake-bad": replaceFix }, runCommand } = {})
 	return fix.run({ path: repo, yes: true });
 };
 
-const undoFixture = ({ tty = false, answers = [] } = {}) => {
-	const lines = [];
-	const asked = [];
+const undoFixture = ({ tty = false, answers = [] }: { tty?: boolean; answers?: boolean[] } = {}) => {
+	const lines: string[] = [];
+	const asked: string[] = [];
 	const undo = createFixUndo(paths, {
 		out: (line) => lines.push(line),
 		err: (line) => lines.push(line),
@@ -118,15 +120,15 @@ describe("round trip", () => {
 describe("missing and symlink kinds", () => {
 	test("a file the fix created is deleted on undo", async () => {
 		const created = join(repo, "created.json");
-		const fixes = {
-			"fake-bad": (finding) => [
+		const fixes: FixRegistry = {
+			"fake-bad": (finding: Finding) => [
 				replaceFix(finding),
 				{ ruleId: finding.id, file: created, describe: () => "Create created.json", apply: () => '{"made": true}\n' },
 			],
 		};
 		assert.equal(await applyFix({ fixes }), 0);
 		assert.equal(readFileSync(created, "utf8"), '{"made": true}\n');
-		assert.equal(manifest().files.find((entry) => entry.kind === "missing").result, "written");
+		assert.equal(manifest().files.find((entry: Record<string, any>) => entry.kind === "missing").result, "written");
 		const { undo } = undoFixture();
 		assert.equal(await undo.run({ yes: true }), 0);
 		assert.equal(existsSync(created), false);
@@ -136,13 +138,13 @@ describe("missing and symlink kinds", () => {
 	test("a broken symlink removed by a command is recreated with its target", async () => {
 		const link = join(repo, "dangling");
 		symlinkSync("/nonexistent/agentry-undo-target", link);
-		const fixes = {
-			"fake-bad": (finding) => [
+		const fixes: FixRegistry = {
+			"fake-bad": (finding: Finding) => [
 				replaceFix(finding),
 				{ ruleId: finding.id, file: link, describe: () => "Prune dangling link", apply: () => ({ command: ["rm", link], cwd: repo }) },
 			],
 		};
-		const runCommand = (argv) => {
+		const runCommand = (argv: string[]) => {
 			rmSync(argv[1]);
 			return { status: 0, stdout: "", stderr: "" };
 		};
@@ -227,8 +229,8 @@ describe("--list and previews", () => {
 	});
 
 	test("command fixes are listed as not undoable, with the masked command", async () => {
-		const fixes = {
-			"fake-bad": (finding) => [
+		const fixes: FixRegistry = {
+			"fake-bad": (finding: Finding) => [
 				replaceFix(finding),
 				{ ruleId: finding.id, file: finding.file, describe: () => "Run the cleaner", apply: () => ({ command: ["cleaner", "--api-key", "sk-abcdef1234567890xyz"], cwd: repo }) },
 			],

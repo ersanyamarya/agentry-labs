@@ -1,15 +1,14 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { existsSync, lstatSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { KEYS, createUi } from "./helpers/tui.js";
 
-let ui;
+let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());
 
 const personal = () => join(ui.fx.configDir, "skills/notes");
-const shelved = (group) => join(ui.fx.configDir, "skill-shelf", group, "notes");
+const shelved = (group: string) => join(ui.fx.configDir, "skill-shelf", group, "notes");
 
 const gotoNotes = () => ui.moveTo(/^>\s+notes/);
 
@@ -23,10 +22,10 @@ describe("shelve from the Skills tab", () => {
 	test("s picks an existing group, previews with a dry run, and y moves the folder; then space toggles it", async () => {
 		await ui.press("s");
 		await ui.until(/choose a group/);
-		assert.match(ui.frame(), /> audit/);
+		assert.match(ui.frame()!, /> audit/);
 		await ui.press(KEYS.down, KEYS.enter);
 		await ui.until(/Shelve preview \(dry run\)/);
-		assert.match(ui.frame(), /would shelve notes into video/);
+		assert.match(ui.frame()!, /would shelve notes into video/);
 		assert.ok(existsSync(personal()), "a preview moves nothing");
 		await ui.press("y");
 		await ui.until(/Shelved notes into video/);
@@ -37,7 +36,7 @@ describe("shelve from the Skills tab", () => {
 		await ui.moveTo(/^>.* video/, KEYS.up);
 		await ui.press(KEYS.enter);
 		await ui.moveTo(/^>\s+notes/);
-		assert.match(ui.frame(), /^>\s+notes\s+shelf\s+~\d+\s+○ off\s+○ off/m);
+		assert.match(ui.frame()!, /^>\s+notes\s+shelf\s+~\d+\s+○ off\s+○ off/m);
 		await ui.press(KEYS.space);
 		await ui.until(/video\/notes on in/);
 		assert.ok(lstatSync(join(ui.fx.repo, ".claude/skills/notes")).isSymbolicLink());
@@ -76,7 +75,7 @@ describe("shelve from the Skills tab", () => {
 		await ui.until(/Refreshed/);
 		await ui.press("s", KEYS.enter);
 		await ui.until(/overwriting/);
-		assert.match(ui.frame(), /Nothing can be applied here/);
+		assert.match(ui.frame()!, /Nothing can be applied here/);
 		await ui.press("y");
 		assert.ok(existsSync(personal()));
 	});
@@ -93,7 +92,7 @@ describe("unshelve and why a row cannot be toggled", () => {
 		await ui.moveTo(/^>\s+ffmpeg-install/);
 		await ui.press("u");
 		await ui.until(/Unshelve preview \(dry run\)/);
-		assert.match(ui.frame(), /would unshelve video\/ffmpeg-install|would unshelve\s+video\/ffmpeg-install/);
+		assert.match(ui.frame()!, /would unshelve video\/ffmpeg-install|would unshelve\s+video\/ffmpeg-install/);
 		await ui.press("y");
 		await ui.until(/Unshelved video\/ffmpeg-install/);
 		assert.ok(existsSync(join(ui.fx.configDir, "skills/ffmpeg-install")));
@@ -107,7 +106,7 @@ describe("unshelve and why a row cannot be toggled", () => {
 		await ui.until(/video\/ffmpeg-install on in/);
 		await ui.press("u");
 		await ui.until(/still linked/);
-		assert.match(ui.frame(), /Nothing can be applied here/);
+		assert.match(ui.frame()!, /Nothing can be applied here/);
 	});
 
 	test("space on personal, project and plugin skills explains instead of doing nothing", async () => {

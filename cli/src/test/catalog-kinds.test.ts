@@ -1,5 +1,5 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -9,14 +9,14 @@ import { createFixture } from "./helpers/fixture.js";
 
 const SECRET = "sk-supersecretvalue1234567890";
 
-let fx;
-let origin;
-const write = (file, text) => {
+let fx: Fixture;
+let origin: string;
+const write = (file: string, text: string) => {
 	mkdirSync(join(file, ".."), { recursive: true });
 	writeFileSync(file, text);
 };
-const commit = (message) => {
-	const git = (...args) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: origin, stdio: "ignore" });
+const commit = (message: string) => {
+	const git = (...args: string[]) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: origin, stdio: "ignore" });
 	git("add", "-A");
 	git("commit", "-q", "-m", message);
 };
@@ -39,8 +39,8 @@ beforeEach(() => {
 });
 afterEach(() => fx.cleanup());
 
-const catalog = (...args) => fx.run(["catalog", ...args], { env: { AGENTRY_CATALOG_REPO: origin } });
-const fetched = (...args) => {
+const catalog = (...args: string[]) => fx.run(["catalog", ...args], { env: { AGENTRY_CATALOG_REPO: origin } });
+const fetched = (...args: string[]) => {
 	catalog("refresh");
 	return catalog(...args);
 };
@@ -51,13 +51,13 @@ describe("catalog kinds", () => {
 		catalog("refresh");
 		const json = JSON.parse(catalog("list", "--json").stdout);
 		assert.deepEqual(
-			json.map((entry) => entry.id),
+			json.map((entry: Record<string, any>) => entry.id),
 			["skill/alpha", "agent/helper", "rule/shared", "rule/style", "claude-md/BASIC_CLAUDE", "mcp/docs", "mcp/shared", "mcp/tool"],
 		);
-		assert.equal(json.find((entry) => entry.id === "rule/style").bundle, "global");
-		assert.equal(json.find((entry) => entry.id === "rule/shared").bundle, "extras");
-		assert.equal(json.find((entry) => entry.id === "mcp/tool").tokens, null);
-		assert.ok(json.every((entry) => !("raw" in entry) && !("source" in entry)), "no raw config in the JSON");
+		assert.equal(json.find((entry: Record<string, any>) => entry.id === "rule/style").bundle, "global");
+		assert.equal(json.find((entry: Record<string, any>) => entry.id === "rule/shared").bundle, "extras");
+		assert.equal(json.find((entry: Record<string, any>) => entry.id === "mcp/tool").tokens, null);
+		assert.ok(json.every((entry: Record<string, any>) => !("raw" in entry) && !("source" in entry)), "no raw config in the JSON");
 		const { stdout } = catalog("list");
 		assert.match(stdout, /^web +alpha +~ *\d+ +not installed$/m);
 		assert.match(stdout, /^global +agent\/helper +~ *\d+ +not installed$/m);
@@ -164,7 +164,7 @@ describe("catalog update", () => {
 		assert.match(stdout, /agent\/helper .*~\/.claude\/agents {2}outdated$/m);
 		assert.match(stdout, /alpha .*shelf\/web {2}outdated$/m);
 		const json = JSON.parse(catalog("list", "--json").stdout);
-		assert.deepEqual(json.filter((entry) => entry.outdated).map((entry) => entry.id), ["skill/alpha", "agent/helper"]);
+		assert.deepEqual(json.filter((entry: Record<string, any>) => entry.outdated).map((entry: Record<string, any>) => entry.id), ["skill/alpha", "agent/helper"]);
 	});
 
 	test("a local edit also shows as outdated, and the preview names the file it will overwrite", () => {
@@ -242,7 +242,7 @@ describe("rules", () => {
 		assert.match(stdout, /^project +CLAUDE.md +~ +40 tokens$/m);
 		assert.match(stdout, /^project +.claude\/rules\/local.md/m);
 		const json = JSON.parse(fx.run(["rules", "list", "--json"]).stdout);
-		assert.deepEqual(json.map((entry) => `${entry.scope}:${entry.kind}`), ["user:claude-md", "user:rule", "user:rule", "project:claude-md", "project:rule"]);
+		assert.deepEqual(json.map((entry: Record<string, any>) => `${entry.scope}:${entry.kind}`), ["user:claude-md", "user:rule", "user:rule", "project:claude-md", "project:rule"]);
 	});
 
 	test("remove previews, then deletes with a copy that backups restore puts back", () => {
@@ -255,7 +255,7 @@ describe("rules", () => {
 		assert.equal(existsSync(join(fx.repo, "CLAUDE.md")), false);
 		const listed = fx.run(["backups", "list"]).stdout;
 		assert.match(listed, /removed\/.*CLAUDE.md_\(project_CLAUDE.md\).*removed CLAUDE.md/);
-		const id = listed.match(/(removed\/\S+)/)[1];
+		const id = listed.match(/(removed\/\S+)/)![1];
 		assert.equal(fx.run(["backups", "restore", id]).status, 0);
 		assert.equal(readFileSync(join(fx.repo, "CLAUDE.md"), "utf8"), "# Project guide\n".repeat(10));
 	});
@@ -347,12 +347,12 @@ describe("catalog update: CLAUDE.md files and MCP servers", () => {
 		catalog("refresh");
 		write(claudeMd(), "# My own notes\n");
 		const json = JSON.parse(catalog("list", "--json").stdout);
-		assert.equal(json.find((entry) => entry.id === "claude-md/BASIC_CLAUDE").installed, undefined);
+		assert.equal(json.find((entry: Record<string, any>) => entry.id === "claude-md/BASIC_CLAUDE").installed, undefined);
 		assert.equal(catalog("update", "claude-md/BASIC_CLAUDE", "--yes").status, 1);
 		assert.equal(readFileSync(claudeMd(), "utf8"), "# My own notes\n");
 	});
 
-	const userServers = (servers) => write(join(fx.configDir, ".claude.json"), `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`);
+	const userServers = (servers: Record<string, unknown>) => write(join(fx.configDir, ".claude.json"), `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`);
 	const servers = () => JSON.parse(readFileSync(join(fx.configDir, ".claude.json"), "utf8")).mcpServers;
 
 	test("MCP: new args and missing env keys go through mcp set, masked; existing env values stay; undo works", () => {

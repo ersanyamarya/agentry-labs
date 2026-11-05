@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -8,7 +7,7 @@ import { KEYS, createUi } from "./helpers/tui.js";
 const SECRET = "abcdef0123456789abcdef0123";
 const HOOKS = { hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: `echo one --token ${SECRET}` }, { type: "command", command: "echo two" }] }] } };
 
-let ui;
+let ui: ReturnType<typeof createUi>;
 beforeEach(async () => {
 	ui = createUi();
 	writeFileSync(join(ui.fx.configDir, "settings.json"), `${JSON.stringify(HOOKS, null, "\t")}\n`);
@@ -20,22 +19,22 @@ beforeEach(async () => {
 afterEach(() => ui.stop());
 
 const settings = () => JSON.parse(readFileSync(join(ui.fx.configDir, "settings.json"), "utf8"));
-const commands = () => settings().hooks?.PreToolUse?.[0]?.hooks.map((hook) => hook.command);
+const commands = () => settings().hooks?.PreToolUse?.[0]?.hooks.map((hook: Record<string, any>) => hook.command);
 
 describe("Hooks tab: turn off, back on, remove", () => {
 	test("the footer offers space, x and e on a settings hook", async () => {
 		await ui.moveTo(/^>\s*PreToolUse/);
 		await ui.until(/space (turn off \(saved\)|off)/);
-		assert.match(ui.frame(), /x remove/);
-		assert.match(ui.frame(), /e (open file|edit)/);
+		assert.match(ui.frame()!, /x remove/);
+		assert.match(ui.frame()!, /e (open file|edit)/);
 	});
 
 	test("space previews with the secret masked; n cancels and changes nothing", async () => {
 		await ui.moveTo(/^>\s*PreToolUse/);
 		await ui.press(KEYS.space);
 		await ui.until(/Turn off hook [0-9a-f]{8} \(preview\)/);
-		assert.match(ui.frame(), /Turn off hook [0-9a-f]{8}: PreToolUse Bash echo one --token <masked>/);
-		assert.doesNotMatch(ui.frame(), new RegExp(SECRET));
+		assert.match(ui.frame()!, /Turn off hook [0-9a-f]{8}: PreToolUse Bash echo one --token <masked>/);
+		assert.doesNotMatch(ui.frame()!, new RegExp(SECRET));
 		await ui.press("n");
 		await ui.until(/Cancelled; nothing changed/);
 		assert.equal(commands().length, 2);
@@ -55,7 +54,7 @@ describe("Hooks tab: turn off, back on, remove", () => {
 		await ui.press("y");
 		await ui.until(/is back on/);
 		assert.equal(commands().length, 2);
-		assert.doesNotMatch(ui.frame(), new RegExp(SECRET));
+		assert.doesNotMatch(ui.frame()!, new RegExp(SECRET));
 	});
 
 	test("x previews and removes; the copy is not parked", async () => {
@@ -65,6 +64,6 @@ describe("Hooks tab: turn off, back on, remove", () => {
 		await ui.press("y");
 		await ui.until(/is removed/);
 		assert.equal(commands().length, 1);
-		assert.doesNotMatch(ui.frame(), /○ off/);
+		assert.doesNotMatch(ui.frame()!, /○ off/);
 	});
 });

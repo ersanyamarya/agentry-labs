@@ -1,11 +1,10 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { KEYS, createUi } from "./helpers/tui.js";
 
-let ui;
+let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());
 
 describe("navigation", () => {
@@ -16,7 +15,7 @@ describe("navigation", () => {
 
 	test("shows the five tabs, then switches with arrows and number keys", async () => {
 		for (const name of ["Skills", "MCP", "Hooks", "Plugins", "Doctor"]) {
-			assert.match(ui.frame(), new RegExp(name));
+			assert.match(ui.frame()!, new RegExp(name));
 		}
 		await ui.press(KEYS.right);
 		await ui.until(/server: demo/);
@@ -24,31 +23,31 @@ describe("navigation", () => {
 		await ui.until(/● on ○ off ◐ partial/);
 		await ui.press("5");
 		await ui.until(/warnings?, \d+ info|errors, \d+ warnings/);
-		assert.match(ui.frame(), /\[fake-bad\]/);
+		assert.match(ui.frame()!, /\[fake-bad\]/);
 	});
 
 	test("moves between rows and shows the selected row's details", async () => {
-		assert.match(ui.frame(), />▸ audit/);
+		assert.match(ui.frame()!, />▸ audit/);
 		await ui.press(KEYS.down);
-		assert.match(ui.frame(), />▸ video/);
-		assert.match(ui.frame(), /shelf group: video/);
+		assert.match(ui.frame()!, />▸ video/);
+		assert.match(ui.frame()!, /shelf group: video/);
 		await ui.press(KEYS.up);
-		assert.match(ui.frame(), /shelf group: audit/);
+		assert.match(ui.frame()!, /shelf group: audit/);
 	});
 
 	test("? opens the key map and esc closes it", async () => {
 		await ui.press("?");
 		await ui.until(/Keys \(\? or esc to close\)/);
-		assert.match(ui.frame(), /switch project/);
+		assert.match(ui.frame()!, /switch project/);
 		await ui.press(KEYS.esc);
 		await ui.until(/● on ○ off ◐ partial/);
-		assert.doesNotMatch(ui.frame(), /Keys \(/);
+		assert.doesNotMatch(ui.frame()!, /Keys \(/);
 	});
 
 	test("the project picker lists the current repo and remembers the pick", async () => {
 		await ui.press("p");
 		await ui.until(/Project \(enter select/);
-		assert.match(ui.frame(), /repo {2}\(current\)/);
+		assert.match(ui.frame()!, /repo {2}\(current\)/);
 		await ui.press(KEYS.enter);
 		await ui.until(/Project: .*repo/);
 		const saved = JSON.parse(readFileSync(join(ui.fx.configDir, "cache/agentry/ui.json"), "utf8"));
@@ -65,7 +64,7 @@ describe("skills tab", () => {
 	test("shows the same token cost as agentry shelf list", async () => {
 		const listed = ui.fx.run(["shelf", "list"]).stdout;
 		assert.match(listed, /video .*~10 tokens/);
-		assert.match(ui.frame(), /video\s+2 skills\s+~10\s+○ off\s+○ off/);
+		assert.match(ui.frame()!, /video\s+2 skills\s+~10\s+○ off\s+○ off/);
 	});
 
 	test("space toggles a row in this project, G toggles it globally, and enter expands the group", async () => {
@@ -96,7 +95,7 @@ describe("skills tab", () => {
 describe("source files and secrets", () => {
 	test("e without $EDITOR says so and runs nothing", async () => {
 		let spawned = false;
-		ui = createUi({ env: {}, spawn: () => (spawned = true) });
+		ui = createUi({ env: {}, spawn: () => ((spawned = true), { status: 0 }) });
 		await ui.ready();
 		await ui.press("2");
 		await ui.until(/server: demo/);
@@ -106,7 +105,7 @@ describe("source files and secrets", () => {
 	});
 
 	test("e with $EDITOR hands the terminal over: raw mode off, inherited stdio, file path appended", async () => {
-		const calls = [];
+		const calls: { command: string; args: string[]; options: { stdio: string } }[] = [];
 		ui = createUi({ env: { EDITOR: "myedit -w" }, spawn: (command, args, options) => (calls.push({ command, args, options }), { status: 0 }) });
 		await ui.ready();
 		await ui.press("2");
@@ -124,8 +123,8 @@ describe("source files and secrets", () => {
 		await ui.ready();
 		await ui.press("2");
 		await ui.until(/server: demo/);
-		assert.match(ui.frame(), /env API_KEY=<masked>/);
-		assert.doesNotMatch(ui.frame(), /supersecret/);
+		assert.match(ui.frame()!, /env API_KEY=<masked>/);
+		assert.doesNotMatch(ui.frame()!, /supersecret/);
 	});
 });
 
@@ -143,9 +142,9 @@ describe("doctor tab: fix and undo", () => {
 	test("enter previews the diff and n cancels without writing anything", async () => {
 		await ui.press(KEYS.enter);
 		await ui.until(/Fix preview \(dry run\)/);
-		assert.match(ui.frame(), /-\s+"value": "BAD"/);
-		assert.match(ui.frame(), /\+\s+"value": "GOOD"/);
-		assert.match(ui.frame(), /Apply this\? y = yes, n = cancel/);
+		assert.match(ui.frame()!, /-\s+"value": "BAD"/);
+		assert.match(ui.frame()!, /\+\s+"value": "GOOD"/);
+		assert.match(ui.frame()!, /Apply this\? y = yes, n = cancel/);
 		await ui.press("n");
 		await ui.until(/Cancelled; nothing written/);
 		assert.match(text(), /BAD/);
@@ -158,7 +157,7 @@ describe("doctor tab: fix and undo", () => {
 		await ui.press("u", "5", KEYS.enter, KEYS.space, KEYS.right);
 		assert.match(text(), /BAD/);
 		assert.deepEqual(backups(), []);
-		assert.match(ui.frame(), /Fix preview/);
+		assert.match(ui.frame()!, /Fix preview/);
 	});
 
 	test("y applies through the engine: backup, write, verify; then u and y undo it", async () => {
@@ -185,7 +184,7 @@ describe("doctor tab: fix and undo", () => {
 		await ui.until(/>  ℹ \[fake-nofix\]/);
 		await ui.press(KEYS.enter);
 		await ui.until(/Nothing can be applied here/);
-		assert.match(ui.frame(), /No automatic fix is registered/);
+		assert.match(ui.frame()!, /No automatic fix is registered/);
 		await ui.press("y");
 		assert.match(text(), /BAD/);
 		assert.deepEqual(backups(), []);

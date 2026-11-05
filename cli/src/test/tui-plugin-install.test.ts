@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -6,9 +5,9 @@ import { afterEach, beforeEach, describe, test } from "node:test";
 import { installFakeClaude } from "./helpers/fake-claude.js";
 import { KEYS, createUi } from "./helpers/tui.js";
 
-let ui;
-let fake;
-let oldPath;
+let ui: ReturnType<typeof createUi>;
+let fake: ReturnType<typeof installFakeClaude>;
+let oldPath: string | undefined;
 const ON = '{\n\t"enabledPlugins": {\n\t\t"demo@mkt": true\n\t}\n}\n';
 beforeEach(async () => {
 	ui = createUi({ plugin: { settingsText: ON } });
@@ -30,14 +29,14 @@ const enabled = () => JSON.parse(readFileSync(join(ui.fx.configDir, "settings.js
 
 describe("Plugins tab: install and uninstall", () => {
 	test("the footer offers i install and x uninstall", () => {
-		assert.match(ui.frame(), /i install/);
-		assert.match(ui.frame(), /x uninstall/);
+		assert.match(ui.frame()!, /i install/);
+		assert.match(ui.frame()!, /x uninstall/);
 	});
 
 	test("x previews the claude command, n cancels with nothing run, y uninstalls and the row goes", async () => {
 		await ui.press("x");
 		await ui.until(/Uninstall demo@mkt at user scope \(preview\)/);
-		assert.match(ui.frame(), /run: claude plugin uninstall demo@mkt --scope user/);
+		assert.match(ui.frame()!, /run: claude plugin uninstall demo@mkt --scope user/);
 		assert.deepEqual(fake.argv(), []);
 		await ui.press("n");
 		await ui.until(/Cancelled; nothing changed/);
@@ -64,7 +63,7 @@ describe("Plugins tab: install and uninstall", () => {
 		await ui.until(/Where should it be installed/);
 		await ui.press(KEYS.enter);
 		await ui.until(/Install other@mkt at user scope \(preview\)/);
-		assert.match(ui.frame(), /run: claude plugin install other@mkt --scope user/);
+		assert.match(ui.frame()!, /run: claude plugin install other@mkt --scope user/);
 		assert.deepEqual(fake.argv(), []);
 		await ui.press("y");
 		await ui.until(/other@mkt is installed at user scope/);

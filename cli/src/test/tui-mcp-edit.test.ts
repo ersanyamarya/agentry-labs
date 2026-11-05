@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -9,9 +8,9 @@ import { KEYS, createUi } from "./helpers/tui.js";
 const SECRET = "sk-supersecretvalue1234567890";
 const USER_SERVER = { type: "stdio", command: "echo", args: ["hi"], env: { API_KEY: SECRET } };
 
-let ui;
-let oldPath;
-let fake;
+let ui: ReturnType<typeof createUi>;
+let oldPath: string | undefined;
+let fake: ReturnType<typeof installFakeClaude>;
 beforeEach(async () => {
 	ui = createUi();
 	fake = installFakeClaude(join(ui.fx.root, "fakebin"));
@@ -31,7 +30,7 @@ afterEach(() => {
 });
 
 const servers = () => JSON.parse(readFileSync(join(ui.fx.configDir, ".claude.json"), "utf8")).mcpServers;
-const type = async (text) => {
+const type = async (text: string) => {
 	for (const char of text) {
 		await ui.press(char);
 	}
@@ -55,8 +54,8 @@ describe("MCP tab: a adds a server, s edits env/args", () => {
 		await ui.until(/user \(claude mcp add-json/);
 		await ui.press(KEYS.enter);
 		await ui.until(/Add files \(preview\)/);
-		assert.match(ui.frame(), /env FILES_TOKEN=<masked>/);
-		assert.doesNotMatch(ui.frame(), new RegExp(SECRET));
+		assert.match(ui.frame()!, /env FILES_TOKEN=<masked>/);
+		assert.doesNotMatch(ui.frame()!, new RegExp(SECRET));
 		assert.deepEqual(fake.argv(), []);
 		await ui.press("y");
 		await ui.until(/files is added/);
@@ -96,13 +95,13 @@ describe("MCP tab: a adds a server, s edits env/args", () => {
 		await ui.press("s");
 		await ui.until(/Env changes:/);
 		await type(`API_KEY=sk-newvalue0987654321abcd EXTRA=1`);
-		assert.doesNotMatch(ui.frame(), /sk-newvalue/);
+		assert.doesNotMatch(ui.frame()!, /sk-newvalue/);
 		await ui.press(KEYS.enter);
 		await ui.until(/New args:/);
 		await type("-v");
 		await ui.press(KEYS.enter);
 		await ui.until(/Edit userdemo \(preview\)/);
-		assert.doesNotMatch(ui.frame(), /sk-newvalue|sk-supersecret/);
+		assert.doesNotMatch(ui.frame()!, /sk-newvalue|sk-supersecret/);
 		await ui.press("y");
 		await ui.until(/userdemo is updated/);
 		assert.deepEqual(servers().userdemo, { type: "stdio", command: "echo", args: ["-v"], env: { API_KEY: "sk-newvalue0987654321abcd", EXTRA: "1" } });

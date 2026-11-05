@@ -1,5 +1,5 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { McpResult } from "../lib/inventory/mcp.js";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -10,11 +10,11 @@ import { maskArgs, maskHeader, maskUrl, maskValue } from "../lib/mask.js";
 import { createPaths } from "../lib/paths.js";
 
 // Layout: <root>/home/.claude (config), <root>/home/ws/repo (git repo), so the .mcp.json walk passes through ~.
-let root;
-let home;
-let configDir;
-let ws;
-let repo;
+let root: string;
+let home: string;
+let configDir: string;
+let ws: string;
+let repo: string;
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-mcp-")));
 	// The .mcp.json walk reads every parent of the fixture, so it must not run under the real home.
@@ -29,15 +29,15 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const writeJson = (file, value) => {
+const writeJson = (file: string, value: unknown) => {
 	mkdirSync(dirname(file), { recursive: true });
 	writeFileSync(file, JSON.stringify(value));
 };
-const claudeJson = (value) => writeJson(join(configDir, ".claude.json"), value);
-const reader = ({ platform = "linux", env = {} } = {}) => createMcpReader(createPaths({ env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir, ...env } }), { platform });
-const read = (cwd = repo, options) => reader(options).read({ cwd });
-const byName = (result, name) => result.servers.filter((server) => server.name === name);
-const one = (result, name) => {
+const claudeJson = (value: unknown) => writeJson(join(configDir, ".claude.json"), value);
+const reader = ({ platform = "linux", env = {} }: { platform?: NodeJS.Platform; env?: NodeJS.ProcessEnv } = {}) => createMcpReader(createPaths({ env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir, ...env } }), { platform });
+const read = (cwd = repo, options?: { platform?: NodeJS.Platform; env?: NodeJS.ProcessEnv }) => reader(options).read({ cwd });
+const byName = (result: McpResult, name: string) => result.servers.filter((server: Record<string, any>) => server.name === name);
+const one = (result: McpResult, name: string) => {
 	const [server, ...rest] = byName(result, name);
 	assert.equal(rest.length, 0, `one ${name}`);
 	return server;
@@ -123,12 +123,12 @@ describe("MCP reader: .mcp.json", () => {
 		assert.equal(inner.state, "pending-approval");
 		assert.equal(outer.state, "shadowed");
 		assert.deepEqual(outer.shadowedBy, { name: "s", scope: "project", source: join(repo, ".mcp.json") });
-		assert.deepEqual(byName(result, "top").map((s) => [s.scope, s.state]), [["local", "active"], ["user", "shadowed"]]);
+		assert.deepEqual(byName(result, "top").map((s: Record<string, any>) => [s.scope, s.state]), [["local", "active"], ["user", "shadowed"]]);
 
 		// An unapproved project entry leaves the user entry loading; an approved one shadows it.
-		assert.deepEqual(byName(result, "both").map((s) => [s.scope, s.state]), [["project", "pending-approval"], ["user", "active"]]);
+		assert.deepEqual(byName(result, "both").map((s: Record<string, any>) => [s.scope, s.state]), [["project", "pending-approval"], ["user", "active"]]);
 		writeJson(join(configDir, "settings.json"), { enableAllProjectMcpServers: true });
-		assert.deepEqual(byName(read(), "both").map((s) => [s.scope, s.state]), [["project", "active"], ["user", "shadowed"]]);
+		assert.deepEqual(byName(read(), "both").map((s: Record<string, any>) => [s.scope, s.state]), [["project", "active"], ["user", "shadowed"]]);
 	});
 
 	test("approval: pending by default, enableAllProjectMcpServers in user settings, project approvals only when trusted, rejections", () => {
@@ -157,15 +157,15 @@ describe("MCP reader: .mcp.json", () => {
 });
 
 describe("MCP reader: plugins", () => {
-	let installed;
+	let installed: Record<string, unknown>;
 	beforeEach(() => {
 		installed = {};
 	});
-	const install = (id, entries) => {
+	const install = (id: string, entries: Record<string, unknown>[]) => {
 		installed[id] = entries;
 		writeJson(join(configDir, "plugins", "installed_plugins.json"), { version: 2, plugins: installed });
 	};
-	const pluginRoot = (name) => join(configDir, "plugins", "cache", "mk", name, "1.0.0");
+	const pluginRoot = (name: string) => join(configDir, "plugins", "cache", "mk", name, "1.0.0");
 
 	test("reads inline plugin.json servers, the plugin's .mcp.json and manifest paths, with ${CLAUDE_PLUGIN_ROOT} expanded", () => {
 		const dir = pluginRoot("tools");
@@ -213,7 +213,7 @@ describe("MCP reader: plugins", () => {
 		claudeJson({ mcpServers: { "context-mode": { command: "npx", args: ["ctx-mode"] } } });
 		const plugin = one(read(), "plugin:ctx:ctx");
 		assert.equal(plugin.state, "shadowed");
-		assert.equal(plugin.shadowedBy.name, "context-mode");
+		assert.equal(plugin.shadowedBy!.name, "context-mode");
 	});
 });
 

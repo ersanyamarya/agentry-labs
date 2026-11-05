@@ -35,7 +35,7 @@ Remember, before writing any code:
 ├── claude-md-files/     # Reusable Claude Code project guidance
 │   └── BASIC_CLAUDE.md
 ├── rules/               # commit-attribution, context7
-├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs
+├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs; hooks/ holds hook scripts it copies to ~/.claude/hooks (prefer-trail.mjs: denies grep/cat/find on source in trail-indexed repos, `# no-trail: <why>` overrides)
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
 ├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
 ├── bin/                 # agentry CLI entry and command router (shelf, plugin, mcp, status, doctor, scan, fix, ui)

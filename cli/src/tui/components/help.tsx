@@ -1,10 +1,6 @@
-// @ts-nocheck
-import React from "react";
 import { Box, Text } from "ink";
 
-const h = React.createElement;
-
-export const KEYS = [
+export const KEYS: [string, string][] = [
 	["← / →, 1-8", "switch tab"],
 	["↑ / ↓", "move between rows"],
 	["enter", "details, expand a group, preview a fix"],
@@ -30,13 +26,17 @@ export const KEYS = [
 	["q", "quit"],
 ];
 
-export const Help = () =>
-	h(
-		Box,
-		{ flexDirection: "column", borderStyle: "round", paddingX: 1 },
-		h(Text, { bold: true }, "Keys (? or esc to close)"),
-		...KEYS.map(([key, what]) => h(Text, { key, wrap: "truncate-end" }, h(Text, { bold: true }, key.padEnd(12)), h(Text, null, ` ${what}`))),
-		h(Text, null, " "),
-		h(Text, { dimColor: true }, "● on / active green, ○ off / disabled gray, ◐ partial yellow. Cost: dim < 100, yellow < 500, red 500+."),
-		h(Text, { dimColor: true }, "* marks a row. Skills > Token total: description tokens per global, this project, plugins. No colour: set NO_COLOR. Plugin changes apply to new sessions (undo: agentry fix --undo)."),
-	);
+export const Help = () => (
+	<Box flexDirection="column" borderStyle="round" paddingX={1}>
+		<Text bold>{"Keys (? or esc to close)"}</Text>
+		{KEYS.map(([key, what], index) => (
+			<Text key={`${key}:${index}`} wrap="truncate-end">
+				<Text bold>{key.padEnd(12)}</Text>
+				<Text>{` ${what}`}</Text>
+			</Text>
+		))}
+		<Text>{" "}</Text>
+		<Text dimColor>{"● on / active green, ○ off / disabled gray, ◐ partial yellow. Cost: dim < 100, yellow < 500, red 500+."}</Text>
+		<Text dimColor>{"* marks a row. Skills > Token total: description tokens per global, this project, plugins. No colour: set NO_COLOR. Plugin changes apply to new sessions (undo: agentry fix --undo)."}</Text>
+	</Box>
+);

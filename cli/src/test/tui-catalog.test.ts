@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
@@ -7,8 +6,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { KEYS, createUi } from "./helpers/tui.js";
 
-let ui;
-let origin;
+let ui: ReturnType<typeof createUi>;
+let origin: string;
 beforeEach(async () => {
 	origin = mkdtempSync(join(tmpdir(), "agentry-origin-"));
 	for (const name of ["alpha", "beta"]) {
@@ -16,7 +15,7 @@ beforeEach(async () => {
 		writeFileSync(join(origin, "skills", name, "SKILL.md"), `---\nname: ${name}\ndescription: ${name} does a thing\n---\n`);
 	}
 	writeFileSync(join(origin, "bundles.tsv"), "web\tskills/alpha\nweb\tskills/beta\n");
-	const git = (...args) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: origin, stdio: "ignore" });
+	const git = (...args: string[]) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: origin, stdio: "ignore" });
 	git("init", "-q");
 	git("add", "-A");
 	git("commit", "-q", "-m", "init");
@@ -29,11 +28,11 @@ describe("Catalog tab", () => {
 	test("says it is not fetched, then f fetches and lists the skills by bundle", async () => {
 		await ui.press("6");
 		await ui.until(/catalog not fetched/);
-		assert.match(ui.frame(), /f fetch catalog/);
+		assert.match(ui.frame()!, /f fetch catalog/);
 		await ui.press("f");
 		await ui.until(/web bundle/);
-		assert.match(ui.frame(), /alpha\s+~\d+\s+not installed/);
-		assert.match(ui.frame(), /Catalog \(2\)/);
+		assert.match(ui.frame()!, /alpha\s+~\d+\s+not installed/);
+		assert.match(ui.frame()!, /Catalog \(2\)/);
 	});
 
 	test("i previews and y adds the skill to the shelf, off; it then shows where it is", async () => {
@@ -42,7 +41,7 @@ describe("Catalog tab", () => {
 		await ui.moveTo(/^>\s+alpha/);
 		await ui.press("i");
 		await ui.until(/Add alpha to the shelf \(preview\)/);
-		assert.match(ui.frame(), /would add alpha to shelf group web/);
+		assert.match(ui.frame()!, /would add alpha to shelf group web/);
 		assert.ok(!existsSync(join(ui.fx.configDir, "skill-shelf/web")), "a preview copies nothing");
 		await ui.press("y");
 		await ui.until(/Added alpha to the shelf, off/);
@@ -71,7 +70,7 @@ describe("Catalog tab", () => {
 describe("remove from the Skills tab", () => {
 	test("x on a global skill previews, n cancels, y deletes with a copy kept", async () => {
 		await ui.moveTo(/^>\s+notes/);
-		assert.match(ui.frame(), /x remove/);
+		assert.match(ui.frame()!, /x remove/);
 		await ui.press("x");
 		await ui.until(/Remove notes \(global\) \(preview\)/);
 		await ui.press("n");

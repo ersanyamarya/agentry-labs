@@ -1,13 +1,13 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createFixture } from "./helpers/fixture.js";
 
-let fx;
-let origin;
+let fx: Fixture;
+let origin: string;
 beforeEach(() => {
 	fx = createFixture();
 	// A local git repo stands in for github: two bundled skills and one in no bundle.
@@ -17,14 +17,14 @@ beforeEach(() => {
 		writeFileSync(join(origin, "skills", name, "SKILL.md"), `---\nname: ${name}\ndescription: ${description}\n---\n`);
 	}
 	writeFileSync(join(origin, "bundles.tsv"), "# comment\nweb\tskills/alpha\nweb\tskills/beta\n");
-	const git = (...args) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: origin, stdio: "ignore" });
+	const git = (...args: string[]) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: origin, stdio: "ignore" });
 	git("init", "-q");
 	git("add", "-A");
 	git("commit", "-q", "-m", "init");
 });
 afterEach(() => fx.cleanup());
 
-const catalog = (...args) => fx.run(["catalog", ...args], { env: { AGENTRY_CATALOG_REPO: origin } });
+const catalog = (...args: string[]) => fx.run(["catalog", ...args], { env: { AGENTRY_CATALOG_REPO: origin } });
 
 describe("catalog", () => {
 	test("list before refresh says to fetch", () => {
@@ -39,7 +39,7 @@ describe("catalog", () => {
 		assert.match(stdout, /^extras +loose +~ *\d+ +not installed$/m);
 		assert.match(stdout, /^web +alpha +~ *\d+ +not installed$/m);
 		const json = JSON.parse(catalog("list", "--json").stdout);
-		assert.deepEqual(json.map((skill) => [skill.name, skill.bundle]), [["loose", "extras"], ["alpha", "web"], ["beta", "web"]]);
+		assert.deepEqual(json.map((skill: Record<string, any>) => [skill.name, skill.bundle]), [["loose", "extras"], ["alpha", "web"], ["beta", "web"]]);
 	});
 
 	test("add copies onto the shelf under the bundle, off; dry run writes nothing; no overwrite", () => {

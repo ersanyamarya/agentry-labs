@@ -1,4 +1,3 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
@@ -9,7 +8,7 @@ import { test } from "node:test";
 
 // dist/test -> the package root (cli/), so the copy keeps the dist/ layout that packageVersion() relies on.
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const agentry = (dir, args, options = {}) =>
+const agentry = (dir: string, args: string[], options = {}) =>
 	spawnSync(process.execPath, [join(dir, "dist/bin/agentry.js"), ...args], { encoding: "utf8", ...options });
 
 test("help runs without node_modules, so Ink and React are never loaded for it", () => {

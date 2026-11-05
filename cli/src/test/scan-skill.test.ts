@@ -1,5 +1,5 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Paths } from "../lib/paths.js";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -11,10 +11,10 @@ import { createScan } from "../lib/scan.js";
 import { createFixture } from "./helpers/fixture.js";
 
 // ws/{tracked,loose,link,none} are repos; the first three have .claude/skills/old, `tracked` has it committed.
-let root;
-let ws;
-let paths;
-let lines;
+let root: string;
+let ws: string;
+let paths: Paths;
+let lines: string[];
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-findskill-")));
 	assert.ok(!root.startsWith(realpathSync(homedir())), "TMPDIR must be outside the home directory");
@@ -24,7 +24,7 @@ beforeEach(() => {
 		mkdirSync(join(ws, name), { recursive: true });
 		execFileSync("git", ["init", "-q"], { cwd: join(ws, name) });
 	}
-	const put = (file) => {
+	const put = (file: string) => {
 		mkdirSync(dirname(file), { recursive: true });
 		writeFileSync(file, "x");
 	};
@@ -55,7 +55,7 @@ describe("scan --find-skill", () => {
 	test("--json and a name nothing has", () => {
 		scan().runFindSkill({ roots: [ws], name: "old", json: true });
 		const data = JSON.parse(text());
-		assert.deepEqual(data.hits.map((hit) => [hit.tracked, hit.link]).sort(), [[false, false], [false, true], [true, false]]);
+		assert.deepEqual(data.hits.map((hit: Record<string, any>) => [hit.tracked, hit.link]).sort(), [[false, false], [false, true], [true, false]]);
 		lines = [];
 		scan().runFindSkill({ roots: [ws], name: "ghost" });
 		assert.match(text(), /No project under .* has \.claude\/skills\/ghost/);

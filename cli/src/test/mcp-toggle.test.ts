@@ -1,5 +1,5 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
@@ -10,9 +10,9 @@ const SECRET = "sk-supersecretvalue1234567890";
 const DEMO = { type: "stdio", command: "echo", args: ["hi"], env: { API_KEY: SECRET } };
 const OTHER = { type: "http", url: "https://example.com/mcp", headers: { Authorization: "Bearer tok-abcdefghijklmnopqrstuvwxyz1" } };
 
-let fx;
-let fake;
-let extra;
+let fx: Fixture;
+let fake: ReturnType<typeof installFakeClaude>;
+let extra: NodeJS.ProcessEnv;
 beforeEach(() => {
 	fx = createFixture();
 	fake = installFakeClaude(join(fx.root, "fakebin"));
@@ -25,7 +25,7 @@ const claudeJson = () => join(fx.configDir, ".claude.json");
 const servers = () => JSON.parse(readFileSync(claudeJson(), "utf8")).mcpServers;
 const parkedFile = () => join(fx.configDir, "agentry/parked-mcp.json");
 const backups = () => (existsSync(join(fx.configDir, "backups/agentry")) ? readdirSync(join(fx.configDir, "backups/agentry")) : []);
-const mcp = (args, env = {}) => fx.run(["mcp", ...args], { env: { ...extra, ...env } });
+const mcp = (args: string[], env = {}) => fx.run(["mcp", ...args], { env: { ...extra, ...env } });
 
 describe("agentry mcp disable", () => {
 	test("--dry-run previews with secrets masked, runs nothing, writes nothing", () => {
@@ -131,11 +131,11 @@ describe("refusals and usage", () => {
 		const off = mcp(["disable", "fromrepo", "--yes"]);
 		assert.equal(off.status, 0, off.stderr);
 		const projects = JSON.parse(readFileSync(claudeJson(), "utf8")).projects;
-		assert.deepEqual(Object.values(projects).map((project) => project.disabledMcpServers), [["fromrepo"]]);
+		assert.deepEqual(Object.values<Record<string, any>>(projects).map((project: Record<string, any>) => project.disabledMcpServers), [["fromrepo"]]);
 		assert.equal(mcp(["disable", "fromrepo", "--yes"]).status, 0);
 		const on = mcp(["enable", "fromrepo", "--yes"]);
 		assert.equal(on.status, 0, on.stderr);
-		assert.deepEqual(Object.values(JSON.parse(readFileSync(claudeJson(), "utf8")).projects).map((project) => project.disabledMcpServers), [[]]);
+		assert.deepEqual(Object.values<Record<string, any>>(JSON.parse(readFileSync(claudeJson(), "utf8")).projects).map((project: Record<string, any>) => project.disabledMcpServers), [[]]);
 		assert.deepEqual(fake.argv(), []);
 	});
 

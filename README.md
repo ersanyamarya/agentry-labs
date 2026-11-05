@@ -86,6 +86,8 @@ node scripts/apply-global.mjs          # prints the plan
 node scripts/apply-global.mjs --write  # applies it and saves backups
 ```
 
+The merge also installs `global/hooks/prefer-trail.mjs` into `~/.claude/hooks`. In a repo indexed by trail (a `graft/` or `.trail/` folder) it denies `grep`, `rg`, `find`, `cat`, `head`, `tail`, `Grep`, `Glob` and a first whole-file `Read` of source, and names the trail tool to use. End a Bash command with `# no-trail: <why>` to run it anyway (logged to `~/.claude/trail-bypass.log`); `PREFER_TRAIL=off` disables it.
+
 The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (export it from your shell profile; the desktop app does not read shell rc files). Compare skill copies across projects with `node scripts/skill-drift.mjs`.
 
 ### Skill shelf
@@ -263,7 +265,7 @@ space project  g global  enter expand  │ ←→ tabs  ? help  q quit
 - `agents/`: agent definitions
 - `rules/`: commit-attribution and context7 rules
 - `claude-md-files/`: reusable CLAUDE.md templates
-- `global/`: settings fragment and MCP config merged by `scripts/apply-global.mjs`
+- `global/`: settings fragment and MCP config merged by `scripts/apply-global.mjs`, plus `hooks/` scripts it copies to `~/.claude/hooks`
 - `scripts/`: installer, global-settings merge, skill drift check and the README cover generator
 - `bin/`: the `agentry` command entry and router
 - `lib/`: the CLI modules (paths, shelf, catalog, status, doctor, scan, fix, tokens, inventory)

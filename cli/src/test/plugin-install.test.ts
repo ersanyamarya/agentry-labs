@@ -1,14 +1,14 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { installFakeClaude } from "./helpers/fake-claude.js";
 import { addPlugin, createFixture } from "./helpers/fixture.js";
 
-let fx;
-let fake;
-let extra;
+let fx: Fixture;
+let fake: ReturnType<typeof installFakeClaude>;
+let extra: NodeJS.ProcessEnv;
 beforeEach(() => {
 	fx = createFixture();
 	fake = installFakeClaude(join(fx.root, "fakebin"));
@@ -16,7 +16,7 @@ beforeEach(() => {
 });
 afterEach(() => fx.cleanup());
 
-const plugin = (args) => fx.run(["plugin", ...args], { env: extra });
+const plugin = (args: string[]) => fx.run(["plugin", ...args], { env: extra });
 const settings = () => join(fx.configDir, "settings.json");
 const enabled = () => JSON.parse(readFileSync(settings(), "utf8")).enabledPlugins;
 const backups = () => (existsSync(join(fx.configDir, "backups/agentry")) ? 1 : 0);

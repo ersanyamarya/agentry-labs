@@ -1,9 +1,15 @@
-// @ts-nocheck
 // Confirm step for turning off a user-scope MCP server or adding a parked one back. The preview is lib/mcp-toggle.mjs's dry
 // run (secrets masked); nothing changes until y. `agentry fix --undo` restores ~/.claude.json afterwards.
 
-export const startMcpToggle = async ({ api, dir, flow, row }) => {
-	const { mcp: name, mcpEnable: enable } = row;
+import type { Step, useFlow } from "./use-flow.js";
+import type { Api, Row } from "./types.js";
+
+type Flow = ReturnType<typeof useFlow>;
+type Ctx = { api: Api; dir: string; flow: Flow };
+
+export const startMcpToggle = async ({ api, dir, flow, row }: Ctx & { row: Row }) => {
+	const name = row.mcp!;
+	const enable = row.mcpEnable!;
 	const preview = await api.previewMcp({ dir, name, enable });
 	flow.begin({
 		kind: "confirm",
@@ -16,8 +22,8 @@ export const startMcpToggle = async ({ api, dir, flow, row }) => {
 };
 
 // Confirm step for deleting an MCP server for good (user, local or project .mcp.json scope, or a parked copy).
-export const startMcpRemove = async ({ api, dir, flow, row }) => {
-	const name = row.mcp;
+export const startMcpRemove = async ({ api, dir, flow, row }: Ctx & { row: Row }) => {
+	const name = row.mcp!;
 	const preview = await api.previewMcpRemove({ dir, name });
 	flow.begin({
 		kind: "confirm",
@@ -30,14 +36,15 @@ export const startMcpRemove = async ({ api, dir, flow, row }) => {
 };
 
 // Typed text shows its secrets as ****: everything after an "=" or a ":" up to the next separator.
-const hideValues = (text) => text.replace(/([=:])[^\s;]*/g, "$1****");
-const words = (text) => text.split(/\s+/).filter(Boolean);
-const failed = (text) => ({ kind: "result", ok: false, text });
+const hideValues = (text: string) => text.replace(/([=:])[^\s;]*/g, "$1****");
+const words = (text: string) => text.split(/\s+/).filter(Boolean);
+const failed = (text: string): Step => ({ kind: "result", ok: false, text });
 
 // Add form: name → command or url → env or headers → scope → masked preview → y. Typing is plain text split on spaces
 // (headers on ";"), so arguments with spaces need `agentry mcp add` instead.
-export const startMcpAdd = ({ api, dir, flow }) => {
-	const finish = (config) => (scope) => {
+export const startMcpAdd = ({ api, dir, flow }: Ctx) => {
+	type AddConfig = { name: string; rest: { command: string | undefined; args: string[]; env: string[] } | { url: string; headers: string[] } };
+	const finish = (config: AddConfig) => (scope: string): Promise<Step> => {
 		const args = { dir, name: config.name, scope: scope.split(" ")[0], ...config.rest };
 		return api.previewMcpAdd(args).then((preview) => ({
 			kind: "confirm",
@@ -48,7 +55,7 @@ export const startMcpAdd = ({ api, dir, flow }) => {
 			done: `${config.name} is added. Applies to new sessions; undo with agentry fix --undo.`,
 		}));
 	};
-	const scopeStep = (config) => ({ kind: "pick", title: `Add ${config.name}: scope`, intro: ["Where should the server live?"], options: ["user (claude mcp add-json, every project)", "project (this repo's .mcp.json)"], onPick: finish(config) });
+	const scopeStep = (config: AddConfig): Step => ({ kind: "pick", title: `Add ${config.name}: scope`, intro: ["Where should the server live?"], options: ["user (claude mcp add-json, every project)", "project (this repo's .mcp.json)"], onPick: finish(config) });
 	flow.begin({
 		kind: "name",
 		title: "Add MCP server",
@@ -73,8 +80,8 @@ export const startMcpAdd = ({ api, dir, flow }) => {
 };
 
 // Edit form for a user server: env changes, then new args; blank keeps. Preview is the engine's masked diff.
-export const startMcpSet = ({ api, dir, flow, row }) => {
-	const name = row.mcp;
+export const startMcpSet = ({ api, dir, flow, row }: Ctx & { row: Row }) => {
+	const name = row.mcp!;
 	flow.begin({
 		kind: "name",
 		title: `Edit ${name}: env`,

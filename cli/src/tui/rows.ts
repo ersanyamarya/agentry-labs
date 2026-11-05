@@ -1,29 +1,32 @@
-// @ts-nocheck
 // Turns lib data into list rows: { id, label, segments?, note?, details[], file?, header?, kind?, ... }. Pure, so tabs
 // and tests share it. `segments` ([{ text, style }], see theme.mjs) is the coloured right-hand side of a row and `note`
 // is the same text without colour. Everything shown here already passed through lib/mask.mjs (the inventory readers
 // mask before returning).
 
 import { formatAge, formatBytes } from "../lib/backups.js";
-import { badgeText, costStyle, plain, SCOPE_NAMES, scopeStyle, seg, SEVERITY, stateStyle } from "./theme.js";
+import type { CatalogEntry } from "../lib/catalog.js";
+import type { SkillItem } from "../lib/types.js";
 
-const tokens = (count) => (count === null || count === undefined ? "-" : `~${count}`);
+type Skill = SkillItem;
+import { badgeText, costStyle, SCOPE_NAMES, scopeStyle, seg, SEVERITY, stateStyle } from "./theme.js";
+import type { Cell, Data, KeyHint, Row, Seg, Style } from "./types.js";
 
-const DIM = { dimColor: true };
-const cost = (count) => seg(tokens(count), costStyle(count));
-const badge = (text) => seg(badgeText(text), { ...stateStyle(text), bold: true });
-const scopeBadge = (scope) => seg(SCOPE_NAMES[scope] ?? scope, scopeStyle(scope));
+const tokens = (count: number | null | undefined) => (count === null || count === undefined ? "-" : `~${count}`);
+
+const DIM: Style = { dimColor: true };
+const cost = (count: number | null | undefined) => seg(tokens(count), costStyle(count));
+const badge = (text: string) => seg(badgeText(text), { ...stateStyle(text), bold: true });
+const scopeBadge = (scope: string) => seg(SCOPE_NAMES[scope] ?? scope, scopeStyle(scope));
 // A fixed-width column of a row: parts ([seg...]) padded to `width`, left or right aligned. See components/list.mjs.
-const cell = (parts, width, align = "left") => ({ parts: [parts].flat().filter(Boolean), width, align });
-const blank = (width) => cell([], width);
+const cell = (parts: Seg | Seg[], width: number, align: "left" | "right" = "left"): Cell => ({ parts: [parts].flat().filter(Boolean), width, align });
 // A row's columns and their plain text (for tests and text captures).
-const withCells = (cells) => ({ cells, note: cells.map((one) => one.parts.map((part) => part.text).join("")).join("  ").trim() });
+const withCells = (cells: Cell[]) => ({ cells, note: cells.map((one) => one.parts.map((part) => part.text).join("")).join("  ").trim() });
 // Skills tab: count, cost, then two state columns (P and G for shelf rows; scope and state for plugin skills).
-const skillCells = (info, count, first, second) => withCells([cell(typeof info === "string" ? (info ? seg(info, DIM) : []) : info, 9), cell(cost(count), 5, "right"), cell(first ?? [], 11), cell(second ?? [], 11)]);
+const skillCells = (info: string | Seg, count: number | null | undefined, first?: Seg | Seg[], second?: Seg | Seg[]) => withCells([cell(typeof info === "string" ? (info ? seg(info, DIM) : []) : info, 9), cell(cost(count), 5, "right"), cell(first ?? [], 11), cell(second ?? [], 11)]);
 
 // The footer keys of the selected Skills row: only what works on it. [key, text, short text].
-export const skillKeys = (row) => {
-	const both = [["space", "project on/off", "project"], ["g", "global on/off", "global"]];
+export const skillKeys = (row: Row | undefined): KeyHint[] => {
+	const both: KeyHint[] = [["space", "project on/off", "project"], ["g", "global on/off", "global"]];
 	if (row?.kind === "group") {
 		return [...both, ["enter", "expand"]];
 	}
@@ -42,12 +45,12 @@ export const skillKeys = (row) => {
 	return row?.file ? [["e", "open file", "edit"]] : [];
 };
 
-const itemState = (item, field) => (item[field] ? "on" : "off");
+const itemState = (item: Record<string, unknown>, field: string) => (item[field] ? "on" : "off");
 
 // on when every item is linked in that scope, partial for some, off for none.
-const groupState = (group, field) => (group.items.length > 0 && group.items.every((item) => item[field]) ? "on" : group.items.some((item) => item[field]) ? "partial" : "off");
+const groupState = (group: { items: Record<string, unknown>[] }, field: string) => (group.items.length > 0 && group.items.every((item) => item[field]) ? "on" : group.items.some((item) => item[field]) ? "partial" : "off");
 
-const skillDetails = (skill) => [
+const skillDetails = (skill: Skill) => [
 	`skill: ${skill.name}`,
 	`scope: ${SCOPE_NAMES[skill.scope] ?? skill.scope}${skill.plugin ? ` (${skill.plugin})` : ""}`,
 	`state: ${badgeText(skill.state)}`,
@@ -57,7 +60,7 @@ const skillDetails = (skill) => [
 ];
 
 // Why a loaded (non-shelf) skill row cannot be toggled, shown in the status line and the details.
-const whyFixed = (skill) => {
+const whyFixed = (skill: Skill) => {
 	if (skill.scope === "project") {
 		return "project skill (this repo's .claude/skills): e opens it, a moves it to ~/.claude/skills (all projects)";
 	}
@@ -68,20 +71,20 @@ const whyFixed = (skill) => {
 };
 
 // What the loaded skill descriptions cost, per place they come from. Shelf skills count under the scope they are linked in.
-export const tokenBreakdown = (data) => {
+export const tokenBreakdown = (data: Data) => {
 	const loaded = data.status.skills.items.filter((skill) => skill.state === "active");
-	const sum = (keep) => loaded.filter(keep).reduce((total, skill) => total + (skill.tokens ?? 0), 0);
+	const sum = (keep: (skill: Skill) => boolean) => loaded.filter(keep).reduce((total, skill) => total + (skill.tokens ?? 0), 0);
 	const parts = { global: sum((skill) => skill.scope === "user"), project: sum((skill) => skill.scope === "project"), plugins: sum((skill) => skill.scope === "plugin") };
 	return { ...parts, total: parts.global + parts.project + parts.plugins };
 };
 
-const header = (id, label, extra = {}) => ({ id, header: true, label, ...extra });
+const header = (id: string, label: string, extra: Partial<Row> = {}): Row => ({ id, header: true, label, ...extra });
 // A blank, unselectable row between sections.
-const spacer = (id) => ({ id: `sp:${id}`, header: true, blank: true, label: "" });
+const spacer = (id: string): Row => ({ id: `sp:${id}`, header: true, blank: true, label: "" });
 
 // Shelf groups (expandable), then what loads from global, project and plugin folders.
-export const skillRows = (data, expanded = new Set()) => {
-	const rows = [header("h:shelf", "Shelf", withCells([cell(seg("Skills", DIM), 9), cell(seg("Cost", DIM), 5, "right"), cell(seg("Project", DIM), 11), cell(seg("Global", DIM), 11)]))];
+export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
+	const rows: Row[] = [header("h:shelf", "Shelf", withCells([cell(seg("Skills", DIM), 9), cell(seg("Cost", DIM), 5, "right"), cell(seg("Project", DIM), 11), cell(seg("Global", DIM), 11)]))];
 	if (data.groups.length === 0) {
 		rows.push({ id: "none:shelf", label: "  (no shelf groups)", details: ["Shelved skills live in <config dir>/skill-shelf/<group>/<skill>."] });
 	}
@@ -123,14 +126,14 @@ export const skillRows = (data, expanded = new Set()) => {
 	}
 
 	const loaded = data.status.skills.items.filter((skill) => !skill.shelfGroup);
-	const section = (title, list, label) => {
+	const section = <T,>(title: string, list: T[], label: (item: T) => Row) => {
 		if (list.length > 0) {
 			rows.push(spacer(title), header(`h:${title}`, title));
 			rows.push(...list.map(label));
 		}
 	};
-	const own = (scope) => loaded.filter((skill) => skill.scope === scope);
-	const skillRow = (skill) => ({
+	const own = (scope: string) => loaded.filter((skill) => skill.scope === scope);
+	const skillRow = (skill: Skill): Row => ({
 		id: `skill:${skill.scope}:${skill.source}`,
 		kind: skill.scope === "user" ? "global" : "loaded",
 		shelvable: skill.kind === "file" && skill.scope === "user",
@@ -169,23 +172,23 @@ export const skillRows = (data, expanded = new Set()) => {
 };
 
 // Agents and MCP servers also install to this project (o); an outdated skill, agent or rule can be updated (u).
-export const catalogKeys = (row) => {
+export const catalogKeys = (row: Row | undefined): KeyHint[] => {
 	if (row?.kind !== "catalog") {
 		return [["f", "fetch catalog", "fetch"]];
 	}
 	const where = row.itemKind === "agent" || row.itemKind === "mcp";
 	return [
 		["i", row.itemKind === "skill" ? "add to shelf" : where ? "add (all projects)" : "add", "add"],
-		...(where ? [["o", "add to this project", "project"]] : []),
-		...(row.outdated ? [["u", "update"]] : []),
-		...((row.itemKind === "skill" || row.itemKind === "agent" || row.itemKind === "rule") && row.installed ? [["x", "remove"], ["X", "remove, no copy", "no copy"]] : []),
+		...(where ? [(["o", "add to this project", "project"] as KeyHint)] : []),
+		...(row.outdated ? [["u", "update"] as KeyHint] : []),
+		...((row.itemKind === "skill" || row.itemKind === "agent" || row.itemKind === "rule") && row.installed ? ([["x", "remove"], ["X", "remove, no copy", "no copy"]] as KeyHint[]) : []),
 		["f", "update catalog", "fetch"],
 	];
 };
 
-const ITEM_SECTIONS = [["agent", "Agents"], ["rule", "Rules"], ["claude-md", "CLAUDE.md files"], ["mcp", "MCP servers"]];
+const ITEM_SECTIONS: [string, string][] = [["agent", "Agents"], ["rule", "Rules"], ["claude-md", "CLAUDE.md files"], ["mcp", "MCP servers"]];
 
-const catalogToggle = (item) =>
+const catalogToggle = (item: CatalogEntry) =>
 	({
 		skill: item.installed ? "x removes it (a copy is kept in the backups)" : "i copies it onto the shelf, off; turn it on from the Skills tab",
 		agent: "i copies it to ~/.claude/agents (every project), o to this project's .claude/agents; never overwrites",
@@ -194,7 +197,7 @@ const catalogToggle = (item) =>
 		mcp: "i adds it to your user config (claude mcp add-json), o to this project's .mcp.json; the preview masks secrets",
 	})[item.kind] + (item.installed && (item.kind === "agent" || item.kind === "rule") ? "; x removes it (a copy is kept in the backups)" : "") + (item.outdated ? (item.kind === "mcp" ? "; u sets the catalog's args and any env key you lack (masked preview, backed up, undoable)" : "; u overwrites the installed copy with the catalog's (previewed, the old copy is saved first)") : "");
 
-const catalogRow = (item) => {
+const catalogRow = (item: CatalogEntry): Row => {
 	const installed = item.installed;
 	return {
 		id: `catalog:${item.id}`,
@@ -212,13 +215,13 @@ const catalogRow = (item) => {
 };
 
 // The skills by bundle, then agents, rules, CLAUDE.md files and MCP servers; installed ones show where they are.
-export const catalogRows = (data) => {
+export const catalogRows = (data: Data): Row[] => {
 	const { fetched, entries } = data.catalog;
 	if (!fetched) {
 		return [{ id: "none:catalog", label: "  (catalog not fetched)", details: ["The agentry-labs catalog is not on this machine yet.", "toggle: press f to fetch it (a shallow git clone of github.com/ersanyamarya/agentry-labs, cached; needs network)."] }];
 	}
-	const rows = [];
-	let bundle;
+	const rows: Row[] = [];
+	let bundle: string | undefined;
 	for (const skill of entries.filter((entry) => entry.kind === "skill")) {
 		if (skill.bundle !== bundle) {
 			bundle = skill.bundle;
@@ -235,10 +238,10 @@ export const catalogRows = (data) => {
 	return rows;
 };
 
-export const ruleKeys = (row) => (row?.ruleFile ? [["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]] : []);
+export const ruleKeys = (row: Row | undefined): KeyHint[] => (row?.ruleFile ? [["x", "remove"], ["X", "remove, no copy", "no copy"], ["e", "open file", "edit"]] : []);
 
 // CLAUDE.md and rule files Claude Code loads every session (lib/rules.mjs), user then project, with their whole-file cost.
-export const ruleRows = (data) => {
+export const ruleRows = (data: Data): Row[] => {
 	if (data.rules.length === 0) {
 		return [{ id: "none:rules", label: "  (no CLAUDE.md or rule files)", details: ["No ~/.claude/CLAUDE.md, ~/.claude/rules/*.md, CLAUDE.md or .claude/rules/*.md was found.", "note: the Catalog tab can add a rule (~/.claude/rules) or a CLAUDE.md file."] }];
 	}
@@ -263,12 +266,12 @@ export const ruleRows = (data) => {
 	return rows;
 };
 
-export const BACKUPS_KEYS = [["d", "delete 30+ days old", "prune"]];
+export const BACKUPS_KEYS: KeyHint[] = [["d", "delete 30+ days old", "prune"]];
 
-export const backupKeys = (row) => [...(row?.backup ? [...(row.restorable ? [["u", "restore"]] : []), ["x", "delete"]] : []), ...BACKUPS_KEYS];
+export const backupKeys = (row: Row | undefined): KeyHint[] => [...(row?.backup ? [...(row.restorable ? [["u", "restore"] as KeyHint] : []), ["x", "delete"] as KeyHint] : []), ...BACKUPS_KEYS];
 
 // Fix sets and removed-skill copies, newest first.
-export const backupRows = (data) =>
+export const backupRows = (data: Data): Row[] =>
 	data.backups.length === 0
 		? [{ id: "none:backups", label: "  (no backups)", details: ["Nothing is kept under ~/.claude/backups/agentry yet.", "note: fixes (agentry fix) and skill removals leave a copy here; this tab restores or deletes them."] }]
 		: data.backups.map((entry) => ({
@@ -282,12 +285,12 @@ export const backupRows = (data) =>
 
 export const PLUGIN_NOTE = "applies to new sessions";
 
-export const mcpKeys = (row) => [["a", "add server", "add"], ...(row?.mcp ? [...(row.mcpUser ? [["s", "edit env/args", "edit"]] : []), ["x", "remove"], ["space", row.mcpEnable ? (row.mcpProject ? "turn on here" : "add back") : row.mcpProject ? "turn off here" : "turn off (saved)", row.mcpEnable ? "on" : "off"]] : []), ...(row?.file ? [["e", "open file", "edit"]] : [])];
+export const mcpKeys = (row: Row | undefined): KeyHint[] => [["a", "add server", "add"], ...(row?.mcp ? [...(row.mcpUser ? [["s", "edit env/args", "edit"] as KeyHint] : []), ["x", "remove"] as KeyHint, ["space", row.mcpEnable ? (row.mcpProject ? "turn on here" : "add back") : row.mcpProject ? "turn off here" : "turn off (saved)", row.mcpEnable ? "on" : "off"] as KeyHint] : []), ...(row?.file ? [["e", "open file", "edit"] as KeyHint] : [])];
 
 // Hooks: settings hooks switch off/on and can be removed; plugin hooks only open their file.
-export const hookKeys = (row) => [...(row?.hook ? [["space", row.hookOff ? "turn on" : "turn off (saved)", row.hookOff ? "on" : "off"], ["x", "remove"]] : []), ...(row?.file ? [["e", "open file", "edit"]] : [])];
+export const hookKeys = (row: Row | undefined): KeyHint[] => [...(row?.hook ? ([["space", row.hookOff ? "turn on" : "turn off (saved)", row.hookOff ? "on" : "off"], ["x", "remove"]] as KeyHint[]) : []), ...(row?.file ? [["e", "open file", "edit"] as KeyHint] : [])];
 
-const MCP_WHY = {
+const MCP_WHY: Record<string, string> = {
 	plugin: "plugin server: managed by the plugin, switch the plugin instead",
 	project: "project server (.mcp.json): managed by the repo, approval is in Claude Code",
 	local: "local-scope server: this tool only handles user scope",
@@ -295,7 +298,7 @@ const MCP_WHY = {
 	"desktop-extension": "desktop extension: managed by Claude desktop",
 };
 
-export const mcpRows = (data) => [
+export const mcpRows = (data: Data): Row[] => [
 	...data.status.mcp.servers.map((server) => {
 		const target = server.url ?? [server.command, ...(server.args ?? [])].join(" ");
 		const env = Object.entries(server.env ?? {}).map(([key, value]) => `env ${key}=${value}`);
@@ -322,7 +325,7 @@ export const mcpRows = (data) => [
 
 const HOOK_WHY = "plugin hook: the plugin manages it; turn the plugin off in the Plugins tab";
 
-export const hookRows = (data) => [
+export const hookRows = (data: Data): Row[] => [
 	...data.status.hooks.items.map((hook, index) => {
 		const mine = hook.scope !== "plugin" && hook.id;
 		return {
@@ -346,9 +349,9 @@ export const hookRows = (data) => [
 	})),
 ];
 
-export const pluginKeys = (row) => [["space", "enable/disable", "on/off"], ["i", "install a plugin", "install"], ...(row?.pluginScopes?.length > 0 ? [["x", "uninstall"]] : []), ["e", "open file", "edit"]];
+export const pluginKeys = (row: Row | undefined): KeyHint[] => [["space", "enable/disable", "on/off"], ["i", "install a plugin", "install"], ...((row?.pluginScopes?.length ?? 0) > 0 ? [["x", "uninstall"] as KeyHint] : []), ["e", "open file", "edit"]];
 
-export const pluginRows = (data) =>
+export const pluginRows = (data: Data): Row[] =>
 	data.status.plugins.items.map((plugin) => ({
 		id: `plugin:${plugin.id}`,
 		plugin: plugin.id,
@@ -370,11 +373,11 @@ export const pluginRows = (data) =>
 		],
 	}));
 
-export const DOCTOR_KEYS = [["enter", "preview fix", "fix"], ["u", "undo last fix set", "undo"], ["e", "open file", "edit"]];
+export const DOCTOR_KEYS: KeyHint[] = [["enter", "preview fix", "fix"], ["u", "undo last fix set", "undo"], ["e", "open file", "edit"]];
 
-export const doctorRows = (data) => {
-	const rows = [];
-	for (const severity of ["error", "warning", "info"]) {
+export const doctorRows = (data: Data): Row[] => {
+	const rows: Row[] = [];
+	for (const severity of ["error", "warning", "info"] as const) {
 		const mine = data.doctor.findings.filter((finding) => finding.severity === severity);
 		if (mine.length === 0) {
 			continue;

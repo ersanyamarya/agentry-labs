@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Width rules for the UI, pure so tests can use them. Below 110 columns the details go under the list (stacked) so the list
 // keeps the whole width and its state badges are never cut; from 110 up they sit beside it, with both widths capped so a
 // wide terminal does not push the details box to the far edge.
@@ -13,7 +12,7 @@ export const layoutFor = (cols = 100) => {
 };
 
 // Cuts `text` to `width` characters with … in the middle, keeping both ends (paths, long names).
-export const middle = (text, width) => {
+export const middle = (text: unknown, width: number) => {
 	const chars = [...String(text)];
 	if (chars.length <= width) {
 		return chars.join("");
@@ -27,15 +26,15 @@ export const middle = (text, width) => {
 };
 
 // Cuts to `width` with … at the end (messages).
-export const end = (text, width) => {
+export const end = (text: unknown, width: number) => {
 	const chars = [...String(text)];
 	return chars.length <= width ? chars.join("") : `${chars.slice(0, Math.max(width - 1, 0)).join("")}…`;
 };
 
-export const pad = (text, width, align = "left") => {
+export const pad = (text: string, width: number, align: "left" | "right" = "left") => {
 	const gap = Math.max(width - [...text].length, 0);
 	return align === "right" ? " ".repeat(gap) + text : text + " ".repeat(gap);
 };
 
 // Long text keeps its first lines and its last two (the question and the keys) when cut.
-export const clipLines = (lines, max) => (lines.length <= max ? lines : [...lines.slice(0, Math.max(max - 3, 1)), `… ${lines.length - (max - 1)} more lines`, ...lines.slice(-2)]);
+export const clipLines = (lines: string[], max: number) => (lines.length <= max ? lines : [...lines.slice(0, Math.max(max - 3, 1)), `… ${lines.length - (max - 1)} more lines`, ...lines.slice(-2)]);

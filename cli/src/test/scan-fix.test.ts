@@ -1,5 +1,5 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Paths } from "../lib/paths.js";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, existsSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -10,11 +10,11 @@ import { createScan } from "../lib/scan.js";
 import { createFixture } from "./helpers/fixture.js";
 
 // <root>/home/.claude holds a user-level stale permission; <root>/home/ws/{one,two} are repos with their own.
-let root;
-let home;
-let configDir;
-let ws;
-let paths;
+let root: string;
+let home: string;
+let configDir: string;
+let ws: string;
+let paths: Paths;
 beforeEach(() => {
 	root = realpathSync(mkdtempSync(join(tmpdir(), "agentry-scanfix-")));
 	assert.ok(!root.startsWith(realpathSync(homedir())), "TMPDIR must be outside the home directory");
@@ -31,17 +31,17 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-const put = (file, text) => {
+const put = (file: string, text: string) => {
 	mkdirSync(dirname(file), { recursive: true });
 	writeFileSync(file, text);
 };
-const settingsWith = (entry) => `{\n\t"permissions": {\n\t\t"allow": ["${entry}"]\n\t}\n}\n`;
-const read = (file) => readFileSync(file, "utf8");
+const settingsWith = (entry: string) => `{\n\t"permissions": {\n\t\t"allow": ["${entry}"]\n\t}\n}\n`;
+const read = (file: string) => readFileSync(file, "utf8");
 const userFile = () => join(configDir, "settings.json");
 
-const setup = ({ tty = true, answers = [] } = {}) => {
-	const lines = [];
-	const asked = [];
+const setup = ({ tty = true, answers = [] }: { tty?: boolean; answers?: boolean[] } = {}) => {
+	const lines: string[] = [];
+	const asked: string[] = [];
 	const scan = createScan(paths, {
 		out: (line) => lines.push(line),
 		err: (line) => lines.push(line),
@@ -70,7 +70,7 @@ describe("scan --fix", () => {
 		assert.equal(read(userFile()), settingsWith("Bash(trail user:*)"));
 		assert.equal(read(join(ws, "one", ".claude", "settings.json")), settingsWith("Bash(trail one:*)"));
 		assert.equal(read(join(ws, "two", ".claude", "settings.json")), settingsWith("Bash(trail two:*)"));
-		assert.equal(output().match(/=== user-level/g).length, 1, "global findings are fixed once, not per repo");
+		assert.equal(output().match(/=== user-level/g)!.length, 1, "global findings are fixed once, not per repo");
 		assert.equal(readdirSync(paths.backupsDir).length, 3, "one backup set per confirmed scope");
 	});
 

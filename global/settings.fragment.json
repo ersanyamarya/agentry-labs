@@ -68,6 +68,16 @@
 					}
 				],
 				"matcher": "Bash"
+			},
+			{
+				"hooks": [
+					{
+						"command": "node \"${HOME}/.claude/hooks/prefer-trail.mjs\" || exit 0",
+						"timeout": 5,
+						"type": "command"
+					}
+				],
+				"matcher": "Bash|Read|Grep|Glob"
 			}
 		],
 		"SessionEnd": [

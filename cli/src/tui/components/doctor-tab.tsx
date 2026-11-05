@@ -1,27 +1,28 @@
-// @ts-nocheck
 // Doctor tab: findings by severity. enter previews the fix (dry run, masked), y applies it through the fix engine
 // (backup, write, verify), n or esc cancels, u previews undoing the last fix set. Nothing is written without y.
 
 import React from "react";
 import { Box, Text, useInput } from "ink";
+import type { Finding } from "../../lib/types.js";
 import { doctorRows } from "../rows.js";
 import { useList } from "../use-list.js";
 import { SEVERITY, useStyle } from "../theme.js";
+import type { TabProps } from "../types.js";
 import { Panes } from "./list.js";
 
-const h = React.createElement;
+// null, or a preview waiting for y/n, or the result of applying it.
+type Step = { kind: "fix"; finding: Finding; text: string; appliable: boolean } | { kind: "undo"; text: string; appliable: boolean } | { kind: "result"; ok: boolean; text: string };
 
-export const DoctorTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile, copy }) => {
+export const DoctorTab = ({ data, api, dir, active, height, layout, notify, reload, lock, openFile, copy }: Omit<TabProps, "setKeys">) => {
 	const all = React.useMemo(() => doctorRows(data), [data]);
 	const list = useList({ rows: all, lock, marks: false });
 	const { rows, cursor, row, move } = list;
-	// null | { kind: "fix" | "undo", finding?, text, appliable } waiting for y/n | { kind: "result", ok, text }
-	const [step, setStep] = React.useState(null);
+	const [step, setStep] = React.useState<Step | null>(null);
 	const waiting = step && step.kind !== "result";
 	React.useEffect(() => lock(Boolean(waiting)), [waiting]);
 
 	const preview = async () => {
-		if (row?.kind !== "finding") {
+		if (row?.kind !== "finding" || !row.finding) {
 			return;
 		}
 		const result = await api.previewFix({ dir, finding: row.finding });
@@ -33,6 +34,9 @@ export const DoctorTab = ({ data, api, dir, active, height, layout, notify, relo
 	};
 	const confirm = async () => {
 		const current = step;
+		if (!current || current.kind === "result") {
+			return;
+		}
 		setStep({ kind: "result", ok: true, text: "Working..." });
 		const result = current.kind === "undo" ? await api.applyUndo({ dir }) : await api.applyFix({ dir, finding: current.finding });
 		setStep({ kind: "result", ...result });
@@ -49,7 +53,7 @@ export const DoctorTab = ({ data, api, dir, active, height, layout, notify, relo
 				copy(step.text);
 				return;
 			}
-			if (waiting) {
+			if (step && step.kind !== "result") {
 				if (input === "y" && step.appliable) {
 					confirm();
 				} else if (input === "n" || key.escape) {
@@ -80,10 +84,16 @@ export const DoctorTab = ({ data, api, dir, active, height, layout, notify, relo
 	const title = step ? (step.kind === "result" ? (step.ok ? "Result (c = copy)" : "Result (errors, c = copy)") : step.kind === "undo" ? "Undo preview" : "Fix preview (dry run)") : "Details";
 	const style = useStyle();
 	const { error, warning, info } = data.doctor.summary;
-	return h(
-		Box,
-		{ flexDirection: "column" },
-		h(Text, null, h(Text, style(SEVERITY.error.style), `${error} errors`), ", ", h(Text, style(SEVERITY.warning.style), `${warning} warnings`), ", ", h(Text, style(SEVERITY.info.style), `${info} info`)),
-		h(Panes, { rows, cursor, height, row, lines, title, layout, status: list.status }),
+	return (
+		<Box flexDirection="column">
+			<Text>
+				<Text {...style(SEVERITY.error.style)}>{`${error} errors`}</Text>
+				{", "}
+				<Text {...style(SEVERITY.warning.style)}>{`${warning} warnings`}</Text>
+				{", "}
+				<Text {...style(SEVERITY.info.style)}>{`${info} info`}</Text>
+			</Text>
+			<Panes rows={rows} cursor={cursor} height={height} row={row} lines={lines} title={title} layout={layout} status={list.status} />
+		</Box>
 	);
 };

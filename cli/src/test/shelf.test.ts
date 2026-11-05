@@ -1,5 +1,5 @@
-// @ts-nocheck
 import assert from "node:assert/strict";
+import type { Fixture } from "./helpers/fixture.js";
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { createFixture } from "./helpers/fixture.js";
 
-let fx;
+let fx: Fixture;
 beforeEach(() => {
 	fx = createFixture();
 });
@@ -171,7 +171,7 @@ describe("shelf status", () => {
 			{ name: "video", state: "on (this project)" },
 		]);
 		assert.deepEqual(Object.keys(result.project), ["base", "links", "broken"]);
-		assert.deepEqual(result.project.links.map(({ group, kind, name }) => `${group}/${kind}/${name}`), ["video/skills/ffmpeg-install", "video/agents/editor.md"]);
+		assert.deepEqual(result.project.links.map(({ group, kind, name }: Record<string, string>) => `${group}/${kind}/${name}`), ["video/skills/ffmpeg-install", "video/agents/editor.md"]);
 		assert.equal(result.project.broken.length, 1);
 		assert.deepEqual(Object.keys(result.project.broken[0]), ["kind", "name", "link", "target"]);
 		assert.equal(result.project.broken[0].name, "trim");
@@ -185,7 +185,7 @@ describe("shelf status", () => {
 });
 
 describe("shelf shelve / unshelve", () => {
-	const globalSkill = (name) => {
+	const globalSkill = (name: string) => {
 		mkdirSync(join(fx.configDir, "skills", name), { recursive: true });
 		writeFileSync(join(fx.configDir, "skills", name, "SKILL.md"), "x\n");
 	};
@@ -293,8 +293,8 @@ describe("shelf off --all", () => {
 });
 
 // Every file, folder and symlink under the fixture, so a test can prove a command wrote nothing.
-const snapshot = (dir) => {
-	const entries = [];
+const snapshot = (dir: string): string => {
+	const entries: string[] = [];
 	for (const name of readdirSync(dir).sort()) {
 		const path = join(dir, name);
 		const stat = lstatSync(path);
@@ -309,7 +309,7 @@ const snapshot = (dir) => {
 	return entries.join("\n");
 };
 
-const linkExists = (path) => {
+const linkExists = (path: string) => {
 	try {
 		return lstatSync(path).isSymbolicLink();
 	} catch {
@@ -318,7 +318,7 @@ const linkExists = (path) => {
 };
 
 describe("--dry-run", () => {
-	const globalSkill = (name) => {
+	const globalSkill = (name: string) => {
 		mkdirSync(join(fx.configDir, "skills", name), { recursive: true });
 		writeFileSync(join(fx.configDir, "skills", name, "SKILL.md"), "x\n");
 	};
