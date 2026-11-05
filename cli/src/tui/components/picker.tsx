@@ -1,16 +1,21 @@
-// @ts-nocheck
 // Project picker: the current repo, recent repos, then repos found under the scan roots.
 
 import React from "react";
 import { Box, Text, useInput } from "ink";
 import { stepCursor } from "../use-cursor.js";
 
-const h = React.createElement;
+export interface PickerRow {
+	id: string;
+	kind: "current" | "recent" | "repo";
+	path: string;
+	label: string;
+	header?: undefined;
+}
 
-export const pickerRows = ({ current, recents, found }) => {
-	const seen = new Set();
-	const rows = [];
-	const add = (kind, path) => {
+export const pickerRows = ({ current, recents, found }: { current: string; recents: string[]; found: string[] }) => {
+	const seen = new Set<string>();
+	const rows: PickerRow[] = [];
+	const add = (kind: PickerRow["kind"], path: string) => {
 		if (!seen.has(path)) {
 			seen.add(path);
 			rows.push({ id: path, kind, path, label: `${path}  (${kind})` });
@@ -22,7 +27,7 @@ export const pickerRows = ({ current, recents, found }) => {
 	return rows;
 };
 
-export const Picker = ({ rows, onPick, onClose }) => {
+export const Picker = ({ rows, onPick, onClose }: { rows: PickerRow[]; onPick: (path: string) => void; onClose: () => void }) => {
 	const [cursor, setCursor] = React.useState(0);
 	useInput((input, key) => {
 		if (key.escape || input === "p") {
@@ -35,10 +40,14 @@ export const Picker = ({ rows, onPick, onClose }) => {
 			onPick(rows[cursor].path);
 		}
 	});
-	return h(
-		Box,
-		{ flexDirection: "column", borderStyle: "round", paddingX: 1 },
-		h(Text, { bold: true }, "Project (enter select, esc close)"),
-		...rows.map((row, index) => h(Text, { key: row.id, inverse: index === cursor, wrap: "truncate-start" }, `${index === cursor ? ">" : " "} ${row.label}`)),
+	return (
+		<Box flexDirection="column" borderStyle="round" paddingX={1}>
+			<Text bold>{"Project (enter select, esc close)"}</Text>
+			{rows.map((row, index) => (
+				<Text key={row.id} inverse={index === cursor} wrap="truncate-start">
+					{`${index === cursor ? ">" : " "} ${row.label}`}
+				</Text>
+			))}
+		</Box>
 	);
 };

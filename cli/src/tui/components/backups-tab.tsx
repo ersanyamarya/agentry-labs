@@ -1,6 +1,5 @@
-// @ts-nocheck
 // Backups tab: the fix sets and removed-skill copies under ~/.claude/backups/agentry. u moves a removed skill back,
-// x deletes the selected backup, d deletes everything 30+ days old. Each is previewed (lib/backups.mjs's own dry run)
+// x deletes the selected backup, d deletes everything 30+ days old. Each is previewed (lib/backups.ts's own dry run)
 // and waits for y; c copies the preview.
 
 import React from "react";
@@ -9,11 +8,12 @@ import { backupKeys, backupRows } from "../rows.js";
 import { startBulk } from "../bulk-flow.js";
 import { useList } from "../use-list.js";
 import { useFlow } from "../use-flow.js";
+import type { TabProps } from "../types.js";
 import { Panes } from "./list.js";
 
 const PRUNE_DAYS = 30;
 
-export const BackupsTab = ({ data, api, dir, active, height, layout, notify, reload, lock, setKeys, copy }) => {
+export const BackupsTab = ({ data, api, dir, active, height, layout, notify, reload, lock, setKeys, copy }: Omit<TabProps, "openFile">) => {
 	const all = React.useMemo(() => backupRows(data), [data]);
 	const list = useList({ rows: all, lock });
 	const { rows, cursor, row, move } = list;
@@ -25,14 +25,14 @@ export const BackupsTab = ({ data, api, dir, active, height, layout, notify, rel
 		}
 	}, [active, keys.join()]);
 
-	const confirmDelete = async (selection, title, done) => {
+	const confirmDelete = async (selection: { ids?: string[]; olderThan?: number }, title: string, done: string) => {
 		const preview = await api.pruneBackups({ dir, ...selection, dryRun: true });
 		flow.begin({ kind: "confirm", title: `${title} (preview)`, text: preview.text, appliable: preview.ok, apply: () => api.pruneBackups({ dir, ...selection }), done });
 	};
 
 	const startRestore = async () => {
-		const preview = await api.restoreBackup({ dir, id: row.backup, dryRun: true });
-		flow.begin({ kind: "confirm", title: `Restore ${row.label.trim()} (preview)`, text: preview.text, appliable: preview.ok, apply: () => api.restoreBackup({ dir, id: row.backup }), done: "Restored; it is back in its original folder." });
+		const preview = await api.restoreBackup({ dir, id: row?.backup ?? "", dryRun: true });
+		flow.begin({ kind: "confirm", title: `Restore ${row?.label.trim()} (preview)`, text: preview.text, appliable: preview.ok, apply: () => api.restoreBackup({ dir, id: row?.backup ?? "" }), done: "Restored; it is back in its original folder." });
 	};
 
 	useInput(
@@ -44,9 +44,19 @@ export const BackupsTab = ({ data, api, dir, active, height, layout, notify, rel
 				flow.clear();
 				move(key.upArrow ? -1 : 1);
 			} else if (input === "u" && list.marked.some((one) => one.restorable)) {
-				startBulk({ flow, title: "Restore", items: list.marked.filter((one) => one.restorable), preview: async (one) => { const result = await api.restoreBackup({ dir, id: one.backup, dryRun: true }); return { appliable: result.ok, text: result.text }; }, apply: (one) => api.restoreBackup({ dir, id: one.backup }), done: "Restored; they are back in their original folders" });
+				startBulk({
+					flow,
+					title: "Restore",
+					items: list.marked.filter((one) => one.restorable),
+					preview: async (one) => {
+						const result = await api.restoreBackup({ dir, id: one.backup ?? "", dryRun: true });
+						return { appliable: result.ok, text: result.text };
+					},
+					apply: (one) => api.restoreBackup({ dir, id: one.backup ?? "" }),
+					done: "Restored; they are back in their original folders",
+				});
 			} else if (input === "x" && list.marked.some((one) => one.backup)) {
-				confirmDelete({ ids: list.marked.filter((one) => one.backup).map((one) => one.backup) }, `Delete ${list.marked.length} backup${list.marked.length === 1 ? "" : "s"}`, "Deleted those backups.");
+				confirmDelete({ ids: list.marked.flatMap((one) => (one.backup ? [one.backup] : [])) }, `Delete ${list.marked.length} backup${list.marked.length === 1 ? "" : "s"}`, "Deleted those backups.");
 			} else if (input === "u") {
 				row?.restorable ? startRestore() : notify("u restores a removed skill: select one that has a known original folder.");
 			} else if (input === "x") {
@@ -58,5 +68,5 @@ export const BackupsTab = ({ data, api, dir, active, height, layout, notify, rel
 		{ isActive: active },
 	);
 
-	return React.createElement(Panes, { rows, cursor, height, row, lines: flow.lines, title: flow.title, layout, marked: list.markedIds, status: list.status });
+	return <Panes rows={rows} cursor={cursor} height={height} row={row} lines={flow.lines} title={flow.title} layout={layout} marked={list.markedIds} status={list.status} />;
 };
