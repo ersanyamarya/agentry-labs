@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Switches groups of rarely used skills (and their agents) on and off, so they are not listed in every session.
 // Shelved skills live in <config dir>/skill-shelf/<group>/<skill>/ and a group's agents in <group>/agents/*.md;
 // "on" symlinks them into .claude/skills and .claude/agents, "off" removes the links. Project links are added to
@@ -7,21 +6,74 @@
 // promote/demote move a real skill folder between this project and ~/.claude/skills.
 // Every write command takes dryRun: it prints the links and exclude lines it would change and writes nothing.
 
+import type { Dirent } from "node:fs";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { removedCopyPath, saveRemovedCopy } from "./backups.js";
+import type { Paths } from "./paths.js";
 import { descriptionTokens } from "./tokens.js";
 
-const listEntries = (dir, keep) =>
+export type ShelfKind = "skills" | "agents";
+
+export interface ShelfItem {
+	kind: ShelfKind;
+	name: string;
+	source: string;
+}
+
+/** A link in a .claude folder that points into the shelf. */
+export interface ShelfLink {
+	group: string;
+	kind: ShelfKind;
+	name: string;
+	link: string;
+}
+
+/** A link into the shelf whose target is gone. */
+export interface BrokenShelfLink {
+	kind: ShelfKind;
+	name: string;
+	link: string;
+	target: string;
+}
+
+export interface ScopeLinks {
+	base: string;
+	links: ShelfLink[];
+	broken: BrokenShelfLink[];
+}
+
+export interface ShelfOptions {
+	out?: (text: string) => void;
+	err?: (text: string) => void;
+	warn?: (text: string) => void;
+	now?: () => Date;
+}
+
+export interface ShelfFlags {
+	global?: boolean;
+	dryRun?: boolean;
+}
+
+type Command = "on" | "off";
+type Change = { item: ShelfItem; link: string };
+
+// A target resolved to a whole group, to one skill (group and skill set), or to an error with an exit code.
+type GroupFound = { items: ShelfItem[]; label: string; group?: undefined; skill?: undefined; error?: undefined; code?: undefined };
+type SkillFound = { items: ShelfItem[]; label: string; group: string; skill: string; error?: undefined; code?: undefined };
+type Failure = { error: string; code: number; items?: undefined; label?: undefined; group?: undefined; skill?: undefined };
+type Resolved = GroupFound | SkillFound | Failure;
+
+const listEntries = (dir: string, keep: (entry: Dirent) => boolean): string[] =>
 	existsSync(dir)
 		? readdirSync(dir, { withFileTypes: true })
 				.filter((entry) => !entry.name.startsWith(".") && keep(entry))
 				.map((entry) => entry.name)
 		: [];
 
-const listDirs = (dir) => listEntries(dir, (entry) => entry.isDirectory());
+const listDirs = (dir: string): string[] => listEntries(dir, (entry) => entry.isDirectory());
 
-const linkTarget = (path) => {
+const linkTarget = (path: string): string | undefined => {
 	try {
 		return lstatSync(path).isSymbolicLink() ? resolve(dirname(path), readlinkSync(path)) : undefined;
 	} catch {
@@ -30,12 +82,12 @@ const linkTarget = (path) => {
 };
 
 // Rename; a move across devices (EXDEV) falls back to copy then delete.
-const moveFolder = (from, to) => {
+const moveFolder = (from: string, to: string): void => {
 	mkdirSync(dirname(to), { recursive: true });
 	try {
 		renameSync(from, to);
 	} catch (error) {
-		if (error.code !== "EXDEV") {
+		if ((error as NodeJS.ErrnoException).code !== "EXDEV") {
 			throw error;
 		}
 		cpSync(from, to, { recursive: true });
@@ -43,10 +95,10 @@ const moveFolder = (from, to) => {
 	}
 };
 
-const excludeEntry = ({ kind, name }) => `.claude/${kind}/${name}`;
+const excludeEntry = ({ kind, name }: ShelfItem): string => `.claude/${kind}/${name}`;
 
 // Keeps project links out of `git status` without touching the tracked .gitignore.
-const updateExclude = (exclude, entries, add) => {
+const updateExclude = (exclude: string | undefined, entries: string[], add: boolean): void => {
 	if (!exclude) {
 		return;
 	}
@@ -57,15 +109,15 @@ const updateExclude = (exclude, entries, add) => {
 };
 
 // Each function returns the process exit code.
-export const createShelf = (paths, { out = console.log, err = console.error, warn = console.warn, now = () => new Date() } = {}) => {
+export const createShelf = (paths: Paths, { out = console.log, err = console.error, warn = console.warn, now = () => new Date() }: ShelfOptions = {}) => {
 	const { shelfDir, configDir } = paths;
 
 	// A group's skills are its folders (except agents/); its agents are the .md files in agents/.
-	const groupItems = (name) => [
+	const groupItems = (name: string): ShelfItem[] => [
 		...listDirs(join(shelfDir, name))
 			.filter((skill) => skill !== "agents")
-			.map((skill) => ({ kind: "skills", name: skill, source: join(shelfDir, name, skill) })),
-		...listEntries(join(shelfDir, name, "agents"), (entry) => entry.isFile() && entry.name.endsWith(".md")).map((agent) => ({
+			.map((skill): ShelfItem => ({ kind: "skills", name: skill, source: join(shelfDir, name, skill) })),
+		...listEntries(join(shelfDir, name, "agents"), (entry) => entry.isFile() && entry.name.endsWith(".md")).map((agent): ShelfItem => ({
 			kind: "agents",
 			name: agent,
 			source: join(shelfDir, name, "agents", agent),
@@ -73,16 +125,16 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 	];
 
 	// Description tokens a group adds to every session once it is on.
-	const itemTokens = ({ kind, source }) => descriptionTokens(kind === "skills" ? join(source, "SKILL.md") : source);
-	const groupCost = (name) => groupItems(name).reduce((total, item) => total + itemTokens(item), 0);
+	const itemTokens = ({ kind, source }: ShelfItem): number => descriptionTokens(kind === "skills" ? join(source, "SKILL.md") : source);
+	const groupCost = (name: string): number => groupItems(name).reduce((total, item) => total + itemTokens(item), 0);
 
-	const linkedCount = (base, name) =>
+	const linkedCount = (base: string, name: string): number =>
 		groupItems(name).filter(({ kind, name: item, source }) => linkTarget(join(base, kind, item)) === source).length;
 
-	const groupState = (name, projectBase) =>
+	const groupState = (name: string, projectBase: string): string =>
 		linkedCount(configDir, name) > 0 ? "on (global)" : linkedCount(projectBase, name) > 0 ? "on (this project)" : "off";
 
-	const list = () => {
+	const list = (): number => {
 		const projectBase = join(paths.projectRoot(), ".claude");
 		for (const name of listDirs(shelfDir)) {
 			const items = groupItems(name);
@@ -100,7 +152,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 	// What `list` prints, as data (for the UI): every group with its cost, state and items, and where each item is linked.
 	const groups = () => {
 		const projectBase = join(paths.projectRoot(), ".claude");
-		const linked = (base, { kind, name, source }) => linkTarget(join(base, kind, name)) === source;
+		const linked = (base: string, { kind, name, source }: ShelfItem): boolean => linkTarget(join(base, kind, name)) === source;
 		return listDirs(shelfDir).map((name) => ({
 			name,
 			tokens: groupCost(name),
@@ -109,18 +161,18 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 		}));
 	};
 
-	const skillGroups = (skill) => listDirs(shelfDir).filter((group) => skill !== "agents" && listDirs(join(shelfDir, group)).includes(skill));
+	const skillGroups = (skill: string): string[] => listDirs(shelfDir).filter((group) => skill !== "agents" && listDirs(join(shelfDir, group)).includes(skill));
 
 	// A target is a group, "group/skill", or a skill name unique across groups.
 	// Returns { items, label } or { error, code }.
-	const resolveTarget = (target) => {
-		const noGroup = { error: `No group "${target}" in ${shelfDir}. Groups: ${listDirs(shelfDir).join(", ") || "none"}`, code: 1 };
+	const resolveTarget = (target: string): Resolved => {
+		const noGroup: Failure = { error: `No group "${target}" in ${shelfDir}. Groups: ${listDirs(shelfDir).join(", ") || "none"}`, code: 1 };
 		if (listDirs(shelfDir).includes(target)) {
 			const items = groupItems(target);
 			return items.length > 0 ? { items, label: target } : noGroup;
 		}
 		const slash = target.indexOf("/");
-		const [group, skill] = slash === -1 ? [undefined, target] : [target.slice(0, slash), target.slice(slash + 1)];
+		const [group, skill]: [string | undefined, string] = slash === -1 ? [undefined, target] : [target.slice(0, slash), target.slice(slash + 1)];
 		const groups = group === undefined ? skillGroups(skill) : skillGroups(skill).filter((name) => name === group);
 		if (groups.length === 0) {
 			return group === undefined ? noGroup : { error: `No skill "${skill}" in group "${group}" of ${shelfDir}`, code: 1 };
@@ -132,7 +184,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 	};
 
 	// The links `command` would change for these items in `base`; warns about names that are taken by real files.
-	const planChanges = (command, items, base) =>
+	const planChanges = (command: Command, items: ShelfItem[], base: string): Change[] =>
 		items.flatMap((item) => {
 			const link = join(base, item.kind, item.name);
 			const current = linkTarget(link);
@@ -149,7 +201,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 			return [{ item, link }];
 		});
 
-	const applyChanges = (command, changes) => {
+	const applyChanges = (command: Command, changes: Change[]): void => {
 		for (const { item, link } of changes) {
 			if (command === "on") {
 				mkdirSync(dirname(link), { recursive: true });
@@ -161,7 +213,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 	};
 
 	// Prints the links and exclude lines a dry run would change.
-	const describeChanges = (command, changes, exclude) => {
+	const describeChanges = (command: Command, changes: Change[], exclude: string | undefined): void => {
 		for (const { item, link } of changes) {
 			out(`  ${command === "on" ? `link ${link} -> ${item.source}` : `unlink ${link}`}`);
 		}
@@ -173,7 +225,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 	};
 
 	// Applies one command to items in one scope and keeps the exclude file in step. A dry run writes nothing.
-	const change = (command, items, base, { exclude, dryRun }) => {
+	const change = (command: Command, items: ShelfItem[], base: string, { exclude, dryRun }: { exclude: string | undefined; dryRun: boolean }): Change[] => {
 		const changes = planChanges(command, items, base);
 		if (!dryRun) {
 			applyChanges(command, changes);
@@ -184,19 +236,19 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 		return changes;
 	};
 
-	const toggle = (command, targets, { global = false, dryRun = false } = {}) => {
+	const toggle = (command: Command, targets: string[], { global = false, dryRun = false }: ShelfFlags = {}): number => {
 		const resolved = targets.map(resolveTarget);
-		const failed = resolved.filter(({ error }) => error);
+		const failed = resolved.filter((one): one is Failure => Boolean(one.error));
 		if (failed.length > 0) {
 			failed.forEach(({ error }) => err(error));
 			return Math.max(...failed.map(({ code }) => code));
 		}
 
 		const root = global ? undefined : paths.projectRoot();
-		const base = global ? configDir : join(root, ".claude");
+		const base = root === undefined ? configDir : join(root, ".claude");
 		const exclude = root && paths.excludeFile(root);
 
-		for (const { items, label } of resolved) {
+		for (const { items, label } of resolved.filter((one): one is GroupFound | SkillFound => !one.error)) {
 			const changes = change(command, items, base, { exclude, dryRun });
 			out(`${label} ${command} in ${base}: ${changes.length} of ${items.length} ${dryRun ? "would change" : "changed"}.`);
 			if (dryRun) {
@@ -206,12 +258,12 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 		return 0;
 	};
 
-	const offAll = ({ global = false, dryRun = false } = {}) => {
+	const offAll = ({ global = false, dryRun = false }: ShelfFlags = {}): number => {
 		const root = global ? undefined : paths.projectRoot();
-		const base = global ? configDir : join(root, ".claude");
+		const base = root === undefined ? configDir : join(root, ".claude");
 		const exclude = root && paths.excludeFile(root);
 		const { links, broken } = scopeLinks(base);
-		const items = [...links, ...broken].map(({ kind, name, link }) => ({ kind, name, source: linkTarget(link) }));
+		const items = [...links, ...broken].map(({ kind, name, link }) => ({ kind, name, source: linkTarget(link) as string })); // both are symlinks, so there is a target
 
 		const changes = change("off", items, base, { exclude, dryRun });
 		out(`all off in ${base}: ${changes.length} of ${items.length} ${dryRun ? "would change" : "changed"}.`);
@@ -222,10 +274,10 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 	};
 
 	// Shelf links found in one .claude folder; a link into the shelf whose target is gone is broken.
-	const scopeLinks = (base) => {
-		const links = [];
-		const broken = [];
-		for (const kind of ["skills", "agents"]) {
+	const scopeLinks = (base: string): ScopeLinks => {
+		const links: ShelfLink[] = [];
+		const broken: BrokenShelfLink[] = [];
+		for (const kind of ["skills", "agents"] as const) {
 			const dir = join(base, kind);
 			for (const name of listEntries(dir, (entry) => entry.isSymbolicLink())) {
 				const link = join(dir, name);
@@ -253,7 +305,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 		};
 	};
 
-	const status = ({ json = false } = {}) => {
+	const status = ({ json = false }: { json?: boolean } = {}): number => {
 		const result = getStatus();
 		if (json) {
 			out(JSON.stringify(result, null, 2));
@@ -262,7 +314,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 		for (const { name, state } of result.groups) {
 			out(`${name.padEnd(16)} ${state}`);
 		}
-		for (const scope of ["project", "global"]) {
+		for (const scope of ["project", "global"] as const) {
 			const { base, links, broken } = result[scope];
 			out(`\n${scope} (${base})`);
 			if (links.length === 0 && broken.length === 0) {
@@ -279,7 +331,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 	};
 
 	// Links (working or broken) from any scope status shows that point at this shelved skill.
-	const linksTo = (group, skill) => {
+	const linksTo = (group: string, skill: string): (ShelfLink | BrokenShelfLink)[] => {
 		const { project, global } = getStatus();
 		const source = join(shelfDir, group, skill);
 		return [project, global].flatMap(({ links, broken }) => [
@@ -288,7 +340,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 		]);
 	};
 
-	const shelve = (skill, group, { dryRun = false } = {}) => {
+	const shelve = (skill: string, group: string, { dryRun = false }: { dryRun?: boolean } = {}): number => {
 		const from = join(configDir, "skills", skill);
 		const to = join(shelfDir, group, skill);
 		if (!listDirs(join(configDir, "skills")).includes(skill)) {
@@ -319,7 +371,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 		return 0;
 	};
 
-	const unshelve = (target, { dryRun = false } = {}) => {
+	const unshelve = (target: string, { dryRun = false }: { dryRun?: boolean } = {}): number => {
 		const resolved = resolveTarget(target);
 		if (resolved.error) {
 			err(resolved.error);
@@ -351,7 +403,7 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 
 	// promote: <project>/.claude/skills/<skill> → ~/.claude/skills (every project); demote: the reverse. Real folders only
 	// (a link belongs to the shelf), never overwrites, no copy kept: it is a move.
-	const scopeMove = (direction, skill, { dryRun = false } = {}) => {
+	const scopeMove = (direction: "promote" | "demote", skill: string, { dryRun = false }: { dryRun?: boolean } = {}): number => {
 		const promote = direction === "promote";
 		const projectDir = join(paths.projectRoot(), ".claude", "skills");
 		const globalDir = join(configDir, "skills");
@@ -391,12 +443,12 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 	// <backups>/removed/<time>/. Refuses while a shelf link still points at it. Restore by moving the copy back.
 	// With project: deletes the real folder <project>/.claude/skills/<skill> instead (a link there belongs to the shelf; turn it off).
 	// With backup false no copy is kept. meta.json next to the copy records the original folder for `agentry backups restore`.
-	const remove = (target, { dryRun = false, project = false, backup = true } = {}) => {
-		const resolved = project ? { error: "" } : resolveTarget(target);
+	const remove = (target: string, { dryRun = false, project = false, backup = true }: { dryRun?: boolean; project?: boolean; backup?: boolean } = {}): number => {
+		const resolved: Resolved = project ? { error: "", code: 1 } : resolveTarget(target);
 		const globalFolder = join(configDir, "skills", target);
 		const projectFolder = join(paths.projectRoot(), ".claude", "skills", target);
-		let from;
-		let label;
+		let from: string;
+		let label: string;
 		if (project) {
 			if (!existsSync(projectFolder) || target.includes("/")) {
 				err(`No skill folder "${target}" in ${dirname(projectFolder)}`);
@@ -450,10 +502,10 @@ export const createShelf = (paths, { out = console.log, err = console.error, war
 		status,
 		shelve,
 		unshelve,
-		promote: (skill, options) => scopeMove("promote", skill, options),
-		demote: (skill, options) => scopeMove("demote", skill, options),
-		on: (targets, options) => toggle("on", targets, options),
-		off: (targets, options) => toggle("off", targets, options),
+		promote: (skill: string, options?: { dryRun?: boolean }) => scopeMove("promote", skill, options),
+		demote: (skill: string, options?: { dryRun?: boolean }) => scopeMove("demote", skill, options),
+		on: (targets: string[], options?: ShelfFlags) => toggle("on", targets, options),
+		off: (targets: string[], options?: ShelfFlags) => toggle("off", targets, options),
 		offAll,
 	};
 };

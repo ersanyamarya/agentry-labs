@@ -4,6 +4,8 @@
 //    with `isObject`/`list` (inventory/common) before use. Facts: docs/claude-config-sources.md.
 //  - what the inventory readers and doctor produce (skills, MCP servers, hooks, plugins, findings), which are strict.
 
+import type { Paths } from "./paths.js";
+
 export type JsonObject = Record<string, unknown>;
 
 /** An unreadable or invalid file, reported by a reader. Never holds file content. */
@@ -214,4 +216,70 @@ export interface Finding {
 	file: string;
 	line?: number;
 	fix?: string;
+}
+
+// ---- fix engine ----
+
+/** What a fix's `apply` returns: the new file text, a command to run (no shell), or nothing to do. */
+export type ApplyResult = string | { command: string[]; cwd?: string } | null | undefined;
+
+/** `file` is absent for a command fix that edits nothing; `apply` gets "" for a missing file and undefined for a non-regular one. */
+export interface TextFix {
+	ruleId: string;
+	file?: string;
+	describe?: () => string;
+	apply: (text: string | undefined) => ApplyResult;
+}
+
+/** A fix that cannot be made safe: the finding is listed with the reason. */
+export interface UnfixableFix {
+	ruleId: string;
+	unfixable: string;
+}
+
+export type Fix = TextFix | UnfixableFix;
+
+export interface FixContext {
+	paths: Paths;
+	cwd: string;
+	project: { cwd: string; root: string };
+	findings: Finding[];
+}
+
+export type FixMaker = (finding: Finding, ctx: FixContext) => Fix | Fix[] | undefined;
+export type FixRegistry = Record<string, FixMaker>;
+
+/** The slice of the doctor the fix engine uses (a stand-in is injected by plugin/mcp/hook toggles). */
+export interface DoctorLike {
+	collect: (cwd?: string) => { project: { cwd: string; root: string }; findings: Finding[]; errors: ReadError[] };
+}
+
+export interface CommandOutcome {
+	status: number | null;
+	stdout: string;
+	stderr: string;
+	error?: string;
+}
+
+export type RunCommand = (argv: string[], options: { cwd: string }) => CommandOutcome;
+
+/** Injectable dependencies of `createFix`. */
+export interface FixOptions {
+	out?: (text: string) => void;
+	err?: (text: string) => void;
+	fixes?: FixRegistry;
+	doctor?: () => DoctorLike;
+	isTTY?: () => boolean;
+	confirm?: (question: string) => Promise<boolean>;
+	runCommand?: RunCommand;
+	now?: () => Date;
+}
+
+/** Arguments of `createFix(...).run`. `include` and `label` are for scan --fix. */
+export interface FixRunArgs {
+	path?: string;
+	yes?: boolean;
+	dryRun?: boolean;
+	include?: (finding: Finding) => boolean;
+	label?: string;
 }

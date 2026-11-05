@@ -1,4 +1,3 @@
-// @ts-nocheck
 // `agentry mcp disable|enable <name>` and `mcp list-parked`: switch a USER-scope MCP server off and back on.
 // Claude Code has no global off switch for them (see the Phase 8 Decisions log), so "disable" parks the server: its full
 // config is saved, then `claude mcp remove <name> --scope user` removes it; "enable" runs `claude mcp add-json`
@@ -24,6 +23,8 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { atomicWrite, createFix } from "./fix.js";
+import type { Paths } from "./paths.js";
+import type { ClaudeJson, ClaudeProject, DoctorLike, Finding, FixOptions, FixRegistry, McpServerRaw, RunCommand } from "./types.js";
 import { createJsonEdit } from "./json-edit.js";
 import { isObject, readJson } from "./inventory/common.js";
 import { createMcpReader } from "./inventory/mcp.js";
@@ -37,13 +38,13 @@ export const APPLIES_NOTE = "Applies to sessions started after this.";
 // ~/.claude.json projects.<project>.disabledMcpServers (the same switch /mcp writes), so those are turned off per project.
 const PER_PROJECT = new Set(["plugin", "project", "local"]);
 
-const MANAGED_BY = {
+const MANAGED_BY: Record<string, string> = {
 	"desktop-config": "managed by Claude desktop",
 	"desktop-extension": "managed by Claude desktop",
 };
 
 // A masked one-line description of a raw config (never the secret values).
-export const summarize = (raw) => {
+export const summarize = (raw: McpServerRaw): string => {
 	const bits = [raw.type ?? (raw.url ? "http" : "stdio")];
 	if (typeof raw.url === "string") {
 		bits.push(maskUrl(raw.url));
@@ -56,40 +57,57 @@ export const summarize = (raw) => {
 	return [bits.join(" "), ...(env.length ? [`env ${env.join(" ")}`] : []), ...(headers.length ? [`headers ${headers.join(", ")}`] : [])].join("; ");
 };
 
-export const createMcpToggle = (paths, { out = console.log, err = console.error, platform = process.platform, ...fixOptions } = {}) => {
-	const reader = createMcpReader(paths, { platform });
-	const tilde = (text) => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
+export interface McpToggleOptions extends FixOptions {
+	platform?: NodeJS.Platform;
+}
 
-	const userRaw = (name) => {
-		const raw = readJson(paths.claudeJson, [])?.mcpServers?.[name];
+/** The parked store: raw configs (secrets included) of user-scope servers taken out of ~/.claude.json. */
+export interface ParkedStore {
+	version: number;
+	servers: Record<string, { config?: unknown; parkedAt?: string } | undefined>;
+}
+
+/** What `inspect` found: a refusal (with exit code), a per-project switch (`projectOff`), or a user-scope server to park/restore. */
+export type Inspected =
+	| { refusal: string; code: number; projectOff?: undefined; raw?: undefined; cwd?: undefined }
+	| { name: string; enable: boolean; cwd: string; projectOff: true; raw?: undefined }
+	| { name: string; enable: boolean; cwd: string; raw: McpServerRaw; projectOff?: undefined };
+
+export const createMcpToggle = (paths: Paths, { out = console.log, err = console.error, platform = process.platform, ...fixOptions }: McpToggleOptions = {}) => {
+	const reader = createMcpReader(paths, { platform });
+	const tilde = (text: unknown): string => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
+
+	const userRaw = (name: string): McpServerRaw | undefined => {
+		const raw = readJson<ClaudeJson>(paths.claudeJson, [])?.mcpServers?.[name];
 		return isObject(raw) ? raw : undefined;
 	};
 
-	const readParked = () => {
+	const readParked = (): ParkedStore => {
 		try {
-			const store = JSON.parse(readFileSync(paths.parkedMcp, "utf8"));
-			return isObject(store?.servers) ? store : { version: 1, servers: {} };
+			const store = JSON.parse(readFileSync(paths.parkedMcp, "utf8")) as ParkedStore | null;
+			return isObject(store?.servers) ? (store as ParkedStore) : { version: 1, servers: {} };
 		} catch {
 			return { version: 1, servers: {} };
 		}
 	};
-	const writeParked = (store) => {
+	const writeParked = (store: ParkedStore): void => {
 		mkdirSync(dirname(paths.parkedMcp), { recursive: true, mode: 0o700 });
 		atomicWrite(paths.parkedMcp, `${JSON.stringify(store, null, "\t")}\n`, 0o600);
 	};
 
 	// Parked servers for display: names and masked summaries only.
-	const listParked = () => Object.entries(readParked().servers).map(([name, entry]) => ({ name, parkedAt: entry.parkedAt, summary: summarize(isObject(entry.config) ? entry.config : {}) }));
+	const listParked = () => Object.entries(readParked().servers).map(([name, entry]) => ({ name, parkedAt: entry?.parkedAt, summary: summarize(isObject(entry?.config) ? entry.config : {}) }));
 
-	const projectOffList = (cwd) => {
-		const list = readJson(paths.claudeJson, [])?.projects?.[paths.repoKey(cwd)]?.disabledMcpServers;
+	const projectOffList = (cwd: string): unknown[] => {
+		const project = readJson<ClaudeJson>(paths.claudeJson, [])?.projects?.[paths.repoKey(cwd)] as ClaudeProject | undefined;
+		const list = project?.disabledMcpServers;
 		return Array.isArray(list) ? list : [];
 	};
 
 	// → { name, enable, raw, refusal?, code?, already? }; projectOff: true when the switch is the per-project disabled list
-	const inspect = ({ name, enable, path }) => {
+	const inspect = ({ name, enable, path }: { name: string; enable: boolean; path?: string }): Inspected => {
 		const cwd = resolve(path ?? process.cwd());
-		const refuse = (refusal, code = 1) => ({ refusal, code });
+		const refuse = (refusal: string, code = 1): Inspected => ({ refusal, code });
 		const parked = readParked().servers[name];
 		const current = userRaw(name);
 		if (!enable) {
@@ -118,18 +136,18 @@ export const createMcpToggle = (paths, { out = console.log, err = console.error,
 	};
 
 	// Turn a plugin, project or local server off (or back on) for one project: edits only the disabledMcpServers list.
-	const runProjectOff = async ({ name, enable, cwd, yes, dryRun }) => {
+	const runProjectOff = async ({ name, enable, cwd, yes, dryRun }: { name: string; enable: boolean; cwd: string; yes: boolean; dryRun: boolean }): Promise<number> => {
 		const key = paths.repoKey(cwd);
-		const finding = { id: RULE, severity: "info", message: `${name} should be ${enable ? "on" : "off"} in this project`, file: paths.claudeJson };
-		const doctor = () => ({ collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: projectOffList(cwd).includes(name) === enable ? [finding] : [], errors: [] }) });
-		const fixes = {
+		const finding: Finding = { id: RULE, severity: "info", message: `${name} should be ${enable ? "on" : "off"} in this project`, file: paths.claudeJson };
+		const doctor = (): DoctorLike => ({ collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: projectOffList(cwd).includes(name) === enable ? [finding] : [], errors: [] }) });
+		const fixes: FixRegistry = {
 			[RULE]: () => ({
 				ruleId: RULE,
 				file: paths.claudeJson,
 				describe: () => `${enable ? "Turn on" : "Turn off"} MCP server ${name} for ${tilde(key)} (disabledMcpServers in ~/.claude.json)`,
-				apply: (text) => {
-					const doc = createJsonEdit(text);
-					const list = doc.get(["projects", key, "disabledMcpServers"]) ?? [];
+				apply: (text: string | undefined) => {
+					const doc = createJsonEdit(text as string);
+					const list = (doc.get(["projects", key, "disabledMcpServers"]) ?? []) as unknown[];
 					const next = enable ? list.filter((item) => item !== name) : [...new Set([...list, name])];
 					if (next.length === list.length) {
 						return text;
@@ -152,20 +170,21 @@ export const createMcpToggle = (paths, { out = console.log, err = console.error,
 		return code;
 	};
 
-	const run = async ({ name, enable, path, yes = false, dryRun = false }) => {
+	const run = async ({ name, enable, path, yes = false, dryRun = false }: { name: string; enable: boolean; path?: string; yes?: boolean; dryRun?: boolean }): Promise<number> => {
 		const found = inspect({ name, enable, path });
-		if (found.refusal) {
+		if ("refusal" in found) {
 			err(`refused: ${found.refusal}`);
 			return found.code;
 		}
-		const { raw, cwd } = found;
+		const { cwd } = found;
 		if (found.projectOff) {
 			return runProjectOff({ name, enable, cwd, yes, dryRun });
 		}
-		const finding = { id: RULE, severity: "info", message: `${name} should be ${enable ? "back in user scope" : "parked"}`, file: paths.claudeJson };
-		const doctor = () => ({ collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: Boolean(userRaw(name)) === enable ? [] : [finding], errors: [] }) });
+		const { raw } = found;
+		const finding: Finding = { id: RULE, severity: "info", message: `${name} should be ${enable ? "back in user scope" : "parked"}`, file: paths.claudeJson };
+		const doctor = (): DoctorLike => ({ collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: Boolean(userRaw(name)) === enable ? [] : [finding], errors: [] }) });
 		const argv = enable ? ["claude", "mcp", "add-json", name, PLACEHOLDER, "--scope", "user"] : ["claude", "mcp", "remove", name, "--scope", "user"];
-		const fixes = {
+		const fixes: FixRegistry = {
 			[RULE]: () => ({
 				ruleId: RULE,
 				file: paths.claudeJson,
@@ -173,12 +192,12 @@ export const createMcpToggle = (paths, { out = console.log, err = console.error,
 				apply: () => ({ command: argv, cwd: paths.home ?? cwd }),
 			}),
 		};
-		const spawn = fixOptions.runCommand ?? ((command, options) => {
+		const spawn: RunCommand = fixOptions.runCommand ?? ((command, options) => {
 			const result = spawnSync(command[0], command.slice(1), { cwd: options.cwd, encoding: "utf8" });
-			return { status: result.error ? null : result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "", error: result.error?.code };
+			return { status: result.error ? null : result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "", error: (result.error as NodeJS.ErrnoException | undefined)?.code };
 		});
 		// Runs at apply time only (after the preview and the confirm).
-		const runCommand = (command, options) => {
+		const runCommand: RunCommand = (command, options) => {
 			if (enable) {
 				return spawn(command.map((part) => (part === PLACEHOLDER ? JSON.stringify(raw) : part)), options);
 			}
@@ -211,7 +230,7 @@ export const createMcpToggle = (paths, { out = console.log, err = console.error,
 	// `agentry mcp remove <name>`: delete the server for good. user/local scope run claude mcp remove (no parked copy is kept),
 	// a project .mcp.json entry is deleted from that file, a parked copy alone is deleted from the parked store. Plugin and
 	// desktop servers are refused with who manages them.
-	const remove = async ({ name, path, yes = false, dryRun = false }) => {
+	const remove = async ({ name, path, yes = false, dryRun = false }: { name: string; path?: string; yes?: boolean; dryRun?: boolean }): Promise<number> => {
 		const cwd = resolve(path ?? process.cwd());
 		const parked = readParked().servers[name];
 		const found = reader.read({ cwd }).servers.find((server) => server.name === name);
@@ -244,15 +263,15 @@ export const createMcpToggle = (paths, { out = console.log, err = console.error,
 		const target = found.scope === "project" ? found.source : paths.claudeJson;
 		const present = () => reader.read({ cwd }).servers.some((server) => server.name === name && server.scope === found.scope);
 		const what = `${found.scope} MCP server ${name} (${[found.transport, found.url ? maskUrl(found.url) : [maskCommand(found.command ?? ""), ...maskArgs(found.args ?? [])].join(" ")].join(" ")})`;
-		const finding = { id: RULE, severity: "info", message: `${name} should be removed from ${found.scope} scope`, file: target };
-		const doctor = () => ({ collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: present() ? [finding] : [], errors: [] }) });
-		const fixes = {
+		const finding: Finding = { id: RULE, severity: "info", message: `${name} should be removed from ${found.scope} scope`, file: target };
+		const doctor = (): DoctorLike => ({ collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: present() ? [finding] : [], errors: [] }) });
+		const fixes: FixRegistry = {
 			[RULE]: () => ({
 				ruleId: RULE,
 				file: target,
 				describe: () => `Remove ${what}`,
 				apply: found.scope === "project"
-					? (text) => {
+					? (text: string | undefined) => {
 							const doc = createJsonEdit(text ?? "");
 							if (doc.get(["mcpServers", name]) === undefined) {
 								return text;
@@ -276,4 +295,4 @@ export const createMcpToggle = (paths, { out = console.log, err = console.error,
 	return { inspect, run, remove, listParked, readParked };
 };
 
-export const parkedFileExists = (paths) => existsSync(paths.parkedMcp);
+export const parkedFileExists = (paths: Pick<Paths, "parkedMcp">): boolean => existsSync(paths.parkedMcp);
