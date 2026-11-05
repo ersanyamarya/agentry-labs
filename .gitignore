@@ -7,3 +7,7 @@
 # README cover generator dependencies (run `bun install` in scripts/image-gen-tools)
 scripts/image-gen-tools/node_modules/
 node_modules/
+
+# CLI build output and dependencies (cli/ is its own npm package)
+cli/dist/
+cli/node_modules/
