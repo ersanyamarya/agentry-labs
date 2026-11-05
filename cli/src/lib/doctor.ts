@@ -1,4 +1,3 @@
-// @ts-nocheck
 // `agentry doctor`: runs the rules in lib/doctor-rules.mjs over what the inventory readers find and reports findings
 // `{ id, severity, message, file, line?, fix? }`. Read-only: `fix` is advice, never applied here. Exit code 1 only on errors.
 
@@ -10,15 +9,36 @@ import { createHooksReader } from "./inventory/hooks.js";
 import { createMcpReader } from "./inventory/mcp.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import { createSkillsReader } from "./inventory/skills.js";
-import { rules as defaultRules } from "./doctor-rules.js";
+import { type DoctorContext, type Rule, rules as defaultRules } from "./doctor-rules.js";
+import type { Paths } from "./paths.js";
+import type { Finding, ReadError, Severity } from "./types.js";
 import renamesData from "./renames.json" with { type: "json" };
 
-const SEVERITIES = ["error", "warning", "info"];
+const SEVERITIES: Severity[] = ["error", "warning", "info"];
 
-const defaultRenames = () => renamesData;
+const defaultRenames = (): Record<string, string> => renamesData;
+
+/** The `agentry doctor --json` document. */
+export interface DoctorReport {
+	version: 1;
+	project: { cwd: string; root: string };
+	findings: Finding[];
+	summary: Record<Severity, number>;
+	errors: ReadError[];
+}
+
+export interface DoctorOptions {
+	out?: (text: string) => void;
+	err?: (text: string) => void;
+	platform?: NodeJS.Platform;
+	env?: NodeJS.ProcessEnv;
+	rules?: Rule[];
+	renames?: Record<string, string>;
+	launchctlGetenv?: (name: string) => string;
+}
 
 // Only whether the variable is set matters; the value is never read into output.
-export const defaultLaunchctlGetenv = (name) => {
+export const defaultLaunchctlGetenv = (name: string): string => {
 	try {
 		return execFileSync("launchctl", ["getenv", name], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 	} catch {
@@ -26,13 +46,13 @@ export const defaultLaunchctlGetenv = (name) => {
 	}
 };
 
-export const createDoctor = (paths, { out = console.log, err = console.error, platform = process.platform, env = process.env, rules = defaultRules, renames = defaultRenames(), launchctlGetenv = defaultLaunchctlGetenv } = {}) => {
+export const createDoctor = (paths: Paths, { out = console.log, err = console.error, platform = process.platform, env = process.env, rules = defaultRules, renames = defaultRenames(), launchctlGetenv = defaultLaunchctlGetenv }: DoctorOptions = {}) => {
 	const skillsReader = createSkillsReader(paths);
 	const mcpReader = createMcpReader(paths, { platform });
 	const hooksReader = createHooksReader(paths);
 	const pluginsReader = createPluginsReader(paths);
 
-	const executable = (file) => {
+	const executable = (file: string): boolean => {
 		try {
 			accessSync(file, constants.X_OK);
 			return statSync(file).isFile();
@@ -40,7 +60,7 @@ export const createDoctor = (paths, { out = console.log, err = console.error, pl
 			return false;
 		}
 	};
-	const which = (command) => {
+	const which = (command: string): boolean => {
 		const expanded = command.replace(/^~(?=\/|$)/, paths.home);
 		if (expanded.includes("/")) {
 			return executable(expanded);
@@ -49,8 +69,8 @@ export const createDoctor = (paths, { out = console.log, err = console.error, pl
 	};
 
 	// The (skip+1)th line (1-based) of `file` that contains `needle`; best effort, undefined when not found.
-	const lineCache = new Map();
-	const line = (file, needle, skip = 0) => {
+	const lineCache = new Map<string, string[]>();
+	const line = (file: string, needle: string, skip = 0): number | undefined => {
 		if (!lineCache.has(file)) {
 			try {
 				lineCache.set(file, readFileSync(file, "utf8").split("\n"));
@@ -58,7 +78,7 @@ export const createDoctor = (paths, { out = console.log, err = console.error, pl
 				lineCache.set(file, []);
 			}
 		}
-		const lines = lineCache.get(file);
+		const lines = lineCache.get(file) as string[];
 		let index = -1;
 		for (let seen = 0; seen <= skip; seen++) {
 			index = lines.findIndex((text, at) => at > index && text.includes(needle));
@@ -69,16 +89,16 @@ export const createDoctor = (paths, { out = console.log, err = console.error, pl
 		return index + 1;
 	};
 
-	const collect = (cwd = process.cwd()) => {
+	const collect = (cwd: string = process.cwd()): DoctorReport => {
 		const start = resolve(cwd);
-		const readErrors = [];
+		const readErrors: ReadError[] = [];
 		const skills = skillsReader.read({ cwd: start });
 		const mcp = mcpReader.read({ cwd: start });
 		const hookResult = hooksReader.read({ cwd: start });
 		const pluginResult = pluginsReader.read({ cwd: start });
 		const layers = settingsLayers(paths, start, readErrors);
 		const project = { cwd: start, root: paths.projectRoot(start) };
-		const ctx = {
+		const ctx: DoctorContext = {
 			cwd: start,
 			paths,
 			platform,
@@ -94,22 +114,22 @@ export const createDoctor = (paths, { out = console.log, err = console.error, pl
 			line,
 		};
 
-		const findings = [];
-		const ruleErrors = [];
+		const findings: Finding[] = [];
+		const ruleErrors: ReadError[] = [];
 		for (const rule of rules) {
 			try {
 				findings.push(...rule.run(ctx));
 			} catch (error) {
-				ruleErrors.push({ source: `rule ${rule.id}`, message: `failed (${error.code ?? error.name})` });
+				ruleErrors.push({ source: `rule ${rule.id}`, message: `failed (${(error as { code?: string; name?: string }).code ?? (error as { name?: string }).name})` });
 			}
 		}
 		findings.sort((a, b) => SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity) || a.id.localeCompare(b.id) || a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0));
-		const summary = Object.fromEntries(SEVERITIES.map((severity) => [severity, findings.filter((item) => item.severity === severity).length]));
+		const summary = Object.fromEntries(SEVERITIES.map((severity) => [severity, findings.filter((item) => item.severity === severity).length])) as Record<Severity, number>;
 		return { version: 1, project, findings, summary, errors: uniqueErrors([...skills.errors, ...mcp.errors, ...hookResult.errors, ...pluginResult.errors, ...readErrors, ...ruleErrors]) };
 	};
 
-	const printHuman = (data) => {
-		const tilde = (text) => (paths.home ? text.replaceAll(`${paths.home}/`, "~/") : text);
+	const printHuman = (data: DoctorReport): void => {
+		const tilde = (text: string): string => (paths.home ? text.replaceAll(`${paths.home}/`, "~/") : text);
 		if (data.findings.length === 0) {
 			out("No problems found.");
 		}
@@ -130,7 +150,7 @@ export const createDoctor = (paths, { out = console.log, err = console.error, pl
 	};
 
 	// Returns the exit code: 1 only when an error-severity finding exists, 2 for a bad folder.
-	const run = ({ path, json = false } = {}) => {
+	const run = ({ path, json = false }: { path?: string; json?: boolean } = {}): number => {
 		const cwd = resolve(path ?? process.cwd());
 		if (!existsSync(cwd) || !statSync(cwd).isDirectory()) {
 			err(`Not a folder: ${cwd}`);

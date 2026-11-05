@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Doctor rules. A rule is `{ id, run(ctx) }`; `run` returns findings `{ id, severity, message, file, line?, fix? }`.
 // `ctx` is built by lib/doctor.mjs from the inventory readers (`skills`, `mcp`, `hooks`, `plugins`, all masked already)
 // plus `layers` (settings files), `which(command)`, `launchctlGetenv(name)`, `line(file, needle)` and `renames`.
@@ -8,16 +7,42 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { list } from "./inventory/common.js";
 import { maskShell } from "./mask.js";
+import type { Paths } from "./paths.js";
+import type { Finding, HookItem, McpServerItem, PluginInstall, PluginItem, SettingsLayer, Severity, SkillItem } from "./types.js";
 
-const finding = (id, severity, message, file, extra = {}) => ({ id, severity, message, file, ...extra });
+/** What every rule gets: the masked inventory, the settings files and a few helpers. Built by lib/doctor.ts. */
+export interface DoctorContext {
+	cwd: string;
+	paths: Paths;
+	platform: NodeJS.Platform;
+	project: { cwd: string; root: string };
+	skills: { items: SkillItem[] };
+	mcp: { servers: McpServerItem[] };
+	hooks: { items: HookItem[] };
+	plugins: { items: PluginItem[] };
+	layers: SettingsLayer[];
+	/** Old name -> new name. */
+	renames: Record<string, string>;
+	which: (command: string) => boolean;
+	launchctlGetenv: (name: string) => string;
+	/** The (skip+1)th line (1-based) of `file` that contains `needle`, or undefined. */
+	line: (file: string, needle: string, skip?: number) => number | undefined;
+}
+
+export interface Rule {
+	id: string;
+	run: (ctx: DoctorContext) => Finding[];
+}
+
+const finding = (id: string, severity: Severity, message: string, file: string, extra: { line?: number | undefined; fix?: string } = {}): Finding => ({ id, severity, message, file, ...extra });
 
 // Servers that actually start: shadowed, disabled and unapproved entries are not run.
-const running = (server) => server.state === "active";
+const running = (server: McpServerItem): boolean => server.state === "active";
 
 // ---- duplicates ----
 
 // The installs of one plugin that apply here and should go: all but one, keeping the user-scope install when there is one.
-export const extraPluginInstalls = (plugin) => {
+export const extraPluginInstalls = (plugin: PluginItem): PluginInstall[] => {
 	const here = plugin.installs.filter((install) => install.appliesHere);
 	if (here.length < 2) {
 		return [];
@@ -26,7 +51,7 @@ export const extraPluginInstalls = (plugin) => {
 	return extra.length > 0 ? extra : here.slice(1);
 };
 
-const dupPluginScope = {
+const dupPluginScope: Rule = {
 	id: "dup-plugin-scope",
 	run: ({ plugins, paths }) =>
 		plugins.items.flatMap((plugin) => {
@@ -40,10 +65,10 @@ const dupPluginScope = {
 		}),
 };
 
-const dupSkillName = {
+const dupSkillName: Rule = {
 	id: "dup-skill-name",
 	run: ({ skills }) => {
-		const byName = new Map();
+		const byName = new Map<string, SkillItem[]>();
 		for (const skill of skills.items.filter((item) => item.state === "active" && item.scope !== "plugin")) {
 			byName.set(skill.name, [...(byName.get(skill.name) ?? []), skill]);
 		}
@@ -53,7 +78,7 @@ const dupSkillName = {
 			}
 			// Personal beats project, so the project copy is the dead one.
 			const ordered = [...copies].sort((a, b) => (a.scope === "user" ? 0 : 1) - (b.scope === "user" ? 0 : 1));
-			const loser = ordered.at(-1);
+			const loser = ordered.at(-1) as SkillItem;
 			return [finding("dup-skill-name", "warning", `Skill "${name}" exists ${copies.length} times in places a session loads: ${copies.map((copy) => `${copy.scope} ${copy.source}`).join("; ")}`, loser.source, { fix: `Delete or unlink the copy you don't want: rm -r "${loser.source}" (a symlink: rm "${loser.source}")` })];
 		});
 	},
@@ -61,13 +86,13 @@ const dupSkillName = {
 
 // The winner is always the same or a narrower scope than the shadowed copy (local > project > user), and it is the
 // repo's own entry, so the fix targets the winner: the broader copy is shared with other repos and stays.
-const dupMcpName = {
+const dupMcpName: Rule = {
 	id: "dup-mcp-scope",
 	run: ({ mcp, line }) =>
 		mcp.servers
 			.filter((server) => server.state === "shadowed" && server.scope !== "plugin" && server.shadowedBy?.name === server.name)
 			.map((server) => {
-				const winner = server.shadowedBy;
+				const winner = server.shadowedBy as NonNullable<McpServerItem["shadowedBy"]>;
 				const flag = ["project", "local"].includes(winner.scope) ? ` (claude mcp remove ${server.name} -s ${winner.scope})` : "";
 				return finding("dup-mcp-scope", "warning", `MCP server "${server.name}" is defined in ${winner.scope} scope (${winner.source}) and also in ${server.scope} scope (${server.source}); the ${winner.scope} entry is the one that loads`, winner.source, {
 					line: line(winner.source, `"${server.name}"`),
@@ -76,11 +101,11 @@ const dupMcpName = {
 			}),
 };
 
-const dupMcpPlugin = {
+const dupMcpPlugin: Rule = {
 	id: "dup-mcp-plugin",
 	run: ({ mcp, plugins, line }) => {
-		const out = [];
-		const seen = new Set();
+		const out: Finding[] = [];
+		const seen = new Set<string>();
 		const standalone = mcp.servers.filter((server) => server.scope !== "plugin" && !["disabled", "rejected"].includes(server.state));
 		for (const pluginServer of mcp.servers.filter((server) => server.scope === "plugin")) {
 			const plugin = plugins.items.find((item) => item.id === pluginServer.plugin);
@@ -111,7 +136,7 @@ const dupMcpPlugin = {
 
 // ---- broken references ----
 
-const missingMcpCommand = {
+const missingMcpCommand: Rule = {
 	id: "missing-mcp-command",
 	run: ({ mcp, which, line }) =>
 		mcp.servers
@@ -127,12 +152,12 @@ const missingMcpCommand = {
 const INTERPRETERS = new Set(["node", "bash", "sh", "zsh", "python", "python3", "bun", "deno", "tsx", "ruby", "perl"]);
 
 // The file a hook command runs: its first word, or the first non-flag argument after an interpreter. Undefined when not path-like.
-const hookFile = (command, { home, projectRoot }) => {
+const hookFile = (command: string, { home, projectRoot }: { home: string; projectRoot: string }): { written: string; path: string } | undefined => {
 	const words = command.split(/\s+/).filter(Boolean);
 	while (words.length > 0 && /^[A-Za-z_]\w*=/.test(words[0])) {
 		words.shift();
 	}
-	let word = words[0];
+	let word: string | undefined = words[0];
 	if (word && INTERPRETERS.has(word.replace(/^.*\//, ""))) {
 		word = words.slice(1).find((item) => !item.startsWith("-"));
 	}
@@ -147,7 +172,7 @@ const hookFile = (command, { home, projectRoot }) => {
 	return expanded.includes("$") ? undefined : { written: word, path: resolve(projectRoot, expanded) };
 };
 
-const missingHookFile = {
+const missingHookFile: Rule = {
 	id: "missing-hook-file",
 	run: ({ hooks, paths, project, line }) =>
 		hooks.items.flatMap((hook) => {
@@ -167,20 +192,20 @@ const missingHookFile = {
 		}),
 };
 
-const brokenSkillLink = {
+const brokenSkillLink: Rule = {
 	id: "broken-skill-link",
 	run: ({ skills }) =>
 		skills.items
 			.filter((skill) => skill.kind === "broken" && skill.target !== undefined)
 			.map((skill) => {
-				const missing = !existsSync(skill.target);
+				const missing = !existsSync(skill.target as string);
 				return finding("broken-skill-link", "warning", missing ? `Skill link "${skill.name}" points at ${skill.target}, which does not exist` : `Skill link "${skill.name}" points at ${skill.target}, which has no SKILL.md`, skill.source, {
 					fix: `Remove the link: rm "${skill.source}"`,
 				});
 			}),
 };
 
-const pluginNotInstalled = {
+const pluginNotInstalled: Rule = {
 	id: "plugin-not-installed",
 	run: ({ plugins, line }) =>
 		plugins.items
@@ -198,7 +223,7 @@ const pluginNotInstalled = {
 const REF = /\$\{([A-Za-z_][A-Za-z0-9_]*)(:-[^}]*)?\}/g;
 const PROVIDED = new Set(["HOME", "CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR"]);
 
-const unsetPlaceholder = {
+const unsetPlaceholder: Rule = {
 	id: "unset-placeholder",
 	run: ({ mcp, platform, launchctlGetenv, line }) => {
 		// Apps launched from the Dock or Spotlight get launchd's environment, not the shell profile's.
@@ -209,7 +234,7 @@ const unsetPlaceholder = {
 			.filter((server) => server.state !== "shadowed" && server.state !== "disabled" && server.state !== "rejected")
 			.flatMap((server) => {
 				const texts = [...Object.values(server.env ?? {}), ...Object.values(server.headers ?? {})];
-				const names = new Set();
+				const names = new Set<string>();
 				for (const text of texts) {
 					for (const [, name, fallback] of String(text).matchAll(REF)) {
 						if (!fallback && !PROVIDED.has(name) && !launchctlGetenv(name)) {
@@ -233,18 +258,18 @@ const unsetPlaceholder = {
 
 // ---- stale names ----
 
-const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // Where an old name counts as used: not inside a longer word, a scoped package or a file name stem like "x.graft".
-export const renamePattern = (from) => new RegExp(`(?<![A-Za-z0-9.@-])${escape(from)}(?![A-Za-z0-9/@])`);
+export const renamePattern = (from: string): RegExp => new RegExp(`(?<![A-Za-z0-9.@-])${escape(from)}(?![A-Za-z0-9/@])`);
 
-const staleName = {
+const staleName: Rule = {
 	id: "stale-name",
 	run: ({ layers, mcp, hooks, renames, line }) => {
 		const rules = Object.entries(renames).map(([from, to]) => ({ from, to, pattern: renamePattern(from) }));
-		const out = [];
-		const reported = new Map();
-		const check = (what, text, file) => {
+		const out: Finding[] = [];
+		const reported = new Map<string, number>();
+		const check = (what: string, text: string, file: string): void => {
 			for (const { from, to, pattern } of rules) {
 				if (pattern.test(text)) {
 					// Needle: the word that holds the old name, so repeated hits land on their own lines.
@@ -258,22 +283,23 @@ const staleName = {
 		};
 		for (const { source, json } of layers) {
 			for (const kind of ["allow", "deny", "ask"]) {
-				for (const entry of list(json.permissions?.[kind]).filter((item) => typeof item === "string")) {
+				for (const entry of list(json.permissions?.[kind]).filter((item): item is string => typeof item === "string")) {
 					check(`Permission ${kind} entry "${maskShell(entry)}"`, entry, source);
 				}
 			}
 		}
 		for (const { source, json } of layers) {
 			for (const [key, value] of Object.entries(json).filter(([name]) => /statusLine$/i.test(name))) {
-				if (typeof value?.command === "string") {
-					check(`${key} command`, maskShell(value.command), source);
+				const command = (value as { command?: unknown } | null | undefined)?.command;
+				if (typeof command === "string") {
+					check(`${key} command`, maskShell(command), source);
 				}
 			}
 		}
 		for (const server of mcp.servers.filter((item) => item.scope !== "plugin")) {
 			check(`MCP server "${server.name}"`, [server.name, server.command, ...(server.args ?? [])].filter((item) => typeof item === "string").join(" "), server.source);
 		}
-		for (const hook of hooks.items.filter((item) => item.scope !== "plugin" && item.command)) {
+		for (const hook of hooks.items.filter((item): item is HookItem & { command: string } => item.scope !== "plugin" && Boolean(item.command))) {
 			check(`${hook.event} hook`, hook.command, hook.source);
 			check(`${hook.event} hook matcher`, hook.matcher, hook.source);
 		}
@@ -283,7 +309,7 @@ const staleName = {
 
 // ---- shelf ----
 
-const subdirs = (dir) => {
+const subdirs = (dir: string): string[] => {
 	try {
 		return readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 	} catch {
@@ -292,23 +318,23 @@ const subdirs = (dir) => {
 };
 
 // Every file under `dir` as a sorted relative path.
-const readTree = (dir, base = dir) =>
+const readTree = (dir: string, base: string = dir): string[] =>
 	readdirSync(dir, { withFileTypes: true })
 		.flatMap((entry) => (entry.isDirectory() ? readTree(join(dir, entry.name), base) : [relative(base, join(dir, entry.name))]))
 		.sort();
 
 // Same file list and same bytes in every file.
-const sameFolder = (a, b) => {
+const sameFolder = (a: string, b: string): boolean => {
 	const files = readTree(a);
 	const other = readTree(b);
 	return files.length === other.length && files.every((file, at) => file === other[at] && readFileSync(join(a, file)).equals(readFileSync(join(b, file))));
 };
 
 // Shelf groups that hold a skill folder named `name`.
-const shelfGroups = (shelfDir, name) => subdirs(shelfDir).filter((group) => existsSync(join(shelfDir, group, name, "SKILL.md")));
+const shelfGroups = (shelfDir: string, name: string): string[] => subdirs(shelfDir).filter((group) => existsSync(join(shelfDir, group, name, "SKILL.md")));
 
 // A real folder in ~/.claude/skills that matches a shelved copy loads twice once the shelf is on. A symlink is a shelved skill that is linked in, so it is not reported.
-const shelfDuplicate = {
+const shelfDuplicate: Rule = {
 	id: "shelf-duplicate",
 	run: ({ skills, paths }) =>
 		skills.items
@@ -327,4 +353,4 @@ const shelfDuplicate = {
 };
 
 // Order here is the registry order; a new rule is one more entry.
-export const rules = [dupPluginScope, dupSkillName, dupMcpName, dupMcpPlugin, missingMcpCommand, missingHookFile, brokenSkillLink, pluginNotInstalled, unsetPlaceholder, staleName, shelfDuplicate];
+export const rules: Rule[] = [dupPluginScope, dupSkillName, dupMcpName, dupMcpPlugin, missingMcpCommand, missingHookFile, brokenSkillLink, pluginNotInstalled, unsetPlaceholder, staleName, shelfDuplicate];

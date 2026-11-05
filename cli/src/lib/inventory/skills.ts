@@ -1,15 +1,16 @@
-// @ts-nocheck
 // Lists the skills a Claude Code session in a folder loads: personal, project, shelf links and plugin skills.
 // Each is a real folder (file), a symlink, or a broken link. Sources: docs/claude-config-sources.md ("Skills").
 // Which folders count for project skills (start folder, git root, nested) is unverified; the start folder and the working-tree root are read.
 
 import { existsSync, lstatSync, readdirSync, readlinkSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
+import type { Paths } from "../paths.js";
 import { descriptionTokens } from "../tokens.js";
+import type { PluginManifest, ReadError, SkillItem, SkillKind, SkillState, SkippedSkills } from "../types.js";
 import { list, projectDirs, readJson, uniqueErrors } from "./common.js";
 import { createPluginsReader } from "./plugins.js";
 
-const subdirs = (dir) => {
+const subdirs = (dir: string): string[] => {
 	try {
 		return readdirSync(dir, { withFileTypes: true }).filter((entry) => !entry.name.startsWith(".")).map((entry) => entry.name).sort();
 	} catch {
@@ -17,12 +18,24 @@ const subdirs = (dir) => {
 	}
 };
 
-export const createSkillsReader = (paths) => {
+export interface SkillsResult {
+	skills: SkillItem[];
+	skipped: SkippedSkills[];
+	errors: ReadError[];
+}
+
+interface SkillFolder {
+	kind: SkillKind;
+	target?: string;
+	shelfGroup?: string;
+}
+
+export const createSkillsReader = (paths: Pick<Paths, "configDir" | "projectRoot" | "repoKey" | "pluginsDir" | "shelfDir">) => {
 	const pluginsReader = createPluginsReader(paths);
 
 	// One skill folder entry: kind says what is on disk; a link whose target is gone, or a folder without SKILL.md, is broken.
-	const inspect = (path) => {
-		let stat;
+	const inspect = (path: string): SkillFolder | undefined => {
+		let stat: ReturnType<typeof lstatSync>;
 		try {
 			stat = lstatSync(path);
 		} catch {
@@ -32,7 +45,7 @@ export const createSkillsReader = (paths) => {
 		if (!symlink && !stat.isDirectory()) {
 			return undefined;
 		}
-		const info = { kind: symlink ? "symlink" : "file" };
+		const info: SkillFolder = { kind: symlink ? "symlink" : "file" };
 		if (symlink) {
 			info.target = resolve(dirname(path), readlinkSync(path));
 			const underShelf = info.target === paths.shelfDir || info.target.startsWith(paths.shelfDir + sep);
@@ -47,12 +60,12 @@ export const createSkillsReader = (paths) => {
 		return info;
 	};
 
-	const read = ({ cwd = process.cwd() } = {}) => {
-		const errors = [];
-		const skills = [];
-		const skipped = [];
+	const read = ({ cwd = process.cwd() }: { cwd?: string } = {}): SkillsResult => {
+		const errors: ReadError[] = [];
+		const skills: SkillItem[] = [];
+		const skipped: SkippedSkills[] = [];
 
-		const addFolder = (dir, meta, prefix = "") => {
+		const addFolder = (dir: string, meta: { scope: SkillItem["scope"]; plugin?: string; state?: SkillState }, prefix = ""): void => {
 			for (const name of subdirs(dir)) {
 				if (meta.scope === "user" && name === "synced") {
 					skipped.push({ path: join(dir, name), reason: "managed by claude.ai", count: subdirs(join(dir, name)).length });
@@ -70,13 +83,13 @@ export const createSkillsReader = (paths) => {
 					...info,
 					state: info.kind === "broken" ? "broken" : (meta.state ?? "active"),
 					tokens: info.kind === "broken" ? null : descriptionTokens(file),
-					...(meta.plugin && { plugin: meta.plugin }),
+					...(meta.plugin ? { plugin: meta.plugin } : {}),
 				});
 			}
 		};
 
 		addFolder(join(paths.configDir, "skills"), { scope: "user" });
-		const seen = new Set();
+		const seen = new Set<string>();
 		for (const dir of projectDirs(paths, cwd)) {
 			const skillsDir = join(dir, ".claude", "skills");
 			if (!seen.has(skillsDir)) {
@@ -91,9 +104,10 @@ export const createSkillsReader = (paths) => {
 			if (!plugin.installPath) {
 				continue;
 			}
-			const manifest = plugin.manifestFile ? (readJson(plugin.manifestFile, errors) ?? {}) : {};
-			const extra = (typeof manifest.skills === "string" ? [manifest.skills] : list(manifest.skills)).filter((item) => typeof item === "string");
-			const dirs = new Set([join(plugin.installPath, "skills"), ...extra.map((item) => resolve(plugin.installPath, item))]);
+			const manifest: PluginManifest = plugin.manifestFile ? (readJson<PluginManifest>(plugin.manifestFile, errors) ?? {}) : {};
+			const extra = (typeof manifest.skills === "string" ? [manifest.skills] : list(manifest.skills)).filter((item): item is string => typeof item === "string");
+			const { installPath } = plugin;
+			const dirs = new Set([join(installPath, "skills"), ...extra.map((item) => resolve(installPath, item))]);
 			for (const dir of dirs) {
 				addFolder(dir, { scope: "plugin", plugin: plugin.id, state: plugin.state }, `${plugin.name}:`);
 			}

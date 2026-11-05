@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Lists every MCP server a Claude Code session in a folder would see, where each comes from, and whether it loads.
 // Sources, precedence and shapes: docs/claude-config-sources.md. Secret values are masked before they leave this module.
 
@@ -7,48 +6,70 @@ import { dirname, join, resolve } from "node:path";
 import { isObject, list, readJson } from "./common.js";
 import { createPluginsReader } from "./plugins.js";
 import { maskArgs, maskCommand, maskHeader, maskMap, maskUrl } from "../mask.js";
+import type { Paths } from "../paths.js";
+import type { ClaudeJson, ClaudeProject, McpServerItem, McpServerRaw, McpScope, McpState, PluginManifest, ReadError, SettingsJson } from "../types.js";
 
 // `{ mcpServers: {...} }`. Claude Code ignores a bare `{ name: entry }` .mcp.json; plugin files may be bare (unverified).
-const serverMap = (json, { bare = false } = {}) => (isObject(json?.mcpServers) ? json.mcpServers : bare && isObject(json) && !("mcpServers" in json) ? json : {});
+const serverMap = (json: unknown, { bare = false }: { bare?: boolean } = {}): Record<string, unknown> => (isObject(json) && isObject(json.mcpServers) ? json.mcpServers : bare && isObject(json) && !("mcpServers" in json) ? json : {});
 
-const transportOf = (raw) => {
+const transportOf = (raw: McpServerRaw): string => {
 	if (raw.type === "streamable-http") {
 		return "http";
 	}
 	return raw.type ?? (raw.command !== undefined ? "stdio" : "unknown");
 };
 
-export const createMcpReader = (paths, { platform = process.platform } = {}) => {
+// Where an entry was found; `loadsIn` and `state` default to both apps and active.
+interface McpMeta {
+	scope: McpScope;
+	source: string;
+	plugin?: string;
+	loadsIn?: string[];
+	state?: McpState;
+}
+
+type AddServer = (name: string, raw: unknown, meta: McpMeta, root?: string) => void;
+
+export interface McpResult {
+	servers: McpServerItem[];
+	errors: ReadError[];
+}
+
+type McpPaths = Pick<Paths, "configDir" | "projectRoot" | "repoKey" | "pluginsDir" | "claudeJson" | "desktopDir">;
+
+export const createMcpReader = (paths: McpPaths, { platform = process.platform }: { platform?: NodeJS.Platform } = {}) => {
 	const pluginsReader = createPluginsReader(paths);
-	const read = ({ cwd = process.cwd() } = {}) => {
-		const errors = [];
+	const read = ({ cwd = process.cwd() }: { cwd?: string } = {}): McpResult => {
+		const errors: ReadError[] = [];
 		const start = resolve(cwd);
 		const key = paths.repoKey(start);
 		const top = paths.projectRoot(start);
-		const claudeJson = readJson(paths.claudeJson, errors) ?? {};
-		const project = isObject(claudeJson.projects?.[key]) ? claudeJson.projects[key] : {};
+		const claudeJson = readJson<ClaudeJson>(paths.claudeJson, errors) ?? {};
+		const projectEntry = claudeJson.projects?.[key];
+		const project = (isObject(projectEntry) ? projectEntry : {}) as ClaudeProject;
 		const trusted = project.hasTrustDialogAccepted === true;
 
 		const projectDirs = [...new Set([top, start])];
-		const userSettings = readJson(join(paths.configDir, "settings.json"), errors) ?? {};
-		const projectSettings = projectDirs.map((dir) => readJson(join(dir, ".claude", "settings.json"), errors) ?? {});
-		const localSettings = projectDirs.map((dir) => readJson(join(dir, ".claude", "settings.local.json"), errors) ?? {});
+		const userSettings = readJson<SettingsJson>(join(paths.configDir, "settings.json"), errors) ?? {};
+		const projectSettings = projectDirs.map((dir) => readJson<SettingsJson>(join(dir, ".claude", "settings.json"), errors) ?? {});
+		const localSettings = projectDirs.map((dir) => readJson<SettingsJson>(join(dir, ".claude", "settings.local.json"), errors) ?? {});
 		// Project-level approvals only count in a trusted folder; user settings always count.
 		const approvers = [userSettings, ...(trusted ? [project, ...projectSettings, ...localSettings] : [])];
 		const rejecters = [userSettings, project, ...projectSettings, ...localSettings];
 		const disabled = new Set(list(project.disabledMcpServers));
 
-		const servers = [];
-		const endpoints = new WeakMap();
-		const add = (name, raw, meta, root) => {
+		const servers: McpServerItem[] = [];
+		const endpoints = new WeakMap<McpServerItem, string>();
+		const add: AddServer = (name, raw, meta, root) => {
 			if (!isObject(raw)) {
 				errors.push({ source: meta.source, message: `server "${name}" is not an object` });
 				return;
 			}
-			const expand = (text) => (root && typeof text === "string" ? text.replaceAll("${CLAUDE_PLUGIN_ROOT}", root) : text);
+			const expand = (text: unknown): unknown => (root && typeof text === "string" ? text.replaceAll("${CLAUDE_PLUGIN_ROOT}", root) : text);
 			const command = expand(raw.command);
 			const args = list(raw.args).map(expand);
-			const server = { name, transport: transportOf(raw), scope: meta.scope, source: meta.source };
+			// loadsIn and state are set below, before the server is used.
+			const server = { name, transport: transportOf(raw), scope: meta.scope, source: meta.source } as McpServerItem;
 			if (raw.command !== undefined) {
 				server.command = maskCommand(command);
 				server.args = maskArgs(args);
@@ -101,11 +122,11 @@ export const createMcpReader = (paths, { platform = process.platform } = {}) => 
 			const enabled = plugin.state === "active";
 			const root = plugin.installPath;
 			const manifestFile = join(root, ".claude-plugin", "plugin.json");
-			const manifest = readJson(manifestFile, errors) ?? {};
+			const manifest: PluginManifest = readJson<PluginManifest>(manifestFile, errors) ?? {};
 			const pluginName = id.split("@")[0];
-			const meta = (source) => ({ scope: "plugin", source, plugin: id, state: enabled ? "active" : "disabled" });
+			const meta = (source: string): McpMeta => ({ scope: "plugin", source, plugin: id, state: enabled ? "active" : "disabled" });
 			const files = new Set([join(root, ".mcp.json")]);
-			const inline = [];
+			const inline: Record<string, unknown>[] = [];
 			for (const item of typeof manifest.mcpServers === "string" ? [manifest.mcpServers] : Array.isArray(manifest.mcpServers) ? manifest.mcpServers : [manifest.mcpServers]) {
 				if (typeof item === "string") {
 					files.add(resolve(root, item));
@@ -128,12 +149,13 @@ export const createMcpReader = (paths, { platform = process.platform } = {}) => 
 		// Precedence: the first definition of a name wins; plugin servers lose to any earlier server with the same endpoint.
 		// An unapproved or rejected .mcp.json entry doesn't load: it still hides farther .mcp.json entries of its name,
 		// but a user entry of that name loads instead.
-		const winners = new Map();
-		const unapproved = new Map();
-		const byEndpoint = new Map();
+		const winners = new Map<string, McpServerItem>();
+		const unapproved = new Map<string, McpServerItem>();
+		const byEndpoint = new Map<string, McpServerItem>();
+		const endpointOf = (server: McpServerItem): string => endpoints.get(server) as string;
 		for (const server of servers) {
 			const byName = winners.get(server.name) ?? (server.scope === "project" ? unapproved.get(server.name) : undefined);
-			const winner = server.scope === "plugin" ? (byName ?? byEndpoint.get(endpoints.get(server))) : byName;
+			const winner = server.scope === "plugin" ? (byName ?? byEndpoint.get(endpointOf(server))) : byName;
 			if (winner) {
 				server.state = "shadowed";
 				server.shadowedBy = { name: winner.name, scope: winner.scope, source: winner.source };
@@ -144,7 +166,7 @@ export const createMcpReader = (paths, { platform = process.platform } = {}) => 
 				continue;
 			}
 			winners.set(server.name, server);
-			byEndpoint.set(endpoints.get(server), byEndpoint.get(endpoints.get(server)) ?? server);
+			byEndpoint.set(endpointOf(server), byEndpoint.get(endpointOf(server)) ?? server);
 			if (disabled.has(server.name)) {
 				server.state = "disabled";
 			}
@@ -160,9 +182,9 @@ export const createMcpReader = (paths, { platform = process.platform } = {}) => 
 };
 
 // The desktop app's own config and its installed extensions; both load in the desktop app, not in the terminal CLI.
-const readDesktop = (dir, errors, add) => {
+const readDesktop = (dir: string, errors: ReadError[], add: AddServer): void => {
 	const configFile = join(dir, "claude_desktop_config.json");
-	for (const [name, raw] of Object.entries(serverMap({ mcpServers: readJson(configFile, errors)?.mcpServers }))) {
+	for (const [name, raw] of Object.entries(serverMap({ mcpServers: readJson<{ mcpServers?: unknown }>(configFile, errors)?.mcpServers }))) {
 		add(name, raw, { scope: "desktop-config", source: configFile, loadsIn: ["desktop"] });
 	}
 	const extensionsDir = join(dir, "Claude Extensions");
@@ -175,13 +197,13 @@ const readDesktop = (dir, errors, add) => {
 		}
 		const root = join(extensionsDir, entry.name);
 		const manifestFile = join(root, "manifest.json");
-		const manifest = readJson(manifestFile, errors);
+		const manifest = readJson<{ display_name?: string; name?: string; server?: { mcp_config?: unknown } }>(manifestFile, errors);
 		const config = manifest?.server?.mcp_config;
-		if (!isObject(config)) {
+		if (!manifest || !isObject(config)) {
 			continue;
 		}
-		const settings = readJson(join(dir, "Claude Extensions Settings", `${entry.name}.json`), errors) ?? {};
-		const expand = (text) => (typeof text === "string" ? text.replaceAll("${__dirname}", root) : text);
+		const settings = readJson<{ isEnabled?: boolean }>(join(dir, "Claude Extensions Settings", `${entry.name}.json`), errors) ?? {};
+		const expand = (text: unknown): unknown => (typeof text === "string" ? text.replaceAll("${__dirname}", root) : text);
 		const raw = { ...config, command: expand(config.command), args: list(config.args).map(expand) };
 		add(manifest.display_name ?? manifest.name ?? entry.name, raw, { scope: "desktop-extension", source: manifestFile, loadsIn: ["desktop"], state: settings.isEnabled === false ? "disabled" : "active" });
 	}
