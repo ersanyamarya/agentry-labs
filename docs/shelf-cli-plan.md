@@ -208,6 +208,7 @@ Consolidated 2026-11-05 from the per-phase entries (2026-11-03 to 2026-11-04). P
 ### Status
 
 Phases 0 to 8 and all five gaps-plan phases are merged into `main` (425 tests pass). What is left is under "Open items".
+The open-items plan (`docs/open-items-plan.md`) closed the other gaps; its rows are ticked there.
 
 ### Scope and layout
 
@@ -324,8 +325,7 @@ Phases 0 to 8 and all five gaps-plan phases are merged into `main` (425 tests pa
 ### Open items
 
 - Server-managed settings cannot be read offline, so the plugin toggle ignores them (documented in
-  `docs/claude-config-sources.md`, "Managed sources"). The macOS MDM check is done.
-- Not probable without a logged-in session: whether hooks of a disabled plugin are skipped; that the desktop app's GUI
-  environment lacks the shell profile (assumed from the Context7 key incident). Probe results for `projectPath`,
-  `defaultEnabled` and bare-map plugin `.mcp.json` are in `docs/claude-config-sources.md`.
+  `docs/claude-config-sources.md`, "Managed sources").
+- Not probed: whether hooks of a disabled plugin are skipped (needs a logged-in session); that the desktop app's GUI
+  environment lacks the shell profile (assumed from the Context7 key incident).
 - `unset-placeholder`, curl | bash clone path of `install.sh` and Windows were never exercised.
