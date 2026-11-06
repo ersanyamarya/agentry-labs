@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { iconMode, iconsFor } from "../tui/icons.js";
+import { iconMode, iconsFor, toAscii } from "../tui/icons.js";
+import { createUi, KEYS, stripAnsi } from "./helpers/tui.js";
 
 const KINDS = [
   "skill",
@@ -46,5 +47,34 @@ describe("icons", () => {
   test("AGENTRY_ICONS=nerd gives private-use glyphs for the kinds", () => {
     assert.equal(iconMode({ AGENTRY_ICONS: "nerd" }), "nerd");
     assert.match(iconsFor({ AGENTRY_ICONS: "nerd" }).skill, /[-]/);
+  });
+});
+
+describe("ascii rendering", () => {
+  test("toAscii maps every glyph the UI draws to one ASCII column", () => {
+    const glyphs = "●○◐✖▲ℹ▾▸─│·…←→↑↓";
+    const out = toAscii(glyphs);
+    assert.equal([...out].length, [...glyphs].length);
+    assert.match(out, /^[ -~]+$/);
+  });
+
+  test("every tab renders pure ASCII under AGENTRY_ASCII=1", async () => {
+    const ui = createUi({ env: { AGENTRY_ASCII: "1" }, fit: true, plugin: {} });
+    try {
+      await ui.ready();
+      await ui.resize(130, 40);
+      for (const tab of [0, 1, 2, 3, 4, 5, 6, 7]) {
+        if (tab > 0) {
+          await ui.press(KEYS.right);
+        }
+        const frame = stripAnsi(ui.frame())
+          .split("\n")
+          .filter((line) => !line.startsWith("agentry  "))
+          .join("\n");
+        assert.doesNotMatch(frame, /[^ -~\n]/, `tab ${tab + 1}`);
+      }
+    } finally {
+      ui.stop();
+    }
   });
 });

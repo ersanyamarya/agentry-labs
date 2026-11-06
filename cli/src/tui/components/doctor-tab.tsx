@@ -1,7 +1,7 @@
 // Doctor tab: findings by severity. enter previews the fix (dry run, masked), y applies it through the fix engine
 // (backup, write, verify), n or esc cancels, u previews undoing the last fix set. Nothing is written without y.
 
-import { Box, Text, useInput } from "ink";
+import { Box, useInput } from "ink";
 import React from "react";
 import type { Finding } from "../../lib/types.js";
 import { doctorRows } from "../rows.js";
@@ -9,6 +9,7 @@ import { SEVERITY, useStyle } from "../theme.js";
 import type { TabProps } from "../types.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
+import { Text } from "./text.js";
 
 // null, or a preview waiting for y/n, or the result of applying it.
 type Step =

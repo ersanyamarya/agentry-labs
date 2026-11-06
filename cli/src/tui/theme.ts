@@ -19,9 +19,11 @@ export const colorEnabled = (env: NodeJS.ProcessEnv = process.env) =>
   !env.NO_COLOR;
 
 export const ThemeContext = React.createContext<{
+  ascii: boolean;
   color: boolean;
   icons: Icons;
 }>({
+  ascii: false,
   color: true,
   icons: iconsFor({}),
 });

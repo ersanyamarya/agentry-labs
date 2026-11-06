@@ -1,8 +1,9 @@
 // Project picker: the current repo, recent repos, then repos found under the scan roots.
 
-import { Box, Text, useInput } from "ink";
+import { Box, useInput } from "ink";
 import React from "react";
 import { stepCursor } from "../use-cursor.js";
+import { Text } from "./text.js";
 
 export interface PickerRow {
   header?: undefined;

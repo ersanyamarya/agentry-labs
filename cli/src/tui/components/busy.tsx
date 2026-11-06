@@ -1,8 +1,8 @@
 // A spinner followed by text, for work in progress. The animated frames are braille dots; ASCII mode uses - \ | /.
 
-import { Text } from "ink";
 import Spinner from "ink-spinner";
 import { useIcons, useStyle } from "../theme.js";
+import { Text } from "./text.js";
 
 export const Busy = ({ text }: { text: string }) => {
   const style = useStyle();

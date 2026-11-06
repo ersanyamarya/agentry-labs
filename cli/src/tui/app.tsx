@@ -1,7 +1,7 @@
 // The UI shell: project, tabs, overlays (help, picker) and the key map. Tabs get data and actions as props, so the
 // whole tree runs on injected data in tests. Every action goes through the api (tui/data.mjs), i.e. through lib/.
 
-import { Box, Text, useApp, useInput, useStdin, useStdout } from "ink";
+import { Box, useApp, useInput, useStdin, useStdout } from "ink";
 import React from "react";
 import type { CopyOptions } from "./clipboard.js";
 import { copyText } from "./clipboard.js";
@@ -17,9 +17,10 @@ import { Picker, pickerRows } from "./components/picker.js";
 import { RulesTab } from "./components/rules-tab.js";
 import { SkillsTab } from "./components/skills-tab.js";
 import { TAB_NAMES, TabBar } from "./components/tab-bar.js";
+import { Text } from "./components/text.js";
 import type { EditorOptions } from "./editor.js";
 import { openInEditor } from "./editor.js";
-import { iconsFor } from "./icons.js";
+import { iconMode, iconsFor } from "./icons.js";
 import { layoutFor, STACKED_DETAILS_LINES } from "./layout.js";
 import type { createRecents } from "./recents.js";
 import {
@@ -280,7 +281,11 @@ export const App = ({
       }
     : undefined;
   const theme = React.useMemo(
-    () => ({ color: colorEnabled(env), icons: iconsFor(env) }),
+    () => ({
+      ascii: iconMode(env) === "ascii",
+      color: colorEnabled(env),
+      icons: iconsFor(env),
+    }),
     [env]
   );
 

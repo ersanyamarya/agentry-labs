@@ -86,3 +86,27 @@ const SETS: Record<IconMode, Icons> = {
 };
 export const iconsFor = (env: NodeJS.ProcessEnv = process.env): Icons =>
   SETS[iconMode(env)];
+
+// Every other glyph the UI draws (badges, severities, rules, arrows, truncation), as its one-column ASCII stand-in.
+// The state and severity glyphs match the ASCII icon set above.
+const GLYPHS: Record<string, string> = {
+  "●": ASCII.on,
+  "○": ASCII.off,
+  "◐": "%",
+  "✖": ASCII.error,
+  "▲": ASCII.warning,
+  ℹ: ASCII.info,
+  "▾": "v",
+  "▸": ">",
+  "─": "-",
+  "│": "|",
+  "·": ".",
+  "…": "~",
+  "←": "<",
+  "→": ">",
+  "↑": "^",
+  "↓": "v",
+};
+const GLYPH = new RegExp(`[${Object.keys(GLYPHS).join("")}]`, "g");
+export const toAscii = (text: string) =>
+  text.replace(GLYPH, (glyph) => GLYPHS[glyph] ?? glyph);

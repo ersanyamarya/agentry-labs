@@ -1,8 +1,9 @@
 // Top of the screen: project path, the tabs with their counts, and a summary line (skill-description tokens, problems).
 
-import { Box, Text } from "ink";
+import { Box } from "ink";
 import type { Icons } from "../icons.js";
 import { badgeText, stateStyle, useIcons, useStyle } from "../theme.js";
+import { Text } from "./text.js";
 
 export const TAB_KINDS: (keyof Icons)[] = [
   "skill",
