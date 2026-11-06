@@ -1,4 +1,4 @@
-// Starts the confirm step for enabling or disabling a plugin: the preview is lib/plugin-toggle.mjs's own dry run
+// Starts the confirm step for enabling or disabling a plugin: the preview is src/lib/plugin-toggle.ts's own dry run
 // (diff, backup location, refusals), and nothing is written until y.
 
 import type { Api, Row } from "./types.js";
@@ -33,7 +33,7 @@ export const startPluginToggle = async ({
 
 const PLUGIN_ID = /^[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+$/;
 
-// Confirm step for `claude plugin install|uninstall`: the preview is lib/plugin-install.mjs's dry run (the command, the settings
+// Confirm step for `claude plugin install|uninstall`: the preview is src/lib/plugin-install.ts's dry run (the command, the settings
 // file it backs up); nothing runs until y. `fix --undo` restores the settings file only (see the lib header).
 const confirmInstall = async ({
   api,

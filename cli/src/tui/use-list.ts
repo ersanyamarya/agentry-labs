@@ -1,7 +1,7 @@
-// What every list tab shares: the row cursor (use-cursor.mjs), a `/` filter and `m` marks.
+// What every list tab shares: the row cursor (use-cursor.ts), a `/` filter and `m` marks.
 // `/` types a filter (substring of the label and details, any case): enter keeps it, esc clears it. While typing the hook
-// holds the "typing" lock (see use-flow.mjs), so q and the tab keys reach nobody. `m` marks or unmarks the selected row
-// and `M` clears the marks; a tab applies a bulk action to `marked` (see bulk-flow.mjs).
+// holds the "typing" lock (see use-flow.ts), so q and the tab keys reach nobody. `m` marks or unmarks the selected row
+// and `M` clears the marks; a tab applies a bulk action to `marked` (see bulk-flow.ts).
 
 import type { Key } from "ink";
 import React from "react";

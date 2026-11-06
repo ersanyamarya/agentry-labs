@@ -1,11 +1,11 @@
-// Fixes for doctor findings, keyed by rule id; `agentry fix` (lib/fix.mjs) plans, previews, backs up and applies them.
-// An entry is `(finding, ctx) => fix | fix[] | undefined`; the fix shape and `ctx` are documented at the top of lib/fix.mjs.
+// Fixes for doctor findings, keyed by rule id; `agentry fix` (src/lib/fix.ts) plans, previews, backs up and applies them.
+// An entry is `(finding, ctx) => fix | fix[] | undefined`; the fix shape and `ctx` are documented at the top of src/lib/fix.ts.
 // A fix that cannot be made safe returns `{ ruleId, unfixable: "why" }` (or nothing), and the finding stays advice only.
 // Rules without an entry here (missing-hook-file, plugin-not-installed, unset-placeholder, dup-skill-name)
 // have no safe automatic edit.
 //
-// JSON files are edited as text through lib/json-edit.mjs, so untouched bytes stay identical. Findings carry little
-// structure, so fixes read what they need from the finding's message (the doctor's own wording, lib/doctor-rules.mjs).
+// JSON files are edited as text through src/lib/json-edit.ts, so untouched bytes stay identical. Findings carry little
+// structure, so fixes read what they need from the finding's message (the doctor's own wording, src/lib/doctor-rules.ts).
 
 import {
   accessSync,

@@ -87,9 +87,9 @@ export const createPaths = ({
     configDir,
     shelfDir: join(configDir, "skill-shelf"),
     cacheDir: join(configDir, "cache", "agentry"),
-    // Parked user-scope MCP servers (agentry mcp disable): full configs, secrets included, mode 0600. See lib/mcp-toggle.mjs.
+    // Parked user-scope MCP servers (agentry mcp disable): full configs, secrets included, mode 0600. See src/lib/mcp-toggle.ts.
     parkedMcp: join(configDir, "agentry", "parked-mcp.json"),
-    // Hooks turned off with agentry hook disable: the raw hook entries, mode 0600. See lib/hook-toggle.mjs.
+    // Hooks turned off with agentry hook disable: the raw hook entries, mode 0600. See src/lib/hook-toggle.ts.
     parkedHooks: join(configDir, "agentry", "parked-hooks.json"),
     backupsDir: join(configDir, "backups", "agentry"),
     // With CLAUDE_CONFIG_DIR set, Claude Code keeps .claude.json inside it rather than in the home directory.

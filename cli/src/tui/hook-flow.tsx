@@ -1,4 +1,4 @@
-// Confirm steps for turning a settings hook off or on and for removing one. The preview is lib/hook-toggle.mjs's dry run
+// Confirm steps for turning a settings hook off or on and for removing one. The preview is src/lib/hook-toggle.ts's dry run
 // (diff with secrets masked, backup location, refusals); nothing changes until y. `agentry fix --undo` restores the file.
 
 import type { Api, Row } from "./types.js";

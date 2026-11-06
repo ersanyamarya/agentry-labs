@@ -1,7 +1,7 @@
 // `agentry scan [roots...]`: runs the status and doctor collectors over every git repo and worktree under the roots and
 // prints one row per repo. Findings in user-level files are reported once in a "global" block, not per repo. Read-only;
-// per-repo results are cached (lib/scan-cache.mjs) until a file they read changes.
-// With `--fix` (`runFix`) the fix engine (lib/fix.mjs) runs over the same plan: user-level findings first, once, then
+// per-repo results are cached (src/lib/scan-cache.ts) until a file they read changes.
+// With `--fix` (`runFix`) the fix engine (src/lib/fix.ts) runs over the same plan: user-level findings first, once, then
 // each repo with findings on its own, previewed and confirmed per repo.
 
 import { execFileSync } from "node:child_process";
@@ -533,7 +533,7 @@ export const createScan = (
 
   // Fixes through the engine: user-level findings once (from the first repo that shows them), then each repo with
   // findings on its own. The engine previews and asks per call; without a terminal it previews only unless `yes`.
-  // Returns the worst exit code of the runs (see lib/fix.mjs), 2 for a missing root.
+  // Returns the worst exit code of the runs (see src/lib/fix.ts), 2 for a missing root.
   const runFix = async ({
     roots = [],
     depth = 4,

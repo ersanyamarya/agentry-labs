@@ -7,9 +7,9 @@
 // Parked store: `paths.parkedMcp` (<config dir>/agentry/parked-mcp.json), { version: 1, servers: { <name>: { config, parkedAt } } },
 // written atomically with mode 0600 in a 0700 folder. It holds the raw env and header values, so it is exactly as sensitive as
 // ~/.claude.json itself (secrets at rest, unencrypted). It is never printed, logged, diffed or put in a backup manifest:
-// previews and the UI show only masked summaries (lib/mask.mjs). Do not commit or sync it.
+// previews and the UI show only masked summaries (src/lib/mask.ts). Do not commit or sync it.
 //
-// The commands run through the fix engine (lib/fix.mjs): masked preview, confirm (or --yes), a backup of ~/.claude.json first
+// The commands run through the fix engine (src/lib/fix.ts): masked preview, confirm (or --yes), a backup of ~/.claude.json first
 // (so `agentry fix --undo` restores the entry), then verify. The engine's runCommand is wrapped so that
 //   disable: saves the parked copy and reads it back BEFORE the remove; if that fails nothing is removed. If the remove then
 //            fails, the parked copy stays (a re-run with the same config is accepted).

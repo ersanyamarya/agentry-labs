@@ -1,4 +1,4 @@
-// Confirm step for turning off a user-scope MCP server or adding a parked one back. The preview is lib/mcp-toggle.mjs's dry
+// Confirm step for turning off a user-scope MCP server or adding a parked one back. The preview is src/lib/mcp-toggle.ts's dry
 // run (secrets masked); nothing changes until y. `agentry fix --undo` restores ~/.claude.json afterwards.
 
 import type { Api, Row } from "./types.js";

@@ -3,11 +3,11 @@
 // removed from the settings file and saved in <config dir>/agentry/parked-hooks.json; "enable" puts it back in the same
 // file (same event, same matcher group) and drops the saved copy. "remove" only deletes the entry.
 //
-// Selector: the 8-hex `id` that `hook list` prints, a hash of event + matcher + the raw hook entry (lib/inventory/hooks.mjs
+// Selector: the 8-hex `id` that `hook list` prints, a hash of event + matcher + the raw hook entry (src/lib/inventory/hooks.ts
 // hookId); a prefix of 4 or more characters works. The same hook in two settings files has one id, so --scope user|project|local
 // picks the file. Plugin hooks are refused (the plugin owns them: disable the plugin).
 //
-// Edits are text edits (lib/json-edit.mjs) run through the fix engine (lib/fix.mjs), like lib/plugin-toggle.mjs: masked diff
+// Edits are text edits (src/lib/json-edit.ts) run through the fix engine (src/lib/fix.ts), like src/lib/plugin-toggle.ts: masked diff
 // preview, confirm (or --yes), a backup of the settings file first, `agentry fix --undo` to restore. The engine's apply() must
 // not write, so the parked store is written AFTER the settings edit succeeded (enable: dropped after); if saving the parked
 // copy fails the message says so and `fix --undo` brings the hook back. After an undo of a disable the parked copy is still

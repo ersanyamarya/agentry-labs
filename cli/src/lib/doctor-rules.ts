@@ -1,5 +1,5 @@
 // Doctor rules. A rule is `{ id, run(ctx) }`; `run` returns findings `{ id, severity, message, file, line?, fix? }`.
-// `ctx` is built by lib/doctor.mjs from the inventory readers (`skills`, `mcp`, `hooks`, `plugins`, all masked already)
+// `ctx` is built by src/lib/doctor.ts from the inventory readers (`skills`, `mcp`, `hooks`, `plugins`, all masked already)
 // plus `layers` (settings files), `which(command)`, `launchctlGetenv(name)`, `line(file, needle)` and `renames`.
 // Rules only describe fixes (text or a suggested command); nothing here writes. Values are never printed: only names.
 

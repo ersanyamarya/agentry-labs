@@ -1,4 +1,4 @@
-// `agentry doctor`: runs the rules in lib/doctor-rules.mjs over what the inventory readers find and reports findings
+// `agentry doctor`: runs the rules in src/lib/doctor-rules.ts over what the inventory readers find and reports findings
 // `{ id, severity, message, file, line?, fix? }`. Read-only: `fix` is advice, never applied here. Exit code 1 only on errors.
 
 import { execFileSync } from "node:child_process";
