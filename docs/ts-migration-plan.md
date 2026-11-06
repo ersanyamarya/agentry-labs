@@ -74,8 +74,8 @@ The `agentry` CLI (about 8.4k lines of ESM `.mjs` in `bin/`, `lib/`, `tui/`, plu
 
 | Done | Task | Model |
 |---|---|---|
-| [ ] | Verify current Biome and Ultracite setup via Context7, then add `@biomejs/biome` and `ultracite` as devDependencies in `cli/`, run the Ultracite init for Biome (no editor or AI-rule files unless the user asks), write `cli/biome.jsonc` extending Ultracite's preset, and add scripts `lint`, `format`, `check`. Tune only rules that fight existing code (record each in the Decisions log); no blanket disables. | claude-sonnet-5-5 |
-| [ ] | Apply the formatter and safe fixes in one commit (`style(cli): biome format`), add its hash to `cli/.git-blame-ignore-revs`, fix the remaining lint errors by hand without changing behaviour, then add `npm run lint` to `.github/workflows/cli.yml`. | claude-sonnet-5-5 |
+| [x] | Verify current Biome and Ultracite setup via Context7, then add `@biomejs/biome` and `ultracite` as devDependencies in `cli/`, run the Ultracite init for Biome (no editor or AI-rule files unless the user asks), write `cli/biome.jsonc` extending Ultracite's preset, and add scripts `lint`, `format`, `check`. Tune only rules that fight existing code (record each in the Decisions log); no blanket disables. | claude-sonnet-5-5 |
+| [x] | Apply the formatter and safe fixes in one commit (`style(cli): biome format`), add its hash to `cli/.git-blame-ignore-revs`, fix the remaining lint errors by hand without changing behaviour, then add `npm run lint` to `.github/workflows/cli.yml`. | claude-sonnet-5-5 |
 
 ## Phase 2.2: TUI visual polish
 
