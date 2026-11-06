@@ -110,8 +110,8 @@ Icons: Phosphor ships SVG and DOM React components, which a terminal cannot draw
 
 | Done | Task | Model |
 |---|---|---|
-| [ ] | With the user's approval for each command: `npm unlink -g agentry-labs` (the old package name; also `npm rm -g agentry-labs` if it still lists), `mise reshim`, confirm the old shim target is gone, then `npm link` in `agentry-labs/cli` and `mise reshim` again. If `~/.agentry-labs` exists, rebuild its `cli/` or remove it. | claude-haiku-5-5 |
-| [ ] | Find the CLI cache dir (`paths.cacheDir` in `cli/src/lib/paths.ts`), show its contents to the user, and with approval delete the old `scan` cache files only; leave the cached `catalog` clone and `~/.claude/backups/agentry` alone. | claude-haiku-5-5 |
+| [x] | With the user's approval for each command: `npm unlink -g agentry-labs` (the old package name; also `npm rm -g agentry-labs` if it still lists), `mise reshim`, confirm the old shim target is gone, then `npm link` in `agentry-labs/cli` and `mise reshim` again. If `~/.agentry-labs` exists, rebuild its `cli/` or remove it. | claude-haiku-5-5 |
+| [x] | Find the CLI cache dir (`paths.cacheDir` in `cli/src/lib/paths.ts`), show its contents to the user, and with approval delete the old `scan` cache files only; leave the cached `catalog` clone and `~/.claude/backups/agentry` alone. | claude-haiku-5-5 |
 | [ ] | End-to-end check from a clean clone: `git clone` this repo into a temp dir, `cd cli && npm ci && npm test`, then run the "Done when" commands on the linked build. Report any leftover reference to the old layout or old install. | claude-sonnet-5-5 |
 | [ ] | In the final commit delete `docs/ts-migration-plan.md` (git history keeps it) and confirm `git status` is clean. | claude-haiku-5-5 |
 
