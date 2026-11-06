@@ -3,19 +3,19 @@
 
 import { parseArgs } from "node:util";
 import { createBackups } from "../lib/backups.js";
+import { createCatalog } from "../lib/catalog.js";
 import { createDoctor } from "../lib/doctor.js";
 import { createFix } from "../lib/fix.js";
 import { createFixUndo } from "../lib/fix-undo.js";
-import { createHookToggle } from "../lib/hook-toggle.js";
 import type { HookAction } from "../lib/hook-toggle.js";
+import { createHookToggle } from "../lib/hook-toggle.js";
 import { createMcpEdit } from "../lib/mcp-edit.js";
 import { createMcpToggle } from "../lib/mcp-toggle.js";
 import { createPaths } from "../lib/paths.js";
 import { createPluginInstall } from "../lib/plugin-install.js";
 import { createPluginToggle } from "../lib/plugin-toggle.js";
-import { createScan } from "../lib/scan.js";
-import { createCatalog } from "../lib/catalog.js";
 import { createRules } from "../lib/rules.js";
+import { createScan } from "../lib/scan.js";
 import { createShelf } from "../lib/shelf.js";
 import { createStatus } from "../lib/status.js";
 import { packageVersion } from "../lib/version.js";
@@ -192,143 +192,184 @@ Examples:
   agentry fix --undo --yes`;
 
 const SHELF_USAGE =
-	"Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | promote <skill> [--dry-run] | demote <skill> [--dry-run] | remove <skill> [--project] [--no-backup] [--dry-run]";
+  "Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | promote <skill> [--dry-run] | demote <skill> [--dry-run] | remove <skill> [--project] [--no-backup] [--dry-run]";
 
 const parseCli = (argv: string[]) =>
-	parseArgs({
-		args: argv,
-		allowPositionals: true,
-		options: {
-			help: { type: "boolean", short: "h" },
-			version: { type: "boolean" },
-			global: { type: "boolean" },
-			json: { type: "boolean" },
-			all: { type: "boolean" },
-			depth: { type: "string" },
-			"only-problems": { type: "boolean" },
-			"no-cache": { type: "boolean" },
-			"dry-run": { type: "boolean" },
-			project: { type: "boolean" },
-			yes: { type: "boolean", short: "y" },
-			undo: { type: "boolean" },
-			list: { type: "boolean" },
-			force: { type: "boolean" },
-			fix: { type: "boolean" },
-			scope: { type: "string" },
-			"no-backup": { type: "boolean" },
-			"older-than": { type: "string" },
-			kind: { type: "string" },
-			"find-skill": { type: "string" },
-			"remove-skill": { type: "string" },
-			group: { type: "string" },
-			command: { type: "string" },
-			url: { type: "string" },
-			arg: { type: "string", multiple: true },
-			env: { type: "string", multiple: true },
-			"unset-env": { type: "string", multiple: true },
-			header: { type: "string", multiple: true },
-		},
-	});
+  parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      help: { type: "boolean", short: "h" },
+      version: { type: "boolean" },
+      global: { type: "boolean" },
+      json: { type: "boolean" },
+      all: { type: "boolean" },
+      depth: { type: "string" },
+      "only-problems": { type: "boolean" },
+      "no-cache": { type: "boolean" },
+      "dry-run": { type: "boolean" },
+      project: { type: "boolean" },
+      yes: { type: "boolean", short: "y" },
+      undo: { type: "boolean" },
+      list: { type: "boolean" },
+      force: { type: "boolean" },
+      fix: { type: "boolean" },
+      scope: { type: "string" },
+      "no-backup": { type: "boolean" },
+      "older-than": { type: "string" },
+      kind: { type: "string" },
+      "find-skill": { type: "string" },
+      "remove-skill": { type: "string" },
+      group: { type: "string" },
+      command: { type: "string" },
+      url: { type: "string" },
+      arg: { type: "string", multiple: true },
+      env: { type: "string", multiple: true },
+      "unset-env": { type: "string", multiple: true },
+      header: { type: "string", multiple: true },
+    },
+  });
 
 type Values = ReturnType<typeof parseCli>["values"];
 
-const isHookAction = (action: string): action is HookAction => ["disable", "enable", "remove"].includes(action);
+const isHookAction = (action: string): action is HookAction =>
+  ["disable", "enable", "remove"].includes(action);
 
 const usageError = (message: string): number => {
-	console.error(`${message}\n\n${USAGE}`);
-	return 2;
+  console.error(`${message}\n\n${USAGE}`);
+  return 2;
 };
 
-const runShelf = (args: string[], { global, json, all, project, "no-backup": noBackup, "dry-run": dryRun }: Values): number => {
-	const [action, ...rest] = args;
-	const shelf = createShelf(createPaths());
-	if (action === "list") {
-		return shelf.list();
-	}
-	if (action === "status") {
-		return shelf.status({ json });
-	}
-	if (action === "off" && all && rest.length === 0) {
-		return shelf.offAll({ global, dryRun });
-	}
-	if ((action === "on" || action === "off") && rest.length > 0 && !all) {
-		return shelf[action](rest, { global, dryRun });
-	}
-	if (action === "shelve" && rest.length === 2) {
-		return shelf.shelve(rest[0], rest[1], { dryRun });
-	}
-	if (action === "unshelve" && rest.length === 1) {
-		return shelf.unshelve(rest[0], { dryRun });
-	}
-	if ((action === "promote" || action === "demote") && rest.length === 1) {
-		return shelf[action](rest[0], { dryRun });
-	}
-	if (action === "remove" && rest.length === 1) {
-		return shelf.remove(rest[0], { dryRun, project, backup: !noBackup });
-	}
-	console.error(SHELF_USAGE);
-	return 2;
+const runShelf = (
+  args: string[],
+  {
+    global,
+    json,
+    all,
+    project,
+    "no-backup": noBackup,
+    "dry-run": dryRun,
+  }: Values
+): number => {
+  const [action, ...rest] = args;
+  const shelf = createShelf(createPaths());
+  if (action === "list") {
+    return shelf.list();
+  }
+  if (action === "status") {
+    return shelf.status({ json });
+  }
+  if (action === "off" && all && rest.length === 0) {
+    return shelf.offAll({ global, dryRun });
+  }
+  if ((action === "on" || action === "off") && rest.length > 0 && !all) {
+    return shelf[action](rest, { global, dryRun });
+  }
+  if (action === "shelve" && rest.length === 2) {
+    return shelf.shelve(rest[0], rest[1], { dryRun });
+  }
+  if (action === "unshelve" && rest.length === 1) {
+    return shelf.unshelve(rest[0], { dryRun });
+  }
+  if ((action === "promote" || action === "demote") && rest.length === 1) {
+    return shelf[action](rest[0], { dryRun });
+  }
+  if (action === "remove" && rest.length === 1) {
+    return shelf.remove(rest[0], { dryRun, project, backup: !noBackup });
+  }
+  console.error(SHELF_USAGE);
+  return 2;
 };
 
-const runBackups = async (args: string[], { json, all, "older-than": olderThan, kind, "dry-run": dryRun, yes }: Values): Promise<number> => {
-	const [action, ...rest] = args;
-	const backups = createBackups(createPaths());
-	if (yes && dryRun) {
-		return usageError("--yes and --dry-run cannot be used together");
-	}
-	if (action === "list" && rest.length === 0) {
-		return backups.list({ json });
-	}
-	if (action === "restore" && rest.length === 1) {
-		return backups.restore(rest[0], { dryRun });
-	}
-	if (action === "delete" && rest.length > 0) {
-		return backups.prune({ ids: rest, dryRun, yes });
-	}
-	if (action === "prune" && rest.length === 0 && Boolean(all) !== (olderThan !== undefined)) {
-		const days = olderThan === undefined ? undefined : Number(olderThan);
-		if (olderThan !== undefined && !(Number.isFinite(days) && (days as number) >= 0)) {
-			return usageError("--older-than needs a number of days (0 or more)");
-		}
-		return backups.prune({ olderThan: days, all, kind, dryRun, yes });
-	}
-	return usageError("Usage: agentry backups list [--json] | restore <id> [--dry-run] | delete <id>... [--dry-run] [--yes] | prune (--older-than <days> | --all) [--kind fix|removed|updated] [--dry-run] [--yes]");
+const runBackups = async (
+  args: string[],
+  { json, all, "older-than": olderThan, kind, "dry-run": dryRun, yes }: Values
+): Promise<number> => {
+  const [action, ...rest] = args;
+  const backups = createBackups(createPaths());
+  if (yes && dryRun) {
+    return usageError("--yes and --dry-run cannot be used together");
+  }
+  if (action === "list" && rest.length === 0) {
+    return backups.list({ json });
+  }
+  if (action === "restore" && rest.length === 1) {
+    return backups.restore(rest[0], { dryRun });
+  }
+  if (action === "delete" && rest.length > 0) {
+    return backups.prune({ ids: rest, dryRun, yes });
+  }
+  if (
+    action === "prune" &&
+    rest.length === 0 &&
+    Boolean(all) !== (olderThan !== undefined)
+  ) {
+    const days = olderThan === undefined ? undefined : Number(olderThan);
+    if (
+      olderThan !== undefined &&
+      !(Number.isFinite(days) && (days as number) >= 0)
+    ) {
+      return usageError("--older-than needs a number of days (0 or more)");
+    }
+    return backups.prune({ olderThan: days, all, kind, dryRun, yes });
+  }
+  return usageError(
+    "Usage: agentry backups list [--json] | restore <id> [--dry-run] | delete <id>... [--dry-run] [--yes] | prune (--older-than <days> | --all) [--kind fix|removed|updated] [--dry-run] [--yes]"
+  );
 };
 
-const runCatalog = async (args: string[], { group, json, project, all, yes, "dry-run": dryRun, "no-backup": noBackup }: Values): Promise<number> => {
-	const [action, ...rest] = args;
-	const catalog = createCatalog(createPaths());
-	if (action === "refresh" && rest.length === 0) {
-		return catalog.refresh();
-	}
-	if (action === "list" && rest.length === 0) {
-		return catalog.list({ json });
-	}
-	if (yes && dryRun) {
-		return usageError("--yes and --dry-run cannot be used together");
-	}
-	if (action === "add" && rest.length > 0) {
-		return catalog.add(rest, { group, project, dryRun, yes });
-	}
-	if (action === "update" && (all ? rest.length === 0 : rest.length > 0)) {
-		return catalog.update(rest, { all, dryRun, yes });
-	}
-	if (action === "remove" && rest.length > 0) {
-		return catalog.remove(rest, { project, dryRun, yes, backup: !noBackup });
-	}
-	return usageError("Usage: agentry catalog refresh | list [--json] | add <item>... [--group G] [--project] [--dry-run] [--yes] | update <item>... | --all [--dry-run] [--yes] | remove agent/<name>... [--project] [--no-backup] [--dry-run] [--yes]");
+const runCatalog = async (
+  args: string[],
+  {
+    group,
+    json,
+    project,
+    all,
+    yes,
+    "dry-run": dryRun,
+    "no-backup": noBackup,
+  }: Values
+): Promise<number> => {
+  const [action, ...rest] = args;
+  const catalog = createCatalog(createPaths());
+  if (action === "refresh" && rest.length === 0) {
+    return catalog.refresh();
+  }
+  if (action === "list" && rest.length === 0) {
+    return catalog.list({ json });
+  }
+  if (yes && dryRun) {
+    return usageError("--yes and --dry-run cannot be used together");
+  }
+  if (action === "add" && rest.length > 0) {
+    return catalog.add(rest, { group, project, dryRun, yes });
+  }
+  if (action === "update" && (all ? rest.length === 0 : rest.length > 0)) {
+    return catalog.update(rest, { all, dryRun, yes });
+  }
+  if (action === "remove" && rest.length > 0) {
+    return catalog.remove(rest, { project, dryRun, yes, backup: !noBackup });
+  }
+  return usageError(
+    "Usage: agentry catalog refresh | list [--json] | add <item>... [--group G] [--project] [--dry-run] [--yes] | update <item>... | --all [--dry-run] [--yes] | remove agent/<name>... [--project] [--no-backup] [--dry-run] [--yes]"
+  );
 };
 
-const runRules = (args: string[], { json, "dry-run": dryRun, "no-backup": noBackup }: Values): number => {
-	const [action, target] = args;
-	const rules = createRules(createPaths());
-	if (action === "list" && args.length === 1) {
-		return rules.list({ json });
-	}
-	if (action === "remove" && target && args.length === 2) {
-		return rules.remove(target, { dryRun, backup: !noBackup });
-	}
-	return usageError("Usage: agentry rules list [--json] | remove <file> [--dry-run] [--no-backup]");
+const runRules = (
+  args: string[],
+  { json, "dry-run": dryRun, "no-backup": noBackup }: Values
+): number => {
+  const [action, target] = args;
+  const rules = createRules(createPaths());
+  if (action === "list" && args.length === 1) {
+    return rules.list({ json });
+  }
+  if (action === "remove" && target && args.length === 2) {
+    return rules.remove(target, { dryRun, backup: !noBackup });
+  }
+  return usageError(
+    "Usage: agentry rules list [--json] | remove <file> [--dry-run] [--no-backup]"
+  );
 };
 
 // Ink and React load here, on demand, so no other command pays for them.
@@ -336,177 +377,312 @@ const runRules = (args: string[], { json, "dry-run": dryRun, "no-backup": noBack
 // NO_COLOR. A terminal that leaves TERM unset (some app-embedded terminals) would get level 0 and no colour at all, so on a
 // TTY we ask for the basic 16 colours unless the user opted out (NO_COLOR, FORCE_COLOR, TERM=dumb).
 const preferColor = (): void => {
-	const { env } = process;
-	if (process.stdout.isTTY && !env.NO_COLOR && !("FORCE_COLOR" in env) && env.TERM !== "dumb") {
-		env.FORCE_COLOR = "1";
-	}
+  const { env } = process;
+  if (
+    process.stdout.isTTY &&
+    !env.NO_COLOR &&
+    !("FORCE_COLOR" in env) &&
+    env.TERM !== "dumb"
+  ) {
+    env.FORCE_COLOR = "1";
+  }
 };
 
 const runUi = async (): Promise<number> => {
-	preferColor();
-	const { run } = await import("../tui/index.js");
-	return run({ io: { stdin: process.stdin, stdout: process.stdout, stderr: process.stderr } });
+  preferColor();
+  const { run } = await import("../tui/index.js");
+  return run({
+    io: {
+      stdin: process.stdin,
+      stdout: process.stdout,
+      stderr: process.stderr,
+    },
+  });
 };
 
 const main = (argv: string[]): number | Promise<number> => {
-	let parsed: ReturnType<typeof parseCli>;
-	try {
-		parsed = parseCli(argv);
-	} catch (error) {
-		return usageError((error as Error).message);
-	}
-	const {
-		values,
-		positionals: [command, ...rest],
-	} = parsed;
+  let parsed: ReturnType<typeof parseCli>;
+  try {
+    parsed = parseCli(argv);
+  } catch (error) {
+    return usageError((error as Error).message);
+  }
+  const {
+    values,
+    positionals: [command, ...rest],
+  } = parsed;
 
-	if (values.version) {
-		console.log(packageVersion());
-		return 0;
-	}
-	if (!command && !values.help && process.stdin.isTTY && process.stdout.isTTY) {
-		return runUi();
-	}
-	if (values.help || !command || command === "help") {
-		console.log(USAGE);
-		return 0;
-	}
-	if (command === "ui") {
-		return runUi();
-	}
-	if (command === "status") {
-		if (rest.length > 1) {
-			return usageError("Usage: agentry status [path] [--json]");
-		}
-		return createStatus(createPaths()).run({ path: rest[0], json: values.json });
-	}
-	if (command === "doctor") {
-		if (rest.length > 1) {
-			return usageError("Usage: agentry doctor [path] [--json]");
-		}
-		return createDoctor(createPaths()).run({ path: rest[0], json: values.json });
-	}
-	if (command === "scan") {
-		const depth = values.depth === undefined ? 4 : Number(values.depth);
-		if (!Number.isInteger(depth) || depth < 0) {
-			return usageError("--depth needs a whole number of 0 or more");
-		}
-		const [findName, removeName] = [values["find-skill"], values["remove-skill"]];
-		if ((findName !== undefined && (removeName !== undefined || values.fix)) || (removeName !== undefined && values.fix)) {
-			return usageError("Use one of --fix, --find-skill and --remove-skill");
-		}
-		if (findName !== undefined || removeName !== undefined) {
-			const scan = createScan(createPaths({ memoize: true }));
-			if (findName !== undefined) {
-				return (values.yes || values["dry-run"]) ? usageError("--find-skill only lists; --yes and --dry-run go with --remove-skill") : scan.runFindSkill({ roots: rest, depth, name: findName, json: values.json, global: values.global });
-			}
-			if (values.json) {
-				return usageError("--remove-skill takes no --json");
-			}
-			if (values.yes && values["dry-run"]) {
-				return usageError("--yes and --dry-run cannot be used together");
-			}
-			return scan.runRemoveSkill({ roots: rest, depth, name: removeName, yes: values.yes, dryRun: values["dry-run"], global: values.global, backup: !values["no-backup"] });
-		}
-		if ((values.yes || values["dry-run"]) && !values.fix) {
-			return usageError("--yes and --dry-run go with scan --fix");
-		}
-		if (values.fix) {
-			if (values.json || values["only-problems"]) {
-				return usageError("scan --fix takes no --json or --only-problems");
-			}
-			if (values.yes && values["dry-run"]) {
-				return usageError("--yes and --dry-run cannot be used together");
-			}
-			return createScan(createPaths({ memoize: true })).runFix({ roots: rest, depth, yes: values.yes, dryRun: values["dry-run"], cache: !values["no-cache"] });
-		}
-		return createScan(createPaths({ memoize: true })).run({ roots: rest, depth, json: values.json, onlyProblems: values["only-problems"], cache: !values["no-cache"] });
-	}
-	if (command === "fix" && values.undo) {
-		const usage = "Usage: agentry fix --undo [timestamp] [--list] [--yes] [--dry-run] [--force]";
-		if (rest.length > 1 || values.json || (values.list && rest.length > 0)) {
-			return usageError(usage);
-		}
-		if (values.yes && values["dry-run"]) {
-			return usageError("--yes and --dry-run cannot be used together");
-		}
-		return createFixUndo(createPaths()).run({ timestamp: rest[0], list: values.list, yes: values.yes, dryRun: values["dry-run"], force: values.force });
-	}
-	if (command === "fix") {
-		if (values.list || values.force) {
-			return usageError("--list and --force go with fix --undo");
-		}
-		if (rest.length > 1 || values.json) {
-			return usageError("Usage: agentry fix [path] [--dry-run] [--yes]");
-		}
-		if (values.yes && values["dry-run"]) {
-			return usageError("--yes and --dry-run cannot be used together");
-		}
-		return createFix(createPaths()).run({ path: rest[0], yes: values.yes, dryRun: values["dry-run"] });
-	}
-	if (command === "plugin") {
-		const [action, name] = rest;
-		if (!["enable", "disable", "install", "uninstall"].includes(action) || !name || rest.length > 2 || values.json) {
-			return usageError("Usage: agentry plugin enable|disable|install|uninstall <name> [--scope user|project|local] [--dry-run] [--yes]");
-		}
-		if (values.yes && values["dry-run"]) {
-			return usageError("--yes and --dry-run cannot be used together");
-		}
-		if (action === "install" || action === "uninstall") {
-			return createPluginInstall(createPaths()).run({ action, name, scope: values.scope, yes: values.yes, dryRun: values["dry-run"] });
-		}
-		return createPluginToggle(createPaths()).run({ name, enable: action === "enable", scope: values.scope, yes: values.yes, dryRun: values["dry-run"] });
-	}
-	if (command === "mcp") {
-		const [action, name] = rest;
-		if (values.yes && values["dry-run"]) {
-			return usageError("--yes and --dry-run cannot be used together");
-		}
-		if ((action === "add" || action === "set") && name && rest.length === 2 && !values.json) {
-			const edit = createMcpEdit(createPaths());
-			const common = { name, env: values.env, yes: values.yes, dryRun: values["dry-run"] };
-			return action === "add"
-				? edit.add({ ...common, command: values.command, url: values.url, args: values.arg, headers: values.header, scope: values.scope })
-				: edit.set({ ...common, unsetEnv: values["unset-env"], args: values.arg });
-		}
-		if (action === "list-parked" && rest.length === 1) {
-			const parked = createMcpToggle(createPaths()).listParked();
-			parked.forEach((entry) => console.log(`${entry.name}  parked ${entry.parkedAt ?? ""}  ${entry.summary}`));
-			return 0;
-		}
-		if ((action !== "enable" && action !== "disable" && action !== "remove") || !name || rest.length > 2 || values.json) {
-			return usageError("Usage: agentry mcp disable|enable|remove <name> [--dry-run] [--yes] | agentry mcp add <name> (--command C | --url U) ... | agentry mcp set <name> [--env K=V] ... | agentry mcp list-parked");
-		}
-		const toggle = createMcpToggle(createPaths());
-		return action === "remove" ? toggle.remove({ name, yes: values.yes, dryRun: values["dry-run"] }) : toggle.run({ name, enable: action === "enable", yes: values.yes, dryRun: values["dry-run"] });
-	}
-	if (command === "hook") {
-		const [action, selector] = rest;
-		const hooks = createHookToggle(createPaths());
-		if (action === "list" && rest.length === 1) {
-			return hooks.list({ json: values.json });
-		}
-		if (!isHookAction(action) || !selector || rest.length > 2 || values.json) {
-			return usageError("Usage: agentry hook list [--json] | agentry hook disable|enable|remove <id> [--scope user|project|local] [--dry-run] [--yes]");
-		}
-		if (values.yes && values["dry-run"]) {
-			return usageError("--yes and --dry-run cannot be used together");
-		}
-		return hooks.run({ selector, action, scope: values.scope, yes: values.yes, dryRun: values["dry-run"] });
-	}
-	if (command === "shelf") {
-		return runShelf(rest, values);
-	}
-	if (command === "backups") {
-		return runBackups(rest, values);
-	}
-	if (command === "catalog") {
-		return runCatalog(rest, values);
-	}
-	if (command === "rules") {
-		return runRules(rest, values);
-	}
-	return usageError(`Unknown command: ${command}`);
+  if (values.version) {
+    console.log(packageVersion());
+    return 0;
+  }
+  if (
+    !(command || values.help) &&
+    process.stdin.isTTY &&
+    process.stdout.isTTY
+  ) {
+    return runUi();
+  }
+  if (values.help || !command || command === "help") {
+    console.log(USAGE);
+    return 0;
+  }
+  if (command === "ui") {
+    return runUi();
+  }
+  if (command === "status") {
+    if (rest.length > 1) {
+      return usageError("Usage: agentry status [path] [--json]");
+    }
+    return createStatus(createPaths()).run({
+      path: rest[0],
+      json: values.json,
+    });
+  }
+  if (command === "doctor") {
+    if (rest.length > 1) {
+      return usageError("Usage: agentry doctor [path] [--json]");
+    }
+    return createDoctor(createPaths()).run({
+      path: rest[0],
+      json: values.json,
+    });
+  }
+  if (command === "scan") {
+    const depth = values.depth === undefined ? 4 : Number(values.depth);
+    if (!Number.isInteger(depth) || depth < 0) {
+      return usageError("--depth needs a whole number of 0 or more");
+    }
+    const [findName, removeName] = [
+      values["find-skill"],
+      values["remove-skill"],
+    ];
+    if (
+      (findName !== undefined && (removeName !== undefined || values.fix)) ||
+      (removeName !== undefined && values.fix)
+    ) {
+      return usageError("Use one of --fix, --find-skill and --remove-skill");
+    }
+    if (findName !== undefined || removeName !== undefined) {
+      const scan = createScan(createPaths({ memoize: true }));
+      if (findName !== undefined) {
+        return values.yes || values["dry-run"]
+          ? usageError(
+              "--find-skill only lists; --yes and --dry-run go with --remove-skill"
+            )
+          : scan.runFindSkill({
+              roots: rest,
+              depth,
+              name: findName,
+              json: values.json,
+              global: values.global,
+            });
+      }
+      if (values.json) {
+        return usageError("--remove-skill takes no --json");
+      }
+      if (values.yes && values["dry-run"]) {
+        return usageError("--yes and --dry-run cannot be used together");
+      }
+      return scan.runRemoveSkill({
+        roots: rest,
+        depth,
+        name: removeName,
+        yes: values.yes,
+        dryRun: values["dry-run"],
+        global: values.global,
+        backup: !values["no-backup"],
+      });
+    }
+    if ((values.yes || values["dry-run"]) && !values.fix) {
+      return usageError("--yes and --dry-run go with scan --fix");
+    }
+    if (values.fix) {
+      if (values.json || values["only-problems"]) {
+        return usageError("scan --fix takes no --json or --only-problems");
+      }
+      if (values.yes && values["dry-run"]) {
+        return usageError("--yes and --dry-run cannot be used together");
+      }
+      return createScan(createPaths({ memoize: true })).runFix({
+        roots: rest,
+        depth,
+        yes: values.yes,
+        dryRun: values["dry-run"],
+        cache: !values["no-cache"],
+      });
+    }
+    return createScan(createPaths({ memoize: true })).run({
+      roots: rest,
+      depth,
+      json: values.json,
+      onlyProblems: values["only-problems"],
+      cache: !values["no-cache"],
+    });
+  }
+  if (command === "fix" && values.undo) {
+    const usage =
+      "Usage: agentry fix --undo [timestamp] [--list] [--yes] [--dry-run] [--force]";
+    if (rest.length > 1 || values.json || (values.list && rest.length > 0)) {
+      return usageError(usage);
+    }
+    if (values.yes && values["dry-run"]) {
+      return usageError("--yes and --dry-run cannot be used together");
+    }
+    return createFixUndo(createPaths()).run({
+      timestamp: rest[0],
+      list: values.list,
+      yes: values.yes,
+      dryRun: values["dry-run"],
+      force: values.force,
+    });
+  }
+  if (command === "fix") {
+    if (values.list || values.force) {
+      return usageError("--list and --force go with fix --undo");
+    }
+    if (rest.length > 1 || values.json) {
+      return usageError("Usage: agentry fix [path] [--dry-run] [--yes]");
+    }
+    if (values.yes && values["dry-run"]) {
+      return usageError("--yes and --dry-run cannot be used together");
+    }
+    return createFix(createPaths()).run({
+      path: rest[0],
+      yes: values.yes,
+      dryRun: values["dry-run"],
+    });
+  }
+  if (command === "plugin") {
+    const [action, name] = rest;
+    if (
+      !(
+        ["enable", "disable", "install", "uninstall"].includes(action) && name
+      ) ||
+      rest.length > 2 ||
+      values.json
+    ) {
+      return usageError(
+        "Usage: agentry plugin enable|disable|install|uninstall <name> [--scope user|project|local] [--dry-run] [--yes]"
+      );
+    }
+    if (values.yes && values["dry-run"]) {
+      return usageError("--yes and --dry-run cannot be used together");
+    }
+    if (action === "install" || action === "uninstall") {
+      return createPluginInstall(createPaths()).run({
+        action,
+        name,
+        scope: values.scope,
+        yes: values.yes,
+        dryRun: values["dry-run"],
+      });
+    }
+    return createPluginToggle(createPaths()).run({
+      name,
+      enable: action === "enable",
+      scope: values.scope,
+      yes: values.yes,
+      dryRun: values["dry-run"],
+    });
+  }
+  if (command === "mcp") {
+    const [action, name] = rest;
+    if (values.yes && values["dry-run"]) {
+      return usageError("--yes and --dry-run cannot be used together");
+    }
+    if (
+      (action === "add" || action === "set") &&
+      name &&
+      rest.length === 2 &&
+      !values.json
+    ) {
+      const edit = createMcpEdit(createPaths());
+      const common = {
+        name,
+        env: values.env,
+        yes: values.yes,
+        dryRun: values["dry-run"],
+      };
+      return action === "add"
+        ? edit.add({
+            ...common,
+            command: values.command,
+            url: values.url,
+            args: values.arg,
+            headers: values.header,
+            scope: values.scope,
+          })
+        : edit.set({
+            ...common,
+            unsetEnv: values["unset-env"],
+            args: values.arg,
+          });
+    }
+    if (action === "list-parked" && rest.length === 1) {
+      const parked = createMcpToggle(createPaths()).listParked();
+      parked.forEach((entry) =>
+        console.log(
+          `${entry.name}  parked ${entry.parkedAt ?? ""}  ${entry.summary}`
+        )
+      );
+      return 0;
+    }
+    if (
+      (action !== "enable" && action !== "disable" && action !== "remove") ||
+      !name ||
+      rest.length > 2 ||
+      values.json
+    ) {
+      return usageError(
+        "Usage: agentry mcp disable|enable|remove <name> [--dry-run] [--yes] | agentry mcp add <name> (--command C | --url U) ... | agentry mcp set <name> [--env K=V] ... | agentry mcp list-parked"
+      );
+    }
+    const toggle = createMcpToggle(createPaths());
+    return action === "remove"
+      ? toggle.remove({ name, yes: values.yes, dryRun: values["dry-run"] })
+      : toggle.run({
+          name,
+          enable: action === "enable",
+          yes: values.yes,
+          dryRun: values["dry-run"],
+        });
+  }
+  if (command === "hook") {
+    const [action, selector] = rest;
+    const hooks = createHookToggle(createPaths());
+    if (action === "list" && rest.length === 1) {
+      return hooks.list({ json: values.json });
+    }
+    if (!(isHookAction(action) && selector) || rest.length > 2 || values.json) {
+      return usageError(
+        "Usage: agentry hook list [--json] | agentry hook disable|enable|remove <id> [--scope user|project|local] [--dry-run] [--yes]"
+      );
+    }
+    if (values.yes && values["dry-run"]) {
+      return usageError("--yes and --dry-run cannot be used together");
+    }
+    return hooks.run({
+      selector,
+      action,
+      scope: values.scope,
+      yes: values.yes,
+      dryRun: values["dry-run"],
+    });
+  }
+  if (command === "shelf") {
+    return runShelf(rest, values);
+  }
+  if (command === "backups") {
+    return runBackups(rest, values);
+  }
+  if (command === "catalog") {
+    return runCatalog(rest, values);
+  }
+  if (command === "rules") {
+    return runRules(rest, values);
+  }
+  return usageError(`Unknown command: ${command}`);
 };
 
 process.exitCode = await main(process.argv.slice(2));

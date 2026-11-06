@@ -10,51 +10,71 @@ import type { Paths } from "./paths.js";
 const SCHEMA = 1;
 
 const stamp = (file: string): string | null => {
-	try {
-		const stats = statSync(file);
-		return `${stats.mtimeMs}:${stats.size}`;
-	} catch {
-		return null;
-	}
+  try {
+    const stats = statSync(file);
+    return `${stats.mtimeMs}:${stats.size}`;
+  } catch {
+    return null;
+  }
 };
 
 export interface ScanCacheOptions {
-	enabled?: boolean;
-	version?: string;
+  enabled?: boolean;
+  version?: string;
 }
 
 // The stored result is whatever the scanner produced; the cache never looks inside it.
-export const createScanCache = <Result>(paths: Pick<Paths, "cacheDir">, { enabled = true, version = "" }: ScanCacheOptions = {}) => {
-	const dir = paths.cacheDir;
-	const fileFor = (repo: string): string => join(dir, `scan-${createHash("sha1").update(repo).digest("hex").slice(0, 16)}.json`);
+export const createScanCache = <Result>(
+  paths: Pick<Paths, "cacheDir">,
+  { enabled = true, version = "" }: ScanCacheOptions = {}
+) => {
+  const dir = paths.cacheDir;
+  const fileFor = (repo: string): string =>
+    join(
+      dir,
+      `scan-${createHash("sha1").update(repo).digest("hex").slice(0, 16)}.json`
+    );
 
-	const get = (repo: string): Result | undefined => {
-		if (!enabled) {
-			return undefined;
-		}
-		try {
-			const entry = JSON.parse(readFileSync(fileFor(repo), "utf8"));
-			if (entry.schema !== SCHEMA || entry.version !== version || entry.repo !== repo) {
-				return undefined;
-			}
-			return (Object.entries(entry.stamps) as [string, string | null][]).every(([file, value]) => stamp(file) === value) ? entry.result : undefined;
-		} catch {
-			return undefined;
-		}
-	};
+  const get = (repo: string): Result | undefined => {
+    if (!enabled) {
+      return undefined;
+    }
+    try {
+      const entry = JSON.parse(readFileSync(fileFor(repo), "utf8"));
+      if (
+        entry.schema !== SCHEMA ||
+        entry.version !== version ||
+        entry.repo !== repo
+      ) {
+        return undefined;
+      }
+      return (Object.entries(entry.stamps) as [string, string | null][]).every(
+        ([file, value]) => stamp(file) === value
+      )
+        ? entry.result
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
 
-	const set = (repo: string, files: Iterable<string>, result: Result): void => {
-		if (!enabled) {
-			return;
-		}
-		try {
-			mkdirSync(dir, { recursive: true });
-			const stamps = Object.fromEntries([...new Set(files)].map((file) => [file, stamp(file)]));
-			writeFileSync(fileFor(repo), JSON.stringify({ schema: SCHEMA, version, repo, stamps, result }));
-		} catch {
-			// A cache that cannot be written only costs speed.
-		}
-	};
+  const set = (repo: string, files: Iterable<string>, result: Result): void => {
+    if (!enabled) {
+      return;
+    }
+    try {
+      mkdirSync(dir, { recursive: true });
+      const stamps = Object.fromEntries(
+        [...new Set(files)].map((file) => [file, stamp(file)])
+      );
+      writeFileSync(
+        fileFor(repo),
+        JSON.stringify({ schema: SCHEMA, version, repo, stamps, result })
+      );
+    } catch {
+      // A cache that cannot be written only costs speed.
+    }
+  };
 
-	return { get, set };
+  return { get, set };
 };

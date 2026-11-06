@@ -3,17 +3,29 @@
 // `plugin install|uninstall <id> --scope S` records the install in <config>/plugins/installed_plugins.json and sets (or removes)
 // enabledPlugins[id] in the scope's settings file (project and local scope use the current directory as the project).
 // `FAKE_CLAUDE_FAIL=1` makes it exit 1 without changing anything. The real claude is never run by tests.
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
-const require_log = (dir: string) => (existsSync(join(dir, "argv.log")) ? readFileSync(join(dir, "argv.log"), "utf8").trim().split("\n").map((line) => JSON.parse(line)) : []);
+const require_log = (dir: string) =>
+  existsSync(join(dir, "argv.log"))
+    ? readFileSync(join(dir, "argv.log"), "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line))
+    : [];
 
 export const installFakeClaude = (dir: string) => {
-	mkdirSync(dir, { recursive: true });
-	const bin = join(dir, "claude");
-	writeFileSync(
-		bin,
-		`#!${process.execPath}
+  mkdirSync(dir, { recursive: true });
+  const bin = join(dir, "claude");
+  writeFileSync(
+    bin,
+    `#!${process.execPath}
 const fs = require("node:fs");
 const path = require("node:path");
 const argv = process.argv.slice(2);
@@ -53,9 +65,8 @@ if (mcp === "mcp" && action === "remove") { delete json.mcpServers[name]; consol
 else if (mcp === "mcp" && action === "add-json") { json.mcpServers[name] = JSON.parse(argv[3]); console.log("Added " + name); }
 else { console.error("fake claude: unsupported " + argv.join(" ")); process.exit(2); }
 fs.writeFileSync(file, JSON.stringify(json, null, 2) + "\\n");
-`,
-	);
-	chmodSync(bin, 0o755);
-	return { bin, argv: () => require_log(dir) };
+`
+  );
+  chmodSync(bin, 0o755);
+  return { bin, argv: () => require_log(dir) };
 };
-
