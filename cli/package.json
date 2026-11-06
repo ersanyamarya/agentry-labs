@@ -1,7 +1,23 @@
 {
   "name": "@ersanyamarya/agentry-cli",
   "version": "0.1.0",
-  "description": "agentry: shows and manages what a Claude Code session loads",
+  "description": "agentry: inspect and manage what a Claude Code session loads (skills, MCP servers, hooks, plugins, CLAUDE.md), with a terminal UI",
+  "keywords": [
+    "claude-code",
+    "claude",
+    "cli",
+    "mcp",
+    "skills",
+    "hooks",
+    "plugins",
+    "tui",
+    "ink"
+  ],
+  "homepage": "https://github.com/ersanyamarya/agentry-labs/tree/main/cli#readme",
+  "bugs": {
+    "url": "https://github.com/ersanyamarya/agentry-labs/issues"
+  },
+  "author": "Sanyam Arya",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ersanyamarya/agentry-labs.git",
@@ -16,7 +32,8 @@
     "dist",
     "!dist/test",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",
@@ -24,7 +41,6 @@
     "dev": "tsc --watch",
     "format": "biome format --write .",
     "lint": "biome lint .",
-    "prepare": "npm run build",
     "prepublishOnly": "npm run build && npm test",
     "test": "tsc && node --test dist/test",
     "typecheck": "tsc --noEmit"

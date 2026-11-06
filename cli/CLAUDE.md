@@ -7,14 +7,14 @@ Guidance for working on the `agentry` CLI in `cli/`. The repo-wide guidance is i
 Run from `cli/`:
 
 ```bash
-npm install          # deps; prepare builds dist/
+npm install          # deps
 npm run build        # tsc: src/ -> dist/ (entry: dist/bin/agentry.js)
 npm test             # tsc, then node --test dist/test
 npm run typecheck    # tsc --noEmit
 npm run lint         # biome lint .
 npm run format       # biome format --write .
 npm run check        # biome check .
-npm link             # puts `agentry` on PATH from dist/
+npm link             # puts `agentry` on PATH from dist/ (run npm run build first)
 ```
 
 `npm test` runs against `dist/`, so tests see the compiled code; there is no separate test runner.

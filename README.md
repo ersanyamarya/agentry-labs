@@ -103,7 +103,7 @@ installs never copy them back. Turn them on with `agentry shelf on <group>`; eve
 `agentry` is the TypeScript CLI in [`cli/`](cli/). It shows what a Claude Code session loads, manages MCP servers, hooks, plugins and the skill shelf, and has a terminal UI (`agentry ui`). It needs Node.js 22 or newer.
 
 ```bash
-cd cli && npm install && npm link   # puts `agentry` on your PATH
+cd cli && npm install && npm run build && npm link   # puts `agentry` on your PATH
 agentry --help
 ```
 

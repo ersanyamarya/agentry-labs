@@ -8,7 +8,7 @@ description: Answer "what loads in this project", slow-session, duplicate MCP or
 The `agentry` CLI reports what a Claude session loads (skills, MCP servers, hooks, plugins), with token estimates and findings. Run it instead of opening `~/.claude.json`, `settings.json`, `.mcp.json` or plugin folders by hand.
 
 1. **Check it is installed**
-   - Run `command -v agentry`. If missing, tell the user to run `cd cli && npm install && npm link` in their agentry-labs checkout, or `scripts/install.sh --global`, and stop.
+   - Run `command -v agentry`. If missing, tell the user to run `cd cli && npm install && npm run build && npm link` in their agentry-labs checkout, or `scripts/install.sh --global`, and stop.
 
 2. **Pick the command**
    - What loads here, which skills or MCP servers are on, token cost: `agentry status --json`.
