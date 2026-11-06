@@ -270,7 +270,7 @@ space project  g global  enter expand  │ ←→ tabs  ? help  q quit
 - `bin/`: the `agentry` command entry and router
 - `lib/`: the CLI modules (paths, shelf, catalog, status, doctor, scan, fix, tokens, inventory)
 - `tui/`: the Ink terminal UI behind `agentry ui`
-- `docs/`: design plans, such as `docs/shelf-cli-plan.md`
+- `docs/`: design plans, such as `cli/docs/shelf-cli-plan.md`
 - `test/`: tests for the CLI (`npm test`)
 - `bundles.tsv`: the bundle each component belongs to
 

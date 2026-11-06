@@ -1,5 +1,5 @@
 // Lists the skills a Claude Code session in a folder loads: personal, project, shelf links and plugin skills.
-// Each is a real folder (file), a symlink, or a broken link. Sources: docs/claude-config-sources.md ("Skills").
+// Each is a real folder (file), a symlink, or a broken link. Sources: cli/docs/claude-config-sources.md ("Skills").
 // Which folders count for project skills (start folder, git root, nested) is unverified; the start folder and the working-tree root are read.
 
 import {

@@ -1,6 +1,6 @@
 // Lists every hook a Claude Code session in a folder would run: user, project and local settings plus enabled plugins.
 // Hooks merge, so each one is reported with its event, matcher, command and owner. Hook output is not measurable offline.
-// Sources and shapes: docs/claude-config-sources.md ("Hooks"). Commands are masked before they leave this module.
+// Sources and shapes: cli/docs/claude-config-sources.md ("Hooks"). Commands are masked before they leave this module.
 
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";

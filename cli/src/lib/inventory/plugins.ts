@@ -1,5 +1,5 @@
 // Lists the plugins a Claude Code session in a folder could load, where each is installed, and whether it is enabled.
-// Files and the enabled rules: docs/claude-config-sources.md ("Plugins"). `projectPath` is matched here; Claude Code 2.1.316 does not check it (docs/claude-config-sources.md, "Probe results").
+// Files and the enabled rules: cli/docs/claude-config-sources.md ("Plugins"). `projectPath` is matched here; Claude Code 2.1.316 does not check it (cli/docs/claude-config-sources.md, "Probe results").
 
 import { join } from "node:path";
 import type { Paths } from "../paths.js";

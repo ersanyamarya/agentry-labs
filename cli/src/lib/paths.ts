@@ -1,6 +1,6 @@
 // Every path the CLI touches resolves here, so tests can redirect it with CLAUDE_CONFIG_DIR / AGENTRY_HOME.
 // AGENTRY_HOME replaces the home directory (default: the OS home); CLAUDE_CONFIG_DIR replaces <home>/.claude.
-// Facts behind the Claude Code paths: docs/claude-config-sources.md.
+// Facts behind the Claude Code paths: cli/docs/claude-config-sources.md.
 
 import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";

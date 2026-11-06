@@ -89,7 +89,7 @@ fixtures cover every source below.
 
 | Done | Task | Model |
 |---|---|---|
-| [x] | Write `docs/claude-config-sources.md`: every file Claude Code reads for skills, MCP servers, hooks, plugins, settings and env, their scopes and precedence, verified against current Claude Code docs via Context7. This is the spec for the readers below. | Opus 5.5 |
+| [x] | Write `claude-config-sources.md`: every file Claude Code reads for skills, MCP servers, hooks, plugins, settings and env, their scopes and precedence, verified against current Claude Code docs via Context7. This is the spec for the readers below. | Opus 5.5 |
 | [x] | Skills reader: project `.claude/skills`, `~/.claude/skills` (skip `synced/`, managed by claude.ai, but report it), shelf links, and plugin `skills/` folders; mark each as file, symlink or broken. | Sonnet 5.5 |
 | [x] | MCP reader: user and per-project entries in `~/.claude.json`, `.mcp.json` in the project **and every parent folder up to `~`** (a stray `~/.mcp.json` applies everywhere), plugin-provided servers, and on macOS the desktop app's `claude_desktop_config.json` plus installed extensions. Mask secret values. | Opus 5.5 |
 | [x] | Hooks reader: user, project and local `settings*.json` plus each enabled plugin's `hooks/hooks.json`; report event, matcher, command and owning plugin or file. | Sonnet 5.5 |
@@ -203,12 +203,12 @@ every row that cannot be toggled says why; `NO_COLOR` renders without colour pro
 ## Decisions log
 
 Consolidated 2026-11-05 from the per-phase entries (2026-11-03 to 2026-11-04). Per-file detail lives in the code and
-`docs/claude-config-sources.md`; this keeps what you need to change the code safely.
+`claude-config-sources.md`; this keeps what you need to change the code safely.
 
 ### Status
 
 Phases 0 to 8 and all five gaps-plan phases are merged into `main` (425 tests pass). What is left is under "Open items".
-The open-items plan (`docs/open-items-plan.md`) closed the other gaps; its rows are ticked there.
+The open-items plan (`open-items-plan.md`) closed the other gaps; its rows are ticked there.
 
 ### Scope and layout
 
@@ -218,7 +218,7 @@ The open-items plan (`docs/open-items-plan.md`) closed the other gaps; its rows 
   `paths` (`createPaths({env, cwd, memoize})`); tests spawn the real CLI with both overrides set.
 - Ink 8 + React 19 in `dependencies`, `ink-testing-library` dev only, no JSX (`React.createElement`), `engines.node >=22`.
   `tui/` loads lazily, so `--help` never imports Ink. Only `tui/data.mjs` calls `lib/`.
-- Config facts (what Claude Code reads, precedence) are in `docs/claude-config-sources.md`, verified with Context7 and
+- Config facts (what Claude Code reads, precedence) are in `claude-config-sources.md`, verified with Context7 and
   probes on Claude Code 2.1.316. Surprises worth remembering: `.mcp.json` is read from the cwd and every parent up to
   `/` (nearest wins); the local-scope key in `.claude.json` is the main repo root; an unapproved `.mcp.json` entry does
   not shadow a user entry; `~/.claude.json` is rewritten by live sessions, so edits to it can race.
@@ -325,7 +325,7 @@ The open-items plan (`docs/open-items-plan.md`) closed the other gaps; its rows 
 ### Open items
 
 - Server-managed settings cannot be read offline, so the plugin toggle ignores them (documented in
-  `docs/claude-config-sources.md`, "Managed sources").
+  `claude-config-sources.md`, "Managed sources").
 - Not probed: whether hooks of a disabled plugin are skipped (needs a logged-in session); that the desktop app's GUI
   environment lacks the shell profile (assumed from the Context7 key incident).
 - `unset-placeholder`, curl | bash clone path of `install.sh` and Windows were never exercised.
