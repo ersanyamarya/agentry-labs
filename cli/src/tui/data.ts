@@ -33,14 +33,20 @@ type DeepPartial<T> = T extends (infer U)[]
   : T extends object
     ? { [K in keyof T]?: DeepPartial<T[K]> }
     : T;
-type Outcome = { ok: boolean; text: string };
-type Preview = { appliable: boolean; text: string };
-type HookCall = {
+interface Outcome {
+    ok: boolean;
+    text: string 
+}
+interface Preview {
+    appliable: boolean;
+    text: string 
+}
+interface HookCall {
   dir: string;
   selector: string;
   action: HookAction;
   scope?: string;
-};
+}
 type McpAddCall = Omit<AddArgs, "path" | "dryRun" | "yes"> & {
   dir: string;
   dryRun?: boolean;

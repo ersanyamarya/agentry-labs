@@ -5,7 +5,11 @@ import type { Api } from "./types.js";
 import type { useFlow } from "./use-flow.js";
 
 type Flow = ReturnType<typeof useFlow>;
-type Ctx = { api: Api; dir: string; flow: Flow };
+interface Ctx {
+    api: Api;
+    dir: string;
+    flow: Flow 
+}
 
 export const startScopeMove = async ({
   api,

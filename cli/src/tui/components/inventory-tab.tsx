@@ -21,14 +21,14 @@ import { useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
 
-type Action = {
+interface Action {
   preview: () =>
     | { appliable: boolean; text: string }
     | Promise<{ appliable: boolean; text: string }>;
   apply: () =>
     | { ok: boolean; text: string }
     | Promise<{ ok: boolean; text: string }>;
-};
+}
 
 interface InventoryTabProps extends Omit<TabProps, "setKeys"> {
   canAdd?: boolean;

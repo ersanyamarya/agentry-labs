@@ -118,8 +118,14 @@ interface ItemFields {
   tokens: number | null;
 }
 
-type McpChange = { args?: string[]; env: string[] };
-type McpServerJob = { entry: CatalogItem; change: McpChange };
+interface McpChange {
+    args?: string[];
+    env: string[] 
+}
+interface McpServerJob {
+    entry: CatalogItem;
+    change: McpChange 
+}
 type Picked =
   | { entry: CatalogItem; error?: undefined }
   | { error: string; entry?: undefined };

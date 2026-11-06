@@ -12,7 +12,10 @@ import type { Key } from "ink";
 import React from "react";
 import type { SetLock } from "./types.js";
 
-type Outcome = { ok: boolean; text: string };
+interface Outcome {
+    ok: boolean;
+    text: string 
+}
 type Next = Step | null | undefined | Promise<Step | null | undefined>;
 export type Step =
   | {

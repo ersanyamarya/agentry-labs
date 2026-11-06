@@ -68,33 +68,36 @@ export interface ShelfFlags {
 }
 
 type Command = "on" | "off";
-type Change = { item: ShelfItem; link: string };
+interface Change {
+    item: ShelfItem;
+    link: string 
+}
 
 // A target resolved to a whole group, to one skill (group and skill set), or to an error with an exit code.
-type GroupFound = {
+interface GroupFound {
   items: ShelfItem[];
   label: string;
   group?: undefined;
   skill?: undefined;
   error?: undefined;
   code?: undefined;
-};
-type SkillFound = {
+}
+interface SkillFound {
   items: ShelfItem[];
   label: string;
   group: string;
   skill: string;
   error?: undefined;
   code?: undefined;
-};
-type Failure = {
+}
+interface Failure {
   error: string;
   code: number;
   items?: undefined;
   label?: undefined;
   group?: undefined;
   skill?: undefined;
-};
+}
 type Resolved = GroupFound | SkillFound | Failure;
 
 const listEntries = (

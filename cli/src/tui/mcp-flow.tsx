@@ -5,7 +5,11 @@ import type { Api, Row } from "./types.js";
 import type { Step, useFlow } from "./use-flow.js";
 
 type Flow = ReturnType<typeof useFlow>;
-type Ctx = { api: Api; dir: string; flow: Flow };
+interface Ctx {
+    api: Api;
+    dir: string;
+    flow: Flow 
+}
 
 export const startMcpToggle = async ({
   api,
@@ -53,12 +57,12 @@ const failed = (text: string): Step => ({ kind: "result", ok: false, text });
 // Add form: name → command or url → env or headers → scope → masked preview → y. Typing is plain text split on spaces
 // (headers on ";"), so arguments with spaces need `agentry mcp add` instead.
 export const startMcpAdd = ({ api, dir, flow }: Ctx) => {
-  type AddConfig = {
+  interface AddConfig {
     name: string;
     rest:
       | { command: string | undefined; args: string[]; env: string[] }
       | { url: string; headers: string[] };
-  };
+  }
   const finish =
     (config: AddConfig) =>
     (scope: string): Promise<Step> => {

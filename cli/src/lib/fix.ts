@@ -143,7 +143,12 @@ export interface Manifest {
 }
 
 type Op = [tag: " " | "-" | "+", line: string];
-type Row = { tag: Op[0]; line: string; oldNo: number; newNo: number };
+interface Row {
+    tag: Op[0];
+    line: string;
+    oldNo: number;
+    newNo: number 
+}
 
 interface PlanItem {
   finding: Finding;

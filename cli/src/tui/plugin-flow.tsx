@@ -5,7 +5,11 @@ import type { Api, Row } from "./types.js";
 import type { Step, useFlow } from "./use-flow.js";
 
 type Flow = ReturnType<typeof useFlow>;
-type Ctx = { api: Api; dir: string; flow: Flow };
+interface Ctx {
+    api: Api;
+    dir: string;
+    flow: Flow 
+}
 
 export const startPluginToggle = async ({
   api,

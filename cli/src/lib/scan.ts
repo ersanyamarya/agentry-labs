@@ -23,8 +23,16 @@ import type { Finding, FixOptions, ReadError, Severity } from "./types.js";
 import { packageVersion } from "./version.js";
 
 type Summary = Record<Severity, number>;
-type Counts = { skills: number; mcp: number; hooks: number; plugins: number };
-type Loadable = { state: string; scope?: string };
+interface Counts {
+    skills: number;
+    mcp: number;
+    hooks: number;
+    plugins: number 
+}
+interface Loadable {
+    state: string;
+    scope?: string 
+}
 
 /** One repo as scanned (and cached): user-level counts are kept so the global block can use them. */
 interface RepoResult {
