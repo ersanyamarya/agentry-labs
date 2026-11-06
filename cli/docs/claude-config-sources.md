@@ -1,6 +1,6 @@
 # Claude Code config sources
 
-The spec for the `agentry` inventory readers (Phase 2 of [shelf-cli-plan.md](shelf-cli-plan.md)): every file Claude Code
+The spec for the `agentry` inventory readers: every file Claude Code
 reads for MCP servers, skills, hooks, plugins, settings and env, with scope, precedence and the JSON shape a reader needs.
 
 Checked on 2026-11-03 against Claude Code **2.1.316** (CLI) and the Claude desktop app on macOS.
@@ -130,8 +130,7 @@ Same shape in `.claude.json`, `.mcp.json`, plugin configs and `managed-mcp.json`
   `.mcp.json` is ignored by Claude Code. [probe] Plugin files are read either way. [unverified for plugins]
 - `${VAR}` and `${VAR:-default}` expand in `command`, `args`, `env`, `url`, `headers`. [docs: mcp] The docs say an unset
   `${VAR}` without default fails the config; `claude mcp get` showed the entry with the `${VAR}` text unexpanded
-  instead. [probe] GUI-launched apps on macOS don't inherit shell-profile variables (the Context7 key case,
-  [shelf-cli-plan.md](shelf-cli-plan.md) Phase 3).
+  instead. [probe] GUI-launched apps on macOS don't inherit shell-profile variables (the Context7 key case).
 - `${CLAUDE_PLUGIN_ROOT}` is the plugin's install folder in plugin configs. [docs: plugins-reference]
 
 ### Secrets in server entries

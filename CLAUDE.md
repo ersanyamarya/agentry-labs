@@ -60,7 +60,7 @@ cd scripts/image-gen-tools && bun install && bun run cover
 
 # CLI: install dependencies, run tests, link `agentry` onto PATH
 cd cli && npm install && npm test
-cd cli && npm link
+cd cli && npm run build && npm link
 
 # Shelf and setup checks (any folder once linked)
 agentry shelf list

@@ -59,7 +59,7 @@
 #   - Each installed component replaces its previous copy, so files removed
 #     upstream disappear too. Unrelated installed components remain.
 #   - --global and --target cannot be used together.
-#   - --global also links the `agentry` command (npm install + npm link in the
+#   - --global also links the `agentry` command (npm install + npm run build + npm link in the
 #     checkout's cli/ folder) from the checkout the script runs from, or from
 #     a clone in ~/.agentry-labs
 #     (override with AGENTRY_HOME) when run via curl | bash. Without npm it
@@ -391,7 +391,7 @@ for selector in "${SELECTORS[@]}"; do
 done
 
 # Make the `agentry` command available on a global install: install the CLI's
-# dependencies (Ink, React), build it and `npm link` the checkout's cli/ folder. Without a checkout
+# dependencies (Ink, React), `npm run build` it and `npm link` the checkout's cli/ folder. Without a checkout
 # (curl | bash) the repo is cloned or updated in $AGENTRY_HOME. Never fails the
 # install: a missing tool or a failed step only warns.
 link_agentry() {
@@ -407,12 +407,12 @@ link_agentry() {
 
   if [[ $DRY_RUN == "true" ]]; then
     [[ $checkout == "$home_dir" ]] && echo "[dry-run] would clone or update $home_dir"
-    echo "[dry-run] would run 'npm install' and 'npm link' in $checkout/cli to provide the agentry command"
+    echo "[dry-run] would run 'npm install', 'npm run build' and 'npm link' in $checkout/cli to provide the agentry command"
     return 0
   fi
 
   command -v npm >/dev/null 2>&1 || {
-    log_warn "npm not found; skipping the agentry command. Install Node 22+ and run 'npm install && npm link' in the repo's cli/ folder."
+    log_warn "npm not found; skipping the agentry command. Install Node 22+ and run 'npm install && npm run build && npm link' in the repo's cli/ folder."
     return 0
   }
 
@@ -432,8 +432,8 @@ link_agentry() {
     return 0
   fi
 
-  (cd "$checkout/cli" && npm install --no-audit --no-fund >/dev/null 2>&1 && npm link >/dev/null 2>&1) || {
-    log_warn "Could not link agentry. Run 'npm install && npm link' in $checkout/cli (Node 22+)."
+  (cd "$checkout/cli" && npm install --no-audit --no-fund >/dev/null 2>&1 && npm run build >/dev/null 2>&1 && npm link >/dev/null 2>&1) || {
+    log_warn "Could not link agentry. Run 'npm install && npm run build && npm link' in $checkout/cli (Node 22+)."
     return 0
   }
   log_info "Linked the agentry command from $checkout"

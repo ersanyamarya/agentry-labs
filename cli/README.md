@@ -8,7 +8,8 @@ It is written in strict TypeScript (ESM) and needs Node.js 22 or newer. It lives
 
 ```bash
 cd cli
-npm install      # also builds dist/ (the prepare script runs npm run build)
+npm install
+npm run build    # compiles src/ to dist/
 npm link         # puts `agentry` on your PATH
 agentry --version
 ```
