@@ -1,0 +1,52 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"extends": ["ultracite/biome/core", "ultracite/biome/react"],
+	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true, "root": ".." },
+	"files": { "includes": ["src/**", "*.json", "*.jsonc", "!dist", "!node_modules"] },
+	"linter": {
+		"rules": {
+			"complexity": {
+				// Ceiling at today's highest score so new code cannot get worse; refactoring would risk behaviour.
+				"noExcessiveCognitiveComplexity": { "level": "error", "options": { "maxAllowedComplexity": 120 } }
+			},
+			"style": {
+				// The u flag changes how a pattern parses and matches; adding it to existing regexes can change behaviour.
+				"useUnicodeRegex": "off",
+				// Naming groups changes how every match result is read (match[1] to match.groups).
+				"useNamedCaptureGroup": "off",
+				// Nested ternaries are the idiom for conditional Ink/JSX rendering here.
+				"noNestedTernary": "off"
+			},
+			"performance": {
+				// Hoisting a regex with g or y shares lastIndex across calls; the CLI is not a hot path.
+				"useTopLevelRegex": "off",
+				// Awaits in loops are deliberately sequential (file edits, backups, prompts) and order matters.
+				"noAwaitInLoops": "off"
+			},
+			"suspicious": {
+				// "${VAR}" is the literal MCP env-expansion syntax the CLI reads and writes, not a broken template.
+				"noTemplateCurlyInString": "off",
+				// Removing async changes the return type (promise vs value) of injected dependencies.
+				"useAwait": "off"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["src/test/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						// Tests assert a value was found, so a non-null assertion is the shortest correct form.
+						"noNonNullAssertion": "off"
+					},
+					"suspicious": {
+						// Tests match terminal output, which contains control characters and escape codes.
+						"noControlCharactersInRegex": "off",
+						"noEmptyBlockStatements": "off"
+					}
+				}
+			}
+		}
+	]
+}

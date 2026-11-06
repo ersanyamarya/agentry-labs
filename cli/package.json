@@ -29,16 +29,21 @@
 		"test": "tsc && node --test dist/test",
 		"prepare": "npm run build",
 		"prepublishOnly": "npm run build && npm test",
-		"dev": "tsc --watch"
+		"dev": "tsc --watch",
+		"check": "biome check .",
+		"lint": "biome lint .",
+		"format": "biome format --write ."
 	},
 	"dependencies": {
 		"ink": "^8.0.0",
 		"react": "^19.3.1"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "^2.6.4",
 		"@types/node": "^26.6.6",
 		"@types/react": "^19.3.0",
 		"ink-testing-library": "^4.0.0",
-		"typescript": "^7.0.2"
+		"typescript": "^7.0.2",
+		"ultracite": "^8.1.1"
 	}
 }
