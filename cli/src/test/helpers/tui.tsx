@@ -172,7 +172,7 @@ export const createUi = ({
   const app = render(<App {...props} />);
 
   const until = async (pattern: RegExp, what = String(pattern)) => {
-    for (let tries = 0; tries < 100; tries++) {
+    for (let tries = 0; tries < 100; tries += 1) {
       if (
         pattern.test(app.lastFrame() ?? "") ||
         pattern.test(stripAnsi(app.lastFrame() ?? "")) ||
@@ -201,7 +201,7 @@ export const createUi = ({
       stripAnsi(app.lastFrame() ?? "")
         .split("\n")
         .find((line) => /^>/.test(line)) ?? "";
-    for (let tries = 0; tries < 30 && !pattern.test(selected()); tries++) {
+    for (let tries = 0; tries < 30 && !pattern.test(selected()); tries += 1) {
       await press(key);
     }
     assert.match(

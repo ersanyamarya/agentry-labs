@@ -69,8 +69,8 @@ export interface ShelfFlags {
 
 type Command = "on" | "off";
 interface Change {
-    item: ShelfItem;
-    link: string 
+  item: ShelfItem;
+  link: string;
 }
 
 // A target resolved to a whole group, to one skill (group and skill set), or to an error with an exit code.

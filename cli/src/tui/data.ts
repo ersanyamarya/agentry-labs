@@ -34,12 +34,12 @@ type DeepPartial<T> = T extends (infer U)[]
     ? { [K in keyof T]?: DeepPartial<T[K]> }
     : T;
 interface Outcome {
-    ok: boolean;
-    text: string 
+  ok: boolean;
+  text: string;
 }
 interface Preview {
-    appliable: boolean;
-    text: string 
+  appliable: boolean;
+  text: string;
 }
 interface HookCall {
   dir: string;

@@ -48,14 +48,14 @@ const scan = (text: string): Node => {
   let at = 0;
   const skip = () => {
     while (at < text.length && " \t\n\r".includes(text[at])) {
-      at++;
+      at += 1;
     }
   };
   const expect = (char: string): void => {
     if (text[at] !== char) {
       throw fail("EJSONPARSE");
     }
-    at++;
+    at += 1;
   };
   const string = (): Node => {
     const start = at;
@@ -66,9 +66,9 @@ const scan = (text: string): Node => {
         throw fail("EJSONPARSE");
       }
       if (text[at] === "\\") {
-        at++;
+        at += 1;
         if ('"\\/bfnrt'.includes(text[at] ?? "x")) {
-          at++;
+          at += 1;
         } else if (
           text[at] === "u" &&
           /^[0-9a-fA-F]{4}$/.test(text.slice(at + 1, at + 5))
@@ -78,7 +78,7 @@ const scan = (text: string): Node => {
           throw fail("EJSONPARSE");
         }
       } else {
-        at++;
+        at += 1;
       }
     }
     expect('"');
@@ -92,11 +92,11 @@ const scan = (text: string): Node => {
       return string();
     }
     if (char === "{") {
-      at++;
+      at += 1;
       const children: Member[] = [];
       skip();
       if (text[at] === "}") {
-        at++;
+        at += 1;
         return { type: "object", start, end: at, children };
       }
       for (;;) {
@@ -112,7 +112,7 @@ const scan = (text: string): Node => {
         });
         skip();
         if (text[at] === ",") {
-          at++;
+          at += 1;
           continue;
         }
         expect("}");
@@ -120,18 +120,18 @@ const scan = (text: string): Node => {
       }
     }
     if (char === "[") {
-      at++;
+      at += 1;
       const children: Node[] = [];
       skip();
       if (text[at] === "]") {
-        at++;
+        at += 1;
         return { type: "array", start, end: at, children };
       }
       for (;;) {
         children.push(value());
         skip();
         if (text[at] === ",") {
-          at++;
+          at += 1;
           continue;
         }
         expect("]");

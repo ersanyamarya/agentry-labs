@@ -24,14 +24,14 @@ import { packageVersion } from "./version.js";
 
 type Summary = Record<Severity, number>;
 interface Counts {
-    skills: number;
-    mcp: number;
-    hooks: number;
-    plugins: number 
+  skills: number;
+  mcp: number;
+  hooks: number;
+  plugins: number;
 }
 interface Loadable {
-    state: string;
-    scope?: string 
+  state: string;
+  scope?: string;
 }
 
 /** One repo as scanned (and cached): user-level counts are kept so the global block can use them. */
@@ -299,7 +299,7 @@ export const createScan = (
     const results = repos.map((repo) => {
       const cached = store.get(repo.path);
       if (cached) {
-        hits++;
+        hits += 1;
         return cached;
       }
       const { result, files } = scanRepo(repo);
@@ -576,7 +576,7 @@ export const createScan = (
       ) {
         continue;
       }
-      touched++;
+      touched += 1;
       code = Math.max(
         code,
         await fixer.run({ path, yes, dryRun, include, label })

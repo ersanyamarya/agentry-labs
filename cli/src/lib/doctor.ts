@@ -106,7 +106,7 @@ export const createDoctor = (
     }
     const lines = lineCache.get(file) as string[];
     let index = -1;
-    for (let seen = 0; seen <= skip; seen++) {
+    for (let seen = 0; seen <= skip; seen += 1) {
       index = lines.findIndex(
         (text, at) => at > index && text.includes(needle)
       );

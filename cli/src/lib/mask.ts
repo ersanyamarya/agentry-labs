@@ -164,7 +164,12 @@ export const maskShell = (line: unknown): string => {
   return parts
     .map((part, index) => {
       const word = words[index];
-      return word ? `${word[1]}${masked[next++]}${word[3]}` : part;
+      if (!word) {
+        return part;
+      }
+      const piece = masked[next];
+      next += 1;
+      return `${word[1]}${piece}${word[3]}`;
     })
     .join("");
 };

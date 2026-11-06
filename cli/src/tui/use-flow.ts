@@ -13,8 +13,8 @@ import React from "react";
 import type { SetLock } from "./types.js";
 
 interface Outcome {
-    ok: boolean;
-    text: string 
+  ok: boolean;
+  text: string;
 }
 type Next = Step | null | undefined | Promise<Step | null | undefined>;
 export type Step =

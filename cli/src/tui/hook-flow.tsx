@@ -6,9 +6,9 @@ import type { useFlow } from "./use-flow.js";
 
 type Flow = ReturnType<typeof useFlow>;
 interface Ctx {
-    api: Api;
-    dir: string;
-    flow: Flow 
+  api: Api;
+  dir: string;
+  flow: Flow;
 }
 
 const start = async ({

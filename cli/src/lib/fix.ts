@@ -144,10 +144,10 @@ export interface Manifest {
 
 type Op = [tag: " " | "-" | "+", line: string];
 interface Row {
-    tag: Op[0];
-    line: string;
-    oldNo: number;
-    newNo: number 
+  tag: Op[0];
+  line: string;
+  oldNo: number;
+  newNo: number;
 }
 
 interface PlanItem {
@@ -259,13 +259,13 @@ const splitLines = (text: string): string[] =>
 const diffOps = (a: string[], b: string[]): Op[] => {
   let start = 0;
   while (start < a.length && start < b.length && a[start] === b[start]) {
-    start++;
+    start += 1;
   }
   let endA = a.length;
   let endB = b.length;
   while (endA > start && endB > start && a[endA - 1] === b[endB - 1]) {
-    endA--;
-    endB--;
+    endA -= 1;
+    endB -= 1;
   }
   const ops: Op[] = a.slice(0, start).map((line): Op => [" ", line]);
   const midA = a.slice(start, endA);
@@ -275,8 +275,8 @@ const diffOps = (a: string[], b: string[]): Op[] => {
   if (n * m <= 4_000_000) {
     const width = m + 1;
     const table = new Uint32Array((n + 1) * width);
-    for (let i = n - 1; i >= 0; i--) {
-      for (let j = m - 1; j >= 0; j--) {
+    for (let i = n - 1; i >= 0; i -= 1) {
+      for (let j = m - 1; j >= 0; j -= 1) {
         table[i * width + j] =
           midA[i] === midB[j]
             ? table[(i + 1) * width + j + 1] + 1
@@ -288,12 +288,14 @@ const diffOps = (a: string[], b: string[]): Op[] => {
     while (i < n && j < m) {
       if (midA[i] === midB[j]) {
         ops.push([" ", midA[i]]);
-        i++;
-        j++;
+        i += 1;
+        j += 1;
       } else if (table[(i + 1) * width + j] >= table[i * width + j + 1]) {
-        ops.push(["-", midA[i++]]);
+        ops.push(["-", midA[i]]);
+        i += 1;
       } else {
-        ops.push(["+", midB[j++]]);
+        ops.push(["+", midB[j]]);
+        j += 1;
       }
     }
     ops.push(
@@ -506,7 +508,7 @@ const createBackupSet = (
   const createdAt = now().toISOString();
   const stamp = createdAt.replace(/[:.]/g, "-");
   let dir: string;
-  for (let n = 0; ; n++) {
+  for (let n = 0; ; n += 1) {
     dir = join(paths.backupsDir, n ? `${stamp}-${n}` : stamp);
     try {
       mkdirSync(dir, { mode: 0o700 });
@@ -875,7 +877,7 @@ export const createFix = (
       return 2;
     }
     const previewOnly = dryRun || !(yes || isTTY());
-    for (let attempt = 1; ; attempt++) {
+    for (let attempt = 1; ; attempt += 1) {
       const planned = plan(cwd, { include });
       if (
         heading &&

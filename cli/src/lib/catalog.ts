@@ -119,12 +119,12 @@ interface ItemFields {
 }
 
 interface McpChange {
-    args?: string[];
-    env: string[] 
+  args?: string[];
+  env: string[];
 }
 interface McpServerJob {
-    entry: CatalogItem;
-    change: McpChange 
+  entry: CatalogItem;
+  change: McpChange;
 }
 type Picked =
   | { entry: CatalogItem; error?: undefined }
@@ -779,7 +779,7 @@ export const createCatalog = (
     while (
       existsSync(join(paths.backupsDir, "updated", n ? `${stamp}-${n}` : stamp))
     ) {
-      n++;
+      n += 1;
     }
     const saveIn = join(
       paths.backupsDir,

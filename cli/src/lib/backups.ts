@@ -70,8 +70,8 @@ export interface BackupsOptions {
 }
 
 interface Failure {
-    error: string;
-    code: number 
+  error: string;
+  code: number;
 }
 
 export const defaultConfirm = async (question: string): Promise<boolean> => {
@@ -120,7 +120,7 @@ export const removedCopyPath = (
   while (
     existsSync(join(paths.backupsDir, "removed", n ? `${stamp}-${n}` : stamp))
   ) {
-    n++;
+    n += 1;
   }
   return join(
     paths.backupsDir,
