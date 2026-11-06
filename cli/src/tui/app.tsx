@@ -1,5 +1,5 @@
 // The UI shell: project, tabs, overlays (help, picker) and the key map. Tabs get data and actions as props, so the
-// whole tree runs on injected data in tests. Every action goes through the api (tui/data.mjs), i.e. through lib/.
+// whole tree runs on injected data in tests. Every action goes through the api (src/tui/data.ts), i.e. through lib/.
 
 import { Box, useApp, useInput, useStdin, useStdout } from "ink";
 import React from "react";

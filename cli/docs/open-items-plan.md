@@ -1,6 +1,6 @@
 # Open items plan
 
-Closes the "Open items" left in `docs/shelf-cli-plan.md` in one phase: the two cleanup gaps in `scan` and `backups`, the
+Closes the "Open items" left in `shelf-cli-plan.md` in one phase: the two cleanup gaps in `scan` and `backups`, the
 catalog gaps (remove an agent, update CLAUDE.md and MCP items, restore the `updated/` copies), the MDM check in the
 plugin toggle, and a probe of the behaviours that were only assumed. When it is done, "Open items" in the shelf plan is
 empty or lists only what was checked and found impossible.
@@ -41,7 +41,7 @@ empty or lists only what was checked and found impossible.
   agent, rule or CLAUDE.md file is added or removed (none is planned here).
 - **Facts to verify:** how macOS MDM and server-managed settings are exposed to Claude Code, and the unverified
   behaviours in "Open items", are checked against the Claude Code docs through Context7 and a probe, and recorded in
-  `docs/claude-config-sources.md`.
+  `claude-config-sources.md`.
 
 ## Phase 1: Close the open items
 
@@ -62,8 +62,8 @@ plan's "Open items" lists only what the probe could not settle.
 | [x] | List `updated/<time>/<label>` copies in `lib/backups.mjs` (id, size, age, original path in `meta.json`) and make `restore` and `delete` handle them like `removed/` entries; extend `lib/catalog.mjs` `update` to write that `meta.json`; tests for the round trip. | Sonnet 5.5 |
 | [x] | `catalog remove agent/<name>` (user `~/.claude/agents` or `--project`): keeps a copy under `removed/`, previews, `y`; Catalog tab `x` works on installed agents and rules (today skills only); tests and a TUI test. | Sonnet 5.5 |
 | [x] | `catalog update` for CLAUDE.md files and MCP servers: CLAUDE.md compares the project copy with the catalog copy and saves the old one under `updated/`; MCP compares the catalog entry with the user or project entry through `createMcpEdit().set` so masking, backup and undo stay; Catalog tab `u` shows them as outdated; tests. | Sonnet 5.5 |
-| [x] | Read macOS MDM managed settings (`com.anthropic.claudecode` through `defaults read`, injectable `readDefaults`) in `lib/plugin-toggle.mjs` next to the managed-settings files, and refuse the toggle naming the source; first confirm the key names and precedence with Context7 and record them in `docs/claude-config-sources.md`; fixture test with a fake `defaults`. Server-managed settings stay documented as unreadable offline. | Sonnet 5.5 |
-| [x] | Probe the unverified behaviours with throwaway folders and a throwaway `CLAUDE_CONFIG_DIR` (worktree and subfolder `projectPath` matching, `defaultEnabled` default, hooks of a disabled plugin, bare-map plugin `.mcp.json`); write each result into `docs/claude-config-sources.md`; fix a reader only where the probe disagrees with it, with a test. Nothing is run against the real home. | Sonnet 5.5 |
+| [x] | Read macOS MDM managed settings (`com.anthropic.claudecode` through `defaults read`, injectable `readDefaults`) in `lib/plugin-toggle.mjs` next to the managed-settings files, and refuse the toggle naming the source; first confirm the key names and precedence with Context7 and record them in `claude-config-sources.md`; fixture test with a fake `defaults`. Server-managed settings stay documented as unreadable offline. | Sonnet 5.5 |
+| [x] | Probe the unverified behaviours with throwaway folders and a throwaway `CLAUDE_CONFIG_DIR` (worktree and subfolder `projectPath` matching, `defaultEnabled` default, hooks of a disabled plugin, bare-map plugin `.mcp.json`); write each result into `claude-config-sources.md`; fix a reader only where the probe disagrees with it, with a test. Nothing is run against the real home. | Sonnet 5.5 |
 | [x] | Docs: README command list and `agentry ui` keys, `tui/components/help.mjs` `KEYS` matched to the README table, CLAUDE.md tree if a file was added, empty the shelf plan's "Open items" down to what remains, one "Decisions log" row here per surprise. | Haiku 5.5 |
 
 ## Out of scope
@@ -77,6 +77,6 @@ plan's "Open items" lists only what the probe could not settle.
 
 | Date | Decision |
 |---|---|
-| 2026-11-05 | One phase for all remaining gaps, on request. Tasks are the code items from "Open items" in `docs/shelf-cli-plan.md` plus a probe of the assumed behaviours. No Opus tasks: all writes use the existing fix engine and backup paths. |
+| 2026-11-05 | One phase for all remaining gaps, on request. Tasks are the code items from "Open items" in `shelf-cli-plan.md` plus a probe of the assumed behaviours. No Opus tasks: all writes use the existing fix engine and backup paths. |
 | 2026-11-05 | Rows 4-5: a project CLAUDE.md counts as the catalog file's install when identical or when both start with the same `# heading` (nothing records which catalog file was copied), so a diverged copy shows outdated and `u` overwrites it after a preview and a saved copy. `catalog update` on an MCP server only touches user-scope command servers through `mcp set`: it replaces args and adds env keys the entry lacks, never an existing env value (those are the user's tokens), and leaves url servers, project scope and a different command alone. `catalog remove` takes agents only (rules: `rules remove`, which the Catalog tab `x` calls for a rule). |
 | 2026-11-05 | Rows 6-7: MDM is read with `defaults read com.anthropic.claudecode enabledPlugins` (only that key; `readDefaults` injectable, fake `defaults` on PATH in the CLI test). Surprise: with no `enabledPlugins` entry a plugin is **disabled** in 2.1.316 whatever its `defaultEnabled`, so the Plugins reader changed (it assumed enabled) and test fixtures now write an explicit entry (`addPlugin` defaults `enabled: true`, `null` for none). Surprise: Claude Code does not match `projectPath` at all; the reader still does, which differs only when a project-scope plugin is enabled from user settings, so it was left as is. Hooks of a disabled plugin could not be probed (no login in the throwaway home). Bare-map plugin `.mcp.json` loads, as the reader assumed. |

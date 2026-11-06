@@ -1,5 +1,5 @@
 // Helpers shared by the inventory readers: safe JSON reads and the settings files a session in a folder loads.
-// Settings locations and precedence: docs/claude-config-sources.md ("Settings and env").
+// Settings locations and precedence: cli/docs/claude-config-sources.md ("Settings and env").
 
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";

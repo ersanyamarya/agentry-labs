@@ -1,5 +1,5 @@
 // `agentry plugin install <name>@<marketplace> [--scope user|project|local]` and `agentry plugin uninstall <name>`:
-// run `claude plugin install|uninstall <id> --scope <scope>` through the fix engine (lib/fix.mjs), so the command is
+// run `claude plugin install|uninstall <id> --scope <scope>` through the fix engine (src/lib/fix.ts), so the command is
 // previewed, confirmed (or --yes) and the scope's settings file (where enabledPlugins lives) is backed up first.
 // Why the claude CLI: an install also fetches the plugin into its cache and records it in installed_plugins.json, which
 // is not a text edit. `agentry fix --undo` restores the settings file only when it existed (it is backed up first); the cached

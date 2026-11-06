@@ -1,5 +1,5 @@
 // `agentry plugin enable|disable <name>`: flips the plugin's `enabledPlugins` entry in the settings file of the right scope.
-// It edits the file text with lib/json-edit.mjs (formatting stays) and runs the edit through the fix engine (lib/fix.mjs),
+// It edits the file text with src/lib/json-edit.ts (formatting stays) and runs the edit through the fix engine (src/lib/fix.ts),
 // so the preview is the engine's masked diff, a backup set is written first, and `agentry fix --undo` restores it.
 // Why files and not `claude plugin enable|disable`: that command picks its scope by "auto-detect" and runs a process the
 // engine cannot back up or preview, while the settings file is what the Plugins reader (and Claude Code) read anyway.

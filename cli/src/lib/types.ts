@@ -1,7 +1,7 @@
 // Shapes shared by the CLI. Two kinds live here:
 //  - files written by Claude Code (settings.json, .claude.json, .mcp.json, installed_plugins.json, hook groups): every field
 //    is optional and loosely typed, because Claude tolerates a missing or wrong-typed field and so do the readers; narrow
-//    with `isObject`/`list` (inventory/common) before use. Facts: docs/claude-config-sources.md.
+//    with `isObject`/`list` (inventory/common) before use. Facts: cli/docs/claude-config-sources.md.
 //  - what the inventory readers and doctor produce (skills, MCP servers, hooks, plugins, findings), which are strict.
 
 import type { Paths } from "./paths.js";

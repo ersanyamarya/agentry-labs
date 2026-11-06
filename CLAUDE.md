@@ -38,11 +38,7 @@ Remember, before writing any code:
 ├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs; hooks/ holds hook scripts it copies to ~/.claude/hooks (prefer-trail.mjs: denies grep/cat/find on source in trail-indexed repos, `# no-trail: <why>` overrides)
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
 ├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
-├── bin/                 # agentry CLI entry and command router (shelf, plugin, mcp, status, doctor, scan, fix, ui)
-├── lib/                 # CLI modules: shelf.mjs, backups.mjs, catalog.mjs (skills, agents, rules, CLAUDE.md files, MCP servers; outdated + update), rules.mjs (CLAUDE.md and rule files), status.mjs, doctor.mjs, scan.mjs, fix.mjs, plugin-toggle.mjs, plugin-install.mjs, mcp-toggle.mjs, mcp-edit.mjs, hook-toggle.mjs, json-edit.mjs, tokens.mjs, mask.mjs, inventory/
-├── tui/                 # agentry ui: Ink terminal UI (app, data, rows, use-cursor/use-list (shared `/` search and `m` marks), bulk-flow (one preview and one y for marked rows), flows: mcp-flow/hook-flow/plugin-flow/move-flow, components/ incl. the Catalog, Backups and Rules tabs); loaded lazily by bin/agentry.mjs
-├── docs/                # design plans (shelf-cli-plan.md) and the config-sources spec (claude-config-sources.md)
-├── test/                # node:test suites for the CLI (npm test)
+├── cli/                 # agentry CLI and Ink terminal UI, in TypeScript (src/bin, src/lib, src/tui, src/test; design docs in cli/docs). See cli/README.md and cli/CLAUDE.md
 └── .github/             # CI (validates every skill) and assets/cover.jpg
 ```
 
@@ -63,8 +59,8 @@ cp -r skills/* .claude/skills/
 cd scripts/image-gen-tools && bun install && bun run cover
 
 # CLI: install dependencies, run tests, link `agentry` onto PATH
-npm install && npm test
-npm link
+cd cli && npm install && npm test
+cd cli && npm link
 
 # Shelf and setup checks (any folder once linked)
 agentry shelf list
@@ -148,6 +144,7 @@ repo's tracked `.mcp.json`, started with `npx -y <pkg>@latest` so they work with
 | --- | --- |
 | `CLAUDE.md` (this file) | A layer, convention or the skill list changes |
 | `README.md` | The installer, bundles or the component list changes |
+| `cli/README.md`, `cli/CLAUDE.md` | The `agentry` commands, flags, env vars, layout, build or test steps change |
 | `bundles.tsv` | A skill, rule or agent is added, removed or moved to another bundle |
 
 ## Adding New Components

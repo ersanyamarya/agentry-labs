@@ -1,5 +1,5 @@
 // `agentry backups`: what agentry keeps under <config>/backups/agentry/ and how to clear it.
-//   fix/<set>                      a fix-engine backup set (lib/fix.mjs); deleting one ends `fix --undo` for it
+//   fix/<set>                      a fix-engine backup set (src/lib/fix.ts); deleting one ends `fix --undo` for it
 //   removed/<time>/<label>         the copy `shelf remove` keeps of a deleted skill; next to it meta.json records where it came from
 //   updated/<time>/<label>         the copy `catalog update` keeps of what it overwrote; meta.json maps each label to where it lives
 // The id of an entry is that path below the backups folder. Nothing is deleted or moved without --yes (or a y at the prompt);

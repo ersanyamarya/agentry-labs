@@ -1,5 +1,5 @@
 // Lists every MCP server a Claude Code session in a folder would see, where each comes from, and whether it loads.
-// Sources, precedence and shapes: docs/claude-config-sources.md. Secret values are masked before they leave this module.
+// Sources, precedence and shapes: cli/docs/claude-config-sources.md. Secret values are masked before they leave this module.
 
 import { existsSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";

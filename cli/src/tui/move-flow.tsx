@@ -1,4 +1,4 @@
-// Confirm step for moving a skill folder between this project and ~/.claude/skills: the preview is lib/shelf.mjs's own dry
+// Confirm step for moving a skill folder between this project and ~/.claude/skills: the preview is src/lib/shelf.ts's own dry
 // run, and nothing moves until y. It is a plain move (no copy kept), so the done line says where it went.
 
 import type { Api } from "./types.js";

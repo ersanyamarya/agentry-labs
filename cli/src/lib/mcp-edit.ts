@@ -3,13 +3,13 @@
 // add:  user scope (default) runs `claude mcp add-json <name> <json> --scope user`, project scope adds the entry to the
 //       project's .mcp.json (created when missing) as a text edit. A server named <name> in that scope is refused (never
 //       overwritten). Project servers still need Claude Code's own approval on first use.
-// set:  user scope only; edits the `env` and `args` of the entry in ~/.claude.json as a text edit (lib/json-edit.mjs), so the
+// set:  user scope only; edits the `env` and `args` of the entry in ~/.claude.json as a text edit (src/lib/json-edit.ts), so the
 //       rest of the file stays byte for byte. --env K=V sets or replaces, --unset-env K removes, --arg replaces the whole args list.
 //       Plugin, project, local and desktop servers are refused with who manages them.
 //
-// Both go through the fix engine (lib/fix.mjs): masked preview (env and header values, tokens in URLs and arguments never
+// Both go through the fix engine (src/lib/fix.ts): masked preview (env and header values, tokens in URLs and arguments never
 // show), confirm or --yes, a backup of the file first, `agentry fix --undo`. `claude mcp add-json` takes the JSON as an
-// argument, so for the moment it runs the secrets are visible in this machine's process list (same as lib/mcp-toggle.mjs).
+// argument, so for the moment it runs the secrets are visible in this machine's process list (same as src/lib/mcp-toggle.ts).
 // Exit codes: 0 done, previewed, declined or already so; 1 refused or failed; 2 usage.
 
 import { spawnSync } from "node:child_process";

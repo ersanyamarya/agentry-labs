@@ -1,5 +1,5 @@
 // `agentry fix`: plan → preview (a unified diff per file, secrets masked) → confirm → backup → write → verify.
-// The engine knows no concrete fix; those live in lib/fix-rules.mjs, keyed by doctor rule id.
+// The engine knows no concrete fix; those live in src/lib/fix-rules.ts, keyed by doctor rule id.
 //
 // Registry: `fixes[ruleId] = (finding, ctx) => fix | fix[] | undefined`, called once per doctor finding with that id.
 //   ctx = { paths, cwd, project: { cwd, root }, findings } (the whole doctor result for the folder).

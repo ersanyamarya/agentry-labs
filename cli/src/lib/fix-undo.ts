@@ -1,4 +1,4 @@
-// `agentry fix --undo [timestamp]` and `--list`: put back what a backup set (lib/fix.mjs header) recorded.
+// `agentry fix --undo [timestamp]` and `--list`: put back what a backup set (src/lib/fix.ts header) recorded.
 // The set is the newest one unless a timestamp (its folder name, or the createdAt ISO time) is given.
 // Per manifest file, by `result` and `kind`:
 //   written   file: original bytes back, original mode kept. missing: realPath deleted.

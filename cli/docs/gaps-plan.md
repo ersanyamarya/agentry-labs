@@ -1,7 +1,7 @@
 # Gap closing plan
 
 **Status: all five phases are merged into `main`.** Remaining items are listed under "Open items" in
-`docs/shelf-cli-plan.md`. This file is kept as the record of the scope.
+`shelf-cli-plan.md`. This file is kept as the record of the scope.
 
 Five clubbed phases, run one after another (each starts from the previous branch, because they all touch `tui/rows.mjs`,
 `tui/data.mjs`, `tui/app.mjs`, `bin/agentry.mjs` and the README). Conventions: CLAUDE.md and the existing `lib/` and `tui/`
@@ -16,4 +16,4 @@ has `c` to copy, a CLI twin with `--dry-run`/`--yes`, tests, and a README/help l
 | 4 | `feat/gaps-4-catalog-rules` | **Catalog beyond skills + rules view.** Catalog lists agents, rules, claude-md-files and MCP configs from the repo with install targets; shows `outdated` for installed skills whose files differ from the cached clone (use `scripts/skill-drift.mjs` logic) with an update action. New read-only **Rules** rows (`~/.claude/rules`, project `CLAUDE.md`) with `e` open and `x` remove. |
 | 5 | `feat/gaps-5-ux` | **UX across tabs.** `/` search/filter on every list, multi-select (`m` mark, bulk `space`/`x`), a total of description tokens loaded in this session (header + per scope), help and README refresh, final doc pass. |
 
-Done for every phase: `npm test` green, new tests for lib and TUI paths, README + help text + `docs/shelf-cli-plan.md` log row.
+Done for every phase: `npm test` green, new tests for lib and TUI paths, README + help text + `shelf-cli-plan.md` log row.

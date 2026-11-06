@@ -1,5 +1,5 @@
-// Terminal UI entry. bin/agentry.mjs imports this only for `agentry ui` (and bare `agentry` in a terminal), so Ink and
-// React never load for other commands. All reads and actions go through tui/data.mjs, which calls the lib/ functions.
+// Terminal UI entry. src/bin/agentry.ts imports this only for `agentry ui` (and bare `agentry` in a terminal), so Ink and
+// React never load for other commands. All reads and actions go through src/tui/data.ts, which calls the lib/ functions.
 
 import { render } from "ink";
 import { createDiscover } from "../lib/discover.js";

@@ -3,7 +3,7 @@
 //   agent      agents/<name>.agent.md       -> ~/.claude/agents/, or <project>/.claude/agents/ with project
 //   rule       rules/<name>.md              -> ~/.claude/rules/
 //   claude-md  claude-md-files/<name>.md    -> <project>/CLAUDE.md, only when the project has none
-//   mcp        a server of global/mcp.json  -> lib/mcp-edit.mjs `add` (masked preview, backup, undo), user or project scope
+//   mcp        a server of global/mcp.json  -> src/lib/mcp-edit.ts `add` (masked preview, backup, undo), user or project scope
 // Items are named kind/name; a bare name works when it is unique. `add` never overwrites. `update` replaces an installed
 // skill, agent, rule or CLAUDE.md file with the catalog's copy: previewed per file, the current copy saved under
 // <backups>/updated/ first, and only after a y (or --yes). An item is `outdated` when any file differs from the cached clone
@@ -235,7 +235,7 @@ const firstHeading = (file: string): string =>
     .find((line) => /^#\s/.test(line))
     ?.replace(/^#\s+/, "") ?? "";
 
-// MCP options for lib/mcp-edit.mjs `add` from a catalog server config ({ url, headers } or { command, args, env }).
+// MCP options for src/lib/mcp-edit.ts `add` from a catalog server config ({ url, headers } or { command, args, env }).
 const mcpOptionsOf = (raw: McpServerRaw): BuildArgs =>
   raw.url === undefined
     ? {

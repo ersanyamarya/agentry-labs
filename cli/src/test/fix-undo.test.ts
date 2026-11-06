@@ -27,7 +27,7 @@ import { createPaths } from "../lib/paths.js";
 import type { Finding, FixRegistry, RunCommand } from "../lib/types.js";
 import { createFixture } from "./helpers/fixture.js";
 
-// Same fake rule as test/fix.test.mjs: target.json is reported while it contains BAD. Never the real home.
+// Same fake rule as src/test/fix.test.ts: target.json is reported while it contains BAD. Never the real home.
 let root: string;
 let home: string;
 let configDir: string;

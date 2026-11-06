@@ -234,7 +234,7 @@ export const createData = ({
     target: string;
     dryRun?: boolean;
   }) => moveSkill({ dir, action: "unshelve", args: [target], dryRun });
-  // Moves a real skill folder between this project and ~/.claude/skills (lib/shelf.mjs promote/demote). Preview with dryRun.
+  // Moves a real skill folder between this project and ~/.claude/skills (src/lib/shelf.ts promote/demote). Preview with dryRun.
   const promoteSkill = ({
     dir,
     skill,
@@ -253,7 +253,7 @@ export const createData = ({
     skill: string;
     dryRun?: boolean;
   }) => moveSkill({ dir, action: "demote", args: [skill], dryRun });
-  // Deletes a skill after copying it to the backups (see lib/shelf.mjs remove). Preview with dryRun.
+  // Deletes a skill after copying it to the backups (see src/lib/shelf.ts remove). Preview with dryRun.
   const removeSkill = ({
     dir,
     target,
@@ -275,7 +275,7 @@ export const createData = ({
       options: { project, backup },
     });
 
-  // Backups manager (lib/backups.mjs): restore a removed skill, delete or prune backups. Previews are the lib's own dry run.
+  // Backups manager (src/lib/backups.ts): restore a removed skill, delete or prune backups. Previews are the lib's own dry run.
   const backupsFor = (dir: string, io: Io) =>
     createBackups(makePaths(dir), { ...io, now });
   const restoreBackup = async ({
@@ -408,7 +408,7 @@ export const createData = ({
         .trim(),
     };
   };
-  // CLAUDE.md and rule files (lib/rules.mjs): delete after a copy to the backups. Preview with dryRun.
+  // CLAUDE.md and rule files (src/lib/rules.ts): delete after a copy to the backups. Preview with dryRun.
   const removeRule = async ({
     dir,
     target,
@@ -469,7 +469,7 @@ export const createData = ({
     return { ok: code === 0, text: lines.join("\n").trim() };
   };
 
-  // Plugin install/uninstall through `claude plugin` (lib/plugin-install.mjs): the engine's dry run, then after y the command.
+  // Plugin install/uninstall through `claude plugin` (src/lib/plugin-install.ts): the engine's dry run, then after y the command.
   const installFor = (dir: string, io: Io) =>
     createPluginInstall(makePaths(dir), { ...io, now });
   const previewPluginInstall = async ({

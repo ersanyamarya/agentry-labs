@@ -1,6 +1,6 @@
 // Turns lib data into list rows: { id, label, segments?, note?, details[], file?, header?, kind?, ... }. Pure, so tabs
-// and tests share it. `segments` ([{ text, style }], see theme.mjs) is the coloured right-hand side of a row and `note`
-// is the same text without colour. Everything shown here already passed through lib/mask.mjs (the inventory readers
+// and tests share it. `segments` ([{ text, style }], see theme.ts) is the coloured right-hand side of a row and `note`
+// is the same text without colour. Everything shown here already passed through src/lib/mask.ts (the inventory readers
 // mask before returning).
 
 import { formatAge, formatBytes } from "../lib/backups.js";
@@ -30,7 +30,7 @@ const badge = (text: string) =>
   seg(badgeText(text), { ...stateStyle(text), bold: true });
 const scopeBadge = (scope: string) =>
   seg(SCOPE_NAMES[scope] ?? scope, scopeStyle(scope));
-// A fixed-width column of a row: parts ([seg...]) padded to `width`, left or right aligned. See components/list.mjs.
+// A fixed-width column of a row: parts ([seg...]) padded to `width`, left or right aligned. See components/list.tsx.
 const cell = (
   parts: Seg | Seg[],
   width: number,
@@ -477,7 +477,7 @@ export const ruleKeys = (row: Row | undefined): KeyHint[] =>
       ]
     : [];
 
-// CLAUDE.md and rule files Claude Code loads every session (lib/rules.mjs), user then project, with their whole-file cost.
+// CLAUDE.md and rule files Claude Code loads every session (src/lib/rules.ts), user then project, with their whole-file cost.
 export const ruleRows = (data: Data): Row[] => {
   if (data.rules.length === 0) {
     return [
