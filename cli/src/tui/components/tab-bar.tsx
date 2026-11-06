@@ -66,8 +66,10 @@ export const TabBar = ({
   const found = problems(summary ?? {});
   const full = cols >= 100;
   // Eight tabs do not all fit with counts below about 120 columns: tighten the spacing, then show counts only where they fit.
+  // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
   const label = (name: string, index: number, shown: Set<string>) =>
     `${index + 1} ${name}${shown.has(name) && counts[name] !== undefined ? ` (${counts[name]})` : ""}`;
+  // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
   const widthOf = (shown: Set<string>, chrome: number) =>
     TAB_NAMES.reduce(
       (total, name, index) =>
@@ -97,6 +99,7 @@ export const TabBar = ({
               key={name}
               wrap="truncate"
             >
+              {/* biome-ignore lint/suspicious/noLeakedRender: both branches are strings, so nothing leaks */}
               {full ? ` ${text} ` : text}
             </Text>
           );

@@ -18,6 +18,7 @@ export const startPluginToggle = async ({
   row,
 }: Ctx & { row: Row }) => {
   const enable = !row.enabled;
+  // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const plugin = row.plugin!;
   const preview = await api.previewPlugin({ dir, id: plugin, enable });
   flow.begin({
@@ -93,7 +94,9 @@ export const startPluginUninstall = async ({
   flow,
   row,
 }: Ctx & { row: Row }) => {
+  // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const name = row.plugin!;
+  // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const scopes = row.pluginScopes!;
   flow.begin(
     scopes.length === 1

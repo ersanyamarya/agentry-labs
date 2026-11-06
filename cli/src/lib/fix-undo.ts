@@ -231,6 +231,7 @@ export const createFixUndo = (
   };
 
   const commandLines = (manifest: StoredManifest): string[] =>
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: the value comes from user files and may be missing at runtime
     (manifest.commands ?? []).map(
       (step) =>
         `  [${step.ruleId}] ${tilde(maskArgs(step.command).join(" "))}  (in ${tilde(step.cwd)})`

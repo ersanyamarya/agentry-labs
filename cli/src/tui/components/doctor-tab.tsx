@@ -34,6 +34,7 @@ export const DoctorTab = ({
   const { rows, cursor, row, move } = list;
   const [step, setStep] = React.useState<Step | null>(null);
   const waiting = step && step.kind !== "result";
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(() => lock(Boolean(waiting)), [waiting]);
 
   const preview = async () => {

@@ -145,6 +145,7 @@ describe("round trip", () => {
     const { undo, output } = undoFixture();
     assert.equal(await undo.run({ yes: true }), 0);
     assert.equal(readFileSync(target, "utf8"), original());
+    // biome-ignore lint/suspicious/noBitwiseOperators: masks the permission bits of a file mode
     assert.equal(statSync(target).mode & 0o7777, 0o640);
     assert.match(output(), /restored ~\/ws\/repo\/target\.json/);
     assert.equal(manifest().undoneAt, "2026-11-03T10:20:30.456Z");

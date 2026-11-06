@@ -211,11 +211,13 @@ export const App = ({
     );
   const tabs = shared
     ? [
+        // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <SkillsTab
           {...shared}
           active={tab === 0 && !overlay}
           setKeys={keysFor(0)}
         />,
+        // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <InventoryTab
           {...shared}
           active={tab === 1 && !overlay}
@@ -224,6 +226,7 @@ export const App = ({
           rowKeys={mcpKeys}
           setKeys={keysFor(1)}
         />,
+        // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <InventoryTab
           {...shared}
           active={tab === 2 && !overlay}
@@ -231,6 +234,7 @@ export const App = ({
           rowKeys={hookKeys}
           setKeys={keysFor(2)}
         />,
+        // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <InventoryTab
           {...shared}
           active={tab === 3 && !overlay}
@@ -239,17 +243,21 @@ export const App = ({
           rowKeys={pluginKeys}
           setKeys={keysFor(3)}
         />,
+        // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <DoctorTab {...shared} active={tab === 4 && !overlay} />,
+        // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <CatalogTab
           {...shared}
           active={tab === 5 && !overlay}
           setKeys={keysFor(5)}
         />,
+        // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <BackupsTab
           {...shared}
           active={tab === 6 && !overlay}
           setKeys={keysFor(6)}
         />,
+        // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <RulesTab
           {...shared}
           active={tab === 7 && !overlay}
@@ -284,6 +292,7 @@ export const App = ({
         {overlay === "help" ? <Help /> : null}
         {overlay === "picker" ? (
           <Picker
+            // biome-ignore lint/performance/noJsxPropsBind: a one-line handler on a rarely re-rendered overlay
             onClose={() => setOverlay(null)}
             onPick={pick}
             rows={picker}

@@ -4,6 +4,7 @@
 import { render } from "ink";
 import { createDiscover } from "../lib/discover.js";
 import { createPaths, type Paths } from "../lib/paths.js";
+// biome-ignore lint/style/noExportedImports: the entry point re-exports App on purpose
 import { App } from "./app.js";
 import { createData } from "./data.js";
 import { createRecents } from "./recents.js";

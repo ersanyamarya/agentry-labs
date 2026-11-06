@@ -95,6 +95,7 @@ describe("agentry hook disable|enable", () => {
     assert.equal(status, 0, stdout);
     assert.ok(settings().includes(`echo one --token ${SECRET}`));
     assert.ok(!settings().includes("echo two"));
+    // biome-ignore lint/suspicious/noBitwiseOperators: masks the permission bits of a file mode
     assert.equal(statSync(parkedFile()).mode & 0o777, 0o600);
     assert.match(stdout, /is off \(saved in .*parked-hooks\.json/);
     assert.match(

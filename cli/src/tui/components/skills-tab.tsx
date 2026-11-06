@@ -35,6 +35,7 @@ export const SkillsTab = ({
   const flow = useFlow({ lock, notify, reload, copy });
   // The footer follows the selected row.
   const keys = skillKeys(row);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(() => {
     if (active) {
       setKeys(keys);
@@ -183,12 +184,14 @@ export const SkillsTab = ({
           preview: async (one) => {
             const result = await api.removeSkill({
               dir,
+              // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
               ...removeArgs(one)!,
               backup,
               dryRun: true,
             });
             return { appliable: result.ok, text: result.text };
           },
+          // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
           apply: (one) => api.removeSkill({ dir, ...removeArgs(one)!, backup }),
           done: backup
             ? "Removed; copies are in ~/.claude/backups/agentry/removed/"
@@ -217,6 +220,7 @@ export const SkillsTab = ({
           );
         }
       } else if (input === "u") {
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row?.kind === "skill"
           ? startUnshelve()
           : notify(
@@ -226,6 +230,7 @@ export const SkillsTab = ({
         setExpanded((open) => {
           const next = new Set(open);
           const group = row.group ?? "";
+          // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
           next.has(group) ? next.delete(group) : next.add(group);
           return next;
         });
@@ -239,6 +244,7 @@ export const SkillsTab = ({
         toggle(true);
       } else if (input === "x" || input === "X") {
         const backup = input === "x";
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row?.kind === "skill"
           ? startRemove({
               api,
@@ -272,6 +278,7 @@ export const SkillsTab = ({
                 );
       } else if (input === "a" || input === "o") {
         const promote = input === "a";
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         (promote ? row?.projectOnly : row?.shelvable)
           ? startScopeMove({ api, dir, flow, skill: row?.skill ?? "", promote })
           : notify(

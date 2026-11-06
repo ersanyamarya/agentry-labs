@@ -10,6 +10,7 @@ const TABS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 const lines = () => stripAnsi(ui.frame()!).split("\n");
 
 for (const cols of [80, 100, 130]) {
+  // biome-ignore lint/suspicious/noLoopFunc: the callback runs immediately and does not outlive the iteration
   describe(`${cols} columns`, () => {
     test("no line is wider than the terminal on any tab, and the frame is stable", async () => {
       ui = createUi({

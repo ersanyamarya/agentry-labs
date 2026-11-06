@@ -38,6 +38,7 @@ export const CatalogTab = ({
   const { rows, cursor, row, move } = list;
   const flow = useFlow({ lock, notify, reload, copy });
   const keys = catalogKeys(row);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(() => {
     if (active) {
       setKeys(keys);
@@ -56,9 +57,11 @@ export const CatalogTab = ({
 
   // Only called with a catalog row selected, so `item` is set.
   const itemOf = (one: Row) => one.item ?? "";
+  // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const nameOf = () => itemOf(row!).slice(itemOf(row!).indexOf("/") + 1);
 
   const startAdd = async (project: boolean) => {
+    // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
     const current = row!;
     const names = [itemOf(current)];
     const preview = await api.addFromCatalog({
@@ -81,14 +84,17 @@ export const CatalogTab = ({
   };
 
   const startUpdate = async () => {
+    // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
     const names = [itemOf(row!)];
     const preview = await api.updateFromCatalog({ dir, names, dryRun: true });
     flow.begin({
       kind: "confirm",
+      // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
       title: `Update ${row!.item} (preview)`,
       text: preview.text,
       appliable: preview.ok,
       apply: () => api.updateFromCatalog({ dir, names }),
+      // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
       done: `Updated ${row!.item}; the old copy is in ~/.claude/backups/agentry/updated/.`,
     });
   };
@@ -116,6 +122,7 @@ export const CatalogTab = ({
 
   // x/X on an installed skill, agent or rule: an agent's global copy (else the project's); a rule by its file.
   const removeRow = (backup: boolean) => {
+    // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
     const current = row!;
     if (!["skill", "agent", "rule"].includes(current.itemKind ?? "")) {
       return notify(
@@ -219,16 +226,19 @@ export const CatalogTab = ({
             : "Removed; no copies were kept",
         });
       } else if (input === "i" && row?.kind === "catalog") {
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row.itemKind === "skill" && row.installed
           ? notify(`${row.item} is already installed (${row.installed}).`)
           : startAdd(false);
       } else if (input === "o" && row?.kind === "catalog") {
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row.itemKind === "agent" || row.itemKind === "mcp"
           ? startAdd(true)
           : notify(
               "o adds an agent or an MCP server to this project only; use i for this item."
             );
       } else if (input === "u" && row?.kind === "catalog") {
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row.outdated
           ? startUpdate()
           : notify(

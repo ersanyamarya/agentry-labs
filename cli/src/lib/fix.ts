@@ -217,6 +217,7 @@ export const snapshot = (file: string): Snapshot => {
     path: file,
     realPath,
     mtimeMs: stat.mtimeMs,
+    // biome-ignore lint/suspicious/noBitwiseOperators: masks the permission bits of a file mode
     mode: stat.mode & 0o7777,
     sha256: null,
   };
@@ -509,6 +510,7 @@ const createBackupSet = (
   const stamp = createdAt.replace(/[:.]/g, "-");
   let dir: string;
   for (let n = 0; ; n += 1) {
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: the value comes from user files and may be missing at runtime
     dir = join(paths.backupsDir, n ? `${stamp}-${n}` : stamp);
     try {
       mkdirSync(dir, { mode: 0o700 });
@@ -682,6 +684,7 @@ export const createFix = (
           const result = fix.apply(current);
           if (typeof result === "string") {
             if (!snap || (snap.kind !== "file" && snap.kind !== "missing")) {
+              // biome-ignore lint/suspicious/useErrorMessage: only the code is read; a message would change the error text
               throw Object.assign(new Error(), { code: "ENOTFILE" });
             }
             if (result !== current) {

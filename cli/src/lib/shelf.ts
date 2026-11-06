@@ -269,6 +269,7 @@ export const createShelf = (
       slash === -1
         ? [undefined, target]
         : [target.slice(0, slash), target.slice(slash + 1)];
+    // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
     const groups =
       group === undefined
         ? skillGroups(skill)
@@ -383,6 +384,8 @@ export const createShelf = (
     const resolved = targets.map(resolveTarget);
     const failed = resolved.filter((one): one is Failure => Boolean(one.error));
     if (failed.length > 0) {
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
+      // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
       failed.forEach(({ error }) => err(error));
       return Math.max(...failed.map(({ code }) => code));
     }

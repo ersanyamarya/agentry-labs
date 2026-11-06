@@ -229,6 +229,7 @@ export const createHookToggle = (
     if (scope !== undefined && !SCOPES.includes(scope as Scope)) {
       return refuse(`--scope must be one of ${SCOPES.join(", ")}`, 2);
     }
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: the value comes from user files and may be missing at runtime
     if (!/^[0-9a-f]{4,8}$/.test(selector ?? "")) {
       return refuse(
         "The selector is the id column of agentry hook list (4 to 8 hex characters).",

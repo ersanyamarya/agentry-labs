@@ -54,6 +54,7 @@ export const Help = () => (
   <Box borderStyle="round" flexDirection="column" paddingX={1}>
     <Text bold>{"Keys (? or esc to close)"}</Text>
     {KEYS.map(([key, what], index) => (
+      // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
       <Text key={`${key}:${index}`} wrap="truncate-end">
         <Text bold>{key.padEnd(12)}</Text>
         <Text>{` ${what}`}</Text>

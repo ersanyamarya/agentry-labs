@@ -37,6 +37,7 @@ export const useList = ({
   const [ids, setIds] = React.useState<Set<string>>(() => new Set());
   const rows = React.useMemo(() => filterRows(all, query), [all, query]);
   const { cursor, row, move, home } = useCursor(rows);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(home, [query]);
 
   // Marks of rows that are gone (after a reload) fall away; marked rows hidden by a filter stay marked.
@@ -72,6 +73,7 @@ export const useList = ({
     } else if (marks && input === "m" && row && !row.header) {
       setIds((old) => {
         const next = new Set(old);
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         next.has(row.id) ? next.delete(row.id) : next.add(row.id);
         return next;
       });

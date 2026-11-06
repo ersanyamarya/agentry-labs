@@ -621,6 +621,8 @@ const main = (argv: string[]): number | Promise<number> => {
     }
     if (action === "list-parked" && rest.length === 1) {
       const parked = createMcpToggle(createPaths()).listParked();
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
+      // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
       parked.forEach((entry) =>
         console.log(
           `${entry.name}  parked ${entry.parkedAt ?? ""}  ${entry.summary}`

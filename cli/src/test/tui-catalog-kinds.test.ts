@@ -307,6 +307,7 @@ describe("Rules tab", () => {
 
   test("X keeps no copy; e opens the file", async () => {
     const calls: [string, string[]][] = [];
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: the value comes from user files and may be missing at runtime
     await ui.stop?.();
     ui = createUi({
       catalogRepo: origin,

@@ -55,6 +55,7 @@ describe("agentry plugin install", () => {
     assert.equal(undo.status, 0);
     assert.match(
       undo.stdout,
+      // biome-ignore lint/correctness/noEmptyCharacterClassInRegex: [^] is the intended match-any-character class
       /undo these by hand[^]*claude plugin install demo@mkt/
     );
   });

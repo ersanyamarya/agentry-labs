@@ -216,6 +216,7 @@ describe("apply", () => {
     assert.equal(entry.backup, join("files", target.slice(1)));
     assert.equal(readFileSync(join(set, entry.backup), "utf8"), original());
     assert.equal(entry.mtimeMs, before.mtimeMs);
+    // biome-ignore lint/suspicious/noBitwiseOperators: masks the permission bits of a file mode
     assert.equal(entry.mode, before.mode & 0o7777);
     assert.match(entry.sha256, /^[0-9a-f]{64}$/);
     assert.equal(entry.gitTracked, true);
@@ -254,6 +255,7 @@ describe("apply", () => {
     chmodSync(target, 0o640);
     const { fix } = setup();
     assert.equal(await fix.run({ path: repo, yes: true }), 0);
+    // biome-ignore lint/suspicious/noBitwiseOperators: masks the permission bits of a file mode
     assert.equal(statSync(target).mode & 0o7777, 0o640);
     assert.deepEqual(
       readdirSync(repo).filter(

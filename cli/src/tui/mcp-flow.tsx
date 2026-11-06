@@ -17,7 +17,9 @@ export const startMcpToggle = async ({
   flow,
   row,
 }: Ctx & { row: Row }) => {
+  // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const name = row.mcp!;
+  // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const enable = row.mcpEnable!;
   const preview = await api.previewMcp({ dir, name, enable });
   flow.begin({
@@ -37,6 +39,7 @@ export const startMcpRemove = async ({
   flow,
   row,
 }: Ctx & { row: Row }) => {
+  // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const name = row.mcp!;
   const preview = await api.previewMcpRemove({ dir, name });
   flow.begin({
@@ -170,6 +173,7 @@ export const startMcpAdd = ({ api, dir, flow }: Ctx) => {
 
 // Edit form for a user server: env changes, then new args; blank keeps. Preview is the engine's masked diff.
 export const startMcpSet = ({ api, dir, flow, row }: Ctx & { row: Row }) => {
+  // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const name = row.mcp!;
   flow.begin({
     kind: "name",

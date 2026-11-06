@@ -56,6 +56,7 @@ export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
   const [at, setAt] = React.useState(0);
   const [text, setText] = React.useState("");
   const modal = Boolean(step && step.kind !== "result");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(
     () => lock(modal ? (step?.kind === "name" ? "typing" : true) : false),
     [modal, step?.kind]

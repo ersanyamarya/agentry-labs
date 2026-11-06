@@ -72,14 +72,17 @@ export const Footer = ({
       {list.flatMap((pair, index) => [
         ...(index === divider && index > 0
           ? [
+              // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
               <Text dimColor key={`bar${index}`}>
                 {"│ "}
               </Text>,
             ]
           : []),
+        // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
         <Text bold key={`k${index}`}>
           {pair[0]}
         </Text>,
+        // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
         <Text dimColor key={`d${index}`}>
           {` ${pair[1]}  `}
         </Text>,

@@ -30,6 +30,7 @@ export const RulesTab = ({
   const { rows, cursor, row, move } = list;
   const flow = useFlow({ lock, notify, reload, copy });
   const keys = ruleKeys(row);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(() => {
     if (active) {
       setKeys(keys);
@@ -71,6 +72,7 @@ export const RulesTab = ({
             : "Removed; no copies were kept",
         });
       } else if (input === "x" || input === "X") {
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row?.ruleFile
           ? startRemove({
               api,

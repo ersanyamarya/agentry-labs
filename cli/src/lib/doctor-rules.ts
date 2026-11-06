@@ -409,6 +409,7 @@ const unsetPlaceholder: Rule = {
 
 // ---- stale names ----
 
+// biome-ignore lint/suspicious/noShadowRestrictedNames: local helper; never uses the global escape()
 const escape = (text: string): string =>
   text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

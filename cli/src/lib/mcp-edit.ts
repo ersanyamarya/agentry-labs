@@ -252,6 +252,7 @@ export const createMcpEdit = (
         return `${JSON.stringify({ mcpServers: { [name]: raw } }, null, "\t")}\n`;
       }
       const doc = createJsonEdit(text);
+      // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
       doc.get(["mcpServers"]) === undefined
         ? doc.set(["mcpServers"], { [name]: raw })
         : doc.set(["mcpServers", name], raw);
@@ -350,6 +351,8 @@ export const createMcpEdit = (
     }
     const nextEnv = (from: unknown): Record<string, unknown> => {
       const merged = { ...(isObject(from) ? from : {}), ...setEnv };
+      // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
       unsetEnv.forEach((key) => delete merged[key]);
       return merged;
     };

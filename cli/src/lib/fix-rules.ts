@@ -283,6 +283,7 @@ const STALE_MESSAGE =
 // Which strings of a settings or MCP file a stale-name finding covers, from the doctor's wording. → { label, match(path), kind }
 const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
   let found: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: assigns the regex match used by the branch body
   if ((found = /^Permission (allow|deny|ask) entry "(.*)"$/s.exec(what))) {
     const [, list, entry] = found;
     return {
@@ -296,6 +297,7 @@ const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
         maskShell(value) === entry,
     };
   }
+  // biome-ignore lint/suspicious/noAssignInExpressions: assigns the regex match used by the branch body
   if ((found = /^MCP server "(.*)"$/s.exec(what))) {
     const [, name] = found;
     return {
@@ -315,6 +317,7 @@ const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
         serverMaps(json).some((map) => name in map && pattern.test(name)),
     };
   }
+  // biome-ignore lint/suspicious/noAssignInExpressions: assigns the regex match used by the branch body
   if ((found = /^(\S+) command$/.exec(what))) {
     const [, event] = found;
     return {
@@ -325,6 +328,7 @@ const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
         path.length === 2 && path[0] === event && path[1] === "command",
     };
   }
+  // biome-ignore lint/suspicious/noAssignInExpressions: assigns the regex match used by the branch body
   if ((found = /^(\S+) hook matcher$/.exec(what))) {
     const [, event] = found;
     return {
@@ -335,6 +339,7 @@ const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
         path[0] === "hooks" && path[1] === event && path.at(-1) === "matcher",
     };
   }
+  // biome-ignore lint/suspicious/noAssignInExpressions: assigns the regex match used by the branch body
   if ((found = /^(\S+) hook$/.exec(what))) {
     const [, event] = found;
     return {

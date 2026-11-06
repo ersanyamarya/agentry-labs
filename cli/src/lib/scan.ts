@@ -231,6 +231,7 @@ export const createScan = (
       files.push(hook.source);
     }
     for (const plugin of data.plugins.items) {
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: the value comes from user files and may be missing at runtime
       files.push(plugin.installPath, plugin.enabledBy?.source);
     }
     files.push(
@@ -614,6 +615,7 @@ export const createScan = (
     if (global) {
       const path = join(paths.configDir, "skills", name);
       const info = lstatSync(path, { throwIfNoEntry: false });
+      // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
       info &&
         user.push({
           repo: paths.configDir,
@@ -665,6 +667,7 @@ export const createScan = (
   }: ScanArgs & { name?: string; global?: boolean } = {}): number => {
     const list = roots.length > 0 ? roots : [process.cwd()];
     if (skillNameError(name) || missingRoot(list)) {
+      // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
       skillNameError(name) && err(skillNameError(name) as string);
       return 2;
     }
@@ -678,6 +681,8 @@ export const createScan = (
         )
       );
     } else {
+      // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
       hits.forEach((hit) => out(describeHit(hit)));
       out(
         hits.length === 0
@@ -707,13 +712,16 @@ export const createScan = (
   } = {}): Promise<number> => {
     const list = roots.length > 0 ? roots : [process.cwd()];
     if (skillNameError(name) || missingRoot(list)) {
+      // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
       skillNameError(name) && err(skillNameError(name) as string);
       return 2;
     }
     const hits = findSkill(list, name as string, { depth, global });
     const doomed = hits.filter((hit) => !hit.link);
+    // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
     hits
       .filter((hit) => hit.link)
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
       .forEach((hit) => out(`skip ${describeHit(hit)}`));
     if (doomed.length === 0) {
       out(
@@ -726,6 +734,8 @@ export const createScan = (
     out(
       `Would delete .claude/skills/${name} from ${projects} project${projects === 1 ? "" : "s"}${userHit ? " and ~/.claude/skills" : ""} (${userHit && backup ? "project folders keep no copy; the global one is copied to the backups first" : "no copy kept"}):`
     );
+    // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
     doomed.forEach((hit) => out(`  ${describeHit(hit)}`));
     const lost = doomed.filter(
       (hit) => !(hit.tracked || (hit.global && backup))

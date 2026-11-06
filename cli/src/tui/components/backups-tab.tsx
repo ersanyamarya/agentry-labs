@@ -31,6 +31,7 @@ export const BackupsTab = ({
   const { rows, cursor, row, move } = list;
   const flow = useFlow({ lock, notify, reload, copy });
   const keys = backupKeys(row);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(() => {
     if (active) {
       setKeys(keys);
@@ -102,12 +103,14 @@ export const BackupsTab = ({
           "Deleted those backups."
         );
       } else if (input === "u") {
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row?.restorable
           ? startRestore()
           : notify(
               "u restores a removed skill: select one that has a known original folder."
             );
       } else if (input === "x") {
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row?.backup
           ? confirmDelete(
               { ids: [row.backup] },

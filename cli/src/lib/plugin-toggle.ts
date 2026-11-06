@@ -152,16 +152,19 @@ export const createPluginToggle = (
     const errors: ReadError[] = [];
     const { plugins } = reader.read({ cwd });
     const matches = plugins.filter(
+      // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
       (plugin) =>
         plugin.id === name || (!name.includes("@") && plugin.name === name)
     );
     if (matches.length === 0) {
       return refuse(
+        // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
         `No plugin "${name}". Plugins: ${plugins.map((plugin) => plugin.id).join(", ") || "none"}`
       );
     }
     if (matches.length > 1) {
       return refuse(
+        // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
         `"${name}" matches several plugins: ${matches.map((plugin) => plugin.id).join(", ")}. Use name@marketplace.`,
         2
       );

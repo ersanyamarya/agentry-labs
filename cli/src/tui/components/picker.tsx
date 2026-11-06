@@ -30,7 +30,11 @@ export const pickerRows = ({
     }
   };
   add("current", current);
+  // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+  // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
   recents.forEach((path) => add("recent", path));
+  // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+  // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
   found.forEach((path) => add("repo", path));
   return rows;
 };

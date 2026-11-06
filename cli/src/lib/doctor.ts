@@ -108,6 +108,7 @@ export const createDoctor = (
     let index = -1;
     for (let seen = 0; seen <= skip; seen += 1) {
       index = lines.findIndex(
+        // biome-ignore lint/suspicious/noLoopFunc: the callback runs immediately and does not outlive the iteration
         (text, at) => at > index && text.includes(needle)
       );
       if (index === -1) {

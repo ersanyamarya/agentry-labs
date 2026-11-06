@@ -361,7 +361,9 @@ export const createCatalog = (
         .groups()
         .flatMap((group) =>
           group.items
+            // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
             .filter((item) => item.kind === "skills")
+            // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
             .map((item): [string, string] => [item.name, group.name])
         )
     );
@@ -750,8 +752,10 @@ export const createCatalog = (
     const todo = all
       ? every.filter((entry) => entry.outdated)
       : chosen.filter((entry) => entry.outdated);
+    // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
     chosen
       .filter((entry) => !entry.outdated)
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
       .forEach((entry) => out(`${entry.id} is up to date`));
     const jobs = todo
       .filter((entry) => entry.kind !== "mcp")
@@ -775,6 +779,7 @@ export const createCatalog = (
       }))
       .filter((one): one is McpServerJob => one.change !== null);
     if (jobs.length + servers.length === 0) {
+      // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
       all && out("Everything installed is up to date.");
       return 0;
     }
@@ -793,16 +798,23 @@ export const createCatalog = (
     for (const { entry, install, diff } of jobs) {
       out(`update ${entry.id} at ${tilde(install.path)}:`);
       const name = (one: string): string => one || basename(install.path);
+      // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
       diff.changed.forEach((one) =>
         out(
           `  overwrite ${name(one)}  (differs from the catalog copy: a local edit in it is replaced)`
         )
       );
+      // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
       diff.added.forEach((one) => out(`  add ${name(one)}`));
+      // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
       diff.extra.forEach((one) =>
         out(`  keep ${name(one)}  (only in your copy; not touched)`)
       );
     }
+    // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
     jobs.length > 0 &&
       out(`The current copy of each is saved under ${tilde(saveIn)} first.`);
     const edit = createMcpEdit(paths, { out, err, ...mcp });
@@ -926,6 +938,7 @@ export const createCatalog = (
       return 0;
     }
     for (const { entry, to } of chosen) {
+      // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
       backup &&
         saveRemovedCopy({
           from: to,

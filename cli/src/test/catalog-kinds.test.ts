@@ -594,6 +594,7 @@ describe("catalog update: CLAUDE.md files and MCP servers", () => {
     assert.equal(readFileSync(claudeMd(), "utf8"), "# My own notes\n");
   });
 
+  // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
   const userServers = (servers: Record<string, unknown>) =>
     write(
       join(fx.configDir, ".claude.json"),

@@ -73,7 +73,9 @@ describe("agentry mcp disable", () => {
     assert.deepEqual(fake.argv(), [
       ["mcp", "remove", "demo", "--scope", "user"],
     ]);
+    // biome-ignore lint/suspicious/noBitwiseOperators: masks the permission bits of a file mode
     assert.equal(statSync(parkedFile()).mode & 0o777, 0o600);
+    // biome-ignore lint/suspicious/noBitwiseOperators: masks the permission bits of a file mode
     assert.equal(statSync(join(fx.configDir, "agentry")).mode & 0o777, 0o700);
     assert.deepEqual(
       JSON.parse(readFileSync(parkedFile(), "utf8")).servers.demo.config,

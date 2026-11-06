@@ -102,12 +102,15 @@ export const ListPane = ({
               );
               const filler = Math.max(cell.width - used, 0);
               return [
+                // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
                 <Text key={`g${cellIndex}`}>{" ".repeat(GAP)}</Text>,
                 ...(cell.align === "right" && filler > 0
-                  ? [<Text key={`l${cellIndex}`}>{" ".repeat(filler)}</Text>]
+                  ? // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
+                    [<Text key={`l${cellIndex}`}>{" ".repeat(filler)}</Text>]
                   : []),
                 ...cell.parts.map((part, partIndex) => (
                   <Text
+                    // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
                     key={`${cellIndex}.${partIndex}`}
                     {...style(part.style)}
                   >
@@ -115,7 +118,8 @@ export const ListPane = ({
                   </Text>
                 )),
                 ...(cell.align !== "right" && filler > 0
-                  ? [<Text key={`r${cellIndex}`}>{" ".repeat(filler)}</Text>]
+                  ? // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
+                    [<Text key={`r${cellIndex}`}>{" ".repeat(filler)}</Text>]
                   : []),
               ];
             })}
@@ -214,6 +218,7 @@ export const DetailsPane = ({
       !line.startsWith("---") &&
       !line.startsWith("+++") ? (
         <Text
+          // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
           key={index}
           wrap="wrap"
           {...style({ color: line.startsWith("+") ? "green" : "red" })}
@@ -223,6 +228,7 @@ export const DetailsPane = ({
       ) : (
         <DetailLine
           inner={inner}
+          // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
           key={index}
           line={line}
           plain={Boolean(lines)}

@@ -25,6 +25,7 @@ const start = async ({
   title: string;
   done: string;
 }) => {
+  // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const args = { dir, selector: row.hook!, action, scope: row.hookScope };
   const preview = await api.previewHook(args);
   flow.begin({

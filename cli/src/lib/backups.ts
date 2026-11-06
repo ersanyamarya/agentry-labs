@@ -323,6 +323,8 @@ export const createBackups = (
       return 0;
     }
     out(`Backups in ${tilde(backupsDir)} (newest first):`);
+    // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
     all.forEach((entry) => out(`  ${line(entry)}`));
     out(
       `${all.length} backup${all.length === 1 ? "" : "s"}, ${formatBytes(all.reduce((sum, entry) => sum + entry.bytes, 0))}.`
@@ -503,6 +505,8 @@ export const createBackups = (
     out(
       `Would delete ${chosen.length} backup${chosen.length === 1 ? "" : "s"} (${formatBytes(chosen.reduce((sum, entry) => sum + entry.bytes, 0))}) for good:`
     );
+    // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
     chosen.forEach((entry) => out(`  ${line(entry)}`));
     const live = chosen.filter(
       (entry) => entry.kind === "fix" && !entry.undone

@@ -61,6 +61,7 @@ export const InventoryTab = ({
   const { rows, cursor, row, move } = list;
   const flow = useFlow({ lock, notify, reload, copy });
   const keys = rowKeys ? rowKeys(row) : [];
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(() => {
     if (active && setKeys) {
       setKeys(keys);
@@ -164,6 +165,7 @@ export const InventoryTab = ({
       } else if (input === "i" && canInstall) {
         startPluginInstall({ api, dir, flow });
       } else if (input === "x" && row?.plugin) {
+        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         (row.pluginScopes ?? []).length > 0
           ? startPluginUninstall({ api, dir, flow, row })
           : notify(
