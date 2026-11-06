@@ -7,16 +7,19 @@ import type { createData } from "./data.js";
 import type { layoutFor } from "./layout.js";
 
 // Plain Ink Text props (colour, dim, bold, inverse) so styles stay pure and testable.
-export type Style = Pick<TextProps, "color" | "backgroundColor" | "dimColor" | "bold" | "inverse">;
+export type Style = Pick<
+  TextProps,
+  "color" | "backgroundColor" | "dimColor" | "bold" | "inverse"
+>;
 export interface Seg {
-	text: string;
-	style?: Style;
+  style?: Style;
+  text: string;
 }
 // One fixed-width column on the right of a row.
 export interface Cell {
-	parts: Seg[];
-	width: number;
-	align: "left" | "right";
+  align: "left" | "right";
+  parts: Seg[];
+  width: number;
 }
 
 // [key, text, short text]
@@ -24,54 +27,54 @@ export type KeyHint = [string, string, string?];
 
 // One list row. Section headers and spacers set `header`; the other fields depend on the tab that builds the row.
 export interface Row {
-	id: string;
-	label: string;
-	details?: string[];
-	header?: boolean;
-	blank?: boolean;
-	cells?: Cell[];
-	note?: string;
-	labelStyle?: Style;
-	file?: string;
-	kind?: string;
-	why?: string;
-	// skills
-	group?: string;
-	target?: string;
-	skill?: string;
-	projectOn?: boolean;
-	globalOn?: boolean;
-	shelved?: boolean;
-	shelvable?: boolean;
-	projectOnly?: boolean;
-	plugin?: string;
-	enabled?: boolean;
-	// catalog
-	item?: string;
-	itemKind?: CatalogKind;
-	installed?: string | null;
-	outdated?: boolean;
-	installs?: CatalogInstall[];
-	// rules
-	ruleFile?: string;
-	ruleTitle?: string;
-	// backups
-	backup?: string;
-	restorable?: boolean;
-	// mcp
-	mcp?: string;
-	mcpUser?: boolean;
-	mcpEnable?: boolean;
-	mcpProject?: boolean;
-	// hooks
-	hook?: string;
-	hookScope?: string;
-	hookOff?: boolean;
-	// plugins
-	pluginScopes?: string[];
-	// doctor
-	severity?: Severity;
-	finding?: Finding;
+  // backups
+  backup?: string;
+  blank?: boolean;
+  cells?: Cell[];
+  details?: string[];
+  enabled?: boolean;
+  file?: string;
+  finding?: Finding;
+  globalOn?: boolean;
+  // skills
+  group?: string;
+  header?: boolean;
+  // hooks
+  hook?: string;
+  hookOff?: boolean;
+  hookScope?: string;
+  id: string;
+  installed?: string | null;
+  installs?: CatalogInstall[];
+  // catalog
+  item?: string;
+  itemKind?: CatalogKind;
+  kind?: string;
+  label: string;
+  labelStyle?: Style;
+  // mcp
+  mcp?: string;
+  mcpEnable?: boolean;
+  mcpProject?: boolean;
+  mcpUser?: boolean;
+  note?: string;
+  outdated?: boolean;
+  plugin?: string;
+  // plugins
+  pluginScopes?: string[];
+  projectOn?: boolean;
+  projectOnly?: boolean;
+  restorable?: boolean;
+  // rules
+  ruleFile?: string;
+  ruleTitle?: string;
+  // doctor
+  severity?: Severity;
+  shelvable?: boolean;
+  shelved?: boolean;
+  skill?: string;
+  target?: string;
+  why?: string;
 }
 
 export type Api = ReturnType<typeof createData>;
@@ -84,16 +87,16 @@ export type SetLock = (value: Lock) => void;
 
 // Props shared by every tab.
 export interface TabProps {
-	data: Data;
-	api: Api;
-	dir: string;
-	active: boolean;
-	height: number;
-	layout: Layout;
-	notify: (message: string) => void;
-	reload: () => Promise<void> | void;
-	lock: SetLock;
-	setKeys: (keys: KeyHint[]) => void;
-	openFile: (file: string | undefined) => void;
-	copy: (text: string) => void;
+  active: boolean;
+  api: Api;
+  copy: (text: string) => void;
+  data: Data;
+  dir: string;
+  height: number;
+  layout: Layout;
+  lock: SetLock;
+  notify: (message: string) => void;
+  openFile: (file: string | undefined) => void;
+  reload: () => Promise<void> | void;
+  setKeys: (keys: KeyHint[]) => void;
 }

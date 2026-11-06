@@ -10,24 +10,24 @@ export type JsonObject = Record<string, unknown>;
 
 /** An unreadable or invalid file, reported by a reader. Never holds file content. */
 export interface ReadError {
-	source: string;
-	message: string;
+  message: string;
+  source: string;
 }
 
 // ---- files written by Claude Code ----
 
 /** One hook entry inside a hook group. */
 export interface HookEntry {
-	type?: string;
-	command?: string;
-	[key: string]: unknown;
+  command?: string;
+  type?: string;
+  [key: string]: unknown;
 }
 
 /** `{ matcher?, hooks: [...] }`; the matcher is a tool name pattern and absent means all. */
 export interface HookGroup {
-	matcher?: string;
-	hooks?: unknown;
-	[key: string]: unknown;
+  hooks?: unknown;
+  matcher?: string;
+  [key: string]: unknown;
 }
 
 /** `{ Event: [group, ...] }`, the value of `hooks` in settings.json (or a plugin's hooks.json). */
@@ -35,78 +35,83 @@ export type HooksConfig = Record<string, unknown>;
 
 /** settings.json / settings.local.json. */
 export interface SettingsJson {
-	permissions?: { allow?: unknown; deny?: unknown; ask?: unknown; [key: string]: unknown };
-	enabledPlugins?: Record<string, unknown>;
-	hooks?: HooksConfig;
-	disableAllHooks?: boolean;
-	env?: Record<string, unknown>;
-	enableAllProjectMcpServers?: boolean;
-	enabledMcpjsonServers?: unknown;
-	disabledMcpjsonServers?: unknown;
-	statusLine?: { type?: string; command?: string };
-	[key: string]: unknown;
+  disableAllHooks?: boolean;
+  disabledMcpjsonServers?: unknown;
+  enableAllProjectMcpServers?: boolean;
+  enabledMcpjsonServers?: unknown;
+  enabledPlugins?: Record<string, unknown>;
+  env?: Record<string, unknown>;
+  hooks?: HooksConfig;
+  permissions?: {
+    allow?: unknown;
+    deny?: unknown;
+    ask?: unknown;
+    [key: string]: unknown;
+  };
+  statusLine?: { type?: string; command?: string };
+  [key: string]: unknown;
 }
 
 /** One MCP server entry as written in .mcp.json, .claude.json or a plugin. */
 export interface McpServerRaw {
-	type?: string;
-	command?: unknown;
-	args?: unknown;
-	url?: unknown;
-	env?: unknown;
-	headers?: unknown;
-	[key: string]: unknown;
+  args?: unknown;
+  command?: unknown;
+  env?: unknown;
+  headers?: unknown;
+  type?: string;
+  url?: unknown;
+  [key: string]: unknown;
 }
 
 /** .mcp.json: `{ mcpServers: { name: entry } }`. */
 export interface McpJson {
-	mcpServers?: Record<string, unknown>;
+  mcpServers?: Record<string, unknown>;
 }
 
 /** A project's entry in .claude.json, keyed by the main checkout root. */
 export interface ClaudeProject {
-	hasTrustDialogAccepted?: boolean;
-	mcpServers?: Record<string, unknown>;
-	disabledMcpServers?: unknown;
-	enabledMcpjsonServers?: unknown;
-	disabledMcpjsonServers?: unknown;
-	enableAllProjectMcpServers?: boolean;
-	[key: string]: unknown;
+  disabledMcpjsonServers?: unknown;
+  disabledMcpServers?: unknown;
+  enableAllProjectMcpServers?: boolean;
+  enabledMcpjsonServers?: unknown;
+  hasTrustDialogAccepted?: boolean;
+  mcpServers?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 /** ~/.claude.json (or <CLAUDE_CONFIG_DIR>/.claude.json). */
 export interface ClaudeJson {
-	projects?: Record<string, unknown>;
-	mcpServers?: Record<string, unknown>;
-	[key: string]: unknown;
+  mcpServers?: Record<string, unknown>;
+  projects?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 /** One install of a plugin in installed_plugins.json. `scope` is user, project or local. */
 export interface InstalledPluginEntry {
-	scope?: string;
-	projectPath?: string;
-	version?: string;
-	installPath?: string;
-	[key: string]: unknown;
+  installPath?: string;
+  projectPath?: string;
+  scope?: string;
+  version?: string;
+  [key: string]: unknown;
 }
 
 /** plugins/installed_plugins.json: `{ plugins: { "name@marketplace": [install, ...] } }`. */
 export interface InstalledPluginsJson {
-	plugins?: Record<string, unknown>;
+  plugins?: Record<string, unknown>;
 }
 
 /** <plugin>/.claude-plugin/plugin.json; hooks, mcpServers and skills may be a path, an object or a list. */
 export interface PluginManifest {
-	hooks?: unknown;
-	mcpServers?: unknown;
-	skills?: unknown;
-	[key: string]: unknown;
+  hooks?: unknown;
+  mcpServers?: unknown;
+  skills?: unknown;
+  [key: string]: unknown;
 }
 
 /** plugins/known_marketplaces.json: `{ name: { source: {...}, installLocation } }`. */
 export interface MarketplaceEntry {
-	source?: { source?: string; repo?: string; url?: string; path?: string };
-	installLocation?: string;
+  installLocation?: string;
+  source?: { source?: string; repo?: string; url?: string; path?: string };
 }
 
 // ---- inventory ----
@@ -115,94 +120,105 @@ export type Scope = "user" | "project" | "local";
 
 /** A settings file that exists, lowest precedence first. */
 export interface SettingsLayer {
-	scope: Scope;
-	source: string;
-	json: SettingsJson;
+  json: SettingsJson;
+  scope: Scope;
+  source: string;
 }
 
 export type SkillKind = "file" | "symlink" | "broken";
 export type SkillState = "active" | "broken" | PluginState;
 
 export interface SkillItem {
-	name: string;
-	scope: "user" | "project" | "plugin";
-	source: string;
-	kind: SkillKind;
-	target?: string;
-	shelfGroup?: string;
-	state: SkillState;
-	/** Estimated description tokens; null for a broken skill. */
-	tokens: number | null;
-	plugin?: string;
+  kind: SkillKind;
+  name: string;
+  plugin?: string;
+  scope: "user" | "project" | "plugin";
+  shelfGroup?: string;
+  source: string;
+  state: SkillState;
+  target?: string;
+  /** Estimated description tokens; null for a broken skill. */
+  tokens: number | null;
 }
 
 export interface SkippedSkills {
-	path: string;
-	reason: string;
-	count: number;
+  count: number;
+  path: string;
+  reason: string;
 }
 
-export type McpScope = "local" | "project" | "user" | "plugin" | "desktop-config" | "desktop-extension";
-export type McpState = "active" | "pending-approval" | "rejected" | "shadowed" | "disabled";
+export type McpScope =
+  | "local"
+  | "project"
+  | "user"
+  | "plugin"
+  | "desktop-config"
+  | "desktop-extension";
+export type McpState =
+  | "active"
+  | "pending-approval"
+  | "rejected"
+  | "shadowed"
+  | "disabled";
 
 export interface McpServerItem {
-	name: string;
-	transport: string;
-	scope: McpScope;
-	source: string;
-	command?: string;
-	args?: string[];
-	url?: string;
-	env?: Record<string, string>;
-	headers?: Record<string, string>;
-	plugin?: string;
-	loadsIn: string[];
-	state: McpState;
-	shadowedBy?: { name: string; scope: McpScope; source: string };
+  args?: string[];
+  command?: string;
+  env?: Record<string, string>;
+  headers?: Record<string, string>;
+  loadsIn: string[];
+  name: string;
+  plugin?: string;
+  scope: McpScope;
+  shadowedBy?: { name: string; scope: McpScope; source: string };
+  source: string;
+  state: McpState;
+  transport: string;
+  url?: string;
 }
 
 export type HookState = "active" | "disabled" | "untrusted" | PluginState;
 
 export interface HookItem {
-	id: string;
-	event: string;
-	matcher: string;
-	type: string;
-	command?: string;
-	scope: Scope | "plugin";
-	source: string;
-	plugin?: string;
-	state: HookState;
+  command?: string;
+  event: string;
+  id: string;
+  matcher: string;
+  plugin?: string;
+  scope: Scope | "plugin";
+  source: string;
+  state: HookState;
+  type: string;
 }
 
 export type PluginState = "active" | "disabled" | "not-here" | "not-installed";
 
 export interface PluginInstall {
-	scope: string;
-	projectPath?: string;
-	version: string;
-	installPath?: string;
-	appliesHere: boolean;
+  appliesHere: boolean;
+  installPath?: string;
+  projectPath?: string;
+  scope: string;
+  version: string;
 }
 
 export interface PluginItem {
-	id: string;
-	name: string;
-	marketplace: string;
-	installs: PluginInstall[];
-	state: PluginState;
-	enabledBy: { scope: string; source: string; value: boolean };
-	installPath?: string;
-	version?: string;
-	installScope?: string;
-	manifestFile?: string;
+  enabledBy: { scope: string; source: string; value: boolean };
+  id: string;
+  installPath?: string;
+  installScope?: string;
+  installs: PluginInstall[];
+  manifestFile?: string;
+  marketplace: string;
+  name: string;
+  state: PluginState;
+  version?: string;
 }
 
 export interface MarketplaceItem {
-	name: string;
-	source: string;
-	sourceType: string;
-	installLocation?: string;
+  installLocation?: string;
+  name: string;
+  source: string;
+  sourceType: string;
 }
 
 // ---- doctor ----
@@ -210,76 +226,90 @@ export interface MarketplaceItem {
 export type Severity = "error" | "warning" | "info";
 
 export interface Finding {
-	id: string;
-	severity: Severity;
-	message: string;
-	file: string;
-	line?: number;
-	fix?: string;
+  file: string;
+  fix?: string;
+  id: string;
+  line?: number;
+  message: string;
+  severity: Severity;
 }
 
 // ---- fix engine ----
 
 /** What a fix's `apply` returns: the new file text, a command to run (no shell), or nothing to do. */
-export type ApplyResult = string | { command: string[]; cwd?: string } | null | undefined;
+export type ApplyResult =
+  | string
+  | { command: string[]; cwd?: string }
+  | null
+  | undefined;
 
 /** `file` is absent for a command fix that edits nothing; `apply` gets "" for a missing file and undefined for a non-regular one. */
 export interface TextFix {
-	ruleId: string;
-	file?: string;
-	describe?: () => string;
-	apply: (text: string | undefined) => ApplyResult;
+  apply: (text: string | undefined) => ApplyResult;
+  describe?: () => string;
+  file?: string;
+  ruleId: string;
 }
 
 /** A fix that cannot be made safe: the finding is listed with the reason. */
 export interface UnfixableFix {
-	ruleId: string;
-	unfixable: string;
+  ruleId: string;
+  unfixable: string;
 }
 
 export type Fix = TextFix | UnfixableFix;
 
 export interface FixContext {
-	paths: Paths;
-	cwd: string;
-	project: { cwd: string; root: string };
-	findings: Finding[];
+  cwd: string;
+  findings: Finding[];
+  paths: Paths;
+  project: { cwd: string; root: string };
 }
 
-export type FixMaker = (finding: Finding, ctx: FixContext) => Fix | Fix[] | undefined;
+export type FixMaker = (
+  finding: Finding,
+  ctx: FixContext
+) => Fix | Fix[] | undefined;
 export type FixRegistry = Record<string, FixMaker>;
 
 /** The slice of the doctor the fix engine uses (a stand-in is injected by plugin/mcp/hook toggles). */
 export interface DoctorLike {
-	collect: (cwd?: string) => { project: { cwd: string; root: string }; findings: Finding[]; errors: ReadError[] };
+  collect: (cwd?: string) => {
+    project: { cwd: string; root: string };
+    findings: Finding[];
+    errors: ReadError[];
+  };
 }
 
 export interface CommandOutcome {
-	status: number | null;
-	stdout: string;
-	stderr: string;
-	error?: string;
+  error?: string;
+  status: number | null;
+  stderr: string;
+  stdout: string;
 }
 
-export type RunCommand = (argv: string[], options: { cwd: string }) => CommandOutcome;
+export type RunCommand = (
+  argv: string[],
+  options: { cwd: string }
+) => CommandOutcome;
 
 /** Injectable dependencies of `createFix`. */
 export interface FixOptions {
-	out?: (text: string) => void;
-	err?: (text: string) => void;
-	fixes?: FixRegistry;
-	doctor?: () => DoctorLike;
-	isTTY?: () => boolean;
-	confirm?: (question: string) => Promise<boolean>;
-	runCommand?: RunCommand;
-	now?: () => Date;
+  confirm?: (question: string) => Promise<boolean>;
+  doctor?: () => DoctorLike;
+  err?: (text: string) => void;
+  fixes?: FixRegistry;
+  isTTY?: () => boolean;
+  now?: () => Date;
+  out?: (text: string) => void;
+  runCommand?: RunCommand;
 }
 
 /** Arguments of `createFix(...).run`. `include` and `label` are for scan --fix. */
 export interface FixRunArgs {
-	path?: string;
-	yes?: boolean;
-	dryRun?: boolean;
-	include?: (finding: Finding) => boolean;
-	label?: string;
+  dryRun?: boolean;
+  include?: (finding: Finding) => boolean;
+  label?: string;
+  path?: string;
+  yes?: boolean;
 }

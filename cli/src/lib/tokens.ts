@@ -2,32 +2,35 @@
 
 import { existsSync, readFileSync } from "node:fs";
 
-export const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
+export const estimateTokens = (text: string): number =>
+  Math.ceil(text.length / 4);
 
 // Reads `description` from the YAML frontmatter of a SKILL.md or agent .md file. Handles plain, quoted and
 // folded (>) or literal (|) values; returns "" when the file or the field is missing.
 export const readDescription = (file: string): string => {
-	if (!existsSync(file)) {
-		return "";
-	}
-	const frontmatter = readFileSync(file, "utf8").match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
-	const lines = frontmatter.split("\n");
-	const start = lines.findIndex((line) => line.startsWith("description:"));
-	if (start === -1) {
-		return "";
-	}
-	const value = (lines[start] ?? "").slice("description:".length).trim();
-	if (/^[>|][+-]?$/.test(value)) {
-		const block: string[] = [];
-		for (const line of lines.slice(start + 1)) {
-			if (!/^\s/.test(line)) {
-				break;
-			}
-			block.push(line.trim());
-		}
-		return block.join(" ");
-	}
-	return value.replace(/^(["'])(.*)\1$/, "$2");
+  if (!existsSync(file)) {
+    return "";
+  }
+  const frontmatter =
+    readFileSync(file, "utf8").match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+  const lines = frontmatter.split("\n");
+  const start = lines.findIndex((line) => line.startsWith("description:"));
+  if (start === -1) {
+    return "";
+  }
+  const value = (lines[start] ?? "").slice("description:".length).trim();
+  if (/^[>|][+-]?$/.test(value)) {
+    const block: string[] = [];
+    for (const line of lines.slice(start + 1)) {
+      if (!/^\s/.test(line)) {
+        break;
+      }
+      block.push(line.trim());
+    }
+    return block.join(" ");
+  }
+  return value.replace(/^(["'])(.*)\1$/, "$2");
 };
 
-export const descriptionTokens = (file: string): number => estimateTokens(readDescription(file));
+export const descriptionTokens = (file: string): number =>
+  estimateTokens(readDescription(file));

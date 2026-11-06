@@ -1,44 +1,49 @@
 {
-	"name": "@ersanyamarya/agentry-cli",
-	"version": "0.1.0",
-	"description": "agentry: shows and manages what a Claude Code session loads",
-	"license": "MIT",
-	"type": "module",
-	"bin": {
-		"agentry": "dist/bin/agentry.js"
-	},
-	"files": [
-		"dist",
-		"README.md",
-		"LICENSE"
-	],
-	"engines": {
-		"node": ">=22"
-	},
-	"publishConfig": {
-		"access": "public"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/ersanyamarya/agentry-labs.git",
-		"directory": "cli"
-	},
-	"scripts": {
-		"build": "tsc",
-		"typecheck": "tsc --noEmit",
-		"test": "tsc && node --test dist/test",
-		"prepare": "npm run build",
-		"prepublishOnly": "npm run build && npm test",
-		"dev": "tsc --watch"
-	},
-	"dependencies": {
-		"ink": "^8.0.0",
-		"react": "^19.3.1"
-	},
-	"devDependencies": {
-		"@types/node": "^26.6.6",
-		"@types/react": "^19.3.0",
-		"ink-testing-library": "^4.0.0",
-		"typescript": "^7.0.2"
-	}
+  "name": "@ersanyamarya/agentry-cli",
+  "version": "0.1.0",
+  "description": "agentry: shows and manages what a Claude Code session loads",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ersanyamarya/agentry-labs.git",
+    "directory": "cli"
+  },
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agentry": "dist/bin/agentry.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "check": "biome check .",
+    "dev": "tsc --watch",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build && npm test",
+    "test": "tsc && node --test dist/test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ink": "^8.0.0",
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.4",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "ink-testing-library": "^4.0.0",
+    "typescript": "^7.0.2",
+    "ultracite": "^8.1.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

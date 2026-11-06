@@ -74,8 +74,8 @@ The `agentry` CLI (about 8.4k lines of ESM `.mjs` in `bin/`, `lib/`, `tui/`, plu
 
 | Done | Task | Model |
 |---|---|---|
-| [ ] | Verify current Biome and Ultracite setup via Context7, then add `@biomejs/biome` and `ultracite` as devDependencies in `cli/`, run the Ultracite init for Biome (no editor or AI-rule files unless the user asks), write `cli/biome.jsonc` extending Ultracite's preset, and add scripts `lint`, `format`, `check`. Tune only rules that fight existing code (record each in the Decisions log); no blanket disables. | claude-sonnet-5-5 |
-| [ ] | Apply the formatter and safe fixes in one commit (`style(cli): biome format`), add its hash to `cli/.git-blame-ignore-revs`, fix the remaining lint errors by hand without changing behaviour, then add `npm run lint` to `.github/workflows/cli.yml`. | claude-sonnet-5-5 |
+| [x] | Verify current Biome and Ultracite setup via Context7, then add `@biomejs/biome` and `ultracite` as devDependencies in `cli/`, run the Ultracite init for Biome (no editor or AI-rule files unless the user asks), write `cli/biome.jsonc` extending Ultracite's preset, and add scripts `lint`, `format`, `check`. Tune only rules that fight existing code (record each in the Decisions log); no blanket disables. | claude-sonnet-5-5 |
+| [x] | Apply the formatter and safe fixes in one commit (`style(cli): biome format`), add its hash to `cli/.git-blame-ignore-revs`, fix the remaining lint errors by hand without changing behaviour, then add `npm run lint` to `.github/workflows/cli.yml`. | claude-sonnet-5-5 |
 
 ## Phase 2.2: TUI visual polish
 
@@ -139,3 +139,4 @@ Icons: Phosphor ships SVG and DOM React components, which a terminal cannot draw
 | 2026-11-05 | Models: claude-haiku-5-5, claude-sonnet-5-5, claude-opus-5-5 (latest of each); no task needs Opus. |
 | 2026-11-05 | Phase 0 adds `// @ts-nocheck` to every converted file so the build is green before typing starts; phases 1 and 2 remove it file by file. |
 | 2026-11-05 | Added Phase 2.1 (Biome + Ultracite) and 2.2 (TUI polish) at user request. Biome runs after Phase 2 because it reformats every file. Phosphor icons need SVG/DOM so they cannot render in Ink; use `figures` (Unicode with ASCII fallback), Nerd Font opt-in. |
+| 2026-11-06 | Biome 2.6 with Ultracite's `core` and `react` presets (`cli/biome.jsonc`); `ultracite init` created no editor or AI-rule files. Ultracite's strict preset flagged 2614 errors on the existing code, so these rules were tuned, each for a stated reason: `useUnicodeRegex` off (the `u` flag changes matching), `useNamedCaptureGroup` off (changes how matches are read), `useTopLevelRegex` off (hoisting `g`/`y` regexes shares `lastIndex`; not a hot path), `noNestedTernary` off (JSX idiom), `noAwaitInLoops` off (sequential by design), `useAwait` off (dropping `async` changes return types), `noTemplateCurlyInString` off (`"${VAR}"` is MCP env syntax), `noExcessiveCognitiveComplexity` ceiling set to 123, today's maximum. For `src/test/**` only: `noNonNullAssertion`, `noControlCharactersInRegex`, `noEmptyBlockStatements` off. |

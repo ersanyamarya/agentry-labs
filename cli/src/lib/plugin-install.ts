@@ -16,89 +16,171 @@ import { createFix } from "./fix.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import type { Paths } from "./paths.js";
 import { APPLIES_NOTE, SCOPES, scopeSettingsFile } from "./plugin-toggle.js";
-import type { DoctorLike, Finding, FixOptions, FixRegistry, RunCommand, Scope } from "./types.js";
+import type {
+  DoctorLike,
+  Finding,
+  FixOptions,
+  FixRegistry,
+  RunCommand,
+  Scope,
+} from "./types.js";
 
 const RULE = "plugin-install";
 const ID = /^[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+$/;
 
 export interface PluginInstallArgs {
-	action: "install" | "uninstall";
-	name?: string;
-	scope?: string;
-	path?: string;
-	yes?: boolean;
-	dryRun?: boolean;
+  action: "install" | "uninstall";
+  dryRun?: boolean;
+  name?: string;
+  path?: string;
+  scope?: string;
+  yes?: boolean;
 }
 
-export const createPluginInstall = (paths: Paths, { out = console.log, err = console.error, ...fixOptions }: FixOptions = {}) => {
-	const reader = createPluginsReader(paths);
-	const tilde = (text: unknown): string => (paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text));
-	const runCommand: RunCommand =
-		fixOptions.runCommand ??
-		((command, options) => {
-			const result = spawnSync(command[0], command.slice(1), { cwd: options.cwd, encoding: "utf8" });
-			return { status: result.error ? null : result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "", error: (result.error as NodeJS.ErrnoException | undefined)?.code };
-		});
+export const createPluginInstall = (
+  paths: Paths,
+  { out = console.log, err = console.error, ...fixOptions }: FixOptions = {}
+) => {
+  const reader = createPluginsReader(paths);
+  const tilde = (text: unknown): string =>
+    paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text);
+  const runCommand: RunCommand =
+    fixOptions.runCommand ??
+    ((command, options) => {
+      const result = spawnSync(command[0], command.slice(1), {
+        cwd: options.cwd,
+        encoding: "utf8",
+      });
+      return {
+        status: result.error ? null : result.status,
+        stdout: result.stdout ?? "",
+        stderr: result.stderr ?? "",
+        error: (result.error as NodeJS.ErrnoException | undefined)?.code,
+      };
+    });
 
-	// Is `id` installed at `scope` for the folder? (a user install, or a project/local one whose project is this one)
-	const installedAt = (id: string, scope: string, cwd: string): boolean => reader.read({ cwd }).plugins.find((plugin) => plugin.id === id)?.installs.some((install) => install.scope === scope && install.appliesHere) ?? false;
+  // Is `id` installed at `scope` for the folder? (a user install, or a project/local one whose project is this one)
+  const installedAt = (id: string, scope: string, cwd: string): boolean =>
+    reader
+      .read({ cwd })
+      .plugins.find((plugin) => plugin.id === id)
+      ?.installs.some(
+        (install) => install.scope === scope && install.appliesHere
+      ) ?? false;
 
-	const run = async ({ action, name, scope, path, yes = false, dryRun = false }: PluginInstallArgs): Promise<number> => {
-		const install = action === "install";
-		const cwd = resolve(path ?? process.cwd());
-		if (scope !== undefined && !SCOPES.includes(scope as Scope)) {
-			err(`--scope must be one of ${SCOPES.join(", ")}`);
-			return 2;
-		}
-		let id = name as string;
-		let chosen = scope ?? "user";
-		if (install) {
-			if (!ID.test(name ?? "")) {
-				err("Usage: agentry plugin install <name>@<marketplace> [--scope user|project|local]");
-				return 2;
-			}
-		} else {
-			const { plugins } = reader.read({ cwd });
-			const matches = plugins.filter((plugin) => plugin.installs.length > 0 && (plugin.id === name || (!String(name).includes("@") && plugin.name === name)));
-			if (matches.length !== 1) {
-				err(matches.length === 0 ? `No installed plugin "${name}". Installed: ${plugins.filter((plugin) => plugin.installs.length > 0).map((plugin) => plugin.id).join(", ") || "none"}` : `"${name}" matches several plugins: ${matches.map((plugin) => plugin.id).join(", ")}. Use name@marketplace.`);
-				return matches.length === 0 ? 1 : 2;
-			}
-			[{ id }] = matches;
-			const here = matches[0].installs.filter((one) => one.appliesHere).map((one) => one.scope);
-			if (scope === undefined) {
-				if (here.length !== 1) {
-					err(here.length === 0 ? `${id} is installed only for other projects; run this in one of them.` : `${id} is installed at several scopes here (${here.join(", ")}); pick one with --scope.`);
-					return here.length === 0 ? 1 : 2;
-				}
-				[chosen] = here;
-			}
-		}
-		if (installedAt(id, chosen, cwd) === install) {
-			if (install) {
-				err(`refused: ${id} is already installed at ${chosen} scope.`);
-				return 1;
-			}
-			err(`refused: ${id} is not installed at ${chosen} scope.`);
-			return 1;
-		}
-		const file = scopeSettingsFile(paths, chosen as Scope, cwd);
-		if (!existsSync(dirname(file))) {
-			err(`refused: ${tilde(dirname(file))} does not exist, so ${chosen} scope cannot be used here.`);
-			return 1;
-		}
-		const finding: Finding = { id: RULE, severity: "info", message: `${id} should be ${install ? "installed" : "uninstalled"} at ${chosen} scope`, file };
-		const doctor = (): DoctorLike => ({
-			collect: () => ({ project: { cwd, root: paths.projectRoot(cwd) }, findings: installedAt(id, chosen, cwd) === install ? [] : [finding], errors: [] }),
-		});
-		const command = ["claude", "plugin", action, id, "--scope", chosen];
-		const fixes: FixRegistry = { [RULE]: () => ({ ruleId: RULE, file, describe: () => `${install ? "Install" : "Uninstall"} plugin ${id} at ${chosen} scope`, apply: () => ({ command, cwd: paths.projectRoot(cwd) }) }) };
-		const code = await createFix(paths, { out, err, doctor, fixes, ...fixOptions, runCommand }).run({ path: cwd, yes, dryRun });
-		if (code === 0 && !dryRun && installedAt(id, chosen, cwd) === install) {
-			out(`${id} is ${install ? "installed" : "uninstalled"} at ${chosen} scope. ${APPLIES_NOTE}`);
-		}
-		return code;
-	};
+  const run = async ({
+    action,
+    name,
+    scope,
+    path,
+    yes = false,
+    dryRun = false,
+  }: PluginInstallArgs): Promise<number> => {
+    const install = action === "install";
+    const cwd = resolve(path ?? process.cwd());
+    if (scope !== undefined && !SCOPES.includes(scope as Scope)) {
+      err(`--scope must be one of ${SCOPES.join(", ")}`);
+      return 2;
+    }
+    let id = name as string;
+    let chosen = scope ?? "user";
+    if (install) {
+      if (!ID.test(name ?? "")) {
+        err(
+          "Usage: agentry plugin install <name>@<marketplace> [--scope user|project|local]"
+        );
+        return 2;
+      }
+    } else {
+      const { plugins } = reader.read({ cwd });
+      const matches = plugins.filter(
+        (plugin) =>
+          plugin.installs.length > 0 &&
+          (plugin.id === name ||
+            (!String(name).includes("@") && plugin.name === name))
+      );
+      if (matches.length !== 1) {
+        err(
+          matches.length === 0
+            ? `No installed plugin "${name}". Installed: ${
+                plugins
+                  .filter((plugin) => plugin.installs.length > 0)
+                  .map((plugin) => plugin.id)
+                  .join(", ") || "none"
+              }`
+            : `"${name}" matches several plugins: ${matches.map((plugin) => plugin.id).join(", ")}. Use name@marketplace.`
+        );
+        return matches.length === 0 ? 1 : 2;
+      }
+      [{ id }] = matches;
+      const here = matches[0].installs
+        .filter((one) => one.appliesHere)
+        .map((one) => one.scope);
+      if (scope === undefined) {
+        if (here.length !== 1) {
+          err(
+            here.length === 0
+              ? `${id} is installed only for other projects; run this in one of them.`
+              : `${id} is installed at several scopes here (${here.join(", ")}); pick one with --scope.`
+          );
+          return here.length === 0 ? 1 : 2;
+        }
+        [chosen] = here;
+      }
+    }
+    if (installedAt(id, chosen, cwd) === install) {
+      if (install) {
+        err(`refused: ${id} is already installed at ${chosen} scope.`);
+        return 1;
+      }
+      err(`refused: ${id} is not installed at ${chosen} scope.`);
+      return 1;
+    }
+    const file = scopeSettingsFile(paths, chosen as Scope, cwd);
+    if (!existsSync(dirname(file))) {
+      err(
+        `refused: ${tilde(dirname(file))} does not exist, so ${chosen} scope cannot be used here.`
+      );
+      return 1;
+    }
+    const finding: Finding = {
+      id: RULE,
+      severity: "info",
+      message: `${id} should be ${install ? "installed" : "uninstalled"} at ${chosen} scope`,
+      file,
+    };
+    const doctor = (): DoctorLike => ({
+      collect: () => ({
+        project: { cwd, root: paths.projectRoot(cwd) },
+        findings: installedAt(id, chosen, cwd) === install ? [] : [finding],
+        errors: [],
+      }),
+    });
+    const command = ["claude", "plugin", action, id, "--scope", chosen];
+    const fixes: FixRegistry = {
+      [RULE]: () => ({
+        ruleId: RULE,
+        file,
+        describe: () =>
+          `${install ? "Install" : "Uninstall"} plugin ${id} at ${chosen} scope`,
+        apply: () => ({ command, cwd: paths.projectRoot(cwd) }),
+      }),
+    };
+    const code = await createFix(paths, {
+      out,
+      err,
+      doctor,
+      fixes,
+      ...fixOptions,
+      runCommand,
+    }).run({ path: cwd, yes, dryRun });
+    if (code === 0 && !dryRun && installedAt(id, chosen, cwd) === install) {
+      out(
+        `${id} is ${install ? "installed" : "uninstalled"} at ${chosen} scope. ${APPLIES_NOTE}`
+      );
+    }
+    return code;
+  };
 
-	return { run };
+  return { run };
 };

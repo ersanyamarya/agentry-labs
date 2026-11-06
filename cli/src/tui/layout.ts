@@ -6,35 +6,53 @@ export const STACK_BELOW = 110;
 export const STACKED_DETAILS_LINES = 10;
 
 export const layoutFor = (cols = 100) => {
-	const stacked = cols < STACK_BELOW;
-	const listWidth = stacked ? cols : cols >= 130 ? 66 : 62;
-	return { cols, stacked, listWidth, detailsWidth: stacked ? cols : Math.min(cols - listWidth, 60) };
+  const stacked = cols < STACK_BELOW;
+  const listWidth = stacked ? cols : cols >= 130 ? 66 : 62;
+  return {
+    cols,
+    stacked,
+    listWidth,
+    detailsWidth: stacked ? cols : Math.min(cols - listWidth, 60),
+  };
 };
 
 // Cuts `text` to `width` characters with … in the middle, keeping both ends (paths, long names).
 export const middle = (text: unknown, width: number) => {
-	const chars = [...String(text)];
-	if (chars.length <= width) {
-		return chars.join("");
-	}
-	if (width <= 1) {
-		return "…".slice(0, Math.max(width, 0));
-	}
-	const keep = width - 1;
-	const head = Math.ceil(keep / 2);
-	return `${chars.slice(0, head).join("")}…${chars.slice(chars.length - (keep - head)).join("")}`;
+  const chars = [...String(text)];
+  if (chars.length <= width) {
+    return chars.join("");
+  }
+  if (width <= 1) {
+    return "…".slice(0, Math.max(width, 0));
+  }
+  const keep = width - 1;
+  const head = Math.ceil(keep / 2);
+  return `${chars.slice(0, head).join("")}…${chars.slice(chars.length - (keep - head)).join("")}`;
 };
 
 // Cuts to `width` with … at the end (messages).
 export const end = (text: unknown, width: number) => {
-	const chars = [...String(text)];
-	return chars.length <= width ? chars.join("") : `${chars.slice(0, Math.max(width - 1, 0)).join("")}…`;
+  const chars = [...String(text)];
+  return chars.length <= width
+    ? chars.join("")
+    : `${chars.slice(0, Math.max(width - 1, 0)).join("")}…`;
 };
 
-export const pad = (text: string, width: number, align: "left" | "right" = "left") => {
-	const gap = Math.max(width - [...text].length, 0);
-	return align === "right" ? " ".repeat(gap) + text : text + " ".repeat(gap);
+export const pad = (
+  text: string,
+  width: number,
+  align: "left" | "right" = "left"
+) => {
+  const gap = Math.max(width - [...text].length, 0);
+  return align === "right" ? " ".repeat(gap) + text : text + " ".repeat(gap);
 };
 
 // Long text keeps its first lines and its last two (the question and the keys) when cut.
-export const clipLines = (lines: string[], max: number) => (lines.length <= max ? lines : [...lines.slice(0, Math.max(max - 3, 1)), `… ${lines.length - (max - 1)} more lines`, ...lines.slice(-2)]);
+export const clipLines = (lines: string[], max: number) =>
+  lines.length <= max
+    ? lines
+    : [
+        ...lines.slice(0, Math.max(max - 3, 1)),
+        `… ${lines.length - (max - 1)} more lines`,
+        ...lines.slice(-2),
+      ];
