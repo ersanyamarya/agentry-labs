@@ -177,10 +177,10 @@ describe("rendered with real escape codes", () => {
     await ui.press(KEYS.enter);
     assert.doesNotMatch(ui.frame()!, COLOUR_CODE);
     assert.match(stripAnsi(ui.frame()!), /off/);
-    assert.match(stripAnsi(ui.frame()!), /● on ○ off ◐ partial/);
+    assert.match(stripAnsi(ui.frame()!), /\* on o off % partial/);
     await ui.press("5");
     await ui.until(/\[fake-bad\]/);
     assert.doesNotMatch(ui.frame()!, COLOUR_CODE);
-    assert.match(stripAnsi(ui.frame()!), /▲ Warnings/);
+    assert.match(stripAnsi(ui.frame()!), /! Warnings/);
   });
 });

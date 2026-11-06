@@ -27,7 +27,7 @@ Remember, before writing any code:
 │   ├── humanize-and-unslop/    # Edit/detect AI-slop patterns in writing (scan.mjs + judgment)
 │   ├── image-artifact-setup/   # Scaffold OG/social card generators using Playwright (shelf-only, in no bundle; also used by the README cover)
 │   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, write fix plan (shelf-only)
-│   ├── phased-plan/            # Write a phased plan with a model per task, run as one sub-session per task
+│   ├── phased-plan/            # Write a phased plan with a model per task: Sonnet rows inline, Haiku and Opus rows as subagents
 │   ├── run-fallow/             # Run fallow CLI for dead code, dupes, complexity, security
 │   └── skill-architect/        # Create, improve, review, and validate skills
 ├── agents/              # Custom agent definitions

@@ -1,11 +1,12 @@
 // The UI shell: project, tabs, overlays (help, picker) and the key map. Tabs get data and actions as props, so the
 // whole tree runs on injected data in tests. Every action goes through the api (tui/data.mjs), i.e. through lib/.
 
-import { Box, Text, useApp, useInput, useStdin, useStdout } from "ink";
+import { Box, useApp, useInput, useStdin, useStdout } from "ink";
 import React from "react";
 import type { CopyOptions } from "./clipboard.js";
 import { copyText } from "./clipboard.js";
 import { BackupsTab } from "./components/backups-tab.js";
+import { Busy } from "./components/busy.js";
 import { CatalogTab } from "./components/catalog-tab.js";
 import { DoctorTab } from "./components/doctor-tab.js";
 import { Footer } from "./components/footer.js";
@@ -16,8 +17,10 @@ import { Picker, pickerRows } from "./components/picker.js";
 import { RulesTab } from "./components/rules-tab.js";
 import { SkillsTab } from "./components/skills-tab.js";
 import { TAB_NAMES, TabBar } from "./components/tab-bar.js";
+import { Text } from "./components/text.js";
 import type { EditorOptions } from "./editor.js";
 import { openInEditor } from "./editor.js";
+import { iconMode, iconsFor } from "./icons.js";
 import { layoutFor, STACKED_DETAILS_LINES } from "./layout.js";
 import type { createRecents } from "./recents.js";
 import {
@@ -172,11 +175,11 @@ export const App = ({
   });
 
   const layout = layoutFor(size?.cols ?? dims.cols ?? 100);
-  // Chrome takes about 12 lines; stacked, the details block under the list takes about 10 more.
+  // Chrome takes about 14 lines; stacked, the details block under the list takes about 10 more.
   const height = Math.max(
     6,
     (size?.rows ?? dims.rows ?? 30) -
-      12 -
+      14 -
       (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0)
   );
   const counts = data
@@ -277,7 +280,14 @@ export const App = ({
           .length,
       }
     : undefined;
-  const theme = React.useMemo(() => ({ color: colorEnabled(env) }), [env]);
+  const theme = React.useMemo(
+    () => ({
+      ascii: iconMode(env) === "ascii",
+      color: colorEnabled(env),
+      icons: iconsFor(env),
+    }),
+    [env]
+  );
 
   return (
     <ThemeContext.Provider value={theme}>
@@ -311,14 +321,15 @@ export const App = ({
             ))}
           </Box>
         ) : (
-          <Text dimColor>Loading...</Text>
+          <Busy text="Loading..." />
         )}
         {errors.length > 0 ? (
           <Text color={theme.color ? "yellow" : undefined} wrap="truncate-end">
             {`warning: ${errors[0]?.message}`}
           </Text>
         ) : null}
-        {message ? (
+        {message?.endsWith("...") ? <Busy text={message} /> : null}
+        {message && !message.endsWith("...") ? (
           <Text
             color={theme.color ? "green" : undefined}
             wrap="truncate-middle"
@@ -326,6 +337,7 @@ export const App = ({
             {message}
           </Text>
         ) : null}
+        <Text dimColor>{"─".repeat(layout.cols)}</Text>
         <Footer
           cols={layout.cols}
           keys={rowKeys.tab === tab ? rowKeys.keys : TAB_KEYS[tab]}

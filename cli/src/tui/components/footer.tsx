@@ -1,8 +1,8 @@
 // The keys that work on the current tab, then the global ones: key in bold, what it does dim. Each key is
 // [key, text, short?]; the longest form that fits the width is used, so the footer is one line at every width.
 
-import { Text } from "ink";
 import type { KeyHint } from "../types.js";
+import { Text } from "./text.js";
 
 const BASE_GLOBAL: KeyHint[] = [
   ["←/→", "tabs"],

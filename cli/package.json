@@ -29,7 +29,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "figures": "^6.1.0",
     "ink": "^8.0.0",
+    "ink-spinner": "^5.0.0",
     "react": "^19.3.1"
   },
   "devDependencies": {

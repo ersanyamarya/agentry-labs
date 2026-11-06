@@ -5,6 +5,7 @@
 
 import React from "react";
 import type { Severity } from "../lib/types.js";
+import { type Icons, iconsFor } from "./icons.js";
 import type { Seg, Style } from "./types.js";
 
 export const seg = (text: string, style?: Style): Seg => ({
@@ -17,9 +18,17 @@ export const plain = (segments: Seg[]) =>
 export const colorEnabled = (env: NodeJS.ProcessEnv = process.env) =>
   !env.NO_COLOR;
 
-export const ThemeContext = React.createContext<{ color: boolean }>({
+export const ThemeContext = React.createContext<{
+  ascii: boolean;
+  color: boolean;
+  icons: Icons;
+}>({
+  ascii: false,
   color: true,
+  icons: iconsFor({}),
 });
+
+export const useIcons = () => React.useContext(ThemeContext).icons;
 
 // Returns a function that strips colour props when colour is off.
 export const useStyle = () => {
@@ -33,10 +42,19 @@ export const useStyle = () => {
   };
 };
 
-const GREEN: Style = { color: "green" };
-const GRAY: Style = { color: "gray" };
-const YELLOW: Style = { color: "yellow" };
-const RED: Style = { color: "red" };
+// Semantic colours: components ask for a role, not a colour name.
+export const ROLE = {
+  success: { color: "green" },
+  muted: { color: "gray" },
+  warn: { color: "yellow" },
+  danger: { color: "red" },
+  info: { color: "blue" },
+  accent: { color: "cyan" },
+} satisfies Record<string, Style>;
+const GREEN: Style = ROLE.success;
+const GRAY: Style = ROLE.muted;
+const YELLOW: Style = ROLE.warn;
+const RED: Style = ROLE.danger;
 
 // State words from the shelf, plugins, skills, MCP servers and hooks.
 const STATES: Record<string, Style> = {
@@ -109,5 +127,5 @@ export const SEVERITY: Record<
 > = {
   error: { icon: "✖", style: RED, heading: "Errors" },
   warning: { icon: "▲", style: YELLOW, heading: "Warnings" },
-  info: { icon: "ℹ", style: { color: "blue" }, heading: "Info" },
+  info: { icon: "ℹ", style: ROLE.info, heading: "Info" },
 };

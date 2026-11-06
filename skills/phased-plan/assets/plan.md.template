@@ -4,36 +4,35 @@
 
 ## How to use this plan
 
-- Work one phase per coordinator session, in order. Each phase ships something usable and testable on its own.
-- Start a branch per phase (`[branch-prefix]/phase-<n>`), tick a task's box (`[ ]` → `[x]`) in this file in the same
-  commit that finishes it, and merge when the phase's "Done when" checks pass.
-- The **Model** column names the cheapest model that does the task well: [SMALL] for mechanical work, [MID] for
-  normal implementation, [LARGE] only for: [one line per large-tier task with its reason].
-- **Run each task in its own sub-session on that model, never in a subagent.** The coordinator starts a separate
-  Claude Code session per task (in the desktop app, `start_session` with `model` set; in a terminal,
-  `claude --model <id>` in a new tab) on the phase branch, with a brief naming the task row, files and "Done when"
-  check. A subagent can't be steered or reviewed on its own and doesn't reliably run on the chosen model. The
-  coordinator reviews each sub-session's diff, runs [test command], and only then ticks the box. Tasks that touch the
-  same files run one after another, not in parallel.
-- **Batch small tasks.** Consecutive tasks with the same model that touch nearby files go into one sub-session. A
-  sub-session's startup and orientation cost more than a one-file task, so never start one per tiny row.
-- **The coordinator runs on [MID] and never switches model.** It only writes briefs, reviews diffs and runs tests.
-  The prompt cache is per model: switching a session's model re-sends its whole history uncached on the new one, so
-  models change by starting a sub-session, not by switching inside a session.
-- Ask before going beyond a phase's tasks. Record decisions and surprises in "Decisions log" at the bottom.
+- One phase per coordinator session, in order. Tick a task's box (`[ ]` → `[x]`) in the commit that finishes it.
+- Branching: [the user's choice, e.g. "one branch per phase, `[prefix]/phase-<n>`; when its Done when checks pass,
+  ask the user, then squash-merge into [default branch] as one commit. Never push unless asked."].
+- **Model column:** [SMALL] mechanical, [MID] normal implementation, [LARGE] only for: [one line per large-tier task
+  with its reason].
+- **The coordinator runs on [MID] and never switches model** (the prompt cache is per model). [MID] rows run inline.
+- **[SMALL] and [LARGE] rows run as subagents** with the Agent tool's `model` set. The brief must stand alone: task
+  row, files, "Done when" check and, for [LARGE], its reason. The coordinator reviews the diff, runs [test command],
+  then ticks the box.
+- **Batch:** consecutive [SMALL] rows on nearby files go to one subagent; a lone one-file [SMALL] row runs inline.
+  Subagents on the same files run one after another.
+- A task runs in its own session (`start_session` with `model`, or `claude --model <id>`) only if the user wants to
+  steer it.
+- [Keep only if tasks can truly run in parallel: "Rows X and Y share no files and may run in parallel; ask the user
+  before creating a worktree." Otherwise delete this line.]
+- Ask before going beyond a phase's tasks. Log decisions and surprises in "Decisions log".
 
 ## Ground rules
 
 - [Runtime, dependencies and language detected from the project.]
-- [Layout: where new code goes, following the project's existing structure.]
-- [Testing: the project's test runner and how fixtures stay away from real user data.]
-- [Safety: what stays read-only, how writes are previewed and backed up, what must never be printed.]
-- [Facts to verify before coding against them, and where (docs via Context7, the project's own specs).]
+- [Layout: where new code goes.]
+- [Testing: the test runner, and how fixtures avoid real user data.]
+- [Safety: what stays read-only, how writes are previewed and backed up, what is never printed.]
+- [Facts to verify before coding, and where (Context7 docs, the project's specs).]
 
 ## Phase 0: [Title]
 
 **Value:** [What someone can do after this phase that they couldn't before.]
-**Done when:** [Concrete checks a reviewer can run: commands, expected output, tests that pass.]
+**Done when:** [Checks a reviewer can run: commands, expected output, passing tests.]
 
 | Done | Task | Model |
 |---|---|---|
@@ -51,10 +50,10 @@
 
 ## Out of scope
 
-- [Things deliberately not built, so sessions don't drift into them.]
+- [Things deliberately not built, so sessions don't drift.]
 
 ## Decisions log
 
 | Date | Decision |
 |---|---|
-| [YYYY-MM-DD] | [Scope, naming, tooling and other choices made while writing the plan, with the reason.] |
+| [YYYY-MM-DD] | [Scope, naming, tooling and other choices, with the reason.] |

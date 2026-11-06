@@ -86,8 +86,8 @@ Icons: Phosphor ships SVG and DOM React components, which a terminal cannot draw
 
 | Done | Task | Model |
 |---|---|---|
-| [ ] | Add one `src/tui/icons.ts` (icon map by kind: skill, agent, rule, plugin, MCP, hook, on/off, warning, error; unicode default, ASCII fallback, optional nerd set) and extend `src/tui/theme.ts` with semantic colours; add tests for the fallbacks. | claude-sonnet-5-5 |
-| [ ] | Apply icons, rounded borders, tab bar, status footer with key hints, and spinners to the components and flows; keep layout working at 80 columns. Screenshot or capture each tab for the user to review. | claude-sonnet-5-5 |
+| [x] | Add one `src/tui/icons.ts` (icon map by kind: skill, agent, rule, plugin, MCP, hook, on/off, warning, error; unicode default, ASCII fallback, optional nerd set) and extend `src/tui/theme.ts` with semantic colours; add tests for the fallbacks. | claude-sonnet-5-5 |
+| [x] | Apply icons, rounded borders, tab bar, status footer with key hints, and spinners to the components and flows; keep layout working at 80 columns. Screenshot or capture each tab for the user to review. | claude-sonnet-5-5 |
 
 ## Phase 3: Docs, references and catalog check
 

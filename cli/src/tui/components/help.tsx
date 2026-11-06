@@ -1,4 +1,5 @@
-import { Box, Text } from "ink";
+import { Box } from "ink";
+import { Text } from "./text.js";
 
 export const KEYS: [string, string][] = [
   ["← / →, 1-8", "switch tab"],

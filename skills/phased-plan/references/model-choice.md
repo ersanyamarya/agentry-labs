@@ -35,8 +35,3 @@ Use it only when a mistake is costly **and** hard to catch in review. Write the 
 
 Not reasons on their own: "it's long", "it's important", "it has many steps", UI structure, defining a data shape,
 or writing explanatory text. Those are mid tier.
-
-## Batching
-
-Consecutive rows with the same model that touch nearby files run in one sub-session. Never start a sub-session for a
-one-file mechanical row on its own: startup and orientation cost more than the work.

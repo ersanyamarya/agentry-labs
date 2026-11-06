@@ -3,7 +3,8 @@
 // come from theme.ts through useStyle, so NO_COLOR drops them; the selected row is inverse + bold with a ">" marker.
 // Beside the list from 100 columns up, under it below that (see layout.ts).
 
-import { Box, Text } from "ink";
+import { Box } from "ink";
+import React from "react";
 import {
   clipLines,
   end,
@@ -11,8 +12,10 @@ import {
   pad,
   STACKED_DETAILS_LINES,
 } from "../layout.js";
-import { stateStyle, useStyle } from "../theme.js";
+import { stateStyle, ThemeContext, useStyle } from "../theme.js";
 import type { Cell, Layout, Row } from "../types.js";
+import { Busy } from "./busy.js";
+import { Text } from "./text.js";
 
 const GAP = 2;
 const cellText = (cell: Cell) =>
@@ -152,6 +155,9 @@ const DetailLine = ({
 }) => {
   const style = useStyle();
   const match = plain ? undefined : LABELLED.exec(line);
+  if (line === "Working...") {
+    return <Busy text={line} />;
+  }
   if (!match) {
     return (
       <Text wrap={plain ? "wrap" : "truncate-end"}>
@@ -199,6 +205,7 @@ export const DetailsPane = ({
   layout,
 }: DetailsPaneProps) => {
   const style = useStyle();
+  const { ascii } = React.useContext(ThemeContext);
   const text = (lines ?? row?.details ?? []).map((line) =>
     line.replaceAll("\t", "  ")
   );
@@ -245,7 +252,7 @@ export const DetailsPane = ({
     <Box
       alignSelf="flex-start"
       borderColor={style({ color: "gray" }).color}
-      borderStyle="single"
+      borderStyle={ascii ? "classic" : "round"}
       flexDirection="column"
       flexShrink={0}
       paddingX={1}

@@ -1,7 +1,7 @@
 // One line explaining the colours: state badges and description-cost bands.
 
-import { Text } from "ink";
 import { badgeText, COST_LEGEND, stateStyle, useStyle } from "../theme.js";
+import { Text } from "./text.js";
 
 export const Legend = () => {
   const style = useStyle();
