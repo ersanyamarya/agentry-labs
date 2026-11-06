@@ -438,7 +438,7 @@ describe("rules", () => {
       listed,
       /removed\/.*CLAUDE.md_\(project_CLAUDE.md\).*removed CLAUDE.md/
     );
-    const id = listed.match(/(removed\/\S+)/)![1];
+    const [, id] = listed.match(/(removed\/\S+)/)!;
     assert.equal(fx.run(["backups", "restore", id]).status, 0);
     assert.equal(
       readFileSync(join(fx.repo, "CLAUDE.md"), "utf8"),

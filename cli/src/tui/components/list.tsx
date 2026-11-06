@@ -198,7 +198,7 @@ export const DetailsPane = ({
   const text = (lines ?? row?.details ?? []).map((line) =>
     line.replaceAll("\t", "  ")
   );
-  const stacked = layout.stacked;
+  const { stacked } = layout;
   const inner = stacked ? layout.cols : layout.detailsWidth - 4; // minus border and padding
   const shown = clipLines(
     text,

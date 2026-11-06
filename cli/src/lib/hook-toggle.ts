@@ -328,10 +328,10 @@ export const createHookToggle = (
       return 0;
     }
 
-    const id = (active ?? parked).id;
+    const { id } = active ?? parked;
     const hookScope = (active ?? parked).scope;
     const file = active?.source ?? parked.file;
-    const event = (active ?? parked).event;
+    const { event } = active ?? parked;
     const raw = active
       ? locate(readJson<SettingsJson>(file, []), event, id)
       : { group: { matcher: parked.matcher || undefined }, hook: parked.hook };

@@ -389,7 +389,7 @@ const catalogToggle = (item: CatalogEntry) =>
     : "");
 
 const catalogRow = (item: CatalogEntry): Row => {
-  const installed = item.installed;
+  const { installed } = item;
   return {
     id: `catalog:${item.id}`,
     kind: "catalog",
@@ -447,7 +447,7 @@ export const catalogRows = (data: Data): Row[] => {
   let bundle: string | undefined;
   for (const skill of entries.filter((entry) => entry.kind === "skill")) {
     if (skill.bundle !== bundle) {
-      bundle = skill.bundle;
+      ({ bundle } = skill);
       rows.push(
         ...(rows.length > 0 ? [spacer(bundle)] : []),
         header(`h:${bundle}`, `${bundle} bundle`)

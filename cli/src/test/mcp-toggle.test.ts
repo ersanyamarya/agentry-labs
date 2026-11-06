@@ -195,7 +195,7 @@ describe("refusals and usage", () => {
     );
     const off = mcp(["disable", "fromrepo", "--yes"]);
     assert.equal(off.status, 0, off.stderr);
-    const projects = JSON.parse(readFileSync(claudeJson(), "utf8")).projects;
+    const { projects } = JSON.parse(readFileSync(claudeJson(), "utf8"));
     assert.deepEqual(
       Object.values<Record<string, any>>(projects).map(
         (project: Record<string, any>) => project.disabledMcpServers

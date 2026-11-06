@@ -195,7 +195,7 @@ const missingMcpCommand: FixMaker = (finding, ctx) => {
   if (!match) {
     return;
   }
-  const name = match[1];
+  const [, name] = match;
   const json = readJson(finding.file);
   if (json === undefined) {
     return unfixable(
@@ -297,7 +297,7 @@ const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
     };
   }
   if ((found = /^MCP server "(.*)"$/s.exec(what))) {
-    const name = found[1];
+    const [, name] = found;
     return {
       label: `MCP server "${name}"`,
       kind: "command",
@@ -316,7 +316,7 @@ const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
     };
   }
   if ((found = /^(\S+) command$/.exec(what))) {
-    const event = found[1];
+    const [, event] = found;
     return {
       label: `${event} command`,
       kind: "command",
@@ -326,7 +326,7 @@ const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
     };
   }
   if ((found = /^(\S+) hook matcher$/.exec(what))) {
-    const event = found[1];
+    const [, event] = found;
     return {
       label: `${event} hook matcher`,
       kind: "plain",
@@ -336,7 +336,7 @@ const staleScope = (what: string, json: ClaudeJson): StaleScope | undefined => {
     };
   }
   if ((found = /^(\S+) hook$/.exec(what))) {
-    const event = found[1];
+    const [, event] = found;
     return {
       label: `${event} hook command`,
       kind: "command",

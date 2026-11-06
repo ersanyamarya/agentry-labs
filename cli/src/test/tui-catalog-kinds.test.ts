@@ -223,8 +223,9 @@ describe("Catalog tab beyond skills", () => {
     assert.ok(!ui.frame()!.includes!(SECRET), "the secret never shows");
     await ui.press("y");
     await ui.until(/Updated mcp\/tool/);
-    const tool = JSON.parse(readFileSync(configFile(".claude.json"), "utf8"))
-      .mcpServers.tool;
+    const { tool } = JSON.parse(
+      readFileSync(configFile(".claude.json"), "utf8")
+    ).mcpServers;
     assert.deepEqual(tool.args, ["hi"]);
     assert.deepEqual(tool.env, { OTHER: "mine", TOOL_TOKEN: SECRET });
   });

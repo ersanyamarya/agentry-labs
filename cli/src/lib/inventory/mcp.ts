@@ -216,13 +216,13 @@ export const createMcpReader = (
       if (!plugin.installPath) {
         continue;
       }
-      const id = plugin.id;
+      const { id } = plugin;
       const enabled = plugin.state === "active";
       const root = plugin.installPath;
       const manifestFile = join(root, ".claude-plugin", "plugin.json");
       const manifest: PluginManifest =
         readJson<PluginManifest>(manifestFile, errors) ?? {};
-      const pluginName = id.split("@")[0];
+      const [pluginName] = id.split("@");
       const meta = (source: string): McpMeta => ({
         scope: "plugin",
         source,

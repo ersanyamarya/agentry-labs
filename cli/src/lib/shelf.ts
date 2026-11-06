@@ -690,7 +690,7 @@ export const createShelf = (
         return 1;
       }
       from = join(shelfDir, resolved.group, resolved.skill);
-      label = resolved.label;
+      ({ label } = resolved);
     } else if (!resolved.error) {
       err(`"${target}" is a group; remove takes a skill name or group/skill`);
       return 2;

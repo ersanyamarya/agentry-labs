@@ -351,7 +351,7 @@ export const createScan = (
         a.path.localeCompare(b.path)
     );
 
-    const first = results[0];
+    const [first] = results;
     const globalList = [...globalFindings.values()].sort(
       (a, b) =>
         SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity) ||
