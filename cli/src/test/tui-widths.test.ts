@@ -90,12 +90,12 @@ describe("layout by width", () => {
       lines().some((line) => /^─{80}$/.test(line)),
       "stacked details start with a rule"
     );
-    assert.doesNotMatch(ui.frame()!, /┌/);
+    assert.doesNotMatch(ui.frame()!, /╭/);
     await ui.resize(130, 36);
-    assert.match(ui.frame()!, /┌─+┐/);
-    const box = lines().find((line) => line.includes("┌"));
+    assert.match(ui.frame()!, /╭─+╮/);
+    const box = lines().find((line) => line.includes("╭"));
     assert.ok(
-      box!.indexOf("┌") < 70,
+      box!.indexOf("╭") < 70,
       "the details box sits next to the list, not at the far edge"
     );
   });
@@ -105,8 +105,8 @@ describe("layout by width", () => {
     await ui.ready();
     await ui.resize(130, 36);
     const all = lines();
-    const top = all.findIndex((line) => line.includes("┌"));
-    const bottom = all.findIndex((line) => line.includes("└"));
+    const top = all.findIndex((line) => line.includes("╭"));
+    const bottom = all.findIndex((line) => line.includes("╰"));
     assert.ok(bottom - top <= 10, `box is ${bottom - top + 1} lines tall`);
   });
 });

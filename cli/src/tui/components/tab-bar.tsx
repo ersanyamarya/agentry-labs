@@ -1,8 +1,19 @@
 // Top of the screen: project path, the tabs with their counts, and a summary line (skill-description tokens, problems).
 
 import { Box, Text } from "ink";
-import { badgeText, stateStyle, useStyle } from "../theme.js";
+import type { Icons } from "../icons.js";
+import { badgeText, stateStyle, useIcons, useStyle } from "../theme.js";
 
+export const TAB_KINDS: (keyof Icons)[] = [
+  "skill",
+  "mcp",
+  "hook",
+  "plugin",
+  "doctor",
+  "catalog",
+  "backup",
+  "rule",
+];
 export const TAB_NAMES = [
   "Skills",
   "MCP",
@@ -63,24 +74,30 @@ export const TabBar = ({
   cols?: number;
 }) => {
   const style = useStyle();
+  const icons = useIcons();
   const found = problems(summary ?? {});
   const full = cols >= 100;
   // Eight tabs do not all fit with counts below about 120 columns: tighten the spacing, then show counts only where they fit.
-  // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
-  const label = (name: string, index: number, shown: Set<string>) =>
-    `${index + 1} ${name}${shown.has(name) && counts[name] !== undefined ? ` (${counts[name]})` : ""}`;
-  // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
-  const widthOf = (shown: Set<string>, chrome: number) =>
+  // Icons add two columns per tab and show only when the full wording fits with them.
+  const label = (
+    name: string,
+    index: number,
+    counted: Set<string>,
+    iconsOn: boolean
+  ) =>
+    `${index + 1} ${iconsOn ? `${icons[TAB_KINDS[index]]} ` : ""}${name}${counted.has(name) && counts[name] !== undefined ? ` (${counts[name]})` : ""}`;
+  const widthOf = (withCounts: Set<string>, gap: number, withIcon: boolean) =>
     TAB_NAMES.reduce(
       (total, name, index) =>
-        total + [...label(name, index, shown)].length + chrome,
+        total + [...label(name, index, withCounts, withIcon)].length + gap,
       0
     );
-  const roomy = full && widthOf(new Set(TAB_NAMES), 4) <= cols;
+  const withIcons = full && widthOf(new Set(), 3, true) <= cols;
+  const roomy = full && widthOf(new Set(TAB_NAMES), 4, withIcons) <= cols;
   const chrome = roomy ? 4 : full ? 3 : 1;
   const shown = new Set<string>();
   for (const name of COUNT_PRIORITY) {
-    if (widthOf(new Set([...shown, name]), chrome) <= cols) {
+    if (widthOf(new Set([...shown, name]), chrome, withIcons) <= cols) {
       shown.add(name);
     }
   }
@@ -91,10 +108,11 @@ export const TabBar = ({
       <Text dimColor wrap="truncate-middle">{`agentry  ${project}`}</Text>
       <Box gap={roomy ? 2 : 1}>
         {TAB_NAMES.map((name, index) => {
-          const text = label(name, index, shown);
+          const text = label(name, index, shown, withIcons);
           return (
             <Text
               bold={index === tab}
+              dimColor={index !== tab}
               inverse={index === tab}
               key={name}
               wrap="truncate"
@@ -105,6 +123,7 @@ export const TabBar = ({
           );
         })}
       </Box>
+      <Text dimColor>{"─".repeat(cols)}</Text>
       {summary ? (
         full ? (
           <Text wrap="truncate-end">

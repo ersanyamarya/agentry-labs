@@ -13,6 +13,7 @@ import {
 } from "../layout.js";
 import { stateStyle, useStyle } from "../theme.js";
 import type { Cell, Layout, Row } from "../types.js";
+import { Busy } from "./busy.js";
 
 const GAP = 2;
 const cellText = (cell: Cell) =>
@@ -152,6 +153,9 @@ const DetailLine = ({
 }) => {
   const style = useStyle();
   const match = plain ? undefined : LABELLED.exec(line);
+  if (line === "Working...") {
+    return <Busy text={line} />;
+  }
   if (!match) {
     return (
       <Text wrap={plain ? "wrap" : "truncate-end"}>
@@ -245,7 +249,7 @@ export const DetailsPane = ({
     <Box
       alignSelf="flex-start"
       borderColor={style({ color: "gray" }).color}
-      borderStyle="single"
+      borderStyle="round"
       flexDirection="column"
       flexShrink={0}
       paddingX={1}
