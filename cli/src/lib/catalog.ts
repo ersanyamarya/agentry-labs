@@ -353,7 +353,11 @@ export const createCatalog = (
     }
     const bundles = bundleOf();
     const shelved = new Map(
-      createShelf(paths, { out: () => {}, err: () => {}, warn: () => {} })
+      createShelf(paths, {
+        out: () => undefined,
+        err: () => undefined,
+        warn: () => undefined,
+      })
         .groups()
         .flatMap((group) =>
           group.items

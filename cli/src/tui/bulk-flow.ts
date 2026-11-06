@@ -31,7 +31,7 @@ export const startBulk = async <T extends { label: string }>({
   for (const item of items) {
     previews.push(await preview(item));
   }
-  const todo = items.filter((item, index) => previews[index].appliable);
+  const todo = items.filter((_item, index) => previews[index].appliable);
   flow.begin({
     kind: "confirm",
     title: `${title}: ${todo.length} of ${items.length} (preview)`,

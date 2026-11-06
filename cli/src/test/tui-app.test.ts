@@ -104,7 +104,13 @@ describe("skills tab", () => {
 describe("source files and secrets", () => {
   test("e without $EDITOR says so and runs nothing", async () => {
     let spawned = false;
-    ui = createUi({ env: {}, spawn: () => ((spawned = true), { status: 0 }) });
+    ui = createUi({
+      env: {},
+      spawn: () => {
+        spawned = true;
+        return { status: 0 };
+      },
+    });
     await ui.ready();
     await ui.press("2");
     await ui.until(/server: demo/);
@@ -121,9 +127,10 @@ describe("source files and secrets", () => {
     }[] = [];
     ui = createUi({
       env: { EDITOR: "myedit -w" },
-      spawn: (command, args, options) => (
-        calls.push({ command, args, options }), { status: 0 }
-      ),
+      spawn: (command, args, options) => {
+        calls.push({ command, args, options });
+        return { status: 0 };
+      },
     });
     await ui.ready();
     await ui.press("2");

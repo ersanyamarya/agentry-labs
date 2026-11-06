@@ -51,7 +51,9 @@ export const defaultReadDefaults: ReadDefaults = (domain, key) => {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     });
-  } catch {}
+  } catch {
+    // No readable MDM policy: treated as none.
+  }
 };
 
 // The settings file of a scope: user <config>/settings.json, project <repo>/.claude/settings.json, local .../settings.local.json.

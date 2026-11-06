@@ -64,7 +64,7 @@ export const App = ({
   const [data, setData] = React.useState<Data | null>(null);
   const [tab, setTab] = React.useState(0);
   const [overlay, setOverlay] = React.useState<"help" | "picker" | null>(null);
-  const [locked, setLocked] = React.useState<Lock>(false);
+  const [, setLocked] = React.useState<Lock>(false);
   // Read by the key handler, which can run before a render after lock() has re-subscribed it.
   const lockedRef = React.useRef<Lock>(false);
   const lock = React.useCallback((value: Lock) => {

@@ -74,7 +74,7 @@ export const createRules = (
         join(root, ".claude", "rules"),
       ],
     ];
-    return sets.flatMap(([scope, base, claudeMds, rulesDir]) =>
+    return sets.flatMap(([scope, _base, claudeMds, rulesDir]) =>
       [
         ...claudeMds
           .filter((file) => existsSync(file))

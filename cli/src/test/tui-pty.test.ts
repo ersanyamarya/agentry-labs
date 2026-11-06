@@ -53,7 +53,9 @@ const ui = (extra: Record<string, string | undefined>) =>
       env,
     });
     let out = "";
-    child.stdout.on("data", (data: Buffer) => (out += data));
+    child.stdout.on("data", (data: Buffer) => {
+      out += data;
+    });
     child.on("close", () => resolve(out));
   });
 

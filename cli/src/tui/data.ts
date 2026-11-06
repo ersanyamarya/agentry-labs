@@ -82,7 +82,11 @@ export const createData = ({
   now = () => new Date(),
 }: DataOptions) => {
   const doctorFor = (paths: Paths) =>
-    createDoctor(paths, { out: () => {}, err: () => {}, ...doctorOptions });
+    createDoctor(paths, {
+      out: () => undefined,
+      err: () => undefined,
+      ...doctorOptions,
+    });
   const fixFor = (paths: Paths, io: Partial<Io>) =>
     createFix(paths, {
       ...io,
@@ -108,14 +112,21 @@ export const createData = ({
         };
       }
     };
-    const noIo = { out: () => {}, err: () => {}, warn: () => {} };
+    const noIo = {
+      out: () => undefined,
+      err: () => undefined,
+      warn: () => undefined,
+    };
     return {
       dir,
       paths,
       status: attempt(
         "status",
         () =>
-          createStatus(paths, { out: () => {}, err: () => {} }).collect(dir),
+          createStatus(paths, {
+            out: () => undefined,
+            err: () => undefined,
+          }).collect(dir),
         {
           project: { cwd: dir, root: dir },
           skills: { items: [], skipped: [] },
@@ -610,7 +621,7 @@ export const createData = ({
     createMcpEdit(makePaths(dir), { ...io, now });
   const runEdit = async (
     dir: string,
-    dryRun: boolean | undefined,
+    _dryRun: boolean | undefined,
     call: (edit: ReturnType<typeof editFor>) => Promise<number>
   ) => {
     const { code, lines } = await capture((io) => editFor(dir, io), call);
@@ -669,7 +680,10 @@ export const createData = ({
     const paths = makePaths(dir);
     const key = findingKey(finding);
     const include = (item: Finding) => findingKey(item) === key;
-    const planned = fixFor(paths, { out: () => {}, err: () => {} }).plan(dir, {
+    const planned = fixFor(paths, {
+      out: () => undefined,
+      err: () => undefined,
+    }).plan(dir, {
       include,
     });
     const { lines } = await capture(

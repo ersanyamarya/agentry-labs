@@ -23,7 +23,7 @@ export const openInEditor = (
   {
     env = process.env,
     spawn = spawnSync,
-    setRawMode = () => {},
+    setRawMode = () => undefined,
   }: EditorOptions = {}
 ) => {
   const editor = (env.EDITOR ?? "").trim();

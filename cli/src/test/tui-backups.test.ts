@@ -108,9 +108,10 @@ describe("Backups tab", () => {
     ui.stop();
     ui = createUi({
       clipboard: {
-        spawn: (_command, _args, options) => (
-          copied.push(options.input), { status: 0 }
-        ),
+        spawn: (_command, _args, options) => {
+          copied.push(options.input);
+          return { status: 0 };
+        },
         platform: "darwin",
       },
     });

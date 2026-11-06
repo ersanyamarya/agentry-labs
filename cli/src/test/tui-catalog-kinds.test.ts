@@ -311,7 +311,10 @@ describe("Rules tab", () => {
     ui = createUi({
       catalogRepo: origin,
       env: { EDITOR: "myedit" },
-      spawn: (command, args) => (calls.push([command, args]), { status: 0 }),
+      spawn: (command, args) => {
+        calls.push([command, args]);
+        return { status: 0 };
+      },
     });
     write(configFile("rules/style.md"), "# Style\n");
     await ui.ready();

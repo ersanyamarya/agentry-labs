@@ -7,8 +7,6 @@ import { formatAge, formatBytes } from "../lib/backups.js";
 import type { CatalogEntry } from "../lib/catalog.js";
 import type { SkillItem } from "../lib/types.js";
 
-type Skill = SkillItem;
-
 import {
   badgeText,
   costStyle,
@@ -19,6 +17,8 @@ import {
   stateStyle,
 } from "./theme.js";
 import type { Cell, Data, KeyHint, Row, Seg, Style } from "./types.js";
+
+type Skill = SkillItem;
 
 const tokens = (count: number | null | undefined) =>
   count === null || count === undefined ? "-" : `~${count}`;

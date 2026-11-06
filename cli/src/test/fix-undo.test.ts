@@ -132,8 +132,6 @@ const undoFixture = ({
   return { undo, asked, output: () => lines.join("\n") };
 };
 
-const backupSets = () =>
-  existsSync(paths.backupsDir) ? readdirSync(paths.backupsDir) : [];
 const manifest = (set = SET) =>
   JSON.parse(
     readFileSync(join(paths.backupsDir, set, "manifest.json"), "utf8")

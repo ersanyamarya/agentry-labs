@@ -11,9 +11,10 @@ describe("copyText", () => {
     const calls: unknown[] = [];
     const result = copyText("hello", {
       platform: "darwin",
-      spawn: (command, args, options) => (
-        calls.push([command, args, options.input]), { status: 0 }
-      ),
+      spawn: (command, args, options) => {
+        calls.push([command, args, options.input]);
+        return { status: 0 };
+      },
     });
     assert.ok(result.ok);
     assert.deepEqual(calls, [["pbcopy", [], "hello"]]);
@@ -24,7 +25,9 @@ describe("copyText", () => {
     copyText("hello", {
       platform: "linux",
       spawn: () => ({ error: { code: "ENOENT" } as unknown as Error }),
-      write: (data) => (written += data),
+      write: (data) => {
+        written += data;
+      },
     });
     assert.equal(
       written,
@@ -39,9 +42,10 @@ describe("c copies a preview or a result", () => {
     ui = createUi({
       personal: ["notes"],
       clipboard: {
-        spawn: (_command, _args, options) => (
-          copied.push(options.input), { status: 0 }
-        ),
+        spawn: (_command, _args, options) => {
+          copied.push(options.input);
+          return { status: 0 };
+        },
         platform: "darwin",
       },
     });

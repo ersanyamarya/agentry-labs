@@ -609,7 +609,8 @@ export const createFix = (
     out = console.log,
     err = console.error,
     fixes = defaultFixes,
-    doctor = () => createDoctor(paths, { out: () => {}, err: () => {} }),
+    doctor = () =>
+      createDoctor(paths, { out: () => undefined, err: () => undefined }),
     isTTY = () => Boolean(process.stdin.isTTY && process.stdout.isTTY),
     confirm = defaultConfirm,
     runCommand = defaultRunCommand,

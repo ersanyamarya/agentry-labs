@@ -1,7 +1,3 @@
-// Colour is Ink props, not raw ANSI. FORCE_COLOR makes the test renderer emit real escape codes so the props can be seen.
-process.env.FORCE_COLOR = "1";
-process.env.NO_COLOR = "";
-
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 import { doctorRows, skillRows } from "../tui/rows.js";
@@ -14,12 +10,14 @@ import {
 } from "../tui/theme.js";
 import type { Data } from "../tui/types.js";
 
+// Colour is Ink props, not raw ANSI. FORCE_COLOR makes the test renderer emit real escape codes so the props can be seen.
+process.env.FORCE_COLOR = "1";
+process.env.NO_COLOR = "";
+
 const { createUi, KEYS, stripAnsi } = await import("./helpers/tui.js");
 
-const GREEN = "\u001B[32m";
 const YELLOW = "\u001B[33m";
 const GRAY = "\u001B[90m";
-const RED = "\u001B[31m";
 const COLOUR_CODE = /\u001B\[(3[0-7]|9[0-7])m/;
 
 let ui: ReturnType<typeof createUi>;

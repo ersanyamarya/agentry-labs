@@ -76,10 +76,6 @@ afterEach(() => fx.cleanup());
 
 const catalog = (...args: string[]) =>
   fx.run(["catalog", ...args], { env: { AGENTRY_CATALOG_REPO: origin } });
-const fetched = (...args: string[]) => {
-  catalog("refresh");
-  return catalog(...args);
-};
 const agentFile = () => join(fx.configDir, "agents/helper.agent.md");
 
 describe("catalog kinds", () => {

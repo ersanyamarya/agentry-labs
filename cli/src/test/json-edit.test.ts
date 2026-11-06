@@ -109,7 +109,7 @@ describe("set and rename", () => {
     const doc = createJsonEdit(tabs);
     const seen: string[] = [];
     assert.equal(
-      doc.renameInStrings((value, path) => {
+      doc.renameInStrings((_value, path) => {
         seen.push(path.join("."));
       }),
       0
