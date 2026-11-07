@@ -132,7 +132,7 @@ describe("unshelve and why a row cannot be toggled", () => {
 
   test("s elsewhere says what it does", async () => {
     await ui.press("s");
-    await ui.until(/s shelves a global skill/);
+    await ui.until(/s shelves a global or project-only skill/);
   });
 });
 

@@ -90,8 +90,8 @@ export const skillKeys = (row: Row | undefined): KeyHint[] => {
     return [
       ...both,
       ["u", "unshelve"],
-      ["x", "remove"],
-      ["X", "remove, no copy", "no copy"],
+      ["x", "remove (copy kept)", "remove"],
+      ["X", "remove (no copy)", "no copy"],
       ["e", "open file", "edit"],
     ];
   }
@@ -100,9 +100,10 @@ export const skillKeys = (row: Row | undefined): KeyHint[] => {
   }
   if (row?.projectOnly) {
     return [
+      ["s", "shelve"],
       ["a", "move to all projects", "all projects"],
-      ["x", "remove"],
-      ["X", "remove, no copy", "no copy"],
+      ["x", "remove (copy kept)", "remove"],
+      ["X", "remove (no copy)", "no copy"],
       ["e", "open file", "edit"],
     ];
   }
@@ -110,8 +111,8 @@ export const skillKeys = (row: Row | undefined): KeyHint[] => {
     return [
       ["s", "shelve"],
       ["o", "move to this project only", "this project"],
-      ["x", "remove"],
-      ["X", "remove, no copy", "no copy"],
+      ["x", "remove (copy kept)", "remove"],
+      ["X", "remove (no copy)", "no copy"],
       ["e", "open file", "edit"],
     ];
   }
@@ -144,7 +145,7 @@ const skillDetails = (skill: Skill) => [
 // Why a loaded (non-shelf) skill row cannot be toggled, shown in the status line and the details.
 const whyFixed = (skill: Skill) => {
   if (skill.scope === "project") {
-    return "project skill (this repo's .claude/skills): e opens it, a moves it to ~/.claude/skills (all projects)";
+    return "project skill (this repo's .claude/skills): e opens it, s moves it to the shelf, a moves it to ~/.claude/skills (all projects)";
   }
   if (skill.kind === "file") {
     return "global skill (~/.claude/skills, every project): s moves it to the shelf (on per project), o moves it into this project only";
@@ -371,8 +372,8 @@ export const catalogKeys = (row: Row | undefined): KeyHint[] => {
       row.itemKind === "rule") &&
     row.installed
       ? ([
-          ["x", "remove"],
-          ["X", "remove, no copy", "no copy"],
+          ["x", "remove (copy kept)", "remove"],
+          ["X", "remove (no copy)", "no copy"],
         ] as KeyHint[])
       : []),
     ["f", "update catalog", "fetch"],
@@ -504,8 +505,8 @@ export const catalogRows = (data: Data, icons: Icons = iconsFor({})): Row[] => {
 export const ruleKeys = (row: Row | undefined): KeyHint[] =>
   row?.ruleFile
     ? [
-        ["x", "remove"],
-        ["X", "remove, no copy", "no copy"],
+        ["x", "remove (copy kept)", "remove"],
+        ["X", "remove (no copy)", "no copy"],
         ["e", "open file", "edit"],
       ]
     : [];

@@ -219,12 +219,21 @@ export const createData = ({
     skill,
     group,
     dryRun,
+    project,
   }: {
     dir: string;
     skill: string;
     group: string;
     dryRun?: boolean;
-  }) => moveSkill({ dir, action: "shelve", args: [skill, group], dryRun });
+    project?: boolean;
+  }) =>
+    moveSkill({
+      dir,
+      action: "shelve",
+      args: [skill, group],
+      dryRun,
+      options: { project },
+    });
   const unshelveSkill = ({
     dir,
     target,

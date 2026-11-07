@@ -75,27 +75,27 @@ interface Change {
 
 // A target resolved to a whole group, to one skill (group and skill set), or to an error with an exit code.
 interface GroupFound {
+  code?: undefined;
+  error?: undefined;
+  group?: undefined;
   items: ShelfItem[];
   label: string;
-  group?: undefined;
   skill?: undefined;
-  error?: undefined;
-  code?: undefined;
 }
 interface SkillFound {
+  code?: undefined;
+  error?: undefined;
+  group: string;
   items: ShelfItem[];
   label: string;
-  group: string;
   skill: string;
-  error?: undefined;
-  code?: undefined;
 }
 interface Failure {
-  error: string;
   code: number;
+  error: string;
+  group?: undefined;
   items?: undefined;
   label?: undefined;
-  group?: undefined;
   skill?: undefined;
 }
 type Resolved = GroupFound | SkillFound | Failure;
@@ -517,11 +517,27 @@ export const createShelf = (
   const shelve = (
     skill: string,
     group: string,
-    { dryRun = false }: { dryRun?: boolean } = {}
+    {
+      dryRun = false,
+      project: inProject = false,
+    }: { dryRun?: boolean; project?: boolean } = {}
   ): number => {
-    const from = join(configDir, "skills", skill);
+    // With project: the skill folder is <project>/.claude/skills/<skill> instead of ~/.claude/skills/<skill>.
+    const skillsDir = inProject
+      ? join(paths.projectRoot(), ".claude", "skills")
+      : join(configDir, "skills");
+    const from = join(skillsDir, skill);
     const to = join(shelfDir, group, skill);
-    if (!listDirs(join(configDir, "skills")).includes(skill)) {
+    if (
+      inProject &&
+      resolve(skillsDir) === resolve(join(configDir, "skills"))
+    ) {
+      err(
+        `This folder's .claude is the global config folder (${configDir}), so there is no separate project scope.`
+      );
+      return 1;
+    }
+    if (!listDirs(skillsDir).includes(skill)) {
       err(`${from} is not a skill folder (symlinks are not moved)`);
       return 1;
     }

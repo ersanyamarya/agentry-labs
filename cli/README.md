@@ -162,11 +162,11 @@ State is one mark per row: `●` on or active green, `○` off or disabled gray 
 | space | Skills: shelf row on/off for this project; plugin rows: on/off; MCP, Hooks: turn off (saved) / add back |
 | a | MCP: add a server (user or project scope) |
 | g | Skills: shelf row on/off globally |
-| s | Skills: move a global skill onto the shelf; MCP: edit env/args of a user server |
+| s | Skills: move a global or project-only skill onto the shelf (CLI: `shelf shelve <skill> <group> [--project]`); MCP: edit env/args of a user server |
 | a | Skills: move a project-only skill to ~/.claude/skills (all projects) |
 | o | Skills: move a global skill into this project only; Catalog: add an agent or MCP server to this project only |
 | u | Skills: unshelve a skill; Doctor: undo the last fix set; Backups: restore a removed skill or updated copy; Catalog: update an outdated item (skill, agent, rule, CLAUDE.md, MCP server) |
-| x | Skills: remove a skill; Catalog: remove an installed skill, agent or rule (a copy is kept in the backups); Rules: remove a file; Backups: delete a backup; MCP, Hooks: remove; Plugins: uninstall |
+| x | Skills: remove a skill, keeping a copy in the backups; Catalog: remove an installed skill, agent or rule (a copy is kept in the backups); Rules: remove a file; Backups: delete a backup; MCP, Hooks: remove; Plugins: uninstall |
 | X | Skills, Catalog, Rules: remove and keep no copy |
 | d | Backups: delete the backups 30+ days old |
 | i | Catalog: add the selected skill (to the shelf, off), agent, rule, CLAUDE.md or MCP server; Plugins: install a plugin |

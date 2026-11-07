@@ -85,7 +85,8 @@ Commands:
   shelf on <target>... [--global]     Link groups or skills into this project (or ~/.claude)
   shelf off <target>... [--global]    Remove those links
   shelf off --all [--global]          Remove every shelf link in this project (or ~/.claude)
-  shelf shelve <skill> <group>        Move ~/.claude/skills/<skill> onto the shelf
+  shelf shelve <skill> <group> [--project]
+                                      Move ~/.claude/skills/<skill> (--project: .claude/skills/<skill> here) onto the shelf
   shelf unshelve <skill>              Move a shelved skill back to ~/.claude/skills
   shelf promote <skill> [--dry-run]   Move .claude/skills/<skill> of this project to ~/.claude/skills (every project)
   shelf demote <skill> [--dry-run]    Move ~/.claude/skills/<skill> into this project's .claude/skills
@@ -266,7 +267,7 @@ const runShelf = (
     return shelf[action](rest, { global, dryRun });
   }
   if (action === "shelve" && rest.length === 2) {
-    return shelf.shelve(rest[0], rest[1], { dryRun });
+    return shelf.shelve(rest[0], rest[1], { dryRun, project });
   }
   if (action === "unshelve" && rest.length === 1) {
     return shelf.unshelve(rest[0], { dryRun });

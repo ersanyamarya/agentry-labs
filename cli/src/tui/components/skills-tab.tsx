@@ -50,18 +50,28 @@ export const SkillsTab = ({
       : undefined;
 
   // shelve: choose a group (or type a new one), preview with the shelf's own dry run, move on y.
-  const previewShelve = async (skill: string, group: string) => {
-    const preview = await api.shelveSkill({ dir, skill, group, dryRun: true });
+  const previewShelve = async (
+    skill: string,
+    group: string,
+    project: boolean
+  ) => {
+    const preview = await api.shelveSkill({
+      dir,
+      skill,
+      group,
+      project,
+      dryRun: true,
+    });
     return {
       kind: "confirm" as const,
       title: "Shelve preview (dry run)",
       text: preview.text,
       appliable: preview.ok,
-      apply: () => api.shelveSkill({ dir, skill, group }),
+      apply: () => api.shelveSkill({ dir, skill, group, project }),
       done: `Shelved ${skill} into ${group}; it is off, toggle it with space.`,
     };
   };
-  const startShelve = () => {
+  const startShelve = (project: boolean) => {
     const skill = row?.skill ?? "";
     const groups = data.groups.map((group) => group.name);
     const typeName = () => ({
@@ -72,7 +82,7 @@ export const SkillsTab = ({
       onSubmit: (name: string) =>
         badName(name)
           ? { kind: "result" as const, ok: false, text: badName(name) ?? "" }
-          : previewShelve(skill, name),
+          : previewShelve(skill, name, project),
     });
     flow.begin(
       groups.length === 0
@@ -82,7 +92,7 @@ export const SkillsTab = ({
             title: `Shelve ${skill}: choose a group`,
             intro: [`Move ${skill} onto the shelf in which group?`],
             options: groups,
-            onPick: (group: string) => previewShelve(skill, group),
+            onPick: (group: string) => previewShelve(skill, group, project),
             onNew: typeName,
           }
     );
@@ -207,15 +217,15 @@ export const SkillsTab = ({
         flow.clear();
         move(key.upArrow ? -1 : 1);
       } else if (input === "s") {
-        if (row?.shelvable) {
-          startShelve();
+        if (row?.shelvable || row?.projectOnly) {
+          startShelve(Boolean(row.projectOnly));
         } else {
           notify(
             row?.kind === "global"
               ? (row.why ?? "")
               : row?.kind === "skill"
                 ? "Already on the shelf; press u to move it back to ~/.claude/skills."
-                : "s shelves a global skill: select one under Global skills."
+                : "s shelves a global or project-only skill: select one under Global skills or This project only."
           );
         }
       } else if (input === "u") {

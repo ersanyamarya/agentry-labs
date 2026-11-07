@@ -46,6 +46,22 @@ describe("move skills between project and global scope", () => {
     assert.ok(existsSync(join(globalProj(), "SKILL.md")));
   });
 
+  test("s shelves a project-only skill: pick a group, preview, y moves it onto the shelf", async () => {
+    await ui.moveTo(/^>\s+proj/);
+    assert.match(ui.frame()!, /\bs shelve\b/);
+    await ui.press("s");
+    await ui.until(/Shelve proj: choose a group/);
+    await ui.press(KEYS.enter);
+    await ui.until(/would shelve proj into audit/);
+    assert.ok(existsSync(projectProj()), "a preview moves nothing");
+    await ui.press("y");
+    await ui.until(/Shelved proj into audit/);
+    assert.ok(!existsSync(projectProj()));
+    assert.ok(
+      existsSync(join(ui.fx.configDir, "skill-shelf/audit/proj/SKILL.md"))
+    );
+  });
+
   test("a clash is shown in the preview and cannot be applied", async () => {
     mkdirSync(globalProj(), { recursive: true });
     writeFileSync(join(globalProj(), "SKILL.md"), "---\nname: proj\n---\n");
