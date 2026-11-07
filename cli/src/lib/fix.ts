@@ -144,10 +144,10 @@ export interface Manifest {
 
 type Op = [tag: " " | "-" | "+", line: string];
 interface Row {
-  tag: Op[0];
   line: string;
-  oldNo: number;
   newNo: number;
+  oldNo: number;
+  tag: Op[0];
 }
 
 interface PlanItem {

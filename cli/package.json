@@ -17,13 +17,13 @@
   "bugs": {
     "url": "https://github.com/ersanyamarya/agentry-labs/issues"
   },
-  "author": "Sanyam Arya",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ersanyamarya/agentry-labs.git",
     "directory": "cli"
   },
   "license": "MIT",
+  "author": "Sanyam Arya",
   "type": "module",
   "bin": {
     "agentry": "dist/bin/agentry.js"
@@ -41,7 +41,7 @@
     "dev": "tsc --watch",
     "format": "biome format --write .",
     "lint": "biome lint .",
-    "prepublishOnly": "npm run build && npm test",
+    "prepublishOnly": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && npm run build && npm test",
     "test": "tsc && node --test dist/test",
     "typecheck": "tsc --noEmit"
   },

@@ -123,8 +123,8 @@ interface McpChange {
   env: string[];
 }
 interface McpServerJob {
-  entry: CatalogItem;
   change: McpChange;
+  entry: CatalogItem;
 }
 type Picked =
   | { entry: CatalogItem; error?: undefined }

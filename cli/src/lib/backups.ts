@@ -70,8 +70,8 @@ export interface BackupsOptions {
 }
 
 interface Failure {
-  error: string;
   code: number;
+  error: string;
 }
 
 export const defaultConfirm = async (question: string): Promise<boolean> => {

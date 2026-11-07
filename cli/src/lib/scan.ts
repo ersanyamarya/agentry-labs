@@ -24,14 +24,14 @@ import { packageVersion } from "./version.js";
 
 type Summary = Record<Severity, number>;
 interface Counts {
-  skills: number;
-  mcp: number;
   hooks: number;
+  mcp: number;
   plugins: number;
+  skills: number;
 }
 interface Loadable {
-  state: string;
   scope?: string;
+  state: string;
 }
 
 /** One repo as scanned (and cached): user-level counts are kept so the global block can use them. */
