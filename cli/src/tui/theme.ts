@@ -88,6 +88,21 @@ export const badgeText = (state: unknown) =>
 export const stateStyle = (state = ""): Style =>
   STATES[word(state).split(" ")[0]] ?? {};
 
+// Off, disabled and parked rows are dimmed whole in the list.
+const DIM_STATES = new Set(["off", "disabled", "parked"]);
+// The one-column mark a list row shows for its state, with the mark's style and whether the whole row is dim. A word
+// with no symbol gets a blank of the same width, so names stay aligned.
+export const stateMark = (
+  state = ""
+): { dim: boolean; mark: string; style: Style } => {
+  const [key = ""] = word(state).split(" ");
+  return {
+    mark: SYMBOLS[key] ?? " ",
+    style: SYMBOLS[key] ? (STATES[key] ?? {}) : {},
+    dim: DIM_STATES.has(key),
+  };
+};
+
 export const SCOPE_STYLES: Record<string, Style> = {
   user: { color: "cyan" },
   global: { color: "cyan" },
@@ -109,11 +124,6 @@ export const scopeStyle = (scope: string): Style =>
   {};
 
 // Description cost: dim when small, yellow in the middle, red when large.
-export const COST_LEGEND: [string, Style][] = [
-  ["<100", { dimColor: true }],
-  ["100-499", YELLOW],
-  ["500+", RED],
-];
 export const costStyle = (count: number | null | undefined): Style =>
   count === null || count === undefined || count < 100
     ? { dimColor: true }

@@ -51,6 +51,13 @@ export interface FlowOptions {
   reload: () => Promise<void> | void;
 }
 
+// Shown while a preview waits for y: a preview writes nothing.
+export const PREVIEW_NOTE =
+  "Preview only; nothing is written until you press y.";
+// A failed result starts with what failed (the preview's title without its "(preview)" tag).
+export const failedText = (title: string, text: string) =>
+  `✖ ${title.replace(/\s*\((preview|dry run)\)$/, "")} failed\n\n${text}`;
+
 export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
   const [step, setStep] = React.useState<Step | null>(null);
   const [at, setAt] = React.useState(0);
@@ -64,7 +71,7 @@ export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
 
   // Locks at once rather than from the effect below, so a key pressed right after the prompt opens is already guarded.
   const begin = (next: Step | null | undefined) => {
-    notify("");
+    notify(next?.kind === "confirm" ? PREVIEW_NOTE : "");
     lock(
       !next || next.kind === "result"
         ? false
@@ -92,7 +99,11 @@ export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
     }
     setStep({ kind: "result", ok: true, text: "Working..." });
     const result = await current.apply();
-    setStep({ kind: "result", ...result });
+    setStep({
+      kind: "result",
+      ...result,
+      text: result.ok ? result.text : failedText(current.title, result.text),
+    });
     notify(
       result.ok
         ? current.done
@@ -170,7 +181,7 @@ export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
       ...step.text.split("\n"),
       "",
       step.appliable
-        ? "Apply this? y = yes, n = cancel, c = copy"
+        ? "Apply?  y yes   n no   c copy"
         : "Nothing can be applied here. n = close, c = copy",
     ];
   } else if (step?.kind === "result") {

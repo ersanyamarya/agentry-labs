@@ -10,7 +10,6 @@ import { skillKeys, skillRows } from "../rows.js";
 import type { Row, TabProps } from "../types.js";
 import { useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
-import { Legend } from "./legend.js";
 import { Panes } from "./list.js";
 
 export const SkillsTab = ({
@@ -295,7 +294,6 @@ export const SkillsTab = ({
 
   return (
     <Box flexDirection="column">
-      <Legend />
       <Panes
         cursor={cursor}
         height={height}

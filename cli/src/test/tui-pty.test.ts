@@ -66,7 +66,7 @@ describe("colour in a pseudo-terminal", {
 }, () => {
   test("TERM=xterm-256color: real SGR colour escapes", async () => {
     const out = await ui({ TERM: "xterm-256color" });
-    assert.match(out, /\u001B\[32m/, "green");
+    assert.match(out, /\u001B\[36m/, "cyan");
     assert.match(out, /\u001B\[90m/, "gray");
   });
 
@@ -77,7 +77,8 @@ describe("colour in a pseudo-terminal", {
   test("NO_COLOR=1: no colour escapes, words still there", async () => {
     const out = await ui({ TERM: "xterm-256color", NO_COLOR: "1" });
     assert.doesNotMatch(out, COLOUR);
-    assert.match(out, /\* on o off % partial/);
+    assert.match(out, /o off\s+o off/);
+    assert.match(out, /\[\w+( \d+)?\]/, "active tab in brackets");
   });
 
   test("TERM=dumb and FORCE_COLOR=0: the user's opt-outs are respected", async () => {

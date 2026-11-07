@@ -12,6 +12,8 @@ export type Style = Pick<
   "color" | "backgroundColor" | "dimColor" | "bold" | "inverse"
 >;
 export interface Seg {
+  // What to draw instead of `text` when colour is off (a state mark carries its word then).
+  plain?: string;
   style?: Style;
   text: string;
 }
@@ -51,6 +53,8 @@ export interface Row {
   itemKind?: CatalogKind;
   kind?: string;
   label: string;
+  // Styles for the first characters of the label, in order (a dim kind glyph, a coloured [id]); the rest is `labelStyle`.
+  labelRuns?: { len: number; style?: Style }[];
   labelStyle?: Style;
   // mcp
   mcp?: string;
@@ -73,6 +77,12 @@ export interface Row {
   shelvable?: boolean;
   shelved?: boolean;
   skill?: string;
+  // The state word (active, on, off, disabled, parked, partial...). When set, ListPane draws its mark (stateMark in
+  // theme.ts) between the cursor and the name, dims the whole row when it is off, disabled or parked, and under NO_COLOR
+  // adds the word as a trailing STATE column. Rows without it draw as before. A column-header row above stated rows sets
+  // `state: "STATE"`: an unknown word gets a blank mark (so its label lines up over the names) and, under NO_COLOR, a dim
+  // `STATE` header cell.
+  state?: string;
   target?: string;
   why?: string;
 }

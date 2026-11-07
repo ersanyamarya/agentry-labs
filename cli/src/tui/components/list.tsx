@@ -1,7 +1,9 @@
-// A scrolling list of rows and the details of the selected one. Rows are laid out in fixed columns: the name (cut in the
-// middle with … when it does not fit) and then `cells` of fixed width, so state badges are always whole and line up. Colours
-// come from theme.ts through useStyle, so NO_COLOR drops them; the selected row is inverse + bold with a ">" marker.
-// Beside the list from 100 columns up, under it below that (see layout.ts).
+// A scrolling list of rows and the details of the selected one. Rows are laid out in fixed columns: an optional state
+// mark (rows with `state`: one coloured mark, the whole row dim when off, a STATE word column under NO_COLOR), the name
+// (cut in the middle with … when it does not fit) and then `cells` of fixed width, so columns always line up. Section
+// headers are bold words with no rule; a list taller than its box ends in `↓ N more`. Colours come from theme.ts
+// through useStyle, so NO_COLOR drops them; the selected row is inverse + bold with a ">" marker. The details sit beside
+// the list from 110 columns up, under it (paired, short) below that (see layout.ts).
 
 import { Box } from "ink";
 import React from "react";
@@ -12,29 +14,96 @@ import {
   pad,
   STACKED_DETAILS_LINES,
 } from "../layout.js";
-import { stateStyle, ThemeContext, useStyle } from "../theme.js";
-import type { Cell, Layout, Row } from "../types.js";
+import {
+  seg,
+  stateMark,
+  stateStyle,
+  ThemeContext,
+  useStyle,
+} from "../theme.js";
+import type { Cell, Layout, Row, Seg } from "../types.js";
 import { Busy } from "./busy.js";
 import { Text } from "./text.js";
 
 const GAP = 2;
-const cellText = (cell: Cell) =>
-  pad(cell.parts.map((part) => part.text).join(""), cell.width, cell.align);
+// A part's text: colour off draws its `plain` form when it has one.
+const partText = (part: Seg, color: boolean) =>
+  color ? part.text : (part.plain ?? part.text);
+// The label cut into the runs the row asks for (`labelRuns`); one plain part when it asks for none.
+const labelParts = (text: string, row: Row) => {
+  const chars = [...text];
+  let at = 0;
+  const parts = (row.labelRuns ?? []).map(({ len, style: runStyle }) => {
+    const run = {
+      at,
+      text: chars.slice(at, at + len).join(""),
+      style: runStyle,
+    };
+    at += len;
+    return run;
+  });
+  return [
+    ...parts,
+    { at, text: chars.slice(at).join(""), style: undefined },
+  ].filter((part) => part.text !== "");
+};
+const cellText = (cell: Cell, color = true) =>
+  pad(
+    cell.parts.map((part) => partText(part, color)).join(""),
+    cell.width,
+    cell.align
+  );
 export const rightWidth = (row: Pick<Row, "cells">) =>
   (row.cells ?? []).reduce(
     (total, cell, index) => total + cell.width + (index > 0 ? GAP : 0),
     0
   );
 
-// The row as one line of exactly `width` characters: marker, name, cells.
-export const rowLine = (row: Row, width: number, marker = " ") => {
+// Under NO_COLOR a row with a `state` ends in a STATE column holding the word, so the state never rests on colour alone.
+// A header row's word (the column name) is dim.
+const STATE_WIDTH = 8;
+const withStateCell = (row: Row, color: boolean): Row =>
+  row.state === undefined || color
+    ? row
+    : {
+        ...row,
+        cells: [
+          ...(row.cells ?? []),
+          {
+            align: "left",
+            width: STATE_WIDTH,
+            parts: [
+              seg(
+                end(row.state, STATE_WIDTH),
+                row.header ? { dimColor: true } : stateStyle(row.state)
+              ),
+            ],
+          },
+        ],
+      };
+// A row with a `state` gives two columns (mark and space) of its name width to the mark.
+const nameText = (row: Row, width: number) => {
   const right = rightWidth(row);
+  const lead = row.state === undefined ? 0 : 2;
   const nameWidth =
-    right > 0 ? Math.max(width - right - GAP - 1, 4) : width - 1;
-  const name = row.cells
+    right > 0 ? Math.max(width - right - GAP - 1 - lead, 4) : width - 1 - lead;
+  return row.cells
     ? pad(middle(row.label, nameWidth), nameWidth)
     : end(row.label, nameWidth);
-  return `${marker}${name}${row.cells ? `${" ".repeat(GAP)}${row.cells.map(cellText).join(" ".repeat(GAP))}` : ""}`;
+};
+const markText = (row: Row) =>
+  row.state === undefined ? "" : `${stateMark(row.state).mark} `;
+
+// The row as one line of exactly `width` characters: marker, state mark (rows with `state`), name, cells, and the STATE
+// word when colour is off.
+export const rowLine = (
+  stated: Row,
+  width: number,
+  marker = " ",
+  color = true
+) => {
+  const row = withStateCell(stated, color);
+  return `${marker}${markText(row)}${nameText(row, width)}${row.cells ? `${" ".repeat(GAP)}${row.cells.map((cell) => cellText(cell, color)).join(" ".repeat(GAP))}` : ""}`;
 };
 
 interface ListPaneProps {
@@ -57,6 +126,7 @@ export const ListPane = ({
 }: ListPaneProps) => {
   const width = boxWidth - 1; // one column of air before the details
   const style = useStyle();
+  const { color } = React.useContext(ThemeContext);
   const start = Math.max(
     0,
     Math.min(cursor - Math.floor(height / 2), rows.length - height)
@@ -65,7 +135,9 @@ export const ListPane = ({
   return (
     <Box flexDirection="column" flexShrink={0} width={boxWidth}>
       {rows.length === 0 ? <Text dimColor>{"  (nothing here)"}</Text> : null}
-      {shown.map((row, index) => {
+      {shown.map((stated, index) => {
+        const row = withStateCell(stated, color);
+        const mark = row.state === undefined ? undefined : stateMark(row.state);
         if (row.blank) {
           return <Text key={row.id}> </Text>;
         }
@@ -75,32 +147,52 @@ export const ListPane = ({
               <Text {...style({ bold: true, ...row.labelStyle })}>
                 {row.label}
               </Text>
-              <Text
-                dimColor
-              >{` ${"─".repeat(Math.max(3, Math.min(width, 40) - row.label.length - 1))}`}</Text>
             </Text>
           );
         }
         if (start + index === cursor) {
           return (
             <Text bold inverse key={row.id} wrap="truncate-end">
-              {rowLine(row, width, ">")}
+              {rowLine(stated, width, ">", color)}
             </Text>
           );
         }
-        const right = rightWidth(row);
-        const nameWidth =
-          right > 0 ? Math.max(width - right - GAP - 1, 4) : width - 1;
+        const marker = marked?.has(row.id) ? "*" : " ";
+        // Off, disabled and parked rows are dim from the mark to the last cell.
+        if (mark?.dim) {
+          return (
+            <Text dimColor key={row.id} wrap="truncate-end">
+              {rowLine(stated, width, marker, color)}
+            </Text>
+          );
+        }
+        const labelStyle = style(
+          row.header ? { bold: true, ...row.labelStyle } : row.labelStyle
+        );
         return (
           <Text key={row.id} wrap="truncate-end">
-            <Text
-              {...style(
-                row.header ? { bold: true, ...row.labelStyle } : row.labelStyle
-              )}
-            >{`${marked?.has(row.id) ? "*" : " "}${row.cells ? pad(middle(row.label, nameWidth), nameWidth) : end(row.label, nameWidth)}`}</Text>
+            {mark ? (
+              <>
+                <Text {...labelStyle}>{marker}</Text>
+                <Text {...style(mark.style)}>{mark.mark}</Text>
+                <Text {...labelStyle}>{` ${nameText(row, width)}`}</Text>
+              </>
+            ) : (
+              <>
+                <Text {...labelStyle}>{marker}</Text>
+                {labelParts(nameText(row, width), row).map((part) => (
+                  <Text
+                    key={part.at}
+                    {...style({ ...labelStyle, ...part.style })}
+                  >
+                    {part.text}
+                  </Text>
+                ))}
+              </>
+            )}
             {(row.cells ?? []).flatMap((cell, cellIndex) => {
               const used = cell.parts.reduce(
-                (total, part) => total + [...part.text].length,
+                (total, part) => total + [...partText(part, color)].length,
                 0
               );
               const filler = Math.max(cell.width - used, 0);
@@ -117,7 +209,7 @@ export const ListPane = ({
                     key={`${cellIndex}.${partIndex}`}
                     {...style(part.style)}
                   >
-                    {part.text}
+                    {partText(part, color)}
                   </Text>
                 )),
                 ...(cell.align !== "right" && filler > 0
@@ -130,7 +222,11 @@ export const ListPane = ({
         );
       })}
       {rows.length > height ? (
-        <Text dimColor>{`  ${cursor + 1}/${rows.length}`}</Text>
+        <Text dimColor>
+          {start + height < rows.length
+            ? `  ↓ ${rows.length - start - height} more`
+            : `  ↑ ${start} more`}
+        </Text>
       ) : null}
       {status ? (
         <Text dimColor wrap="truncate-end">
@@ -187,6 +283,55 @@ const DetailLine = ({
   );
 };
 
+// Stacked details are short of room: these neighbours share one line when both fit (first label -> the label after it).
+const PAIRS: Record<string, string> = {
+  state: "tokens",
+  "this project": "global",
+};
+const labelOf = (text: string) => LABELLED.exec(text)?.[1] ?? "";
+const pairUp = (lines: string[], inner: number): string[][] => {
+  const out: string[][] = [];
+  for (const line of lines) {
+    const last = out.at(-1);
+    if (
+      last?.length === 1 &&
+      PAIRS[labelOf(last[0])] === labelOf(line) &&
+      [...last[0]].length + 5 + [...line].length <= inner
+    ) {
+      last.push(line);
+    } else {
+      out.push([line]);
+    }
+  }
+  return out;
+};
+
+// One details line: a diff line of a preview takes its colour, any other goes through DetailLine.
+const DetailRow = ({
+  line,
+  lines,
+  inner,
+}: {
+  line: string;
+  lines?: string[];
+  inner: number;
+}) => {
+  const style = useStyle();
+  return lines &&
+    (line.startsWith("+") || line.startsWith("-")) &&
+    !line.startsWith("---") &&
+    !line.startsWith("+++") ? (
+    <Text
+      wrap="wrap"
+      {...style({ color: line.startsWith("+") ? "green" : "red" })}
+    >
+      {line}
+    </Text>
+  ) : (
+    <DetailLine inner={inner} line={line} plain={Boolean(lines)} />
+  );
+};
+
 interface DetailsPaneProps {
   height: number;
   layout: Layout;
@@ -215,30 +360,36 @@ export const DetailsPane = ({
     text,
     stacked ? (lines ? 16 : STACKED_DETAILS_LINES) : Math.max(height, 8)
   );
+  // Stacked, a row's details name it with its group in the title, and short `label: value` pairs share a line.
+  const named =
+    stacked &&
+    !lines &&
+    row?.group &&
+    (row.kind === "skill" || row.kind === "agent");
+  const heading = named
+    ? `${row.skill ?? row.label.trim()}  ${row.kind} in ${row.group}`
+    : title;
+  const entries =
+    stacked && !lines ? pairUp(shown, inner) : shown.map((line) => [line]);
   const body = [
     <Text bold key="title">
-      {title}
+      {heading}
     </Text>,
-    ...shown.map((line, index) =>
-      lines &&
-      (line.startsWith("+") || line.startsWith("-")) &&
-      !line.startsWith("---") &&
-      !line.startsWith("+++") ? (
-        <Text
-          // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
-          key={index}
-          wrap="wrap"
-          {...style({ color: line.startsWith("+") ? "green" : "red" })}
-        >
-          {line}
-        </Text>
+    ...entries.map((entry, index) =>
+      entry.length > 1 ? (
+        // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
+        <Box gap={5} key={index}>
+          {entry.map((line) => (
+            <DetailLine inner={inner} key={line} line={line} plain={false} />
+          ))}
+        </Box>
       ) : (
-        <DetailLine
+        <DetailRow
           inner={inner}
           // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
           key={index}
-          line={line}
-          plain={Boolean(lines)}
+          line={entry[0]}
+          lines={lines}
         />
       )
     ),

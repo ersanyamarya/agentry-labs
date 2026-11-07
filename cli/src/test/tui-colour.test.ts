@@ -96,19 +96,27 @@ describe("rows carry the styles", () => {
       );
       const badges = row!
         .cells!.flatMap((one) => one.parts)
-        .filter((part) => /^[●○◐] /.test(part.text));
+        .filter((part) => /^[●○◐]$/.test(part.text));
       return { project: badges[0], global: badges[1] };
     };
-    const off = { text: "○ off", style: { color: "gray", bold: true } };
+    const off = {
+      text: "○",
+      plain: "○ off",
+      style: { color: "gray", bold: true },
+    };
     assert.deepEqual(
       badgeOf([item("a", false, false), item("b", false, false)]),
       { project: off, global: off }
     );
     assert.deepEqual(
       badgeOf([item("a", true, false), item("b", false, false)]).project,
-      { text: "◐ partial", style: { color: "yellow", bold: true } }
+      { text: "◐", plain: "◐ partial", style: { color: "yellow", bold: true } }
     );
-    const on = { text: "● on", style: { color: "green", bold: true } };
+    const on = {
+      text: "●",
+      plain: "● on",
+      style: { color: "green", bold: true },
+    };
     assert.deepEqual(
       badgeOf([item("a", true, false), item("b", true, false)]),
       { project: on, global: off }
@@ -126,10 +134,10 @@ describe("rows carry the styles", () => {
         .find((part) => part.text.startsWith("~"))!.style,
       { color: "yellow" }
     );
-    assert.match(group!.note!, /1 skills\s+~240\s+○ off\s+○ off/);
+    assert.match(group!.note!, /1 skills\s+~240\s+○\s+○/);
   });
 
-  test("doctor rows use the severity icon and colour", () => {
+  test("doctor headers carry the severity icon and colour; the row colours only its [id]", () => {
     const rows = doctorRows({
       doctor: {
         findings: [
@@ -140,26 +148,37 @@ describe("rows carry the styles", () => {
     } as unknown as Data);
     assert.equal(rows[0].label, "✖ Errors (1)");
     assert.deepEqual(rows[0].labelStyle, { color: "red" });
-    assert.equal(
-      rows.find((row) => row.kind === "finding" && row.severity === "info")!
-        .label,
-      "  ℹ [y] n"
-    );
+    const info = rows.find(
+      (row) => row.kind === "finding" && row.severity === "info"
+    )!;
+    // No severity icon on the row (it is in the header); only [id] takes the severity colour.
+    assert.equal(info.label, "    [y] n");
+    assert.deepEqual(info.labelRuns?.at(-1)?.style, { color: "blue" });
   });
 });
 
 describe("rendered with real escape codes", () => {
+  test("the active tab is cyan, bold and underlined; the others are dim; the header warning is yellow", async () => {
+    ui = createUi();
+    await ui.ready();
+    const frame = ui.frame()!;
+    assert.match(frame, /\u001B\[36m[^\n]*Skills/);
+    assert.match(frame, /\u001B\[4m/);
+    assert.match(frame, /\u001B\[2m[^\n]*MCP/);
+    assert.ok(frame.includes(`${YELLOW}1 warning`), "warning count is yellow");
+  });
+
   test("on is green, off is gray, partial is yellow, cost dim, severities coloured", async () => {
     ui = createUi();
     await ui.ready();
     const frame = ui.frame();
-    assert.ok(frame!.includes(`${GRAY}○ off`), "off badge is gray");
+    assert.ok(frame!.includes(`${GRAY}○`), "off mark is gray");
     await ui.moveTo(/video/);
     await ui.press(KEYS.enter);
     await ui.moveTo(/trim/);
     await ui.press(KEYS.space);
     await ui.until(/video\/trim on in/);
-    await ui.until(/\u001B\[32m● on/);
+    await ui.until(/\u001B\[32m●/);
     await ui.moveTo(/^.{0,12}video/, KEYS.up);
     assert.ok(
       ui.frame()!.includes!(`${YELLOW}◐ partial`),
@@ -177,7 +196,10 @@ describe("rendered with real escape codes", () => {
     await ui.press(KEYS.enter);
     assert.doesNotMatch(ui.frame()!, COLOUR_CODE);
     assert.match(stripAnsi(ui.frame()!), /off/);
-    assert.match(stripAnsi(ui.frame()!), /\* on o off % partial/);
+    assert.match(
+      stripAnsi(ui.frame()!),
+      /video\s+2 skills\s+~\d+\s+o off\s+o off/
+    );
     await ui.press("5");
     await ui.until(/\[fake-bad\]/);
     assert.doesNotMatch(ui.frame()!, COLOUR_CODE);

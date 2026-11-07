@@ -53,7 +53,7 @@ describe("c copies a preview or a result", () => {
     await ui.moveTo(/^>\s+notes/);
     await ui.press("s", KEYS.enter);
     await ui.until(/Shelve preview/);
-    assert.match(ui.frame()!, /c = copy/);
+    assert.match(ui.frame()!, /Apply\?\s+y yes\s+n no\s+c copy/);
     await ui.press("c");
     await ui.until(/Copied to the clipboard/);
     assert.match(copied[0], /would shelve notes/);

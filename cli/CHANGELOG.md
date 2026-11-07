@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Terminal UI redesign: one header line (path, tokens, problems), tabs as a word and a count with no icons, one state mark per row (the word moves to the details pane and to a `STATE` column under `NO_COLOR`), a footer with only the selected row's keys plus `1-8 tab   ? help`, no colour legend or rules between sections.
+- Skills: Project and Global columns hold a single mark; Doctor and Catalog rows carry a kind glyph; Backups has a header row.
+- Previews end in `Apply?  y yes   n no` with a "nothing is written" note; a failed apply starts with `✖ <action> failed` under a red notification.
+- 80 columns and `NO_COLOR`: bracketed active tab, `Doctor N err`, `↓ N more` instead of a cursor counter, stacked details that pair short lines.
+
 ## 0.1.0
 
 Initial release.

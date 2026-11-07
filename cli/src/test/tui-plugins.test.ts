@@ -34,7 +34,11 @@ describe("Plugins tab: enable and disable", () => {
     assert.match(ui.frame()!, /-\s+"demo@mkt": true/);
     assert.match(ui.frame()!, /\+\s+"demo@mkt": false/);
     await ui.until(/sessions started after this/);
-    assert.match(ui.frame()!, /Apply this\? y = yes, n = cancel/);
+    assert.match(ui.frame()!, /Apply\?\s+y yes\s+n no/);
+    assert.match(
+      ui.frame()!,
+      /Preview only; nothing is written until you press y\./
+    );
     await ui.press("n");
     await ui.until(/Cancelled; nothing changed/);
     assert.equal(settings(), ON);
@@ -57,12 +61,12 @@ describe("Plugins tab: enable and disable", () => {
     assert.equal(settings(), ON.replace("true", "false"));
     assert.equal(backups().length, 1);
     await ui.until(/demo@mkt disabled\. Applies to new sessions/);
-    await ui.until(/demo@mkt\s+(global\s+)?1\.0\.0\s+○ disabled/);
+    await ui.until(/○\s+demo@mkt\s+(global\s+)?1\.0\.0/);
 
     await ui.press(KEYS.space);
     await ui.until(/Enable demo@mkt \(preview\)/);
     await ui.press("y");
-    await ui.until(/demo@mkt\s+(global\s+)?1\.0\.0\s+● active/);
+    await ui.until(/●\s+demo@mkt\s+(global\s+)?1\.0\.0/);
     assert.equal(settings(), ON);
     assert.equal(backups().length, 2);
   });
@@ -71,11 +75,11 @@ describe("Plugins tab: enable and disable", () => {
     await ui.press(KEYS.space);
     await ui.until(/Disable demo@mkt/);
     await ui.press("y");
-    await ui.until(/demo@mkt\s+(global\s+)?1\.0\.0\s+○ disabled/);
+    await ui.until(/○\s+demo@mkt\s+(global\s+)?1\.0\.0/);
     assert.equal(ui.fx.run(["fix", "--undo", "--yes"]).status, 0);
     assert.equal(settings(), ON);
     await ui.press("r");
-    await ui.until(/demo@mkt\s+(global\s+)?1\.0\.0\s+● active/);
+    await ui.until(/●\s+demo@mkt\s+(global\s+)?1\.0\.0/);
   });
 
   test("a plugin that managed settings control is refused in the preview and y writes nothing", async () => {
@@ -97,13 +101,24 @@ describe("Skills tab: plugin skills group", () => {
   test("space on the plugin's skills row toggles the plugin; other loaded rows keep explaining", async () => {
     ui = createUi({ plugin: { settingsText: ON } });
     await ui.ready();
-    await ui.moveTo(/^>\s+demo:\*/);
+    await ui.moveTo(/^>[●○◐ ]\s*demo:\*/);
     assert.match(ui.frame()!, /plugin skill \(comes with a/);
     await ui.press(KEYS.space);
     await ui.until(/Disable demo@mkt \(preview\)/);
     await ui.press("y");
     await ui.until(/demo@mkt disabled/);
     assert.equal(settings(), ON.replace("true", "false"));
-    await ui.until(/demo:\*.*○ disabled/);
+    await ui.until(/demo:\*.*○/);
+  });
+});
+
+describe("NO_COLOR", () => {
+  test("the Plugins tab shows the state word in a STATE column, and a mark in every row", async () => {
+    ui?.stop();
+    ui = createUi({ env: { NO_COLOR: "1" }, plugin: { settingsText: ON } });
+    await ui.ready();
+    await ui.press("4");
+    await ui.until(/PLUGIN\s+SCOPE\s+VERSION\s+STATE/);
+    await ui.until(/\*\s+demo@mkt\s+global\s+1\.0\.0\s+active/);
   });
 });

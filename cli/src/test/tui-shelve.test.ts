@@ -37,7 +37,7 @@ describe("shelve from the Skills tab", () => {
     await ui.moveTo(/^>.* video/, KEYS.up);
     await ui.press(KEYS.enter);
     await ui.moveTo(/^>\s+notes/);
-    assert.match(ui.frame()!, /^>\s+notes\s+shelf\s+~\d+\s+○ off\s+○ off/m);
+    assert.match(ui.frame()!, /^>\s+notes\s+shelf\s+~\d+\s+○\s+○/m);
     await ui.press(KEYS.space);
     await ui.until(/video\/notes on in/);
     assert.ok(

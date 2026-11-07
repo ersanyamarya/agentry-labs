@@ -175,11 +175,11 @@ export const App = ({
   });
 
   const layout = layoutFor(size?.cols ?? dims.cols ?? 100);
-  // Chrome takes about 14 lines; stacked, the details block under the list takes about 10 more.
+  // Chrome takes about 11 lines; stacked, the details block under the list takes about 10 more.
   const height = Math.max(
     6,
     (size?.rows ?? dims.rows ?? 30) -
-      14 -
+      11 -
       (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0)
   );
   const counts = data
@@ -270,15 +270,8 @@ export const App = ({
     : [];
 
   const errors = data ? [...data.status.errors, ...data.doctor.errors] : [];
-  const plugins = data?.status.plugins.items ?? [];
   const summary = data
-    ? {
-        tokens: data.status.tokens.measured,
-        ...data.doctor.summary,
-        active: plugins.filter((plugin) => plugin.state === "active").length,
-        disabled: plugins.filter((plugin) => plugin.state === "disabled")
-          .length,
-      }
+    ? { tokens: data.status.tokens.measured, ...data.doctor.summary }
     : undefined;
   const theme = React.useMemo(
     () => ({
@@ -331,13 +324,18 @@ export const App = ({
         {message?.endsWith("...") ? <Busy text={message} /> : null}
         {message && !message.endsWith("...") ? (
           <Text
-            color={theme.color ? "green" : undefined}
+            color={
+              theme.color
+                ? message.startsWith("Finished with errors")
+                  ? "red"
+                  : "green"
+                : undefined
+            }
             wrap="truncate-middle"
           >
             {message}
           </Text>
         ) : null}
-        <Text dimColor>{"─".repeat(layout.cols)}</Text>
         <Footer
           cols={layout.cols}
           keys={rowKeys.tab === tab ? rowKeys.keys : TAB_KEYS[tab]}

@@ -20,7 +20,7 @@ describe("navigation", () => {
     await ui.press(KEYS.right);
     await ui.until(/server: demo/);
     await ui.press(KEYS.left);
-    await ui.until(/● on ○ off ◐ partial/);
+    await ui.until(/Shelf\s+Skills/);
     await ui.press("5");
     await ui.until(/warnings?, \d+ info|errors, \d+ warnings/);
     assert.match(ui.frame()!, /\[fake-bad\]/);
@@ -40,7 +40,7 @@ describe("navigation", () => {
     await ui.until(/Keys \(\? or esc to close\)/);
     assert.match(ui.frame()!, /switch project/);
     await ui.press(KEYS.esc);
-    await ui.until(/● on ○ off ◐ partial/);
+    await ui.until(/Shelf\s+Skills/);
     assert.doesNotMatch(ui.frame()!, /Keys \(/);
   });
 
@@ -66,7 +66,7 @@ describe("skills tab", () => {
   test("shows the same token cost as agentry shelf list", async () => {
     const listed = ui.fx.run(["shelf", "list"]).stdout;
     assert.match(listed, /video .*~10 tokens/);
-    assert.match(ui.frame()!, /video\s+2 skills\s+~10\s+○ off\s+○ off/);
+    assert.match(ui.frame()!, /video\s+2 skills\s+~10\s+○\s+○/);
   });
 
   test("space toggles a row in this project, G toggles it globally, and enter expands the group", async () => {
@@ -77,14 +77,14 @@ describe("skills tab", () => {
     assert.ok(
       lstatSync(join(ui.fx.repo, ".claude/skills/trim")).isSymbolicLink()
     );
-    await ui.until(/trim\s+shelf\s+~10\s+● on\s+○ off/);
+    await ui.until(/trim\s+shelf\s+~10\s+●\s+○/);
     await ui.press(KEYS.space);
     await ui.until(/video\/trim off in/);
     assert.ok(!existsSync(join(ui.fx.repo, ".claude/skills/trim")));
 
     await ui.press("g");
     await ui.until(/video\/trim on in/);
-    await ui.until(/trim\s+shelf\s+~10\s+○ off\s+● on/);
+    await ui.until(/trim\s+shelf\s+~10\s+○\s+●/);
     assert.ok(lstatSync(join(ui.fx.configDir, "skills/trim")).isSymbolicLink());
     assert.ok(!existsSync(join(ui.fx.repo, ".claude/skills/trim")));
   });
@@ -172,7 +172,7 @@ describe("doctor tab: fix and undo", () => {
     await ui.until(/Fix preview \(dry run\)/);
     assert.match(ui.frame()!, /-\s+"value": "BAD"/);
     assert.match(ui.frame()!, /\+\s+"value": "GOOD"/);
-    assert.match(ui.frame()!, /Apply this\? y = yes, n = cancel/);
+    assert.match(ui.frame()!, /Apply\?\s+y yes\s+n no/);
     await ui.press("n");
     await ui.until(/Cancelled; nothing written/);
     assert.match(text(), /BAD/);
@@ -215,7 +215,7 @@ describe("doctor tab: fix and undo", () => {
 
   test("a finding without a fix says why and offers nothing to apply", async () => {
     await ui.press(KEYS.down);
-    await ui.until(/> {2}ℹ \[fake-nofix\]/);
+    await ui.until(/>\s+\[fake-nofix\]/);
     await ui.press(KEYS.enter);
     await ui.until(/Nothing can be applied here/);
     assert.match(ui.frame()!, /No automatic fix is registered/);

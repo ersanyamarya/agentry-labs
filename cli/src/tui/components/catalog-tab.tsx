@@ -7,6 +7,7 @@ import React from "react";
 import { startBulk } from "../bulk-flow.js";
 import { startRemove } from "../remove-flow.js";
 import { catalogKeys, catalogRows } from "../rows.js";
+import { useIcons } from "../theme.js";
 import type { Row, TabProps } from "../types.js";
 import { useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
@@ -33,7 +34,12 @@ export const CatalogTab = ({
   setKeys,
   copy,
 }: Omit<TabProps, "openFile">) => {
-  const all = React.useMemo(() => catalogRows(data), [data]);
+  const icons = useIcons();
+  const all = React.useMemo(() => catalogRows(data, icons), [data, icons]);
+  const outdated = data.catalog.entries.filter(
+    (entry) => entry.outdated
+  ).length;
+  const outdatedText = outdated > 0 ? `${outdated} outdated (u updates)` : "";
   const list = useList({ rows: all, lock });
   const { rows, cursor, row, move } = list;
   const flow = useFlow({ lock, notify, reload, copy });
@@ -262,7 +268,7 @@ export const CatalogTab = ({
       marked={list.markedIds}
       row={row}
       rows={rows}
-      status={list.status}
+      status={[list.status, outdatedText].filter(Boolean).join("  ·  ")}
       title={flow.title}
     />
   );

@@ -42,10 +42,10 @@ interface Preview {
   text: string;
 }
 interface HookCall {
-  dir: string;
-  selector: string;
   action: HookAction;
+  dir: string;
   scope?: string;
+  selector: string;
 }
 type McpAddCall = Omit<AddArgs, "path" | "dryRun" | "yes"> & {
   dir: string;

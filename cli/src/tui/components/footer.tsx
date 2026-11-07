@@ -1,63 +1,56 @@
-// The keys that work on the current tab, then the global ones: key in bold, what it does dim. Each key is
-// [key, text, short?]; the longest form that fits the width is used, so the footer is one line at every width.
+// The keys that work on the selected row, key bright and what it does dim, three spaces apart. `1-8 tab   ? help` sits at
+// the right; every other global key is in the help screen (?). Each row key is [key, text, short?]: the short form is
+// used, so the footer is one line at every width.
 
+import { Box } from "ink";
 import type { KeyHint } from "../types.js";
 import { Text } from "./text.js";
 
-const BASE_GLOBAL: KeyHint[] = [
-  ["←/→", "tabs"],
-  ["↑/↓", "rows"],
-  ["r", "refresh"],
-  ["p", "switch project"],
-  ["?", "help"],
-  ["q", "quit"],
-];
-export const GLOBAL_KEYS: KeyHint[] = [
-  ...BASE_GLOBAL.slice(0, 2),
-  ["/", "search"],
-  ["m", "mark"],
-  ...BASE_GLOBAL.slice(2),
-];
-const PLAIN_GLOBAL = BASE_GLOBAL.map((pair, index) =>
-  index === 0 ? GLOBAL_KEYS[0] : pair
-);
-const CORE_KEYS: KeyHint[] = [
-  ["?", "help"],
-  ["q", "quit"],
-];
-const SHORT_GLOBAL: KeyHint[] = [
-  ["←→", "tabs"],
-  ["?", "help"],
-  ["q", "quit"],
-];
+const GAP = 3;
+const TABS: KeyHint = ["1-8", "tab"];
+const HELP: KeyHint = ["?", "help"];
 
 const width = (pairs: KeyHint[]) =>
   pairs.reduce(
-    (total, [key, text]) => total + [...key].length + [...text].length + 3,
+    (total, [key, text], index) =>
+      total + [...key].length + 1 + [...text].length + (index > 0 ? GAP : 0),
     0
   );
 const shortForm = (keys: KeyHint[]): KeyHint[] =>
   keys.map(([key, text, short]) => [key, short ?? text]);
 
-// Longest first: everything; the same without search/mark; short tab keys with the usual global keys; short tab keys with tabs/help/quit; only help/quit.
+// Left: the row's keys; right: `1-8 tab   ? help`. When they do not fit, `1-8 tab` goes first, then the last row keys;
+// `? help` always stays.
 export const footerKeys = (keys: KeyHint[], cols: number) => {
-  const tries = [
-    [...keys, ...GLOBAL_KEYS],
-    [...keys, ...PLAIN_GLOBAL],
-    [...shortForm(keys), ...SHORT_GLOBAL],
-    [...shortForm(keys), ...CORE_KEYS],
-    CORE_KEYS,
+  const row = shortForm(keys);
+  const candidates = [
+    { left: row, right: [TABS, HELP] },
+    ...row.map((_, index) => ({
+      left: row.slice(0, row.length - index),
+      right: [HELP],
+    })),
+    { left: [], right: [HELP] },
   ];
-  const split = (list: KeyHint[]) =>
-    list.findIndex(
-      (pair) =>
-        pair === GLOBAL_KEYS[0] ||
-        pair === SHORT_GLOBAL[0] ||
-        pair === CORE_KEYS[0]
-    );
-  const chosen = tries.find((list) => width(list) + 2 <= cols) ?? CORE_KEYS;
-  return { list: chosen, divider: Math.max(split(chosen), 0) };
+  return (
+    candidates.find(
+      ({ left, right }) =>
+        width(left) + (left.length > 0 ? GAP : 0) + width(right) <= cols
+    ) ?? { left: [], right: [HELP] }
+  );
 };
+
+const Keys = ({ pairs }: { pairs: KeyHint[] }) => (
+  <Text wrap="truncate-end">
+    {pairs.flatMap(([key, text], index) => [
+      <Text bold key={`k:${key}`}>
+        {`${index > 0 ? " ".repeat(GAP) : ""}${key}`}
+      </Text>,
+      <Text dimColor key={`d:${key}`}>
+        {` ${text}`}
+      </Text>,
+    ])}
+  </Text>
+);
 
 export const Footer = ({
   keys,
@@ -66,27 +59,11 @@ export const Footer = ({
   keys: KeyHint[];
   cols?: number;
 }) => {
-  const { list, divider } = footerKeys(keys, cols);
+  const { left, right } = footerKeys(keys, cols);
   return (
-    <Text wrap="truncate-end">
-      {list.flatMap((pair, index) => [
-        ...(index === divider && index > 0
-          ? [
-              // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
-              <Text dimColor key={`bar${index}`}>
-                {"│ "}
-              </Text>,
-            ]
-          : []),
-        // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
-        <Text bold key={`k${index}`}>
-          {pair[0]}
-        </Text>,
-        // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id; the list is rebuilt on every render
-        <Text dimColor key={`d${index}`}>
-          {` ${pair[1]}  `}
-        </Text>,
-      ])}
-    </Text>
+    <Box justifyContent="space-between" width={cols}>
+      <Keys pairs={left} />
+      <Keys pairs={right} />
+    </Box>
   );
 };

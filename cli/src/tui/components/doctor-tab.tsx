@@ -5,8 +5,9 @@ import { Box, useInput } from "ink";
 import React from "react";
 import type { Finding } from "../../lib/types.js";
 import { doctorRows } from "../rows.js";
-import { SEVERITY, useStyle } from "../theme.js";
+import { SEVERITY, useIcons, useStyle } from "../theme.js";
 import type { TabProps } from "../types.js";
+import { failedText, PREVIEW_NOTE } from "../use-flow.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
 import { Text } from "./text.js";
@@ -30,7 +31,8 @@ export const DoctorTab = ({
   openFile,
   copy,
 }: Omit<TabProps, "setKeys">) => {
-  const all = React.useMemo(() => doctorRows(data), [data]);
+  const icons = useIcons();
+  const all = React.useMemo(() => doctorRows(data, icons), [data, icons]);
   const list = useList({ rows: all, lock, marks: false });
   const { rows, cursor, row, move } = list;
   const [step, setStep] = React.useState<Step | null>(null);
@@ -44,10 +46,12 @@ export const DoctorTab = ({
     }
     const result = await api.previewFix({ dir, finding: row.finding });
     setStep({ kind: "fix", finding: row.finding, ...result });
+    notify(PREVIEW_NOTE);
   };
   const previewUndo = async () => {
     const result = await api.previewUndo({ dir });
     setStep({ kind: "undo", ...result });
+    notify(PREVIEW_NOTE);
   };
   const confirm = async () => {
     const current = step;
@@ -59,7 +63,16 @@ export const DoctorTab = ({
       current.kind === "undo"
         ? await api.applyUndo({ dir })
         : await api.applyFix({ dir, finding: current.finding });
-    setStep({ kind: "result", ...result });
+    setStep({
+      kind: "result",
+      ...result,
+      text: result.ok
+        ? result.text
+        : failedText(
+            current.kind === "undo" ? "Undo" : `Fix [${current.finding.id}]`,
+            result.text
+          ),
+    });
     notify(
       result.ok
         ? current.kind === "undo"
@@ -109,7 +122,7 @@ export const DoctorTab = ({
           ...step.text.split("\n"),
           "",
           step.appliable
-            ? `${step.kind === "undo" ? "Restore" : "Apply"} this? y = yes, n = cancel, c = copy`
+            ? `${step.kind === "undo" ? "Restore" : "Apply"}?  y yes   n no   c copy`
             : "Nothing can be applied here. n = close, c = copy",
         ]
     : undefined;

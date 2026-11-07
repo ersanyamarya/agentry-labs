@@ -1,20 +1,12 @@
-// Top of the screen: project path, the tabs with their counts, and a summary line (skill-description tokens, problems).
+// Top of the screen, two lines: the project path with the skill-description tokens and problems on the right, then the
+// tabs as a word and a count. The active tab is bold, cyan and underlined; Doctor's count is red when it holds errors.
 
 import { Box } from "ink";
-import type { Icons } from "../icons.js";
-import { badgeText, stateStyle, useIcons, useStyle } from "../theme.js";
+import React from "react";
+import { compactTokens, middle } from "../layout.js";
+import { ThemeContext, useStyle } from "../theme.js";
 import { Text } from "./text.js";
 
-export const TAB_KINDS: (keyof Icons)[] = [
-  "skill",
-  "mcp",
-  "hook",
-  "plugin",
-  "doctor",
-  "catalog",
-  "backup",
-  "rule",
-];
 export const TAB_NAMES = [
   "Skills",
   "MCP",
@@ -39,28 +31,14 @@ const COUNT_PRIORITY = [
 ];
 
 export interface TabSummary {
-  active: number;
-  disabled: number;
   error?: number;
   tokens: number;
   warning?: number;
 }
 
-const problems = ({
-  error = 0,
-  warning = 0,
-}: {
-  error?: number;
-  warning?: number;
-}) =>
-  error + warning === 0
-    ? { text: "no problems", color: "green" }
-    : {
-        text: `${error} error${error === 1 ? "" : "s"}, ${warning} warning${warning === 1 ? "" : "s"}`,
-        color: error > 0 ? "red" : "yellow",
-      };
+const plural = (count: number, word: string) =>
+  `${count} ${word}${count === 1 ? "" : "s"}`;
 
-// Counts and problems first when the width is short; the full wording from 100 columns.
 export const TabBar = ({
   tab,
   project,
@@ -75,82 +53,95 @@ export const TabBar = ({
   cols?: number;
 }) => {
   const style = useStyle();
-  const icons = useIcons();
-  const found = problems(summary ?? {});
-  const full = cols >= 100;
-  // Eight tabs do not all fit with counts below about 120 columns: tighten the spacing, then show counts only where they fit.
-  // Icons add two columns per tab and show only when the full wording fits with them.
-  const label = (
-    name: string,
-    index: number,
-    counted: Set<string>,
-    iconsOn: boolean
-  ) =>
-    `${index + 1} ${iconsOn ? `${icons[TAB_KINDS[index]]} ` : ""}${name}${counted.has(name) && counts[name] !== undefined ? ` (${counts[name]})` : ""}`;
-  const widthOf = (withCounts: Set<string>, gap: number, withIcon: boolean) =>
+  const { color } = React.useContext(ThemeContext);
+  const error = summary?.error ?? 0;
+  const warning = summary?.warning ?? 0;
+  const tokens = summary ? `${compactTokens(summary.tokens)} tokens` : "";
+  const problems = [
+    error > 0 && { text: plural(error, "error"), color: "red" },
+    warning > 0 && { text: plural(warning, "warning"), color: "yellow" },
+  ].filter((part) => part !== false);
+  // Colour off: the comma stands in for the colour change between errors and warnings.
+  const problemText =
+    problems.map(({ text }) => text).join(color ? " " : ", ") || "no problems";
+  // The right side is "<tokens>  ·  <problems>"; the left is "agentry  <path>" with a space of air between them.
+  const rightWidth = summary ? [...`${tokens}  ·  ${problemText}`].length : 0;
+  const path = middle(project, Math.max(cols - rightWidth - 10, 8));
+
+  // Colour off: Doctor says `err` when it holds errors, and the active tab is in brackets.
+  const countText = (name: string) =>
+    `${counts[name]}${!color && name === "Doctor" && error > 0 ? " err" : ""}`;
+  const label = (name: string, counted: Set<string>) =>
+    counted.has(name) && counts[name] !== undefined
+      ? `${name} ${countText(name)}`
+      : name;
+  const widthOf = (counted: Set<string>, space: number) =>
     TAB_NAMES.reduce(
       (total, name, index) =>
-        total + [...label(name, index, withCounts, withIcon)].length + gap,
-      0
+        total +
+        [...label(name, counted)].length +
+        (!color && index === tab ? 2 : 0) +
+        space,
+      -space
     );
-  const withIcons = full && widthOf(new Set(), 3, true) <= cols;
-  const roomy = full && widthOf(new Set(TAB_NAMES), 4, withIcons) <= cols;
-  const chrome = roomy ? 4 : full ? 3 : 1;
+  const all = new Set(TAB_NAMES);
+  const gap = widthOf(all, 3) <= cols ? 3 : 2;
   const shown = new Set<string>();
   for (const name of COUNT_PRIORITY) {
-    if (widthOf(new Set([...shown, name]), chrome, withIcons) <= cols) {
+    if (widthOf(new Set([...shown, name]), gap) <= cols) {
       shown.add(name);
     }
   }
-  const on = { ...stateStyle("active"), bold: true };
-  const off = { ...stateStyle("disabled"), bold: true };
+
   return (
     <Box flexDirection="column">
-      <Text dimColor wrap="truncate-middle">{`agentry  ${project}`}</Text>
-      <Box gap={roomy ? 2 : 1}>
+      <Box justifyContent="space-between">
+        <Text wrap="truncate-end">
+          <Text bold>agentry</Text>
+          <Text dimColor>{`  ${path}`}</Text>
+        </Text>
+        {summary ? (
+          <Text wrap="truncate-end">
+            <Text dimColor>{`${tokens}  ·  `}</Text>
+            {problems.length > 0 ? (
+              problems.map((part, index) => (
+                <Text key={part.text} {...style({ color: part.color })}>
+                  {index > 0 ? ` ${part.text}` : part.text}
+                </Text>
+              ))
+            ) : (
+              <Text dimColor>no problems</Text>
+            )}
+          </Text>
+        ) : null}
+      </Box>
+      <Box gap={gap}>
         {TAB_NAMES.map((name, index) => {
-          const text = label(name, index, shown, withIcons);
+          const active = index === tab;
+          const count = shown.has(name) ? counts[name] : undefined;
           return (
             <Text
-              bold={index === tab}
-              dimColor={index !== tab}
-              inverse={index === tab}
               key={name}
               wrap="truncate"
+              {...style(
+                active ? { color: "cyan", bold: true } : { dimColor: true }
+              )}
+              underline={active}
             >
-              {/* biome-ignore lint/suspicious/noLeakedRender: both branches are strings, so nothing leaks */}
-              {full ? ` ${text} ` : text}
+              {!color && active ? "[" : null}
+              {name}
+              {count === undefined ? null : (
+                <Text
+                  {...style(
+                    name === "Doctor" && error > 0 ? { color: "red" } : {}
+                  )}
+                >{` ${countText(name)}`}</Text>
+              )}
+              {!color && active ? "]" : null}
             </Text>
           );
         })}
       </Box>
-      <Text dimColor>{"─".repeat(cols)}</Text>
-      {summary ? (
-        full ? (
-          <Text wrap="truncate-end">
-            <Text
-              dimColor
-            >{`~${summary.tokens} skill-description tokens  ·  plugins `}</Text>
-            <Text
-              {...style(on)}
-            >{`${summary.active} ${badgeText("active")}`}</Text>{" "}
-            <Text
-              {...style(off)}
-            >{`${summary.disabled} ${badgeText("disabled")}`}</Text>
-            <Text dimColor>{"  ·  "}</Text>
-            <Text {...style({ color: found.color })}>{found.text}</Text>
-          </Text>
-        ) : (
-          <Text wrap="truncate-end">
-            <Text {...style({ color: found.color })}>{found.text}</Text>
-            <Text
-              dimColor
-            >{`  ·  ~${summary.tokens} tokens  ·  plugins `}</Text>
-            <Text {...style(on)}>{`${summary.active}●`}</Text>{" "}
-            <Text {...style(off)}>{`${summary.disabled}○`}</Text>
-          </Text>
-        )
-      ) : null}
     </Box>
   );
 };

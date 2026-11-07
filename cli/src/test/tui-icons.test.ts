@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { iconMode, iconsFor, toAscii } from "../tui/icons.js";
+import { catalogRows, doctorRows, findingKind } from "../tui/rows.js";
+import type { Data } from "../tui/types.js";
 import { createUi, KEYS, stripAnsi } from "./helpers/tui.js";
 
 const KINDS = [
@@ -77,4 +79,73 @@ describe("ascii rendering", () => {
       ui.stop();
     }
   });
+});
+
+describe("kind glyphs on the tabs where kinds mix", () => {
+  test("findingKind maps doctor rule ids to a kind, and leaves the rest bare", () => {
+    assert.equal(findingKind("dup-skill-name"), "skill");
+    assert.equal(findingKind("shelf-duplicate"), "skill");
+    assert.equal(findingKind("broken-skill-link"), "skill");
+    assert.equal(findingKind("dup-mcp-scope"), "mcp");
+    assert.equal(findingKind("dup-mcp-plugin"), "mcp");
+    assert.equal(findingKind("missing-mcp-command"), "mcp");
+    assert.equal(findingKind("missing-hook-file"), "hook");
+    assert.equal(findingKind("dup-plugin-scope"), "plugin");
+    assert.equal(findingKind("plugin-not-installed"), "plugin");
+    assert.equal(findingKind("unset-placeholder"), undefined);
+    assert.equal(findingKind("stale-name"), undefined);
+    assert.equal(findingKind("something-new"), undefined);
+  });
+
+  const findings = {
+    doctor: {
+      findings: [
+        { id: "dup-skill-name", severity: "error", message: "m", file: "/f" },
+        { id: "stale-name", severity: "warning", message: "n", file: "/f" },
+      ],
+    },
+  } as unknown as Data;
+  const entry = (kind: string) => ({
+    id: `${kind}/x`,
+    kind,
+    name: "x",
+    bundle: "b",
+    tokens: 1,
+    description: "",
+  });
+  const catalog = {
+    catalog: {
+      fetched: true,
+      entries: ["skill", "agent", "rule", "mcp"].map(entry),
+    },
+  } as unknown as Data;
+
+  for (const [name, env] of [
+    ["unicode", {}],
+    ["nerd", { AGENTRY_ICONS: "nerd" }],
+    ["ascii", { AGENTRY_ASCII: "1" }],
+  ] as const) {
+    test(`${name}: Doctor rows lead with the kind glyph, Catalog rows with the kind of item`, () => {
+      const icons = iconsFor(env);
+      const [, skillFinding] = doctorRows(findings, icons).filter(
+        (row) => row.kind === "finding"
+      );
+      assert.equal(
+        skillFinding.label.startsWith(`  ${icons.skill} [`),
+        false,
+        "the stale-name finding has no glyph"
+      );
+      const [first] = doctorRows(findings, icons).filter(
+        (row) => row.kind === "finding"
+      );
+      assert.ok(first.label.startsWith(`  ${icons.skill} [dup-skill-name]`));
+      const rows = catalogRows(catalog, icons).filter(
+        (row) => row.kind === "catalog"
+      );
+      assert.deepEqual(
+        rows.map((row) => row.label.trim().split(" ")[0]),
+        [icons.skill, icons.agent, icons.rule, icons.mcp]
+      );
+    });
+  }
 });

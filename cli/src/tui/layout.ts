@@ -16,6 +16,14 @@ export const layoutFor = (cols = 100) => {
   };
 };
 
+// Token counts for the header: 3100 -> "~3.1k", 840 -> "~840", unknown -> "-".
+export const compactTokens = (count: number | null | undefined) =>
+  count === null || count === undefined
+    ? "-"
+    : count < 1000
+      ? `~${count}`
+      : `~${(count / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+
 // Cuts `text` to `width` characters with … in the middle, keeping both ends (paths, long names).
 export const middle = (text: unknown, width: number) => {
   const chars = [...String(text)];

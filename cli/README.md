@@ -133,7 +133,7 @@ agentry ui                     # terminal UI (Ink); a bare `agentry` in a termin
 
 Start it from the project folder with `agentry ui`, or type a bare `agentry` in a terminal. It needs a terminal: without one it prints a message and exits `2`. The `p` picker switches to another repo (current repo, recent repos, then repos under the scan roots).
 
-- **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, Catalog, Backups, Rules, each with a count where the width allows (below about 120 columns only the first few show one). A summary line under them shows the skill-description tokens every session pays and the problems found. A details pane beside the list shows the selected row; the footer lists only the keys that work on the current tab.
+- **Tabs:** Skills, MCP, Hooks, Plugins, Doctor, Catalog, Backups, Rules, each with a count where the width allows (counts drop first on the lesser tabs, never the names). The top line holds the project path on the left and, on the right, the skill-description tokens every session pays and the problems found. A details pane beside the list shows the selected row; the footer lists only the keys that work on the selected row, then `1-8 tab` and `? help` on the right; every other key is in help.
 - **Copying:** on any preview or result, `c` copies its text (refusals and errors included) to the system clipboard (`pbcopy`, `clip`, `wl-copy` or `xclip`; otherwise the terminal's OSC 52 escape).
 - **Changes it can make** (all except the plain shelf toggle are previewed first and wait for `y`):
   - **Skills, shelf:** Each shelf row has two columns, **Project** (this project) and **Global**, each `● on`, `○ off` or `◐ partial`. `space` toggles the Project column of the selected row and `g` toggles the Global column; there is no mode to switch. Same as `agentry shelf on|off [--global]`.
@@ -152,7 +152,7 @@ Start it from the project folder with `agentry ui`, or type a bare `agentry` in 
 - **Rows that cannot be toggled** say why in the status line and the details: global skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
 - **Hooks** list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
 
-Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so nothing depends on it): `● on` / `● active` green, `○ off` / `○ disabled` gray, `◐ partial` yellow; token cost dim under 100, yellow under 500, red from 500 (legend line on the Skills tab); scope tags `global` cyan, `project` magenta, `plugin` blue, `shelf` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
+State is one mark per row: `●` on or active green, `○` off or disabled gray (the whole row dim), `◐` partial yellow. The word is in the details pane. Colour is off when `NO_COLOR` is set; then the mark stays, a `STATE` column adds the word, the active tab is in brackets (`[Plugins 6]`) and Doctor reads `2 err`, so nothing depends on colour. Token cost is dim under 100, yellow under 500, red from 500; the active tab is cyan and underlined, and Doctor's count is red when it holds errors; kind glyphs (`✦ ⇄ ⚑ ⬡`, or Nerd Font ones with `AGENTRY_ICONS=nerd`) appear only on Doctor and Catalog rows, where kinds mix, never on the tabs; scope tags `global` cyan, `project` magenta, `plugin` blue, `shelf` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
 
 | Key | Action |
 |---|---|
@@ -180,35 +180,32 @@ Colour (off when `NO_COLOR` is set; every badge has a symbol and a word, so noth
 | ? | this help |
 | q | quit |
 
-Press `?` in the UI to see the same table. Layout: from 110 columns the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its Project/Global badges are never cut (a long name is shortened with `…` in the middle instead). The summary line shortens to fit, and the footer lists only the keys that work on the selected row, in one line. `/` filters the rows of any tab; `m` marks rows (shown with `*`, counted under the list) so one space or `x` previews and applies to all of them at once. The last Skills row, Token total, breaks the description tokens down into global, this project and plugins. Screenshot below is a plain-text capture of the Skills tab at 100 columns, with two shelf groups marked (colours are lost in text; not an image), with the home folder shown as `~`:
+Press `?` in the UI to see the same table. Layout: from 110 columns the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its Project/Global badges are never cut (a long name is shortened with `…` in the middle instead). The header path is cut in the middle to fit, a list taller than its box ends in `↓ N more`, and the footer is one line that drops `1-8 tab`, then trailing row keys, before it drops `? help`. `/` filters the rows of any tab; `m` marks rows (shown with `*`, counted under the list) so one space or `x` previews and applies to all of them at once. The last Skills row, Token total, breaks the description tokens down into global, this project and plugins. Screenshot below is a plain-text capture of the Skills tab at 100 columns, with two shelf groups marked (colours are lost in text; not an image), with the home folder shown as `~`:
 
 ```text
-agentry  ~/ws/aryantriki/agentry-labs
- 1 Skills (24)   2 MCP (4)   3 Hooks   4 Plugins   5 Doctor   6 Catalog (28)   7 Backups   8 Rules
-~1023 skill-description tokens  ·  plugins 2 ● active 3 ○ disabled  ·  no problems
-● on ○ off ◐ partial  cost: ~<100 ~100-499 ~500+
- Shelf                                                   Skills      Cost  Project      Global
-*▸ audit                                                 7 skills   ~1078  ○ off        ○ off
->▸ design                                                2 skills    ~296  ○ off        ○ off
- ▸ dev-tools                                             1 skills    ~103  ○ off        ○ off
- ▸ flutter-assets                                        4 skills    ~606  ○ off        ○ off
- ▸ general                                               0 skills      ~0  ○ off        ○ off
- ▸ video                                                 28 skills  ~3001  ○ off        ○ off
- ▸ web-audit                                             1 skills    ~135  ○ off        ○ off
+agentry  ~/ws/aryantriki/agentry-labs                                     ~1k tokens  ·  no problems
+Skills 24   MCP 4   Hooks 0   Plugins 5   Doctor 0   Catalog 28   Backups 0   Rules 6
+ Shelf                                                       Skills      Cost    Project     Global
+*▸ audit                                                     7 skills   ~1078          ○          ○
+>▸ design                                                    2 skills    ~296          ○          ○
+ ▸ dev-tools                                                 1 skills    ~103          ○          ○
+ ▸ flutter-assets                                            4 skills    ~606          ○          ○
+ ▸ general                                                   0 skills      ~0          ○          ○
+ ▸ video                                                     28 skills  ~3001          ○          ○
+ ▸ web-audit                                                 1 skills    ~135          ○          ○
 
-Global skills ──────────────────────────
-   humanize-and-unslop                                                ~44               ● active
-   run-fallow                                                        ~158               ● active
-  3/27
+Global skills
+   humanize-and-unslop                                                    ~44                     ●
+   run-fallow                                                            ~158                     ●
+  ↓ 17 more
  2 marked (space/x apply to all, M clears)
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Details
 shelf group: design (opt-in)
-this project: ○ off
-global: ○ off
+this project: ○ off     global: ○ off
 contains: 2 skills
 cost when on: ~296 tokens
 toggle: space = this project, g = global; enter expands
-space project  g global  enter expand  │ ←→ tabs  ? help  q quit
+space project   g global   enter expand                                             1-8 tab   ? help
 ```

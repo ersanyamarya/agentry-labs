@@ -22,12 +22,12 @@ import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
 
 interface Action {
-  preview: () =>
-    | { appliable: boolean; text: string }
-    | Promise<{ appliable: boolean; text: string }>;
   apply: () =>
     | { ok: boolean; text: string }
     | Promise<{ ok: boolean; text: string }>;
+  preview: () =>
+    | { appliable: boolean; text: string }
+    | Promise<{ appliable: boolean; text: string }>;
 }
 
 interface InventoryTabProps extends Omit<TabProps, "setKeys"> {

@@ -51,7 +51,7 @@ for (const cols of [80, 100, 130]) {
       const shelf = lines().filter((line) => /▸ (audit|video)/.test(line));
       assert.equal(shelf.length, 2);
       for (const line of shelf) {
-        assert.match(line, /○ off\s+○ off/);
+        assert.match(line, /○\s+○/);
       }
       assert.doesNotMatch(ui.frame()!, /[PG] [●○◐] \w*…/);
     });
@@ -61,22 +61,19 @@ for (const cols of [80, 100, 130]) {
       await ui.ready();
       await ui.resize(cols, 36);
       const all = lines();
-      const summary = all.find((line) =>
-        /errors?, \d+ warnings?|no problems/.test(line)
+      const summary = all.find((line) => /tokens {2}· {2}/.test(line));
+      assert.ok(summary && [...summary].length <= cols, `summary: ${summary}`);
+      assert.match(
+        summary,
+        /~[\d.]+k? tokens {2}· {2}(\d+ errors?|\d+ warnings?|no problems)/
       );
-      assert.ok(
-        summary && [...summary].length <= cols && !summary.includes("…"),
-        `summary: ${summary}`
-      );
-      if (cols < 100) {
-        assert.match(summary, /^0 errors/);
-      }
-      const footer = all.findLast((line) => /q quit/.test(line));
+      const footer = all.findLast((line) => /\? help/.test(line));
       assert.ok(
         footer && [...footer].length <= cols && !footer.includes("…"),
         `footer: ${footer}`
       );
-      assert.match(footer, /\? help {2}q quit/);
+      assert.match(footer, /\? help$/);
+      assert.doesNotMatch(footer, /│|q quit/);
     });
   });
 }
@@ -108,5 +105,72 @@ describe("layout by width", () => {
     const top = all.findIndex((line) => line.includes("╭"));
     const bottom = all.findIndex((line) => line.includes("╰"));
     assert.ok(bottom - top <= 10, `box is ${bottom - top + 1} lines tall`);
+  });
+});
+
+describe("80x24, in colour and without", () => {
+  const NAMES = [
+    "Skills",
+    "MCP",
+    "Hooks",
+    "Plugins",
+    "Doctor",
+    "Catalog",
+    "Backups",
+    "Rules",
+  ];
+  for (const [label, env] of [
+    ["colour", {}],
+    ["NO_COLOR", { NO_COLOR: "1" }],
+  ] as const) {
+    // biome-ignore lint/suspicious/noLoopFunc: the callback runs immediately and does not outlive the iteration
+    test(`${label}: every tab fits 80 columns with all eight names, and the last line is the footer`, async () => {
+      ui = createUi({
+        personal: ["notes"],
+        plugin: {
+          settingsText:
+            '{\n\t"enabledPlugins": {\n\t\t"demo@mkt": true\n\t}\n}\n',
+        },
+        fit: true,
+        env,
+      });
+      await ui.ready();
+      await ui.resize(80, 24);
+      for (const tab of TABS) {
+        await ui.press(tab);
+        const all = lines();
+        assert.ok(
+          all.every((line) => [...line].length <= 80),
+          `tab ${tab}: a line is wider than 80:\n${all.join("\n")}`
+        );
+        const [, tabLine] = all;
+        for (const name of NAMES) {
+          assert.ok(
+            tabLine.includes(name),
+            `tab ${tab}: ${name} in ${tabLine}`
+          );
+        }
+        assert.match(all.filter(Boolean).at(-1) ?? "", /\? help$/);
+        if (label === "NO_COLOR") {
+          assert.match(
+            tabLine,
+            /\[(Skills|MCP|Hooks|Plugins|Doctor|Catalog|Backups|Rules)( \d+)?\]/
+          );
+          assert.match(all[0], /1 warning$/);
+        }
+      }
+    });
+  }
+
+  test("a list taller than its box ends in `↓ N more`, and the stacked details join short pairs", async () => {
+    ui = createUi({ personal: ["notes"], fit: true });
+    await ui.ready();
+    await ui.resize(80, 20);
+    assert.match(stripAnsi(ui.frame()!), /↓ \d+ more/);
+    assert.doesNotMatch(stripAnsi(ui.frame()!), /\d+\/\d+\s*$/m);
+    assert.match(
+      stripAnsi(ui.frame()!),
+      /this project: ○ off {5}global: ○ off/
+    );
   });
 });

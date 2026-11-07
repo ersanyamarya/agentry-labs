@@ -42,14 +42,14 @@ const commands = () =>
 
 describe("Hooks tab: turn off, back on, remove", () => {
   test("the footer offers space, x and e on a settings hook", async () => {
-    await ui.moveTo(/^>\s*PreToolUse/);
+    await ui.moveTo(/^>[●○◐ ]\s*PreToolUse/);
     await ui.until(/space (turn off \(saved\)|off)/);
     assert.match(ui.frame()!, /x remove/);
     assert.match(ui.frame()!, /e (open file|edit)/);
   });
 
   test("space previews with the secret masked; n cancels and changes nothing", async () => {
-    await ui.moveTo(/^>\s*PreToolUse/);
+    await ui.moveTo(/^>[●○◐ ]\s*PreToolUse/);
     await ui.press(KEYS.space);
     await ui.until(/Turn off hook [0-9a-f]{8} \(preview\)/);
     assert.match(
@@ -63,14 +63,14 @@ describe("Hooks tab: turn off, back on, remove", () => {
   });
 
   test("y turns it off (○ off row stays listed), space on that row puts it back", async () => {
-    await ui.moveTo(/^>\s*PreToolUse/);
+    await ui.moveTo(/^>[●○◐ ]\s*PreToolUse/);
     await ui.press(KEYS.space);
     await ui.until(/Turn off hook/);
     await ui.press("y");
     await ui.until(/is off \(saved\)/);
     assert.equal(commands().length, 1);
-    await ui.until(/PreToolUse\s+Bash\s+.*○ off|○ off/);
-    await ui.moveTo(/^>.*○ off/);
+    await ui.until(/○\s+PreToolUse\s+Bash/);
+    await ui.moveTo(/^>○\s+PreToolUse/);
     await ui.press(KEYS.space);
     await ui.until(/Turn on hook/);
     await ui.press("y");
@@ -80,12 +80,12 @@ describe("Hooks tab: turn off, back on, remove", () => {
   });
 
   test("x previews and removes; the copy is not parked", async () => {
-    await ui.moveTo(/^>\s*PreToolUse/);
+    await ui.moveTo(/^>[●○◐ ]\s*PreToolUse/);
     await ui.press("x");
     await ui.until(/Remove hook [0-9a-f]{8} \(preview\)/);
     await ui.press("y");
     await ui.until(/is removed/);
     assert.equal(commands().length, 1);
-    assert.doesNotMatch(ui.frame()!, /○ off/);
+    assert.doesNotMatch(ui.frame()!, /○\s+PreToolUse/);
   });
 });

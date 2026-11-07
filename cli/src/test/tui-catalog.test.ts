@@ -45,17 +45,17 @@ describe("Catalog tab", () => {
   test("says it is not fetched, then f fetches and lists the skills by bundle", async () => {
     await ui.press("6");
     await ui.until(/catalog not fetched/);
-    assert.match(ui.frame()!, /f fetch catalog/);
+    assert.match(ui.frame()!, /f fetch\b/);
     await ui.press("f");
     await ui.until(/web bundle/);
-    assert.match(ui.frame()!, /alpha\s+~\d+\s+not installed/);
-    assert.match(ui.frame()!, /Catalog \(2\)/);
+    assert.match(ui.frame()!, /alpha\s+~\d+\s+○/);
+    assert.match(ui.frame()!, /Catalog 2/);
   });
 
   test("i previews and y adds the skill to the shelf, off; it then shows where it is", async () => {
     await ui.press("6", "f");
     await ui.until(/web bundle/);
-    await ui.moveTo(/^>\s+alpha/);
+    await ui.moveTo(/^>\s+\S\s+alpha/);
     await ui.press("i");
     await ui.until(/Add alpha to the shelf \(preview\)/);
     assert.match(ui.frame()!, /would add alpha to shelf group web/);
@@ -74,7 +74,7 @@ describe("Catalog tab", () => {
   test("x on an installed skill previews, y deletes it and keeps a copy", async () => {
     await ui.press("6", "f");
     await ui.until(/web bundle/);
-    await ui.moveTo(/^>\s+alpha/);
+    await ui.moveTo(/^>\s+\S\s+alpha/);
     await ui.press("i");
     await ui.until(/Add alpha/);
     await ui.press("y");
@@ -88,7 +88,7 @@ describe("Catalog tab", () => {
       readdirSync(join(ui.fx.configDir, "backups/agentry/removed")).length,
       1
     );
-    await ui.until(/alpha\s+~\d+\s+not installed/);
+    await ui.until(/alpha\s+~\d+\s+○/);
   });
 });
 

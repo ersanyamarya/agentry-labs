@@ -114,7 +114,7 @@ describe("MCP tab: a adds a server, s edits env/args", () => {
   });
 
   test("s on a user server edits env and args with a masked preview", async () => {
-    await ui.moveTo(/^>\s*userdemo/);
+    await ui.moveTo(/^>[●○◐ ]\s*userdemo/);
     await ui.press("s");
     await ui.until(/Env changes:/);
     await type("API_KEY=sk-newvalue0987654321abcd EXTRA=1");
