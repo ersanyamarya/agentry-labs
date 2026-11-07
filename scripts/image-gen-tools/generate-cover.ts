@@ -31,9 +31,23 @@ const counts = [plural(skills.length, 'skill'), plural(agents.length, 'agent'), 
   .filter(Boolean)
   .join(' · ');
 
-const MAX_LISTED = 7;
-const listed = skills.slice(0, MAX_LISTED).map((s) => `<li><span class="dir">skills/</span>${escapeHtml(s)}</li>`).join('');
-const more = skills.length > MAX_LISTED ? `<li class="more">+ ${skills.length - MAX_LISTED} more</li>` : '';
+// The terminal shows the `agentry` TUI (cli/): header, tabs, a few real skill names with their state mark, the row's keys.
+// Marks and scopes are illustrative; the names and the Skills count come from skills/.
+const SHOWN = ['agentry', 'phased-plan', 'run-fallow', 'lighthouse-audit', 'skill-architect'].filter((s) => skills.includes(s));
+const rowStates = [
+  ['●', 'on', 'global'],
+  ['●', 'on', 'global'],
+  ['◐', 'half', 'this project'],
+  ['○', 'off', 'shelf'],
+  ['○', 'off', 'shelf'],
+] as const;
+const tabs = ['Skills', 'MCP', 'Hooks', 'Plugins', 'Doctor', 'Catalog', 'Backups', 'Rules']
+  .map((t, i) => `<span class="${i === 0 ? 'tab on' : 'tab'}">${t}${i === 0 ? ` ${skills.length}` : ''}</span>`)
+  .join('');
+const tuiRows = SHOWN.map((name, i) => {
+  const [mark, cls, scope] = rowStates[i] ?? rowStates[0];
+  return `<li class="row ${cls}${i === 0 ? ' sel' : ''}"><span class="cur">${i === 0 ? '›' : ' '}</span><span class="mark">${mark}</span><span class="name">${escapeHtml(name)}</span><span class="scope">${scope}</span></li>`;
+}).join('');
 
 const body = `
 <div class="frame">
@@ -44,11 +58,14 @@ const body = `
     <p class="counts">${escapeHtml(counts)}</p>
   </div>
   <div class="term">
-    <div class="bar"><i></i><i></i><i></i><span>install.sh</span></div>
+    <div class="bar"><i></i><i></i><i></i><span>agentry</span></div>
     <div class="screen">
-      <p class="cmd"><b>$</b> ls -d skills/*</p>
-      <ul>${listed}${more}</ul>
-      <p class="cmd"><b>$</b> curl -sSL …/install.sh | bash<span class="cursor"></span></p>
+      <p class="cmd"><b>$</b> agentry</p>
+      <p class="head"><strong>agentry</strong>  ~/my-project<span class="r">no problems</span></p>
+      <p class="tabs">${tabs}</p>
+      <ul>${tuiRows}</ul>
+      <p class="keys"><b>space</b> toggle  <b>s</b> shelve  <b>x</b> remove<span class="r"><b>?</b> help</span></p>
+      <p class="cmd inst"><b>$</b> npm i -g @ersanyamarya/agentry-cli<span class="cursor"></span></p>
     </div>
   </div>
 </div>
@@ -68,11 +85,23 @@ const css = `
   .bar i{width:12px;height:12px;border-radius:50%;background:oklch(0.35 0.02 160)}
   .bar i:first-child{background:oklch(0.8 0.19 150 / 0.85)}
   .bar span{margin-left:auto}
-  .screen{padding:24px 26px 26px;font-size:20px;line-height:1.55;color:oklch(0.9 0.02 150)}
-  .cmd{color:oklch(0.96 0.01 150)} .cmd b{color:oklch(0.8 0.19 150);font-weight:600;margin-right:10px}
-  ul{list-style:none;margin:6px 0 18px;padding-left:22px}
-  li{white-space:nowrap} .dir{color:oklch(0.55 0.03 155)} .more{color:oklch(0.66 0.03 155)}
-  .cursor{display:inline-block;width:11px;height:22px;margin-left:8px;vertical-align:-4px;background:oklch(0.8 0.19 150)}
+  .screen{padding:22px 24px 24px;font-size:15px;line-height:1.7;color:oklch(0.9 0.02 150)}
+  .cmd{color:oklch(0.96 0.01 150);font-size:17px} .cmd b{color:oklch(0.8 0.19 150);font-weight:600;margin-right:10px}
+  .head{display:flex;margin-top:12px;color:oklch(0.66 0.03 155);white-space:pre} .head strong{color:oklch(0.96 0.01 150)}
+  .r{margin-left:auto;color:oklch(0.66 0.03 155)}
+  .tabs{display:flex;gap:9px;white-space:nowrap;color:oklch(0.55 0.03 155);font-size:14px;margin-top:2px}
+  .tab.on{color:oklch(0.82 0.12 210);font-weight:700;text-decoration:underline;text-underline-offset:4px}
+  ul{list-style:none;margin:10px 0 10px;padding:0}
+  .row{display:flex;gap:10px;white-space:pre;padding:0 4px;border-radius:4px}
+  .row .cur{width:10px;color:oklch(0.82 0.12 210)} .row .mark{width:14px}
+  .row .name{flex:1;color:oklch(0.96 0.01 150)} .row .scope{color:oklch(0.55 0.03 155)}
+  .row.on .mark{color:oklch(0.8 0.19 150)} .row.half .mark{color:oklch(0.82 0.15 85)}
+  .row.off .mark,.row.off .name{color:oklch(0.5 0.02 155)}
+  .row.sel{background:oklch(1 0 0 / 0.07)}
+  .keys{display:flex;color:oklch(0.55 0.03 155);white-space:pre;padding-bottom:14px;border-bottom:1px solid oklch(1 0 0 / 0.07)}
+  .keys b{color:oklch(0.9 0.02 150);font-weight:600}
+  .inst{margin-top:14px}
+  .cursor{display:inline-block;width:10px;height:19px;margin-left:8px;vertical-align:-4px;background:oklch(0.8 0.19 150)}
 `;
 
 await renderCards([{ slug: 'cover', html: cardDocument(body, css) }], OUT_DIR, { scale: 1, format: 'jpeg' });
