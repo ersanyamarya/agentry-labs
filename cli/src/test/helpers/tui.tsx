@@ -172,7 +172,8 @@ export const createUi = ({
   const app = render(<App {...props} />);
 
   const until = async (pattern: RegExp, what = String(pattern)) => {
-    for (let tries = 0; tries < 100; tries += 1) {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
       if (
         pattern.test(app.lastFrame() ?? "") ||
         pattern.test(stripAnsi(app.lastFrame() ?? "")) ||
