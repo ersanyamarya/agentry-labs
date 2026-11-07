@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, test } from "node:test";
+import { afterEach, describe, test } from "vitest";
 import { tokenBreakdown } from "../tui/rows.js";
 import type { Data } from "../tui/types.js";
 import { filterRows } from "../tui/use-list.js";

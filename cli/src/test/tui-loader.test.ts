@@ -2,12 +2,11 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { test } from "vitest";
+import { root } from "./helpers/paths.js";
 
-// dist/test -> the package root (cli/), so the copy keeps the dist/ layout that packageVersion() relies on.
-const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+// The copy keeps the dist/ layout that packageVersion() relies on.
 const agentry = (dir: string, args: string[], options = {}) =>
   spawnSync(process.execPath, [join(dir, "dist/bin/agentry.js"), ...args], {
     encoding: "utf8",

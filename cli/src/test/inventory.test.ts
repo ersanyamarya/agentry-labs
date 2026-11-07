@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { afterEach, beforeEach, describe, test } from "node:test";
+import { afterEach, beforeEach, describe, test } from "vitest";
 import { createHooksReader } from "../lib/inventory/hooks.js";
 import { createPluginsReader } from "../lib/inventory/plugins.js";
 import { createSkillsReader } from "../lib/inventory/skills.js";

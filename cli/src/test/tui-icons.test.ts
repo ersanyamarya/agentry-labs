@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+import { describe, test } from "vitest";
 import { iconMode, iconsFor, toAscii } from "../tui/icons.js";
 import { catalogRows, doctorRows, findingKind } from "../tui/rows.js";
 import type { Data } from "../tui/types.js";

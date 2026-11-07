@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, test } from "node:test";
+import { afterEach, describe, test } from "vitest";
 import { copyText } from "../tui/clipboard.js";
 import { createUi, KEYS } from "./helpers/tui.js";
 

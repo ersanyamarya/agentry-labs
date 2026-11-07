@@ -28,7 +28,8 @@ Without linking, `npm install -g /path/to/agentry-labs/cli` also works.
 | Command | What it does |
 |---|---|
 | `npm run build` | `tsc`: compiles `src/` to `dist/`; the entry is `dist/bin/agentry.js` |
-| `npm test` | `tsc`, then `node --test dist/test` |
+| `npm test` | builds `dist/` once, then `vitest run` |
+| `npm run test:watch` | vitest in watch mode |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | `biome lint .` |
 | `npm run format` | `biome format --write .` |
@@ -42,7 +43,7 @@ Without linking, `npm install -g /path/to/agentry-labs/cli` also works.
 - `src/lib/inventory/`: readers for skills, MCP servers, hooks and plugins
 - `src/lib/types.ts`: shapes of the config files; `src/lib/version.ts` holds the package version
 - `src/tui/`: the Ink terminal UI (TSX) behind `agentry ui`
-- `src/test/`: `node:test` suites; `src/test/helpers/` builds a temp HOME and project
+- `src/test/`: vitest suites; `src/test/helpers/` builds a temp HOME and project
 - `docs/`: design docs, including `claude-config-sources.md` (what Claude Code reads and where)
 
 ## Catalog

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { after, before, describe, test } from "node:test";
+import { afterAll, beforeAll, describe, test } from "vitest";
 import type { Fixture } from "./helpers/fixture.js";
 import { createFixture } from "./helpers/fixture.js";
 
@@ -78,11 +78,11 @@ const buildWorkspace = () => {
   });
 };
 
-before(() => {
+beforeAll(() => {
   fx = createFixture();
   buildWorkspace();
 });
-after(() => fx.cleanup());
+afterAll(() => fx.cleanup());
 
 describe("scan over a fixture workspace", () => {
   test("finds the three repos and the worktree; skips node_modules and graft/", () => {

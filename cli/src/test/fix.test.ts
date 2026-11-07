@@ -16,7 +16,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, test } from "node:test";
+import { afterEach, beforeEach, describe, test } from "vitest";
 import { createDoctor } from "../lib/doctor.js";
 import type { Rule } from "../lib/doctor-rules.js";
 import { createFix, previewDiff } from "../lib/fix.js";

@@ -9,7 +9,7 @@ Run from `cli/`:
 ```bash
 npm install          # deps
 npm run build        # tsc: src/ -> dist/ (entry: dist/bin/agentry.js)
-npm test             # tsc, then node --test dist/test
+npm test             # builds dist/ once, then vitest run (npm run test:watch to watch)
 npm run typecheck    # tsc --noEmit
 npm run lint         # biome lint .
 npm run format       # biome format --write .
@@ -25,7 +25,7 @@ npm link             # puts `agentry` on PATH from dist/ (run npm run build firs
 - `src/lib/`: command modules; `types.ts` holds config shapes; `version.ts` holds the package version; `renames.json` is a data file read at runtime
 - `src/lib/inventory/`: readers for skills, MCP servers, hooks and plugins
 - `src/tui/`: Ink UI in TSX (`app.tsx`, `components/`, pure helpers such as `rows.ts`, `icons.ts`, `theme.ts`)
-- `src/test/`: `node:test` suites (`*.test.ts`, TUI tests `tui-*.test.ts`); `src/test/helpers/` builds temp HOME and project dirs
+- `src/test/`: vitest suites (`*.test.ts`, TUI tests `tui-*.test.ts`); `src/test/helpers/` builds temp HOME and project dirs
 - `docs/`: design docs; `claude-config-sources.md` is the spec for the inventory readers
 - `dist/`, `node_modules/`: generated, git-ignored
 

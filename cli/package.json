@@ -30,19 +30,19 @@
   },
   "files": [
     "dist",
-    "!dist/test",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "check": "biome check .",
     "dev": "tsc --watch",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "prepublishOnly": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && npm run build && npm test",
-    "test": "tsc && node --test dist/test",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -57,7 +57,8 @@
     "@types/react": "^19.3.0",
     "ink-testing-library": "^4.0.0",
     "typescript": "^7.0.2",
-    "ultracite": "^8.1.1"
+    "ultracite": "^8.1.1",
+    "vitest": "^5.1.0"
   },
   "engines": {
     "node": ">=22"

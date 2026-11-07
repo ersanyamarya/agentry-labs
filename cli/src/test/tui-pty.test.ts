@@ -4,15 +4,13 @@
 
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { afterEach, beforeEach, describe, test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, test } from "vitest";
 import type { Fixture } from "./helpers/fixture.js";
 import { createFixture } from "./helpers/fixture.js";
+import { bin, root } from "./helpers/paths.js";
 
-const bin = fileURLToPath(new URL("../bin/agentry.js", import.meta.url));
-const runner = fileURLToPath(
-  new URL("../../src/test/helpers/pty-run.py", import.meta.url)
-);
+const runner = join(root, "src/test/helpers/pty-run.py");
 const hasPython = spawnSync("python3", ["-c", "import pty"]).status === 0;
 
 let fx: Fixture;
@@ -61,9 +59,7 @@ const ui = (extra: Record<string, string | undefined>) =>
 
 const COLOUR = /\u001B\[(3[0-7]|9[0-7])m/;
 
-describe("colour in a pseudo-terminal", {
-  skip: !hasPython && "needs python3 with pty",
-}, () => {
+describe.skipIf(!hasPython)("colour in a pseudo-terminal", () => {
   test("TERM=xterm-256color: real SGR colour escapes", async () => {
     const out = await ui({ TERM: "xterm-256color" });
     assert.match(out, /\u001B\[36m/, "cyan");

@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { afterEach, beforeEach, describe, test } from "node:test";
+import { afterEach, beforeEach, describe, test } from "vitest";
 import type { Paths } from "../lib/paths.js";
 import { createPaths } from "../lib/paths.js";
 import { createScan } from "../lib/scan.js";

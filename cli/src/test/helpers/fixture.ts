@@ -10,9 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const bin = fileURLToPath(new URL("../../bin/agentry.js", import.meta.url));
+import { bin } from "./paths.js";
 
 export type Fixture = ReturnType<typeof createFixture>;
 

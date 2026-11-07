@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { afterEach, beforeEach, describe, test } from "node:test";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, test } from "vitest";
 import type { Fixture } from "./helpers/fixture.js";
 import { createFixture } from "./helpers/fixture.js";
+import { root } from "./helpers/paths.js";
 
 let fx: Fixture;
 beforeEach(() => {
@@ -11,7 +13,7 @@ beforeEach(() => {
 afterEach(() => fx.cleanup());
 
 const { version } = JSON.parse(
-  readFileSync(new URL("../../package.json", import.meta.url), "utf8")
+  readFileSync(join(root, "package.json"), "utf8")
 );
 
 describe("router", () => {

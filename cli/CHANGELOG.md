@@ -6,6 +6,7 @@
 - Skills: Project and Global columns hold a single mark; Doctor and Catalog rows carry a kind glyph; Backups has a header row.
 - Previews end in `Apply?  y yes   n no` with a "nothing is written" note; a failed apply starts with `✖ <action> failed` under a red notification.
 - 80 columns and `NO_COLOR`: bracketed active tab, `Doctor N err`, `↓ N more` instead of a cursor counter, stacked details that pair short lines.
+- Tests run on vitest (`npm test`, `npm run test:watch`); the build no longer emits `dist/test`.
 
 ## 0.1.0
 

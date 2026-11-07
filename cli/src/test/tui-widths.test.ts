@@ -1,6 +1,6 @@
 // The layout at 80, 100 and 130 columns on every tab: no line wider than the terminal, state badges whole, frames stable.
 import assert from "node:assert/strict";
-import { afterEach, describe, test } from "node:test";
+import { afterEach, describe, test } from "vitest";
 import { createUi, KEYS, stripAnsi } from "./helpers/tui.js";
 
 let ui: ReturnType<typeof createUi>;

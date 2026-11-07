@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { afterEach, beforeEach, describe, test } from "node:test";
+import { afterEach, beforeEach, describe, test } from "vitest";
 import type { McpResult } from "../lib/inventory/mcp.js";
 import { createMcpReader } from "../lib/inventory/mcp.js";
 import { maskArgs, maskHeader, maskUrl, maskValue } from "../lib/mask.js";

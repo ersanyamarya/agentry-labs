@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, test } from "node:test";
+import { afterEach, beforeEach, test } from "vitest";
 import { compactTokens } from "../tui/layout.js";
 import { skillRows } from "../tui/rows.js";
 import type { Data } from "../tui/types.js";
