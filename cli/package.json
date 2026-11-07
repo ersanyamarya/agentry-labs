@@ -36,12 +36,13 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "postbuild": "node -e \"fs.chmodSync('dist/bin/agentry.js',0o755)\"",
     "check": "biome check .",
     "dev": "tsc --watch",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "prepublishOnly": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && npm run build && npm test",
-    "test": "vitest run",
+    "test": "VITEST_MAX_WORKERS=10 vitest run --testTimeout=0",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
