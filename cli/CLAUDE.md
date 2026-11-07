@@ -17,7 +17,7 @@ npm run check        # biome check .
 npm link             # puts `agentry` on PATH from dist/ (run npm run build first)
 ```
 
-`npm test` runs against `dist/`, so tests see the compiled code; there is no separate test runner.
+Tests run with vitest on `src/`; the CLI subprocess tests spawn the built `dist/bin/agentry.js`, which `npm test` builds first.
 
 ## Layout
 
