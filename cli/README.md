@@ -4,7 +4,14 @@
 
 It is written in strict TypeScript (ESM) and needs Node.js 22 or newer. It lives in this repo's `cli/` folder; the repo overview is in the [root README](../README.md).
 
-## Build and link
+## Install
+
+```bash
+npm install -g @ersanyamarya/agentry-cli
+agentry --version
+```
+
+## Build from source and link
 
 ```bash
 cd cli
