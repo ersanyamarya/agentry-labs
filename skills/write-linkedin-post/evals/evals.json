@@ -1,0 +1,23 @@
+{
+  "skill_name": "write-linkedin-post",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/write-linkedin-post Announce Agentry Labs, a repo of reusable Claude Code skills, rules, and MCP configs installed per project or globally in bundles. https://github.com/ersanyamarya/agentry-labs",
+      "expected_output": "One post: bold opening line naming the copy-pasted-setup problem, one or two short paragraphs, exactly three bullets, two to four hashtags inside sentences or bullets, a CTA ending with the real GitHub URL and no hashtag. No em dashes, no 'thrilled/excited to share', no invented metrics. check-post.mjs reports pass: true. No commentary around the post.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "/write-linkedin-post Lesson learned: I spent a week adding prompt rules so the model would count words and bullets correctly, then a five-line script fixed it in an hour. No link.",
+      "expected_output": "Lesson-type post with no URL and no request for one. The CTA invites readers to reply with their own take and contains no hashtag. Three bullets carry the reusable takeaway. check-post.mjs reports pass: true.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Make a LinkedIn post about this",
+      "expected_output": "With no subject in the arguments, files, or obvious repo context, the skill asks once for the subject and a one-sentence description, and does not ask for a URL.",
+      "files": []
+    }
+  ]
+}

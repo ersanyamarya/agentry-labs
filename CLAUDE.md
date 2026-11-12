@@ -99,6 +99,7 @@ claude -p "/image-artifact-setup"
 | `skill-architect` | global |
 | `sync-docs-from-diff` | global |
 | `theme-hardcoding-audit` | flutter |
+| `write-linkedin-post` | global |
 | `write-project-readme` | global |
 
 Each skill's bundle is set in `bundles.tsv`; the README lists them all. `shelf` means the skill is in no bundle: it lives in `~/.claude/skill-shelf/<group>/` and is linked in with `agentry shelf on <group>`.

@@ -146,6 +146,7 @@ Build steps, scripts, the catalog source and every command are in [cli/README.md
 | `run-fallow` | Run the `fallow` CLI on any JavaScript/TypeScript project to find dead code, unused dependencies, duplication, complexity hotspots, and security candidates, then report c |
 | `skill-architect` | Create, improve, or review Claude Code skills so they are portable, token-efficient, and spec-compliant, with scripts doing the exact work and the model doing the judgmen |
 | `sync-docs-from-diff` | Update repo documentation from a git diff. |
+| `write-linkedin-post` | Write one concise LinkedIn post about anything (launch, article, lesson, milestone, opinion) with a bold opener, three bullets, inline hashtags, and a script-checked format. |
 | `write-project-readme` | Draft or refresh a project README from Product.md, Brand.md, and the repository structure. |
 
 **`flutter`** (Flutter and Dart projects):

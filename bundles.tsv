@@ -20,3 +20,4 @@ global	skills/write-project-readme
 mongodb	skills/mongodb-data-modeling
 mongodb	skills/mongoose-schema-docs
 web	skills/shadcn
+global	skills/write-linkedin-post
