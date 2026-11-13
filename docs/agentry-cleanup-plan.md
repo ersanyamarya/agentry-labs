@@ -129,9 +129,9 @@ previewed diff, a backup, and `agentry fix --undo`.
 
 | Done | Task | Model |
 |---|---|---|
-| [ ] | Bump the version to `0.3.0` in `cli/package.json` and in `cli/package-lock.json` (root `version` and `packages[""].version`; leave workspace package versions alone). Rename `## Unreleased` to `## 0.3.0` in `cli/CHANGELOG.md`, and add a line for the release. | haiku-5-5 |
-| [ ] | Update the docs for the new rules: the doctor and fix sections of `cli/README.md` (rule ids, which are advice-only, and `fix --undo`), and `cli/CLAUDE.md` only where conventions or layout changed (for example, the exported hook remover). Touch the root `README.md` and `CLAUDE.md` only if a sentence there is now wrong. | haiku-5-5 |
-| [ ] | Run the release checks from Done when. Ask the user, squash-merge `cleanup/phase-2` into `main` as `chore(cli): release 0.3.0` (no attribution), and stop. Tell the user to run `npm publish` from `cli/` and then `npm i -g @ersanyamarya/agentry-cli@0.3.0`. Never run publish or push. | sonnet-5-5 |
+| [x] | Bump the version to `0.3.0` in `cli/package.json` and in `cli/package-lock.json` (root `version` and `packages[""].version`; leave workspace package versions alone). Rename `## Unreleased` to `## 0.3.0` in `cli/CHANGELOG.md`, and add a line for the release. | haiku-5-5 |
+| [x] | Update the docs for the new rules: the doctor and fix sections of `cli/README.md` (rule ids, which are advice-only, and `fix --undo`), and `cli/CLAUDE.md` only where conventions or layout changed (for example, the exported hook remover). Touch the root `README.md` and `CLAUDE.md` only if a sentence there is now wrong. | haiku-5-5 |
+| [x] | Run the release checks from Done when. Ask the user, squash-merge `cleanup/phase-2` into `main` as `chore(cli): release 0.3.0` (no attribution), and stop. Tell the user to run `npm publish` from `cli/` and then `npm i -g @ersanyamarya/agentry-cli@0.3.0`. Never run publish or push. | sonnet-5-5 |
 
 ## Phase 3: Clean the workspace with the released 0.3.0
 

@@ -1,6 +1,6 @@
 {
   "name": "@ersanyamarya/agentry-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "agentry: inspect and manage what a Claude Code session loads (skills, MCP servers, hooks, plugins, CLAUDE.md), with a terminal UI",
   "keywords": [
     "claude-code",

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - Doctor: `dup-hook-scope` finds a hook that a project or local settings file repeats from your user settings (for example a project copy of trail's graft-hooks.cjs), so it runs twice; `agentry fix` removes the project copy, with a backup.
 - Doctor: `stale-mcp-permission` finds `mcp__trail` and `mcp__graft` permissions in project or local settings when no such MCP server is configured (trail is a command now); `agentry fix` removes those entries, with a backup.
