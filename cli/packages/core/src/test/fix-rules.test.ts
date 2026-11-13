@@ -17,18 +17,13 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createDoctor } from "../lib/doctor.js";
-import { createFix } from "../lib/fix.js";
-import { createFixes } from "../lib/fix-rules.js";
-import { createFixUndo } from "../lib/fix-undo.js";
-import type { Paths } from "../lib/paths.js";
-import { createPaths } from "../lib/paths.js";
-import type {
-  Finding,
-  RunCommand,
-  TextFix,
-  UnfixableFix,
-} from "../lib/types.js";
+import { createDoctor } from "../doctor.js";
+import { createFix } from "../fix.js";
+import { createFixes } from "../fix-rules.js";
+import { createFixUndo } from "../fix-undo.js";
+import type { Paths } from "../paths.js";
+import { createPaths } from "../paths.js";
+import type { Finding, RunCommand, TextFix, UnfixableFix } from "../types.js";
 
 // Layout: <root>/home/.claude (config), <root>/home/ws/repo (git repo), <root>/bin (PATH with a fake `trail`). Never the real home.
 let root: string;

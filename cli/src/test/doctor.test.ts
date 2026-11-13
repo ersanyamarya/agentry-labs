@@ -11,9 +11,9 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { createDoctor } from "@agentry/core/doctor";
+import { createPaths } from "@agentry/core/paths";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createDoctor } from "../lib/doctor.js";
-import { createPaths } from "../lib/paths.js";
 import type { Fixture } from "./helpers/fixture.js";
 import { createFixture } from "./helpers/fixture.js";
 

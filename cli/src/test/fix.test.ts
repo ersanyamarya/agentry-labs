@@ -16,13 +16,13 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
+import { createDoctor } from "@agentry/core/doctor";
+import type { Rule } from "@agentry/core/doctor-rules";
+import { createFix, previewDiff } from "@agentry/core/fix";
+import type { Paths } from "@agentry/core/paths";
+import { createPaths } from "@agentry/core/paths";
+import type { Finding, FixRegistry, RunCommand } from "@agentry/core/types";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createDoctor } from "../lib/doctor.js";
-import type { Rule } from "../lib/doctor-rules.js";
-import { createFix, previewDiff } from "../lib/fix.js";
-import type { Paths } from "../lib/paths.js";
-import { createPaths } from "../lib/paths.js";
-import type { Finding, FixRegistry, RunCommand } from "../lib/types.js";
 import { createFixture } from "./helpers/fixture.js";
 
 // A fake doctor rule flags target.json while it contains BAD; the fake fix rewrites BAD to GOOD. Never the real home.

@@ -2,23 +2,23 @@
 // agentry: shows and manages what a Claude Code session loads. Run `agentry --help`.
 
 import { parseArgs } from "node:util";
-import { createBackups } from "../lib/backups.js";
-import { createCatalog } from "../lib/catalog.js";
-import { createDoctor } from "../lib/doctor.js";
-import { createFix } from "../lib/fix.js";
-import { createFixUndo } from "../lib/fix-undo.js";
-import type { HookAction } from "../lib/hook-toggle.js";
-import { createHookToggle } from "../lib/hook-toggle.js";
-import { createMcpEdit } from "../lib/mcp-edit.js";
-import { createMcpToggle } from "../lib/mcp-toggle.js";
-import { createPaths } from "../lib/paths.js";
-import { createPluginInstall } from "../lib/plugin-install.js";
-import { createPluginToggle } from "../lib/plugin-toggle.js";
-import { createRules } from "../lib/rules.js";
-import { createScan } from "../lib/scan.js";
-import { createShelf } from "../lib/shelf.js";
-import { createStatus } from "../lib/status.js";
-import { packageVersion } from "../lib/version.js";
+import { createBackups } from "@agentry/core/backups";
+import { createCatalog } from "@agentry/core/catalog";
+import { createDoctor } from "@agentry/core/doctor";
+import { createFix } from "@agentry/core/fix";
+import { createFixUndo } from "@agentry/core/fix-undo";
+import type { HookAction } from "@agentry/core/hook-toggle";
+import { createHookToggle } from "@agentry/core/hook-toggle";
+import { createMcpEdit } from "@agentry/core/mcp-edit";
+import { createMcpToggle } from "@agentry/core/mcp-toggle";
+import { createPaths } from "@agentry/core/paths";
+import { createPluginInstall } from "@agentry/core/plugin-install";
+import { createPluginToggle } from "@agentry/core/plugin-toggle";
+import { createRules } from "@agentry/core/rules";
+import { createScan } from "@agentry/core/scan";
+import { createShelf } from "@agentry/core/shelf";
+import { createStatus } from "@agentry/core/status";
+import { packageVersion } from "@agentry/core/version";
 
 const USAGE = `Usage: agentry <command> [options]
 
@@ -391,7 +391,7 @@ const preferColor = (): void => {
 
 const runUi = async (): Promise<number> => {
   preferColor();
-  const { run } = await import("../tui/index.js");
+  const { run } = await import("@agentry/tui");
   return run({
     io: {
       stdin: process.stdin,

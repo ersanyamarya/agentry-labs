@@ -34,17 +34,20 @@
     "LICENSE",
     "CHANGELOG.md"
   ],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "esbuild src/bin/agentry.ts --bundle --platform=node --format=esm --target=node22 --splitting --outdir=dist/bin --jsx=automatic --external:figures --external:ink --external:ink-spinner --external:react",
     "postbuild": "node -e \"fs.chmodSync('dist/bin/agentry.js',0o755)\"",
     "check": "biome check .",
-    "dev": "tsc --watch",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "prepublishOnly": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && npm run build && npm test",
     "test": "VITEST_MAX_WORKERS=10 vitest run --testTimeout=0",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc -p packages/core && tsc -p packages/tui && tsc -p .",
+    "pack:check": "node scripts/pack-check.mjs"
   },
   "dependencies": {
     "figures": "^6.1.0",
@@ -53,9 +56,12 @@
     "react": "^19.3.1"
   },
   "devDependencies": {
+    "@agentry/core": "*",
+    "@agentry/tui": "*",
     "@biomejs/biome": "^2.6.4",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
+    "esbuild": "^0.28.2",
     "ink-testing-library": "^4.0.0",
     "typescript": "^7.0.2",
     "ultracite": "^8.1.1",

@@ -4,16 +4,19 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { createData } from "@agentry/core/data";
+import { createDiscover } from "@agentry/core/discover";
+import type { DoctorOptions } from "@agentry/core/doctor";
+import type { Rule } from "@agentry/core/doctor-rules";
+import { createPaths } from "@agentry/core/paths";
+import type { Finding } from "@agentry/core/types";
 import { render } from "ink-testing-library";
-import { createDiscover } from "../../lib/discover.js";
-import type { DoctorOptions } from "../../lib/doctor.js";
-import type { Rule } from "../../lib/doctor-rules.js";
-import { createPaths } from "../../lib/paths.js";
-import type { Finding } from "../../lib/types.js";
-import { App, type AppProps } from "../../tui/app.js";
-import { createData } from "../../tui/data.js";
-import { createRecents } from "../../tui/recents.js";
-import { addPlugin, createFixture } from "./fixture.js";
+import {
+  addPlugin,
+  createFixture,
+} from "../../../../../src/test/helpers/fixture.js";
+import { App, type AppProps } from "../../app.js";
+import { createRecents } from "../../recents.js";
 
 export const KEYS = {
   up: "\u001B[A",

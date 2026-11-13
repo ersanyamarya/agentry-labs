@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, test } from "vitest";
-import { iconMode, iconsFor, toAscii } from "../tui/icons.js";
-import { catalogRows, doctorRows, findingKind } from "../tui/rows.js";
-import type { Data } from "../tui/types.js";
-import { createUi, KEYS, stripAnsi } from "./helpers/tui.js";
+import { iconMode, iconsFor, toAscii } from "../../packages/tui/src/icons.js";
+import {
+  catalogRows,
+  doctorRows,
+  findingKind,
+} from "../../packages/tui/src/rows.js";
+import {
+  createUi,
+  KEYS,
+  stripAnsi,
+} from "../../packages/tui/src/test/helpers/tui.js";
+import type { Data } from "../../packages/tui/src/types.js";
 
 const KINDS = [
   "skill",

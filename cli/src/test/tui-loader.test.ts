@@ -16,7 +16,7 @@ const agentry = (dir: string, args: string[], options = {}) =>
 test("help runs without node_modules, so Ink and React are never loaded for it", () => {
   const copy = mkdtempSync(join(tmpdir(), "agentry-no-deps-"));
   try {
-    for (const entry of ["dist/bin", "dist/lib", "package.json"]) {
+    for (const entry of ["dist/bin", "package.json"]) {
       cpSync(join(root, entry), join(copy, entry), { recursive: true });
     }
     for (const args of [["--help"], ["--version"], ["shelf", "list"]]) {

@@ -183,8 +183,8 @@ describe("refusals and usage", () => {
   });
 
   test("MDM reader is injectable: a plugin the domain does not name is toggled", async () => {
-    const { createPluginToggle } = await import("../lib/plugin-toggle.js");
-    const { createPaths } = await import("../lib/paths.js");
+    const { createPluginToggle } = await import("@agentry/core/plugin-toggle");
+    const { createPaths } = await import("@agentry/core/paths");
     addPlugin(fx, { settingsText: ON });
     const paths = createPaths({
       env: {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "vitest";
-import { copyText } from "../tui/clipboard.js";
-import { createUi, KEYS } from "./helpers/tui.js";
+import { copyText } from "../../packages/tui/src/clipboard.js";
+import { createUi, KEYS } from "../../packages/tui/src/test/helpers/tui.js";
 
 let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());

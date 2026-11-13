@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createUi, KEYS } from "./helpers/tui.js";
+import { createUi, KEYS } from "../../packages/tui/src/test/helpers/tui.js";
 
 let ui: ReturnType<typeof createUi>;
 let origin: string;

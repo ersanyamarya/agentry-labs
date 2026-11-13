@@ -3,7 +3,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { Paths } from "../lib/paths.js";
+import type { Paths } from "@agentry/core/paths";
 
 const MAX_RECENTS = 10;
 

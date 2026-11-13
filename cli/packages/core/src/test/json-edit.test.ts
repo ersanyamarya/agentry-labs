@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "vitest";
-import { createJsonEdit } from "../lib/json-edit.js";
+import { createJsonEdit } from "../json-edit.js";
 
 const tabs =
   '{\n\t"a": 1,\n\t"mcpServers": {\n\t\t"one": { "command": "x" },\n\t\t"two": {\n\t\t\t"command": "y"\n\t\t},\n\t\t"three": "z"\n\t},\n\t"tail": [\n\t\t"p",\n\t\t"q",\n\t\t"r"\n\t]\n}\n';

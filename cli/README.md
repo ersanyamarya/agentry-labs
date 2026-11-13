@@ -39,10 +39,10 @@ Without linking, `npm install -g /path/to/agentry-labs/cli` also works.
 ## Layout
 
 - `src/bin/agentry.ts`: the command router
-- `src/lib/`: the command modules (shelf, catalog, scan, fix and undo, doctor, status, MCP, hook and plugin toggles, rules, backups, tokens, paths)
-- `src/lib/inventory/`: readers for skills, MCP servers, hooks and plugins
-- `src/lib/types.ts`: shapes of the config files; `src/lib/version.ts` holds the package version
-- `src/tui/`: the Ink terminal UI (TSX) behind `agentry ui`
+- `src/bin/agentry.ts`: the command router
+- `packages/core/`: the command modules (shelf, catalog, scan, fix and undo, doctor, status, MCP, hook and plugin toggles, rules, backups, tokens, paths), `data.ts` (the facade both UIs call) and `inventory/` (readers for skills, MCP servers, hooks and plugins)
+- `packages/tui/`: the Ink terminal UI (TSX) behind `agentry ui`
+- These are npm workspaces; `npm run build` bundles them into the one published package with esbuild
 - `src/test/`: vitest suites; `src/test/helpers/` builds a temp HOME and project
 - `docs/`: design docs, including `claude-config-sources.md` (what Claude Code reads and where)
 

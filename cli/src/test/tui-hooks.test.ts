@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createUi, KEYS } from "./helpers/tui.js";
+import { createUi, KEYS } from "../../packages/tui/src/test/helpers/tui.js";
 
 const SECRET = "abcdef0123456789abcdef0123";
 const HOOKS = {

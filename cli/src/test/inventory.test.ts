@@ -10,12 +10,12 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { createHooksReader } from "@agentry/core/inventory/hooks";
+import { createPluginsReader } from "@agentry/core/inventory/plugins";
+import { createSkillsReader } from "@agentry/core/inventory/skills";
+import { createPaths } from "@agentry/core/paths";
+import { createStatus } from "@agentry/core/status";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createHooksReader } from "../lib/inventory/hooks.js";
-import { createPluginsReader } from "../lib/inventory/plugins.js";
-import { createSkillsReader } from "../lib/inventory/skills.js";
-import { createPaths } from "../lib/paths.js";
-import { createStatus } from "../lib/status.js";
 import { createFixture } from "./helpers/fixture.js";
 
 // Layout: <root>/home/.claude (config), <root>/home/ws/repo (git repo). Nothing here reads the real home.

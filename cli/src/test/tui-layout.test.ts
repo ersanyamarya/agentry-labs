@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "vitest";
-import { compactTokens } from "../tui/layout.js";
-import { skillRows } from "../tui/rows.js";
-import type { Data } from "../tui/types.js";
-import { failedText } from "../tui/use-flow.js";
-import { createUi, KEYS, stripAnsi } from "./helpers/tui.js";
+import { compactTokens } from "../../packages/tui/src/layout.js";
+import { skillRows } from "../../packages/tui/src/rows.js";
+import {
+  createUi,
+  KEYS,
+  stripAnsi,
+} from "../../packages/tui/src/test/helpers/tui.js";
+import type { Data } from "../../packages/tui/src/types.js";
+import { failedText } from "../../packages/tui/src/use-flow.js";
 
 let ui: ReturnType<typeof createUi>;
 beforeEach(async () => {

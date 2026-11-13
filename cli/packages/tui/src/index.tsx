@@ -1,12 +1,12 @@
 // Terminal UI entry. src/bin/agentry.ts imports this only for `agentry ui` (and bare `agentry` in a terminal), so Ink and
 // React never load for other commands. All reads and actions go through src/tui/data.ts, which calls the lib/ functions.
 
+import { createData } from "@agentry/core/data";
+import { createDiscover } from "@agentry/core/discover";
+import { createPaths, type Paths } from "@agentry/core/paths";
 import { render } from "ink";
-import { createDiscover } from "../lib/discover.js";
-import { createPaths, type Paths } from "../lib/paths.js";
 // biome-ignore lint/style/noExportedImports: the entry point re-exports App on purpose
 import { App } from "./app.js";
-import { createData } from "./data.js";
 import { createRecents } from "./recents.js";
 
 export { App };

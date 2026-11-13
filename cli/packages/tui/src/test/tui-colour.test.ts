@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "vitest";
-import { doctorRows, skillRows } from "../tui/rows.js";
+import { doctorRows, skillRows } from "../rows.js";
 import {
   colorEnabled,
   costStyle,
   SEVERITY,
   scopeStyle,
   stateStyle,
-} from "../tui/theme.js";
-import type { Data } from "../tui/types.js";
+} from "../theme.js";
+import type { Data } from "../types.js";
 
 // Colour is Ink props, not raw ANSI. FORCE_COLOR makes the test renderer emit real escape codes so the props can be seen.
 process.env.FORCE_COLOR = "1";

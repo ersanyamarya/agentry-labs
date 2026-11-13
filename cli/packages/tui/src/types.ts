@@ -1,9 +1,9 @@
 // Types shared by the TUI modules: rows, theme styles, footer keys and the props every tab takes.
 
+import type { CatalogInstall, CatalogKind } from "@agentry/core/catalog";
+import type { createData } from "@agentry/core/data";
+import type { Finding, Severity } from "@agentry/core/types";
 import type { TextProps } from "ink";
-import type { CatalogInstall, CatalogKind } from "../lib/catalog.js";
-import type { Finding, Severity } from "../lib/types.js";
-import type { createData } from "./data.js";
 import type { layoutFor } from "./layout.js";
 
 // Plain Ink Text props (colour, dim, bold, inverse) so styles stay pure and testable.

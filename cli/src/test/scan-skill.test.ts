@@ -12,11 +12,11 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { createBackups } from "@agentry/core/backups";
+import type { Paths } from "@agentry/core/paths";
+import { createPaths } from "@agentry/core/paths";
+import { createScan } from "@agentry/core/scan";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createBackups } from "../lib/backups.js";
-import type { Paths } from "../lib/paths.js";
-import { createPaths } from "../lib/paths.js";
-import { createScan } from "../lib/scan.js";
 import { createFixture } from "./helpers/fixture.js";
 
 // ws/{tracked,loose,link,none} are repos; the first three have .claude/skills/old, `tracked` has it committed.

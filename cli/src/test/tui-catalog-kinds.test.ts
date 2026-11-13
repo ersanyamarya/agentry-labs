@@ -10,7 +10,10 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createUi, stripAnsi } from "./helpers/tui.js";
+import {
+  createUi,
+  stripAnsi,
+} from "../../packages/tui/src/test/helpers/tui.js";
 
 const SECRET = "sk-supersecretvalue1234567890";
 

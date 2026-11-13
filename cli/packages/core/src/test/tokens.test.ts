@@ -7,7 +7,7 @@ import {
   descriptionTokens,
   estimateTokens,
   readDescription,
-} from "../lib/tokens.js";
+} from "../tokens.js";
 
 let dir: string;
 beforeEach(() => {

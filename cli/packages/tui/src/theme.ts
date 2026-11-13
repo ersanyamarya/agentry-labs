@@ -3,8 +3,8 @@
 // https://no-color.org) drops the colour props but keeps bold, dim and inverse, and every badge is also a word
 // (on, off, partial, error...), so nothing depends on colour alone.
 
+import type { Severity } from "@agentry/core/types";
 import React from "react";
-import type { Severity } from "../lib/types.js";
 import { type Icons, iconsFor } from "./icons.js";
 import type { Seg, Style } from "./types.js";
 

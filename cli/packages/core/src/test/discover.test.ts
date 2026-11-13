@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createDiscover } from "../lib/discover.js";
+import { createDiscover } from "../discover.js";
 
 let root: string;
 beforeEach(() => {

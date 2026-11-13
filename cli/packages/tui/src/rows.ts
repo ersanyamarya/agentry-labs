@@ -3,9 +3,9 @@
 // is the same text without colour. Everything shown here already passed through src/lib/mask.ts (the inventory readers
 // mask before returning).
 
-import { formatAge, formatBytes } from "../lib/backups.js";
-import type { CatalogEntry } from "../lib/catalog.js";
-import type { SkillItem } from "../lib/types.js";
+import { formatAge, formatBytes } from "@agentry/core/backups";
+import type { CatalogEntry } from "@agentry/core/catalog";
+import type { SkillItem } from "@agentry/core/types";
 import { type Icons, iconsFor } from "./icons.js";
 import {
   badgeText,

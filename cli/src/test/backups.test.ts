@@ -8,10 +8,10 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { createBackups } from "@agentry/core/backups";
+import { createPaths } from "@agentry/core/paths";
+import { createShelf } from "@agentry/core/shelf";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createBackups } from "../lib/backups.js";
-import { createPaths } from "../lib/paths.js";
-import { createShelf } from "../lib/shelf.js";
 import { createFixture } from "./helpers/fixture.js";
 
 let fx: ReturnType<typeof createFixture>;

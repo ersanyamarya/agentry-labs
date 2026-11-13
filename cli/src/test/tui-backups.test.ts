@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createUi, KEYS } from "./helpers/tui.js";
+import { createUi, KEYS } from "../../packages/tui/src/test/helpers/tui.js";
 
 let ui: ReturnType<typeof createUi>;
 const put = (file: string, text: string) => {

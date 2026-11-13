@@ -1,23 +1,23 @@
 // The UI's only door to lib/: every read and every action goes through the same functions the CLI uses.
 // `makePaths(dir)` builds the paths for one project folder; options reach the lib factories so tests can inject fixtures.
 
-import { createBackups } from "../lib/backups.js";
-import { type CatalogOptions, createCatalog } from "../lib/catalog.js";
-import { createDoctor, type DoctorOptions } from "../lib/doctor.js";
-import { createFix, findingKey } from "../lib/fix.js";
-import { createFixUndo } from "../lib/fix-undo.js";
-import { createHookToggle, type HookAction } from "../lib/hook-toggle.js";
-import type { AddArgs, SetArgs } from "../lib/mcp-edit.js";
-import { createMcpEdit } from "../lib/mcp-edit.js";
-import { createMcpToggle } from "../lib/mcp-toggle.js";
-import type { Paths } from "../lib/paths.js";
-import type { PluginInstallArgs } from "../lib/plugin-install.js";
-import { createPluginInstall } from "../lib/plugin-install.js";
-import { createPluginToggle } from "../lib/plugin-toggle.js";
-import { createRules } from "../lib/rules.js";
-import { createShelf } from "../lib/shelf.js";
-import { createStatus } from "../lib/status.js";
-import type { Finding, FixOptions } from "../lib/types.js";
+import { createBackups } from "./backups.js";
+import { type CatalogOptions, createCatalog } from "./catalog.js";
+import { createDoctor, type DoctorOptions } from "./doctor.js";
+import { createFix, findingKey } from "./fix.js";
+import { createFixUndo } from "./fix-undo.js";
+import { createHookToggle, type HookAction } from "./hook-toggle.js";
+import type { AddArgs, SetArgs } from "./mcp-edit.js";
+import { createMcpEdit } from "./mcp-edit.js";
+import { createMcpToggle } from "./mcp-toggle.js";
+import type { Paths } from "./paths.js";
+import type { PluginInstallArgs } from "./plugin-install.js";
+import { createPluginInstall } from "./plugin-install.js";
+import { createPluginToggle } from "./plugin-toggle.js";
+import { createRules } from "./rules.js";
+import { createShelf } from "./shelf.js";
+import { createStatus } from "./status.js";
+import type { Finding, FixOptions } from "./types.js";
 
 const failure = (error: unknown) =>
   `failed (${(error as { code?: string; name?: string } | undefined)?.code ?? (error as { name?: string } | undefined)?.name ?? "error"})`;

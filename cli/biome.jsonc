@@ -8,7 +8,15 @@
     "root": ".."
   },
   "files": {
-    "includes": ["src/**", "*.json", "*.jsonc", "!dist", "!node_modules"]
+    "includes": [
+      "src/**",
+      "packages/*/src/**",
+      "packages/*/*.json",
+      "*.json",
+      "*.jsonc",
+      "!**/dist",
+      "!**/node_modules"
+    ]
   },
   "assist": {
     "actions": {
@@ -51,7 +59,71 @@
   },
   "overrides": [
     {
-      "includes": ["src/test/**"],
+      "includes": ["packages/core/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "react": "core has no UI",
+                  "ink": "core has no UI",
+                  "@agentry/tui": "core imports no UI",
+                  "@agentry/web": "core imports no UI"
+                },
+                "patterns": [
+                  {
+                    "group": [
+                      "react/*",
+                      "react-dom",
+                      "react-dom/*",
+                      "ink-*",
+                      "ink/*",
+                      "@tanstack/*",
+                      "@agentry/*",
+                      "**/tui/src/**",
+                      "**/web/src/**"
+                    ],
+                    "message": "core imports no UI or workspace package"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/tui/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@agentry/web": "tui and web never import each other"
+                },
+                "patterns": [
+                  {
+                    "group": [
+                      "@agentry/web/*",
+                      "@tanstack/*",
+                      "**/web/src/**",
+                      "**/core/src/**"
+                    ],
+                    "message": "tui imports core only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/test/**", "packages/*/src/test/**"],
       "linter": {
         "rules": {
           "style": {
