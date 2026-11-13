@@ -49,7 +49,7 @@ describe("Catalog tab", () => {
     await ui.press("f");
     await ui.until(/web bundle/);
     assert.match(ui.frame()!, /alpha\s+~\d+\s+○/);
-    assert.match(ui.frame()!, /Catalog 2/);
+    assert.match(ui.rail(), /Catalog\s+2/);
   });
 
   test("i previews and y adds the skill to the shelf, off; it then shows where it is", async () => {

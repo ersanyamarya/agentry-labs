@@ -79,7 +79,7 @@ describe("Catalog tab beyond skills", () => {
     await ui.moveTo(/^>\s+\S\s+helper/);
     const frame = stripAnsi(ui.frame()!);
     assert.match(frame, /Agents/);
-    assert.match(frame, /Catalog 6/);
+    assert.match(ui.rail(), /Catalog\s+6/);
     assert.match(ui.frame()!, /\bi add/);
     assert.match(ui.frame()!, /\bo (add to this )?project/);
     await ui.moveTo(/^>\s+\S\s+style/);
@@ -282,7 +282,7 @@ describe("Rules tab", () => {
   });
 
   test("lists user and project files with their cost; x previews, n cancels, y removes with a copy kept", async () => {
-    await ui.press("r", "8");
+    await ui.press("r", "5");
     await ui.until(/style\.md\s+~\d+\s+rule/);
     const frame = stripAnsi(ui.frame()!);
     assert.match(frame, /User/);
@@ -302,7 +302,7 @@ describe("Rules tab", () => {
     await ui.until(/Removed style\.md/);
     assert.equal(existsSync(configFile("rules/style.md")), false);
     assert.equal(existsSync(configFile("backups/agentry/removed")), true);
-    await ui.press("7");
+    await ui.press("8");
     await ui.until(/style\.md \(user rule\)/);
     assert.match(stripAnsi(ui.frame()!), /removed rule/);
   });
@@ -321,7 +321,7 @@ describe("Rules tab", () => {
     });
     write(configFile("rules/style.md"), "# Style\n");
     await ui.ready();
-    await ui.press("8");
+    await ui.press("5");
     await ui.until(/style\.md\s+~\d+\s+rule/);
     assert.match(ui.frame()!, /x remove/);
     await ui.moveTo(/^>.*rules\/style\.md/);

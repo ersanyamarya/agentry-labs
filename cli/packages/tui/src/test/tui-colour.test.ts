@@ -158,14 +158,14 @@ describe("rows carry the styles", () => {
 });
 
 describe("rendered with real escape codes", () => {
-  test("the active tab is cyan, bold and underlined; the others are dim; the header warning is yellow", async () => {
+  test("the active section is cyan and bold; the others are dim; the problems line is yellow", async () => {
     ui = createUi();
     await ui.ready();
-    const frame = ui.frame()!;
+    const frame = ui.raw();
     assert.match(frame, /\u001B\[36m[^\n]*Skills/);
-    assert.match(frame, /\u001B\[4m/);
+    assert.match(frame, /\u001B\[1m[^\n]*Skills/);
     assert.match(frame, /\u001B\[2m[^\n]*MCP/);
-    assert.ok(frame.includes(`${YELLOW}1 warning`), "warning count is yellow");
+    assert.ok(frame.includes(`${YELLOW}● 1 problem`), "problems are yellow");
   });
 
   test("on is green, off is gray, partial is yellow, cost dim, severities coloured", async () => {
@@ -184,7 +184,7 @@ describe("rendered with real escape codes", () => {
       ui.frame()!.includes!(`${YELLOW}◐ partial`),
       "a group with one of two skills linked is partial"
     );
-    await ui.press("5");
+    await ui.press("7");
     await ui.until(/\[fake-bad\]/);
     assert.ok(ui.frame()!.includes!(`${YELLOW}▲`), "warning icon is yellow");
     assert.ok(ui.frame()!.includes!("\u001B[34mℹ"), "info icon is blue");
@@ -200,7 +200,7 @@ describe("rendered with real escape codes", () => {
       stripAnsi(ui.frame()!),
       /video\s+2 skills\s+~\d+\s+o off\s+o off/
     );
-    await ui.press("5");
+    await ui.press("7");
     await ui.until(/\[fake-bad\]/);
     assert.doesNotMatch(ui.frame()!, COLOUR_CODE);
     assert.match(stripAnsi(ui.frame()!), /! Warnings/);

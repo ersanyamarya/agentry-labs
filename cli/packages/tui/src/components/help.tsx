@@ -2,7 +2,14 @@ import { Box } from "ink";
 import { Text } from "./text.js";
 
 export const KEYS: [string, string][] = [
-  ["← / →, 1-8", "switch tab"],
+  [
+    "tab",
+    "move the keys between the sidebar and the list; on the sidebar, ↑ / ↓ pick a section and enter goes back to the list",
+  ],
+  [
+    "← / →, 1-8",
+    "switch section (1-8 follow the sidebar: Skills, MCP, Hooks, Plugins, Rules, Catalog, Doctor, Backups)",
+  ],
   ["↑ / ↓", "move between rows"],
   ["enter", "details, expand a group, preview a fix"],
   [
@@ -37,7 +44,7 @@ export const KEYS: [string, string][] = [
   ["f", "Catalog: fetch or update the agentry-labs catalog"],
   [
     "/",
-    "search the rows of the current tab: type, enter keeps it, esc clears it (q and tab keys are text while typing)",
+    "search the rows of the current tab: type, enter keeps it, esc clears it (q and tab are text while typing)",
   ],
   [
     "m / M",

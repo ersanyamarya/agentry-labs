@@ -13,15 +13,24 @@ describe("navigation", () => {
     await ui.ready();
   });
 
-  test("shows the five tabs, then switches with arrows and number keys", async () => {
-    for (const name of ["Skills", "MCP", "Hooks", "Plugins", "Doctor"]) {
-      assert.match(ui.frame()!, new RegExp(name));
+  test("shows the sections in the rail, then switches with arrows and number keys", async () => {
+    for (const name of [
+      "Skills",
+      "MCP",
+      "Hooks",
+      "Plugins",
+      "Rules",
+      "Catalog",
+      "Doctor",
+      "Backups",
+    ]) {
+      assert.match(ui.rail(), new RegExp(name));
     }
     await ui.press(KEYS.right);
     await ui.until(/server: demo/);
     await ui.press(KEYS.left);
     await ui.until(/Shelf\s+Skills/);
-    await ui.press("5");
+    await ui.press("7");
     await ui.until(/warnings?, \d+ info|errors, \d+ warnings/);
     assert.match(ui.frame()!, /\[fake-bad\]/);
   });
@@ -163,7 +172,7 @@ describe("doctor tab: fix and undo", () => {
   beforeEach(async () => {
     ui = createUi();
     await ui.ready();
-    await ui.press("5");
+    await ui.press("7");
     await ui.until(/\[fake-bad\]/);
   });
 
@@ -182,7 +191,7 @@ describe("doctor tab: fix and undo", () => {
   test("keys other than y or n write nothing while a preview waits", async () => {
     await ui.press(KEYS.enter);
     await ui.until(/Fix preview/);
-    await ui.press("u", "5", KEYS.enter, KEYS.space, KEYS.right);
+    await ui.press("u", "7", KEYS.enter, KEYS.space, KEYS.right);
     assert.match(text(), /BAD/);
     assert.deepEqual(backups(), []);
     assert.match(ui.frame()!, /Fix preview/);

@@ -5,7 +5,7 @@ pid, fd = pty.fork()
 if pid == 0:
     os.execvp(sys.argv[1], sys.argv[1:])
 fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 100, 0, 0))
-LOADED = re.compile(rb"Skills\s\d")
+LOADED = re.compile(rb"Skills\s+\d")
 out, sent, start, last = b"", False, time.time(), time.time()
 while time.time() - start < 30:
     if not sent and LOADED.search(out) and time.time() - last > 0.3:

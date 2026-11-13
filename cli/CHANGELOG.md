@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Internal: the CLI is split into npm workspaces (`packages/core` for the command modules, `packages/tui` for the terminal UI) and bundled with esbuild; `npm run pack:check` installs the packed tarball and runs it. No behaviour change.
+- Terminal UI sidebar: the top tabs are replaced by a left rail with three groups (Library, Discover, Health) holding the section counts, the project path, tokens and problems; `tab` moves the keys between the rail and the list (`↑`/`↓` pick a section on the rail), and the `1`-`8` keys follow the new order: Skills, MCP, Hooks, Plugins, Rules, Catalog, Doctor, Backups. The rail is 22 columns from 90, 16 from 70, and a one-line header below that.
 - Terminal UI redesign: one header line (path, tokens, problems), tabs as a word and a count with no icons, one state mark per row (the word moves to the details pane and to a `STATE` column under `NO_COLOR`), a footer with only the selected row's keys plus `1-8 tab   ? help`, no colour legend or rules between sections.
 - Skills: Project and Global columns hold a single mark; Doctor and Catalog rows carry a kind glyph; Backups has a header row.
 - Previews end in `Apply?  y yes   n no` with a "nothing is written" note; a failed apply starts with `✖ <action> failed` under a red notification.

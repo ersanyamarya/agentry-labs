@@ -26,6 +26,7 @@ export const KEYS = {
   enter: "\r",
   esc: "\u001B",
   space: " ",
+  tab: "\t",
 };
 
 // Frames carry escape codes when the test forces colour; patterns match the frame as drawn or with the codes removed.
@@ -37,6 +38,21 @@ export const squash = (text: string) =>
   stripAnsi(text)
     .replace(/[│┌┐└┘─╭╮╰╯]/g, " ")
     .replace(/\s+/g, " ");
+
+// The left rail is drawn on every line of a frame. Most tests look at the list and the details, so they see the frame
+// without the rail; `rail()` gives the rail alone.
+const RAIL =
+  /^((?:\u001B\[[0-9;]*m|[^│|\u001B]){0,40}[│|])(?:\u001B\[[0-9;]*m)?/;
+export const withoutRail = (frame: string) =>
+  frame
+    .split("\n")
+    .map((line) => line.replace(RAIL, ""))
+    .join("\n");
+export const railOf = (frame: string) =>
+  frame
+    .split("\n")
+    .map((line) => RAIL.exec(line)?.[1] ?? "")
+    .join("\n");
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -56,7 +72,7 @@ export const createUi = ({
   spawn,
   personal = [],
   plugin,
-  size = { cols: 100, rows: 60 },
+  size = { cols: 124, rows: 60 }, // 102 columns for the list beside the 22-column rail
   fit = false,
   catalogRepo,
   clipboard,
@@ -173,20 +189,36 @@ export const createUi = ({
     ...(fit ? {} : { size }),
   };
   const app = render(<App {...props} />);
+  if (!fit) {
+    // Ink lays out to the stdout width, so the fake terminal is as wide as `size` says.
+    Object.defineProperty(app.stdout, "columns", { value: size.cols });
+    app.stdout.emit("resize");
+  }
+  const view = () => withoutRail(app.lastFrame() ?? "");
 
   const until = async (pattern: RegExp, what = String(pattern)) => {
     const deadline = Date.now() + 10_000;
     while (Date.now() < deadline) {
       if (
-        pattern.test(app.lastFrame() ?? "") ||
-        pattern.test(stripAnsi(app.lastFrame() ?? "")) ||
-        pattern.test(squash(app.lastFrame() ?? ""))
+        pattern.test(view()) ||
+        pattern.test(stripAnsi(view())) ||
+        pattern.test(squash(view()))
       ) {
-        return app.lastFrame();
+        return view();
       }
       await wait(20);
     }
     assert.fail(`never saw ${what}; last frame:\n${app.lastFrame()}`);
+  };
+  const untilRail = async (pattern: RegExp) => {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      if (pattern.test(railOf(stripAnsi(app.lastFrame() ?? "")))) {
+        return;
+      }
+      await wait(20);
+    }
+    assert.fail(`never saw ${pattern} in the rail:\n${app.lastFrame()}`);
   };
   // Tabs mount once data arrives and Ink subscribes to stdin in an effect after the frame; keys sent sooner are lost.
   const ready = async () => {
@@ -202,7 +234,7 @@ export const createUi = ({
   // Presses up or down until the highlighted row (the line starting with ">") matches.
   const moveTo = async (pattern: RegExp, key = KEYS.down) => {
     const selected = () =>
-      stripAnsi(app.lastFrame() ?? "")
+      stripAnsi(view())
         .split("\n")
         .find((line) => /^>/.test(line)) ?? "";
     for (let tries = 0; tries < 30 && !pattern.test(selected()); tries += 1) {
@@ -242,7 +274,10 @@ export const createUi = ({
     moveTo,
     resize,
     stop,
-    frame: () => app.lastFrame() ?? "",
+    frame: view,
+    raw: () => app.lastFrame() ?? "",
+    untilRail,
+    rail: () => railOf(app.lastFrame() ?? ""),
     exists: existsSync,
   };
 };

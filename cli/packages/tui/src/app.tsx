@@ -15,8 +15,13 @@ import { InventoryTab } from "./components/inventory-tab.js";
 import type { PickerRow } from "./components/picker.js";
 import { Picker, pickerRows } from "./components/picker.js";
 import { RulesTab } from "./components/rules-tab.js";
+import {
+  SectionLine,
+  Sidebar,
+  sidebarWidth,
+  TAB_NAMES,
+} from "./components/sidebar.js";
 import { SkillsTab } from "./components/skills-tab.js";
-import { TAB_NAMES, TabBar } from "./components/tab-bar.js";
 import { Text } from "./components/text.js";
 import type { EditorOptions } from "./editor.js";
 import { openInEditor } from "./editor.js";
@@ -36,7 +41,7 @@ import { colorEnabled, ThemeContext } from "./theme.js";
 import type { Api, Data, KeyHint, Lock } from "./types.js";
 
 // Skills and MCP report the keys of their selected row (setKeys); the others use a fixed list.
-const TAB_KEYS: KeyHint[][] = [[], [], [], [], DOCTOR_KEYS, [], [], []];
+const TAB_KEYS: KeyHint[][] = [[], [], [], [], [], [], DOCTOR_KEYS, []];
 
 // `size` ({ cols, rows }) overrides the terminal size, for tests.
 export interface AppProps {
@@ -66,6 +71,8 @@ export const App = ({
   const [dir, setDir] = React.useState(startDir);
   const [data, setData] = React.useState<Data | null>(null);
   const [tab, setTab] = React.useState(0);
+  // Which side has the keyboard: `tab` toggles. On the rail, up and down change the section.
+  const [focus, setFocus] = React.useState<"list" | "rail">("list");
   const [overlay, setOverlay] = React.useState<"help" | "picker" | null>(null);
   const [, setLocked] = React.useState<Lock>(false);
   // Read by the key handler, which can run before a render after lock() has re-subscribed it.
@@ -154,7 +161,16 @@ export const App = ({
         setOverlay(null);
       }
     } else if (!(overlay || locked)) {
-      if (key.leftArrow) {
+      if (key.tab) {
+        setFocus(focus === "rail" ? "list" : "rail");
+      } else if (focus === "rail" && key.return) {
+        setFocus("list");
+      } else if (focus === "rail" && (key.upArrow || key.downArrow)) {
+        setTab(
+          (tab + TAB_NAMES.length + (key.downArrow ? 1 : -1)) % TAB_NAMES.length
+        );
+        setMessage("");
+      } else if (key.leftArrow) {
         setTab((tab + TAB_NAMES.length - 1) % TAB_NAMES.length);
         setMessage("");
       } else if (key.rightArrow) {
@@ -174,12 +190,15 @@ export const App = ({
     }
   });
 
-  const layout = layoutFor(size?.cols ?? dims.cols ?? 100);
-  // Chrome takes about 11 lines; stacked, the details block under the list takes about 10 more.
+  const totalCols = size?.cols ?? dims.cols ?? 100;
+  const railWidth = sidebarWidth(totalCols);
+  // The tabs lay out in what the rail leaves.
+  const layout = layoutFor(totalCols - railWidth);
+  // Chrome takes about 9 lines beside the rail (10 with the one-line section header); stacked, the details block under the list takes about 10 more.
   const height = Math.max(
     6,
     (size?.rows ?? dims.rows ?? 30) -
-      11 -
+      (railWidth > 0 ? 9 : 10) -
       (layout.stacked ? STACKED_DETAILS_LINES + 2 : 0)
   );
   const counts = data
@@ -188,10 +207,10 @@ export const App = ({
         MCP: data.status.mcp.servers.length,
         Hooks: data.status.hooks.items.length,
         Plugins: data.status.plugins.items.length,
-        Doctor: data.doctor.findings.length,
-        ...(data.catalog.fetched && { Catalog: data.catalog.entries.length }),
-        Backups: data.backups.length,
         Rules: data.rules.length,
+        ...(data.catalog.fetched && { Catalog: data.catalog.entries.length }),
+        Doctor: data.doctor.findings.length,
+        Backups: data.backups.length,
       }
     : {};
   const shared = data && {
@@ -212,18 +231,17 @@ export const App = ({
         ? old
         : { tab: index, keys }
     );
+  // Input goes to the list only while the list has the focus.
+  const isActive = (index: number) =>
+    tab === index && !overlay && focus === "list";
   const tabs = shared
     ? [
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
-        <SkillsTab
-          {...shared}
-          active={tab === 0 && !overlay}
-          setKeys={keysFor(0)}
-        />,
+        <SkillsTab {...shared} active={isActive(0)} setKeys={keysFor(0)} />,
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <InventoryTab
           {...shared}
-          active={tab === 1 && !overlay}
+          active={isActive(1)}
           canAdd={true}
           makeRows={mcpRows}
           rowKeys={mcpKeys}
@@ -232,7 +250,7 @@ export const App = ({
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <InventoryTab
           {...shared}
-          active={tab === 2 && !overlay}
+          active={isActive(2)}
           makeRows={hookRows}
           rowKeys={hookKeys}
           setKeys={keysFor(2)}
@@ -240,32 +258,20 @@ export const App = ({
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <InventoryTab
           {...shared}
-          active={tab === 3 && !overlay}
+          active={isActive(3)}
           canInstall={true}
           makeRows={pluginRows}
           rowKeys={pluginKeys}
           setKeys={keysFor(3)}
         />,
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
-        <DoctorTab {...shared} active={tab === 4 && !overlay} />,
+        <RulesTab {...shared} active={isActive(4)} setKeys={keysFor(4)} />,
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
-        <CatalogTab
-          {...shared}
-          active={tab === 5 && !overlay}
-          setKeys={keysFor(5)}
-        />,
+        <CatalogTab {...shared} active={isActive(5)} setKeys={keysFor(5)} />,
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
-        <BackupsTab
-          {...shared}
-          active={tab === 6 && !overlay}
-          setKeys={keysFor(6)}
-        />,
+        <DoctorTab {...shared} active={isActive(6)} />,
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
-        <RulesTab
-          {...shared}
-          active={tab === 7 && !overlay}
-          setKeys={keysFor(7)}
-        />,
+        <BackupsTab {...shared} active={isActive(7)} setKeys={keysFor(7)} />,
       ]
     : [];
 
@@ -284,62 +290,73 @@ export const App = ({
 
   return (
     <ThemeContext.Provider value={theme}>
-      <Box flexDirection="column">
-        <TabBar
-          cols={layout.cols}
-          counts={counts}
-          project={dir}
-          summary={summary}
-          tab={tab}
-        />
-        {overlay === "help" ? <Help /> : null}
-        {overlay === "picker" ? (
-          <Picker
-            // biome-ignore lint/performance/noJsxPropsBind: a one-line handler on a rarely re-rendered overlay
-            onClose={() => setOverlay(null)}
-            onPick={pick}
-            rows={picker}
+      <Box>
+        {railWidth > 0 ? (
+          <Sidebar
+            counts={counts}
+            focused={focus === "rail"}
+            project={dir}
+            summary={summary}
+            tab={tab}
+            width={railWidth}
           />
         ) : null}
-        {data ? (
-          <Box display={overlay ? "none" : "flex"} flexDirection="column">
-            {tabs.map((content, index) => (
-              <Box
-                display={index === tab ? "flex" : "none"}
-                flexDirection="column"
-                key={TAB_NAMES[index]}
-              >
-                {content}
-              </Box>
-            ))}
-          </Box>
-        ) : (
-          <Busy text="Loading..." />
-        )}
-        {errors.length > 0 ? (
-          <Text color={theme.color ? "yellow" : undefined} wrap="truncate-end">
-            {`warning: ${errors[0]?.message}`}
-          </Text>
-        ) : null}
-        {message?.endsWith("...") ? <Busy text={message} /> : null}
-        {message && !message.endsWith("...") ? (
-          <Text
-            color={
-              theme.color
-                ? message.startsWith("Finished with errors")
-                  ? "red"
-                  : "green"
-                : undefined
-            }
-            wrap="truncate-middle"
-          >
-            {message}
-          </Text>
-        ) : null}
-        <Footer
-          cols={layout.cols}
-          keys={rowKeys.tab === tab ? rowKeys.keys : TAB_KEYS[tab]}
-        />
+        <Box flexDirection="column" width={layout.cols}>
+          {railWidth === 0 ? (
+            <SectionLine counts={counts} summary={summary} tab={tab} />
+          ) : null}
+          {overlay === "help" ? <Help /> : null}
+          {overlay === "picker" ? (
+            <Picker
+              // biome-ignore lint/performance/noJsxPropsBind: a one-line handler on a rarely re-rendered overlay
+              onClose={() => setOverlay(null)}
+              onPick={pick}
+              rows={picker}
+            />
+          ) : null}
+          {data ? (
+            <Box display={overlay ? "none" : "flex"} flexDirection="column">
+              {tabs.map((content, index) => (
+                <Box
+                  display={index === tab ? "flex" : "none"}
+                  flexDirection="column"
+                  key={TAB_NAMES[index]}
+                >
+                  {content}
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            <Busy text="Loading..." />
+          )}
+          {errors.length > 0 ? (
+            <Text
+              color={theme.color ? "yellow" : undefined}
+              wrap="truncate-end"
+            >
+              {`warning: ${errors[0]?.message}`}
+            </Text>
+          ) : null}
+          {message?.endsWith("...") ? <Busy text={message} /> : null}
+          {message && !message.endsWith("...") ? (
+            <Text
+              color={
+                theme.color
+                  ? message.startsWith("Finished with errors")
+                    ? "red"
+                    : "green"
+                  : undefined
+              }
+              wrap="truncate-middle"
+            >
+              {message}
+            </Text>
+          ) : null}
+          <Footer
+            cols={layout.cols}
+            keys={rowKeys.tab === tab ? rowKeys.keys : TAB_KEYS[tab]}
+          />
+        </Box>
       </Box>
     </ThemeContext.Provider>
   );

@@ -1,4 +1,4 @@
-// The keys that work on the selected row, key bright and what it does dim, three spaces apart. `1-8 tab   ? help` sits at
+// The keys that work on the selected row, key bright and what it does dim, three spaces apart. `tab sidebar   ? help` sits at
 // the right; every other global key is in the help screen (?). Each row key is [key, text, short?]: the short form is
 // used, so the footer is one line at every width.
 
@@ -7,7 +7,7 @@ import type { KeyHint } from "../types.js";
 import { Text } from "./text.js";
 
 const GAP = 3;
-const TABS: KeyHint = ["1-8", "tab"];
+const TABS: KeyHint = ["tab", "sidebar"];
 const HELP: KeyHint = ["?", "help"];
 
 const width = (pairs: KeyHint[]) =>
@@ -19,7 +19,7 @@ const width = (pairs: KeyHint[]) =>
 const shortForm = (keys: KeyHint[]): KeyHint[] =>
   keys.map(([key, text, short]) => [key, short ?? text]);
 
-// Left: the row's keys; right: `1-8 tab   ? help`. When they do not fit, `1-8 tab` goes first, then the last row keys;
+// Left: the row's keys; right: `tab sidebar   ? help`. When they do not fit, `tab sidebar` goes first, then the last row keys;
 // `? help` always stays.
 export const footerKeys = (keys: KeyHint[], cols: number) => {
   const row = shortForm(keys);

@@ -48,7 +48,7 @@ describe("Plugins tab: enable and disable", () => {
   test("keys other than y or n change nothing while the preview waits", async () => {
     await ui.press(KEYS.space);
     await ui.until(/Disable demo@mkt/);
-    await ui.press("q", "5", KEYS.enter, KEYS.space, KEYS.right, "e");
+    await ui.press("q", "7", KEYS.enter, KEYS.space, KEYS.right, "e");
     assert.equal(settings(), ON);
     await ui.until(/Disable demo@mkt \(preview\)/);
   });

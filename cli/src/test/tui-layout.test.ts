@@ -17,9 +17,11 @@ beforeEach(async () => {
 });
 afterEach(() => ui?.stop());
 
-test("the header is one line with the path left and tokens and problems right, and the Skills tab explains its colours", () => {
-  const [header] = stripAnsi(ui.frame()!).split("\n");
-  assert.match(header, /^agentry {2}\S.*~[\d.]+k? tokens {2}· {2}1 warning$/);
+test("the rail shows the project, tokens and problems, and the Skills tab explains its colours", () => {
+  const rail = stripAnsi(ui.rail());
+  assert.match(rail, /^agentry\s/);
+  assert.match(rail, /~[\d.]+k? tokens/);
+  assert.match(rail, /● 1 problem\b/);
   assert.doesNotMatch(ui.frame()!, /skill-description/);
   assert.doesNotMatch(ui.frame()!, /cost: ~<100/);
 });
@@ -69,7 +71,7 @@ test("the footer lists only the keys of the current tab", async () => {
   assert.doesNotMatch(ui.frame()!, /s shelve/);
   await ui.press("4");
   await ui.until(/space on\/off/);
-  await ui.press("5");
+  await ui.press("7");
   await ui.until(/enter fix {3}u undo {3}e edit/);
   assert.doesNotMatch(ui.frame()!, /space on\/off/);
 });
@@ -107,34 +109,36 @@ test("compactTokens: thousands get one decimal and a k, small counts stay whole,
   assert.equal(compactTokens(null), "-");
 });
 
-test("the tabs are plain words with counts: no digits, no icons, no rule under them", () => {
-  const lines = stripAnsi(ui.frame()!).split("\n");
-  const [, tabs, under] = lines;
+test("the rail lists the sections in three groups with counts: no digits, no icons", () => {
+  const rail = stripAnsi(ui.rail());
   assert.match(
-    tabs,
-    /^Skills \d+ {2,3}MCP \d+ {2,3}Hooks \d+ {2,3}Plugins \d+ {2,3}Doctor \d+/
+    rail,
+    /LIBRARY[\s\S]*Skills\s+\d+[\s\S]*MCP\s+\d+[\s\S]*Hooks\s+\d+[\s\S]*Plugins\s+\d+[\s\S]*Rules\s+\d+[\s\S]*DISCOVER[\s\S]*Catalog[\s\S]*HEALTH[\s\S]*Doctor\s+\d+[\s\S]*Backups\s+\d+/
   );
-  assert.doesNotMatch(tabs, /[✦⇄⚑⬡✚☰⟲§]|\(\d+\)|\d [A-Z]/);
-  assert.doesNotMatch(under, /^─+$/);
+  assert.doesNotMatch(rail, /[✦⇄⚑⬡✚☰⟲§]|\(\d+\)|\d [A-Z]/);
+  assert.match(rail, /^› Skills/m);
 });
 
-test("the footer ends in `1-8 tab   ? help`, right-aligned, and has no rule above it", async () => {
+test("the footer ends in `tab sidebar   ? help`, right-aligned, and has no rule above it", async () => {
   await ui.press("4");
   await ui.until(/space on\/off/);
   const last = stripAnsi(ui.frame()!).trimEnd().split("\n").at(-1) ?? "";
-  assert.match(last, /^space on\/off {3}i install.* {3}1-8 tab {3}\? help$/);
+  assert.match(
+    last,
+    /^space on\/off {3}i install.* {3}tab sidebar {3}\? help$/
+  );
   assert.doesNotMatch(last, /│/);
-  assert.equal([...last].length, 100);
+  assert.equal([...last].length, 102);
 });
 
-test("when the footer is short of room, `1-8 tab` goes first and `? help` stays", async () => {
+test("when the footer is short of room, `tab sidebar` goes first and `? help` stays", async () => {
   ui.stop();
   ui = createUi({ fit: true });
   await ui.ready();
   await ui.resize(40, 30);
   const last = stripAnsi(ui.frame()!).trimEnd().split("\n").at(-1) ?? "";
   assert.match(last, /\? help$/);
-  assert.doesNotMatch(last, /1-8 tab/);
+  assert.doesNotMatch(last, /tab sidebar/);
   assert.ok([...last].length <= 40);
 });
 

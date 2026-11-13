@@ -12,6 +12,8 @@ afterEach(() => ui?.stop());
 
 const TABS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 const lines = () => stripAnsi(ui.frame()!).split("\n");
+// With the left rail, for checks against the terminal width.
+const fullLines = () => stripAnsi(ui.raw()).split("\n");
 
 for (const cols of [80, 100, 130]) {
   // biome-ignore lint/suspicious/noLoopFunc: the callback runs immediately and does not outlive the iteration
@@ -65,12 +67,9 @@ for (const cols of [80, 100, 130]) {
       await ui.ready();
       await ui.resize(cols, 36);
       const all = lines();
-      const summary = all.find((line) => /tokens {2}· {2}/.test(line));
-      assert.ok(summary && [...summary].length <= cols, `summary: ${summary}`);
-      assert.match(
-        summary,
-        /~[\d.]+k? tokens {2}· {2}(\d+ errors?|\d+ warnings?|no problems)/
-      );
+      const rail = stripAnsi(ui.rail());
+      assert.match(rail, /~[\d.]+k? tokens/);
+      assert.match(rail, /(● \d+ problems?|● no problems)/);
       const footer = all.findLast((line) => /\? help/.test(line));
       assert.ok(
         footer && [...footer].length <= cols && !footer.includes("…"),
@@ -88,11 +87,11 @@ describe("layout by width", () => {
     await ui.ready();
     await ui.resize(80, 36);
     assert.ok(
-      lines().some((line) => /^─{80}$/.test(line)),
+      lines().some((line) => /^─{64}$/.test(line)),
       "stacked details start with a rule"
     );
     assert.doesNotMatch(ui.frame()!, /╭/);
-    await ui.resize(130, 36);
+    await ui.resize(134, 36);
     assert.match(ui.frame()!, /╭─+╮/);
     const box = lines().find((line) => line.includes("╭"));
     assert.ok(
@@ -142,25 +141,22 @@ describe("80x24, in colour and without", () => {
       await ui.resize(80, 24);
       for (const tab of TABS) {
         await ui.press(tab);
-        const all = lines();
+        const all = fullLines();
         assert.ok(
           all.every((line) => [...line].length <= 80),
           `tab ${tab}: a line is wider than 80:\n${all.join("\n")}`
         );
-        const [, tabLine] = all;
+        const rail = stripAnsi(ui.rail());
         for (const name of NAMES) {
-          assert.ok(
-            tabLine.includes(name),
-            `tab ${tab}: ${name} in ${tabLine}`
-          );
+          assert.ok(rail.includes(name), `tab ${tab}: ${name} in the rail`);
         }
-        assert.match(all.filter(Boolean).at(-1) ?? "", /\? help$/);
+        assert.match(lines().filter(Boolean).at(-1) ?? "", /\? help$/);
         if (label === "NO_COLOR") {
           assert.match(
-            tabLine,
-            /\[(Skills|MCP|Hooks|Plugins|Doctor|Catalog|Backups|Rules)( \d+)?\]/
+            rail,
+            /^[>›] (Skills|MCP|Hooks|Plugins|Rules|Catalog|Doctor|Backups)/m
           );
-          assert.match(all[0], /1 warning$/);
+          assert.match(rail, /[●*] 1 problem/);
         }
       }
     });

@@ -74,7 +74,7 @@ describe.skipIf(!hasPython)("colour in a pseudo-terminal", () => {
     const out = await ui({ TERM: "xterm-256color", NO_COLOR: "1" });
     assert.doesNotMatch(out, COLOUR);
     assert.match(out, /o off\s+o off/);
-    assert.match(out, /\[\w+( \d+)?\]/, "active tab in brackets");
+    assert.match(out, /[>›] Skills\s+\d/, "active section marked by a cursor");
   });
 
   test("TERM=dumb and FORCE_COLOR=0: the user's opt-outs are respected", async () => {

@@ -47,8 +47,8 @@ describe("/ search", () => {
     await ui.press("q", "1", "n", "o");
     await ui.until(/\/q1no_/);
     assert.match(
-      ui.frame(),
-      /Skills/,
+      ui.rail(),
+      /› Skills/,
       "q did not quit and 1 did not switch tabs"
     );
     await ui.press(KEYS.esc);
@@ -145,7 +145,7 @@ describe("m marks and bulk actions", () => {
     }
     const backups = join(ui.fx.configDir, "backups/agentry/removed");
     assert.equal(readdirSync(backups).length, 3);
-    await ui.press("7");
+    await ui.press("8");
     await ui.until(/d (delete 30\+ days old|prune)/);
     await ui.press("m", KEYS.down, "m", "x");
     await ui.until(/Delete 2 backups \(preview\)/);

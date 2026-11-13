@@ -25,7 +25,7 @@ const removeNotes = async (key = "x") => {
 describe("remove with and without a copy", () => {
   test("x says a copy is kept, X says none is, and X really keeps none", async () => {
     await removeNotes("X");
-    assert.match(ui.frame()!, /no copy kept/);
+    assert.match(ui.frame()!, /no\s+copy kept/);
     await ui.press("y");
     await ui.until(/no copy was kept/);
     assert.ok(!existsSync(join(ui.fx.configDir, "skills/notes")));
@@ -45,9 +45,9 @@ describe("remove with and without a copy", () => {
 
 describe("Backups tab", () => {
   test("is tab 7 with a count, says when empty, and lists a removed skill after x", async () => {
-    await ui.press("7");
+    await ui.press("8");
     await ui.until(/\(no backups\)/);
-    assert.match(ui.frame()!, /Backups 0/);
+    assert.match(ui.rail(), /Backups\s+0/);
     assert.match(
       ui.frame()!,
       /Nothing is kept under ~\/\.claude\/backups\/agentry yet/
@@ -57,9 +57,9 @@ describe("Backups tab", () => {
     await removeNotes();
     await ui.press("y");
     await ui.until(/Backups tab restores it/);
-    await ui.press("7");
+    await ui.press("8");
     await ui.until(/notes \(global\)\s+removed\s+\d+ B\s+today/);
-    assert.match(ui.frame()!, /Backups 1/);
+    assert.match(ui.rail(), /Backups\s+1/);
     assert.match(ui.frame()!, /BACKUP\s+KIND\s+SIZE\s+AGE/);
     await ui.until(/u restore {3}x delete/);
   });
@@ -68,7 +68,7 @@ describe("Backups tab", () => {
     await removeNotes();
     await ui.press("y");
     await ui.until(/Backups tab restores it/);
-    await ui.press("7");
+    await ui.press("8");
     await ui.until(/removed\s+\d+ B/);
     await ui.press("u");
     await ui.until(/Restore notes \(global\) \(preview\)/);
@@ -94,7 +94,7 @@ describe("Backups tab", () => {
       })
     );
     await ui.press("r");
-    await ui.press("7");
+    await ui.press("8");
     await ui.until(/fix set/);
     assert.doesNotMatch(ui.frame()!, /u restore/);
     await ui.press("x");
@@ -139,8 +139,8 @@ describe("Backups tab", () => {
       })
     );
     await ui.press("r");
-    await ui.press("7");
-    await ui.until(/Backups 2/);
+    await ui.press("8");
+    await ui.untilRail(/Backups\s+2/);
     await ui.press("d");
     await ui.until(/Delete backups 30\+ days old \(preview\)/);
     assert.match(ui.frame()!, /Would delete 1 backup/);
@@ -162,7 +162,7 @@ describe("Backups tab", () => {
       })
     );
     await ui.press("r");
-    await ui.press("7");
+    await ui.press("8");
     await ui.until(/fix set/);
     await ui.press("u");
     await ui.until(/u restores a removed skill/);

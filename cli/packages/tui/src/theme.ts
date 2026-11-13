@@ -50,6 +50,11 @@ export const ROLE = {
   danger: { color: "red" },
   info: { color: "blue" },
   accent: { color: "cyan" },
+  // Names from docs/web-ui-design.md "Tokens". Colour off drops the colour but keeps bold, dim and inverse.
+  cursor: { color: "cyan", bold: true },
+  selected: { color: "cyan", bold: true },
+  dim: { dimColor: true },
+  sidebar: { dimColor: true },
 } satisfies Record<string, Style>;
 const GREEN: Style = ROLE.success;
 const GRAY: Style = ROLE.muted;
