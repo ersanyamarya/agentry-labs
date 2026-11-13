@@ -68,6 +68,32 @@ const locate = (
   return undefined;
 };
 
+/**
+ * Settings text without the hook whose id is `id` under hooks[event]: drops its matcher group when it was the group's only
+ * hook, and the event key when that group was the event's only group. Text edit, so the other bytes stay identical.
+ * Returns the text unchanged when the hook is not there. Used by `hook remove|disable` and the dup-hook-scope fix.
+ */
+export const removeHookText = (
+  text: string | undefined,
+  event: string,
+  id: string
+): string | undefined => {
+  const doc = createJsonEdit(text as string);
+  const at = locate(doc.get([]) as SettingsJson, event, id);
+  if (!at) {
+    return text;
+  }
+  const groups = doc.get(["hooks", event]) as unknown[];
+  if (list(at.group.hooks).length > 1) {
+    doc.deleteElement(["hooks", event, at.gi, "hooks", at.hi]);
+  } else if (groups.length > 1) {
+    doc.deleteElement(["hooks", event, at.gi]);
+  } else {
+    doc.deleteKey(["hooks", event]);
+  }
+  return doc.text;
+};
+
 const describeHook = ({
   event,
   matcher,
@@ -361,22 +387,8 @@ export const createHookToggle = (
       return 1;
     }
 
-    const removeText = (text: string | undefined): string | undefined => {
-      const doc = createJsonEdit(text as string);
-      const at = locate(doc.get([]) as SettingsJson, event, id);
-      if (!at) {
-        return text;
-      }
-      const groups = doc.get(["hooks", event]) as unknown[];
-      if (list(at.group.hooks).length > 1) {
-        doc.deleteElement(["hooks", event, at.gi, "hooks", at.hi]);
-      } else if (groups.length > 1) {
-        doc.deleteElement(["hooks", event, at.gi]);
-      } else {
-        doc.deleteKey(["hooks", event]);
-      }
-      return doc.text;
-    };
+    const removeText = (text: string | undefined): string | undefined =>
+      removeHookText(text, event, id);
     const insertText = (text: string | undefined): string => {
       const group = {
         ...(matcherRaw !== undefined && { matcher: matcherRaw }),

@@ -2,6 +2,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   realpathSync,
@@ -9,8 +10,15 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { bin } from "./paths.js";
+
+// The host's PATH without any folder that holds a `trail`: with it, doctor adds trail-hooks-missing to a "clean" fixture.
+export const pathWithoutTrail = (path = process.env.PATH ?? ""): string =>
+  path
+    .split(delimiter)
+    .filter((dir) => !existsSync(join(dir, "trail")))
+    .join(delimiter);
 
 export type Fixture = ReturnType<typeof createFixture>;
 
@@ -91,6 +99,7 @@ export const createFixture = ({
     ...process.env,
     CLAUDE_CONFIG_DIR: configDir,
     AGENTRY_HOME: home,
+    PATH: pathWithoutTrail(),
     AGENTRY_MANAGED_DIR: managedDir,
     AGENTRY_RENAMES: '{"graft":"trail"}',
   };

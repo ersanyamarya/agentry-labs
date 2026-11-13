@@ -1,7 +1,8 @@
 // Fixes for doctor findings, keyed by rule id; `agentry fix` (src/lib/fix.ts) plans, previews, backs up and applies them.
 // An entry is `(finding, ctx) => fix | fix[] | undefined`; the fix shape and `ctx` are documented at the top of src/lib/fix.ts.
 // A fix that cannot be made safe returns `{ ruleId, unfixable: "why" }` (or nothing), and the finding stays advice only.
-// Rules without an entry here (missing-hook-file, plugin-not-installed, unset-placeholder, dup-skill-name)
+// Rules without an entry here (missing-hook-file, plugin-not-installed, unset-placeholder, dup-skill-name,
+// trail-hooks-missing)
 // have no safe automatic edit.
 //
 // JSON files are edited as text through src/lib/json-edit.ts, so untouched bytes stay identical. Findings carry little
@@ -18,6 +19,7 @@ import {
 import { delimiter, dirname, join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { extraPluginInstalls, renamePattern } from "./doctor-rules.js";
+import { removeHookText } from "./hook-toggle.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import type { JsonPath } from "./json-edit.js";
 import { createJsonEdit } from "./json-edit.js";
@@ -533,6 +535,60 @@ const dupPluginScope: FixMaker = (finding, ctx) => {
   });
 };
 
+// ---- hooks ----
+
+// dup-hook-scope: removes the project or local copy of a hook the user settings also run (by the id in the doctor's message,
+// so a hook edited since the doctor ran is left alone), dropping its matcher group and event when they become empty.
+// The user-level hook stays: it is the one shared with every other repo.
+const dupHookScope: FixMaker = (finding) => {
+  const match =
+    /^(\S+) hook \(([0-9a-f]{8})\) in (project|local) settings runs .*, which a user-level hook also runs; both run$/.exec(
+      finding.message
+    );
+  if (!match) {
+    return;
+  }
+  const [, event, id, scope] = match;
+  return {
+    ruleId: finding.id,
+    file: finding.file,
+    describe: () =>
+      `Remove the ${scope} copy of ${event} hook ${id} from ${finding.file}`,
+    apply: (text: string | undefined) => removeHookText(text, event, id),
+  };
+};
+
+const staleMcpPermission: FixMaker = (finding) => {
+  const match =
+    /^Permission (allow|deny|ask) entry "(.+)" is for MCP server "[^"]+", which is not configured$/.exec(
+      finding.message
+    );
+  if (!match) {
+    return;
+  }
+  const [, kind, entry] = match;
+  return {
+    ruleId: finding.id,
+    file: finding.file,
+    describe: () =>
+      `Remove "${entry}" from permissions.${kind} in ${finding.file}`,
+    apply: (text: string | undefined) => {
+      const doc = createJsonEdit(text as string);
+      const entries = doc.get(["permissions", kind]);
+      if (!Array.isArray(entries)) {
+        return text;
+      }
+      // Highest index first, so the earlier ones keep their place.
+      for (let index = entries.length - 1; index >= 0; index -= 1) {
+        if (entries[index] === entry) {
+          doc.deleteElement(["permissions", kind, index]);
+        }
+      }
+      return doc.text;
+    },
+  };
+};
+
 export const createFixes = ({
   renames,
   env = process.env,
@@ -557,6 +613,8 @@ export const createFixes = ({
     "broken-skill-link": brokenSkillLink,
     "shelf-duplicate": shelfDuplicate,
     "dup-plugin-scope": dupPluginScope,
+    "dup-hook-scope": dupHookScope,
+    "stale-mcp-permission": staleMcpPermission,
   };
 };
 

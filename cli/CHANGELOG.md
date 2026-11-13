@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Doctor: `dup-hook-scope` finds a hook that a project or local settings file repeats from your user settings (for example a project copy of trail's graft-hooks.cjs), so it runs twice; `agentry fix` removes the project copy, with a backup.
+- Doctor: `stale-mcp-permission` finds `mcp__trail` and `mcp__graft` permissions in project or local settings when no such MCP server is configured (trail is a command now); `agentry fix` removes those entries, with a backup.
+- Doctor: `trail-hooks-missing` (info, advice only) says so when `trail` is on PATH but your user settings have none of its hooks; `trail init --agents claude` writes them.
+
 ## 0.2.0
 
 - Web UI: `agentry ui` serves a local web app (TanStack Start, shadcn components) on 127.0.0.1 behind a one-time token, with all eight sections (Skills, MCP, Hooks, Plugins, Rules, Catalog, Doctor, Backups). Writes use the same backup-first functions as the terminal UI; previewed changes wait for Apply. `--port` and `--no-open` are options. The package ships the built app (about 3 MB more).

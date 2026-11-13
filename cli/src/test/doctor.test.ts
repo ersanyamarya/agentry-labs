@@ -419,6 +419,69 @@ describe("clean setup", () => {
   });
 });
 
+describe("trail leftovers", () => {
+  const projectSettings = (value: unknown) =>
+    writeJson(join(repo, ".claude", "settings.json"), value);
+  const hooksFor = (command: string) => ({
+    hooks: {
+      PostToolUse: [
+        { matcher: "Edit|Write", hooks: [{ type: "command", command }] },
+      ],
+    },
+  });
+  const trailOnPath = () => {
+    writeFileSync(join(bin, "trail"), "#!/bin/sh\n");
+    chmodSync(join(bin, "trail"), 0o755);
+  };
+
+  test("dup-hook-scope: a project copy of a user hook, with its file and line", () => {
+    userSettings(
+      hooksFor(
+        `node "${home}/.claude/helpers/graft-hooks.cjs" post-edit || exit 0`
+      )
+    );
+    projectSettings(
+      hooksFor(
+        'node "${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/graft-hooks.cjs" post-edit'
+      )
+    );
+    const [item, ...rest] = findings("dup-hook-scope");
+    assert.equal(rest.length, 0);
+    assert.equal(item.severity, "warning");
+    assert.equal(item.file, join(repo, ".claude", "settings.json"));
+    assert.ok(item.line! > 0);
+    assert.match(
+      item.message,
+      /in project settings runs graft-hooks.cjs post-edit/
+    );
+  });
+
+  test("stale-mcp-permission: mcp__trail in a project file when no such server is configured", () => {
+    projectSettings({
+      permissions: { allow: ["mcp__trail__trail_find_code"] },
+    });
+    const [item, ...rest] = findings("stale-mcp-permission");
+    assert.equal(rest.length, 0);
+    assert.equal(item.file, join(repo, ".claude", "settings.json"));
+    assert.equal(item.line, 4);
+    assert.match(item.message, /MCP server "trail", which is not configured/);
+  });
+
+  test("trail-hooks-missing: info when trail is on PATH and the user settings have no trail hook", () => {
+    trailOnPath();
+    const [item] = findings("trail-hooks-missing");
+    assert.equal(item.severity, "info");
+    assert.equal(item.file, join(configDir, "settings.json"));
+    assert.match(item.fix!, /trail init --agents claude/);
+    userSettings(
+      hooksFor(
+        `node "${home}/.claude/helpers/graft-hooks.cjs" post-edit || exit 0`
+      )
+    );
+    assert.deepEqual(findings("trail-hooks-missing"), []);
+  });
+});
+
 describe("agentry doctor (CLI)", () => {
   let fx: Fixture;
   beforeEach(() => {

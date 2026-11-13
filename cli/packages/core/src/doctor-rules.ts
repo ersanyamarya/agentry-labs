@@ -4,12 +4,14 @@
 // Rules only describe fixes (text or a suggested command); nothing here writes. Values are never printed: only names.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
-import { list } from "./inventory/common.js";
-import { maskShell } from "./mask.js";
+import { basename, join, relative, resolve } from "node:path";
+import { isObject, list } from "./inventory/common.js";
+import { hookId } from "./inventory/hooks.js";
+import { maskArgs, maskShell } from "./mask.js";
 import type { Paths } from "./paths.js";
 import type {
   Finding,
+  HookGroup,
   HookItem,
   McpServerItem,
   PluginInstall,
@@ -313,6 +315,123 @@ const missingHookFile: Rule = {
     }),
 };
 
+const SHELL_OPERATOR = /^(\|\||&&|;|\|)/;
+
+/**
+ * What a hook runs, for dup-hook-scope: the file name of the script hookFile() finds plus the words after it up to the first
+ * shell operator (`||`, `&&`, `;`, `|`), quotes stripped. `node "${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/graft-hooks.cjs"
+ * post-edit` and `node "/home/me/.claude/helpers/graft-hooks.cjs" post-edit || exit 0` both give
+ * { script: "graft-hooks.cjs", args: ["post-edit"] }. Undefined when hookFile() finds no script (a bare `trail hook ...`).
+ */
+export const hookRunKey = (
+  command: string,
+  where: { home: string; projectRoot: string }
+): { script: string; args: string[] } | undefined => {
+  const file = hookFile(command, where);
+  if (!file) {
+    return;
+  }
+  const unquote = (word: string): string => word.replace(/["'`]/g, "");
+  const words = command.split(/\s+/).filter(Boolean);
+  const at = words.findIndex(
+    (word) => word.replace(/^["'`]+|["'`]+$/g, "") === file.written
+  );
+  const args: string[] = [];
+  for (const word of words.slice(at + 1)) {
+    if (SHELL_OPERATOR.test(word)) {
+      break;
+    }
+    const [head, ...rest] = word.split(/\|\||&&|;|\|/);
+    if (head) {
+      args.push(unquote(head));
+    }
+    if (rest.length > 0) {
+      break;
+    }
+  }
+  return { script: basename(file.path), args };
+};
+
+/**
+ * dup-hook-scope: a project or local settings hook that runs what a user-level hook of the same event runs, so both run.
+ * Checks every non-plugin, non-disabled hook with a command in project or local scope against the user-scope hooks of the
+ * same event; they match when hookRunKey() is equal. The matcher is ignored on purpose: the user tool-savings matcher also
+ * lists Skill and the project one does not, yet they overlap. A match whose hookId() equals the user hook's gives no
+ * finding: Claude Code deduplicates identical handlers across settings files and runs them once. One warning per project or
+ * local handler, on its file; the fix (fix-rules.ts) finds it again by `(<id>)` and `<scope>` in the message.
+ *
+ * The key is built from the raw command in the settings layers (plugin hooks are not in them), because the inventory's
+ * masked command turns `${CLAUDE_PROJECT_DIR:-.}` into `${CLAUDE_PROJECT_DIR:-<masked>}`, which hookFile() rejects. The
+ * printed script and args go through maskArgs. A hook counts as disabled when its inventory row (same id and file) says so.
+ */
+const dupHookScope: Rule = {
+  id: "dup-hook-scope",
+  run: ({ hooks, layers, paths, project, line }) => {
+    const where = { home: paths.home, projectRoot: project.root };
+    const disabled = new Set(
+      hooks.items
+        .filter((hook) => hook.state === "disabled")
+        .map((hook) => `${hook.source}\0${hook.id}`)
+    );
+    const handlers = layers.flatMap(({ scope, source, json }) =>
+      Object.entries(isObject(json.hooks) ? json.hooks : {}).flatMap(
+        ([event, groups]) =>
+          list(groups).flatMap((group) =>
+            list(isObject(group) ? group.hooks : undefined).flatMap((hook) => {
+              if (!isObject(hook) || typeof hook.command !== "string") {
+                return [];
+              }
+              const id = hookId(event, (group as HookGroup).matcher, hook);
+              const run = hookRunKey(hook.command, where);
+              return run && !disabled.has(`${source}\0${id}`)
+                ? [{ scope, source, event, id, run, command: hook.command }]
+                : [];
+            })
+          )
+      )
+    );
+    const keyOf = ({ run }: { run: { script: string; args: string[] } }) =>
+      JSON.stringify([run.script, ...run.args]);
+    const user = handlers.filter((handler) => handler.scope === "user");
+    return handlers
+      .filter(
+        (handler) => handler.scope === "project" || handler.scope === "local"
+      )
+      .flatMap((handler) => {
+        const same = user.filter(
+          (other) =>
+            other.event === handler.event && keyOf(other) === keyOf(handler)
+        );
+        if (
+          same.length === 0 ||
+          same.some((other) => other.id === handler.id)
+        ) {
+          return [];
+        }
+        const shown = maskArgs([handler.run.script, ...handler.run.args]).join(
+          " "
+        );
+        // The whole command as written in the JSON first: statusLine often runs the same script on an earlier line.
+        const written = hookFile(handler.command, where)?.written ?? "";
+        const at =
+          line(handler.source, JSON.stringify(handler.command).slice(1, -1)) ??
+          line(handler.source, written);
+        return [
+          finding(
+            "dup-hook-scope",
+            "warning",
+            `${handler.event} hook (${handler.id}) in ${handler.scope} settings runs ${shown}, which a user-level hook also runs; both run`,
+            handler.source,
+            {
+              line: at,
+              fix: `agentry fix removes it from ${handler.source} (or: agentry hook remove ${handler.id} --scope ${handler.scope})`,
+            }
+          ),
+        ];
+      });
+  },
+};
+
 const brokenSkillLink: Rule = {
   id: "broken-skill-link",
   run: ({ skills }) =>
@@ -573,6 +692,94 @@ const shelfDuplicate: Rule = {
 };
 
 // Order here is the registry order; a new rule is one more entry.
+// ---- retired MCP servers ----
+
+// The trail MCP server was removed (it was called graft before): agents now call the `trail` CLI. Project and local
+// permissions that still allow its tools are dead. User-layer permissions and hook matchers are never read: trail's own
+// user hook matcher contains `mcp__graft__`.
+const RETIRED_MCP_SERVERS = ["graft", "trail"];
+
+const staleMcpPermission: Rule = {
+  id: "stale-mcp-permission",
+  run: ({ layers, mcp, line }) => {
+    const configured = new Set(mcp.servers.map((server) => server.name));
+    return layers
+      .filter(({ scope }) => scope === "project" || scope === "local")
+      .flatMap(({ json, source }) =>
+        ["allow", "deny", "ask"].flatMap((kind) =>
+          list(json.permissions?.[kind])
+            .filter((entry): entry is string => typeof entry === "string")
+            .flatMap((entry) => {
+              const name = RETIRED_MCP_SERVERS.find(
+                (retired) =>
+                  entry === `mcp__${retired}` ||
+                  entry.startsWith(`mcp__${retired}__`)
+              );
+              return name === undefined || configured.has(name)
+                ? []
+                : [
+                    finding(
+                      "stale-mcp-permission",
+                      "warning",
+                      `Permission ${kind} entry "${entry}" is for MCP server "${name}", which is not configured`,
+                      source,
+                      {
+                        line: line(source, `"${entry}"`),
+                        fix: `Remove "${entry}" from permissions.${kind} in ${source}`,
+                      }
+                    ),
+                  ];
+            })
+        )
+      );
+  },
+};
+
+// ---- trail wiring ----
+
+// The helper scripts `trail init` points the user-level hooks at (graft-hooks.cjs is the name current trail still ships).
+const TRAIL_HOOK_SCRIPTS = new Set(["graft-hooks.cjs", "trail-hooks.cjs"]);
+
+// Advice only: `trail init` is the tool that writes the wiring, so there is no fix here.
+const trailHooksMissing: Rule = {
+  id: "trail-hooks-missing",
+  run: ({ layers, paths, project, which }) => {
+    if (!which("trail")) {
+      return [];
+    }
+    const where = { home: paths.home, projectRoot: project.root };
+    const wired = layers
+      .filter(({ scope }) => scope === "user")
+      .some(({ json }) =>
+        Object.values(isObject(json.hooks) ? json.hooks : {}).some((groups) =>
+          list(groups).some((group) =>
+            list(isObject(group) ? group.hooks : undefined).some(
+              (hook) =>
+                isObject(hook) &&
+                typeof hook.command === "string" &&
+                TRAIL_HOOK_SCRIPTS.has(
+                  hookRunKey(hook.command, where)?.script ?? ""
+                )
+            )
+          )
+        )
+      );
+    return wired
+      ? []
+      : [
+          finding(
+            "trail-hooks-missing",
+            "info",
+            "trail is on PATH, but your user settings have none of its hooks",
+            join(paths.configDir, "settings.json"),
+            {
+              fix: "Run trail init --agents claude, which writes the hooks and the trail skill into ~/.claude",
+            }
+          ),
+        ];
+  },
+};
+
 export const rules: Rule[] = [
   dupPluginScope,
   dupSkillName,
@@ -580,6 +787,9 @@ export const rules: Rule[] = [
   dupMcpPlugin,
   missingMcpCommand,
   missingHookFile,
+  dupHookScope,
+  staleMcpPermission,
+  trailHooksMissing,
   brokenSkillLink,
   pluginNotInstalled,
   unsetPlaceholder,

@@ -426,6 +426,144 @@ describe("links, skills and plugins", () => {
   });
 });
 
+describe("dup-hook-scope", () => {
+  const projectSettings = () => join(repo, ".claude", "settings.json");
+  const localSettings = () => join(repo, ".claude", "settings.local.json");
+  const userGraft = (arg: string) =>
+    `node "${configDir}/helpers/graft-hooks.cjs" ${arg} || exit 0`;
+  const user = () =>
+    json({
+      hooks: {
+        PostToolUse: [
+          {
+            matcher: "Edit|Write|MultiEdit",
+            hooks: [{ type: "command", command: userGraft("post-edit") }],
+          },
+        ],
+        PreToolUse: [
+          {
+            matcher: "Skill|Bash",
+            hooks: [{ type: "command", command: userGraft("pre-tool") }],
+          },
+        ],
+        SessionStart: [
+          { hooks: [{ type: "command", command: userGraft("session-start") }] },
+        ],
+      },
+    });
+  // The project copy: one duplicate alone in its group (group goes), one sharing a group (only the entry goes), one alone
+  // in its event (event goes). statusLine runs the same script and stays.
+  const project = [
+    "{",
+    '\t"statusLine": { "type": "command", "command": "node \\"${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/graft-hooks.cjs\\" statusline" },',
+    '\t"hooks": {',
+    '\t\t"PostToolUse": [',
+    '\t\t\t{ "matcher": "Edit|Write", "hooks": [{ "type": "command", "command": "node \\"${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/graft-hooks.cjs\\" post-edit" }] },',
+    '\t\t\t{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "~/bin/lint.sh" }] }',
+    "\t\t],",
+    '\t\t"PreToolUse": [',
+    '\t\t\t{ "matcher": "Bash", "hooks": [',
+    '\t\t\t\t{ "type": "command", "command": "node \\"${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/graft-hooks.cjs\\" pre-tool" },',
+    '\t\t\t\t{ "type": "command", "command": "~/bin/guard.sh" }',
+    "\t\t\t] }",
+    "\t\t],",
+    '\t\t"SessionStart": [{ "hooks": [{ "type": "command", "command": "node \\"${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/graft-hooks.cjs\\" session-start" }] }],',
+    '\t\t"Stop": [{ "hooks": [{ "type": "command", "command": "node \\"${CLAUDE_PROJECT_DIR:-.}/.trail/hook.cjs\\" session-start || exit 0" }] }]',
+    "\t},",
+    '\t"permissions": { "allow": ["Read"] },',
+    '\t"keep": "é  untouched"',
+    "}",
+    "",
+  ].join("\n");
+
+  test("removes the project copies (entry, group, event as they empty); statusLine, other events and keys stay byte-identical; undo restores", async () => {
+    put(settings(), user());
+    put(projectSettings(), project);
+    const { fix, output } = setup({ renames: {} });
+    assert.equal(await fix.run({ path: repo, yes: true }), 0, output());
+    // Exactly three lines go: the post-edit group, the pre-tool entry and the SessionStart event. Every other byte stays.
+    const expected = project
+      .split("\n")
+      .filter((_, index) => ![4, 9, 13].includes(index))
+      .join("\n");
+    assert.ok(expected.includes("statusline") && expected.includes('"Stop"'));
+    assert.equal(readFileSync(projectSettings(), "utf8"), expected, output());
+    assert.equal(
+      readFileSync(settings(), "utf8"),
+      user(),
+      "user file untouched"
+    );
+    assert.match(output(), /verify \[dup-hook-scope\].*gone/);
+    assert.equal((await undo()).code, 0);
+    assert.equal(readFileSync(projectSettings(), "utf8"), project);
+  });
+
+  test("a local copy goes too; an identical handler (same matcher and entry) is left alone", async () => {
+    const same = {
+      matcher: "Edit|Write|MultiEdit",
+      hooks: [{ type: "command", command: userGraft("post-edit") }],
+    };
+    put(settings(), user());
+    const local = json({
+      hooks: {
+        PostToolUse: [same],
+        SessionStart: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command:
+                  'node "${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/graft-hooks.cjs" session-start',
+              },
+            ],
+          },
+        ],
+      },
+      env: { KEEP: "1" },
+    });
+    put(localSettings(), local);
+    const { fix, output } = setup({ renames: {} });
+    assert.equal(await fix.run({ path: repo, yes: true }), 0, output());
+    assert.deepEqual(JSON.parse(readFileSync(localSettings(), "utf8")), {
+      hooks: { PostToolUse: [same] },
+      env: { KEEP: "1" },
+    });
+  });
+
+  test("the fix parses the doctor's message and leaves a hook edited since alone", () => {
+    const make = createFixes()["dup-hook-scope"];
+    const file = projectSettings();
+    const fix = make(
+      {
+        id: "dup-hook-scope",
+        severity: "warning",
+        message:
+          "PostToolUse hook (0123abcd) in project settings runs graft-hooks.cjs post-edit, which a user-level hook also runs; both run",
+        file,
+      },
+      {} as Parameters<typeof make>[1]
+    ) as TextFix;
+    assert.equal(fix.file, file);
+    const text = json({
+      hooks: { PostToolUse: [{ hooks: [{ type: "command", command: "x" }] }] },
+    });
+    assert.equal(fix.apply(text), text);
+    assert.equal(
+      make(
+        {
+          id: "dup-hook-scope",
+          severity: "warning",
+          message:
+            "PostToolUse hook (0123abcd) in user settings runs x, which a user-level hook also runs; both run",
+          file,
+        },
+        {} as Parameters<typeof make>[1]
+      ),
+      undefined
+    );
+  });
+});
+
 describe("backup and undo through a real fix", () => {
   test("--yes writes a backup set; undo returns every file to its original bytes", async () => {
     const original =
@@ -469,5 +607,47 @@ describe("backup and undo through a real fix", () => {
     const { fix, output } = setup();
     await fix.run({ path: repo, dryRun: true });
     assert.match(output(), /\.mcp\.json is tracked in git/);
+  });
+});
+
+describe("stale-mcp-permission", () => {
+  const localSettings = () => join(repo, ".claude", "settings.local.json");
+  const local = [
+    "{",
+    '\t"permissions": {',
+    '\t\t"allow": [',
+    '\t\t\t"Bash(trail:*)",',
+    '\t\t\t"mcp__trail__trail_find_code",',
+    '\t\t\t"mcp__graft",',
+    '\t\t\t"WebFetch"',
+    "\t\t],",
+    '\t\t"deny": ["mcp__trail__trail_repo_map"]',
+    "\t},",
+    '\t"keep": "é  untouched"',
+    "}",
+    "",
+  ].join("\n");
+
+  test("removes only the retired entries; the rest of the array and file stay byte-identical; undo restores", async () => {
+    put(localSettings(), local);
+    const { fix, output } = setup({ renames: {} });
+    assert.equal(await fix.run({ path: repo, yes: true }), 0, output());
+    const expected = [
+      "{",
+      '\t"permissions": {',
+      '\t\t"allow": [',
+      '\t\t\t"Bash(trail:*)",',
+      '\t\t\t"WebFetch"',
+      "\t\t],",
+      '\t\t"deny": []',
+      "\t},",
+      '\t"keep": "é  untouched"',
+      "}",
+      "",
+    ].join("\n");
+    assert.equal(readFileSync(localSettings(), "utf8"), expected, output());
+    assert.match(output(), /verify \[stale-mcp-permission\].*gone/);
+    assert.equal((await undo()).code, 0);
+    assert.equal(readFileSync(localSettings(), "utf8"), local);
   });
 });
