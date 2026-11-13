@@ -1,5 +1,3 @@
-<p align="center"><img src=".github/assets/logo.svg" alt="Agentry Labs logo" width="96" height="96"></p>
-
 # Agentry Labs
 
 ![Agentry Labs: reusable skills, rules, agents, and tooling for AI agents](.github/assets/cover.jpg)

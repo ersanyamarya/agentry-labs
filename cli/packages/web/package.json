@@ -7,9 +7,9 @@
     "./serve": "./src/serve.ts"
   },
   "scripts": {
-    "prebuild": "node ../../../scripts/sync-logo.mjs",
+    "prebuild": "node ../../../scripts/image-gen-tools/sync-logo.mjs",
     "build": "vite build",
-    "predev": "node ../../../scripts/sync-logo.mjs",
+    "predev": "node ../../../scripts/image-gen-tools/sync-logo.mjs",
     "dev": "vite dev",
     "test": "vitest run",
     "typecheck": "tsc -p ."

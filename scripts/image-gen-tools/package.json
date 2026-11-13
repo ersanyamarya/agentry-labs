@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "cover": "bun generate-cover.ts",
+    "logo": "node sync-logo.mjs",
+    "cover": "node sync-logo.mjs && bun generate-cover.ts",
     "postinstall": "bunx playwright-core install chromium"
   },
   "devDependencies": {

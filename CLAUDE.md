@@ -126,6 +126,8 @@ cd scripts/image-gen-tools && bun install && bun run cover
 node ../../skills/image-artifact-setup/scripts/verify-images.mjs ../../.github/assets --expect 1 --width 1280 --height 640
 ```
 
+`bun run cover` also runs `sync-logo.mjs`, which copies the master `.github/assets/logo.svg` into the web package (the cover inlines the logo). Edit the logo only in the master file.
+
 The `bun run cover` log prints the counts it used; check they match the change, then view the image before committing it.
 
 ### MCP Configuration

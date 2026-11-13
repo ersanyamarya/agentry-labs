@@ -8,6 +8,8 @@ import { cardDocument, escapeHtml, renderCards } from './lib/card-renderer.ts';
 const ROOT = path.resolve(import.meta.dir, '../..');
 const OUT_DIR = path.join(ROOT, '.github/assets');
 
+// The master logo, inlined above the eyebrow so the cover carries the icon.
+const logoSvg = fs.readFileSync(path.join(ROOT, '.github/assets/logo.svg'), 'utf8').replace(/ width="120" height="120"/, '').trim();
 const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8').split('\n');
 // Title is the first "# " heading; tagline is the first plain paragraph after it (not a heading or image).
 const titleAt = readme.findIndex((l) => l.startsWith('# '));
@@ -63,6 +65,7 @@ const tuiRows = SHOWN.map((name, i) => {
 const body = `
 <div class="frame">
   <div class="left">
+    <div class="logo">${logoSvg}</div>
     <div class="eyebrow">Claude Code · Copilot · Cursor</div>
     <h1>${escapeHtml(title)}</h1>
     <p class="desc">${escapeHtml(tagline)}</p>
@@ -87,6 +90,7 @@ const body = `
 
 const css = `
   .frame{padding:0 72px;gap:48px}
+  .logo svg{width:84px;height:84px;display:block;margin-bottom:22px}
   h1{font-weight:700;font-size:74px;letter-spacing:-0.04em;line-height:1.02}
   .desc{max-width:none;font-size:27px;margin-top:22px}
   .counts{margin-top:28px;font-family:${'var(--mono)'};font-size:21px;color:oklch(0.8 0.19 150);letter-spacing:0.02em}
