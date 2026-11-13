@@ -38,7 +38,7 @@ Remember, before writing any code:
 ├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs; hooks/ holds hook scripts it copies to ~/.claude/hooks (prefer-trail.mjs: denies grep/cat/find on source in trail-indexed repos, `# no-trail: <why>` overrides)
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
 ├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
-├── cli/                 # agentry CLI and Ink terminal UI, in TypeScript (src/bin; npm workspaces packages/core and packages/tui; design docs in cli/docs). See cli/README.md and cli/CLAUDE.md
+├── cli/                 # agentry CLI and Ink terminal UI, in TypeScript (src/bin; npm workspaces packages/core, packages/tui and packages/web; design docs in cli/docs). See cli/README.md and cli/CLAUDE.md
 └── .github/             # CI (validates every skill) and assets/cover.jpg
 ```
 

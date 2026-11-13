@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Web UI: `agentry ui` serves a local web app (TanStack Start, shadcn components) on 127.0.0.1 behind a one-time token, with all eight sections (Skills, MCP, Hooks, Plugins, Rules, Catalog, Doctor, Backups). Writes use the same backup-first functions as the terminal UI; previewed changes wait for Apply. `--port` and `--no-open` are options. The package ships the built app (about 3 MB more).
 - **Breaking:** `agentry ui` now serves the web UI (127.0.0.1, behind a one-time token; `--port`, `--no-open`). The terminal UI moved to `agentry tui`; a bare `agentry` in a terminal still opens it.
 - Internal: the CLI is split into npm workspaces (`packages/core` for the command modules, `packages/tui` for the terminal UI) and bundled with esbuild; `npm run pack:check` installs the packed tarball and runs it. No behaviour change.
 - Terminal UI sidebar: the top tabs are replaced by a left rail with three groups (Library, Discover, Health) holding the section counts, the project path, tokens and problems; `tab` moves the keys between the rail and the list (`↑`/`↓` pick a section on the rail), and the `1`-`8` keys follow the new order: Skills, MCP, Hooks, Plugins, Rules, Catalog, Doctor, Backups. The rail is 22 columns from 90, 16 from 70, and a one-line header below that.

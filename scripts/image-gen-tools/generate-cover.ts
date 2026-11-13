@@ -31,7 +31,7 @@ const counts = [plural(skills.length, 'skill'), plural(agents.length, 'agent'), 
   .filter(Boolean)
   .join(' · ');
 
-// The terminal shows the `agentry` TUI (cli/): header, tabs, a few real skill names with their state mark, the row's keys.
+// The terminal shows the `agentry` TUI (cli/): the sidebar, a few real skill names with their state mark, the row's keys.
 // Marks and scopes are illustrative; the names and the Skills count come from skills/.
 const SHOWN = ['agentry', 'phased-plan', 'run-fallow', 'lighthouse-audit', 'skill-architect'].filter((s) => skills.includes(s));
 const rowStates = [
@@ -41,8 +41,19 @@ const rowStates = [
   ['○', 'off', 'shelf'],
   ['○', 'off', 'shelf'],
 ] as const;
-const tabs = ['Skills', 'MCP', 'Hooks', 'Plugins', 'Doctor', 'Catalog', 'Backups', 'Rules']
-  .map((t, i) => `<span class="${i === 0 ? 'tab on' : 'tab'}">${t}${i === 0 ? ` ${skills.length}` : ''}</span>`)
+// The sidebar groups, as in the TUI and the web UI. Only the Skills count is real (from skills/); the rest stay bare.
+const rail = [
+  ['LIBRARY', ['Skills', 'MCP', 'Hooks', 'Plugins', 'Rules']],
+  ['DISCOVER', ['Catalog']],
+  ['HEALTH', ['Doctor', 'Backups']],
+] as const;
+const railHtml = rail
+  .map(
+    ([label, items]) =>
+      `<div class="glabel">${label}</div>${items
+        .map((t) => `<div class="item${t === 'Skills' ? ' on' : ''}"><span>${t === 'Skills' ? '› ' : '  '}${t}</span><span>${t === 'Skills' ? skills.length : ''}</span></div>`)
+        .join('')}`,
+  )
   .join('');
 const tuiRows = SHOWN.map((name, i) => {
   const [mark, cls, scope] = rowStates[i] ?? rowStates[0];
@@ -61,10 +72,13 @@ const body = `
     <div class="bar"><i></i><i></i><i></i><span>agentry</span></div>
     <div class="screen">
       <p class="cmd"><b>$</b> agentry</p>
-      <p class="head"><strong>agentry</strong>  ~/my-project<span class="r">no problems</span></p>
-      <p class="tabs">${tabs}</p>
-      <ul>${tuiRows}</ul>
-      <p class="keys"><b>space</b> toggle  <b>s</b> shelve  <b>x</b> remove<span class="r"><b>?</b> help</span></p>
+      <div class="split">
+        <div class="rail"><p class="brand"><strong>agentry</strong></p>${railHtml}</div>
+        <div class="main">
+          <ul>${tuiRows}</ul>
+          <p class="keys"><b>space</b> toggle  <b>s</b> shelve  <b>x</b> remove</p>
+        </div>
+      </div>
       <p class="cmd inst"><b>$</b> npm i -g @ersanyamarya/agentry-cli<span class="cursor"></span></p>
     </div>
   </div>
@@ -87,11 +101,15 @@ const css = `
   .bar span{margin-left:auto}
   .screen{padding:22px 24px 24px;font-size:15px;line-height:1.7;color:oklch(0.9 0.02 150)}
   .cmd{color:oklch(0.96 0.01 150);font-size:17px} .cmd b{color:oklch(0.8 0.19 150);font-weight:600;margin-right:10px}
-  .head{display:flex;margin-top:12px;color:oklch(0.66 0.03 155);white-space:pre} .head strong{color:oklch(0.96 0.01 150)}
   .r{margin-left:auto;color:oklch(0.66 0.03 155)}
-  .tabs{display:flex;gap:9px;white-space:nowrap;color:oklch(0.55 0.03 155);font-size:14px;margin-top:2px}
-  .tab.on{color:oklch(0.82 0.12 210);font-weight:700;text-decoration:underline;text-underline-offset:4px}
-  ul{list-style:none;margin:10px 0 10px;padding:0}
+  .split{display:flex;margin-top:12px}
+  .rail{flex:0 0 140px;border-right:1px solid oklch(1 0 0 / 0.1);padding-right:12px;font-size:13px;line-height:1.55;color:oklch(0.66 0.03 155)}
+  .brand{color:oklch(0.96 0.01 150);margin-bottom:4px}
+  .glabel{font-size:10.5px;letter-spacing:0.08em;color:oklch(0.55 0.03 155);margin-top:7px}
+  .item{display:flex;justify-content:space-between;white-space:pre}
+  .item.on{color:oklch(0.82 0.12 210);font-weight:700}
+  .main{flex:1;min-width:0;padding-left:14px}
+  ul{list-style:none;margin:0 0 10px;padding:0}
   .row{display:flex;gap:10px;white-space:pre;padding:0 4px;border-radius:4px}
   .row .cur{width:10px;color:oklch(0.82 0.12 210)} .row .mark{width:14px}
   .row .name{flex:1;color:oklch(0.96 0.01 150)} .row .scope{color:oklch(0.55 0.03 155)}

@@ -9,6 +9,8 @@ export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
+  // The installed package has no node_modules for the web app: bundle every dependency into the server build.
+  ssr: { noExternal: true },
   root: import.meta.dirname,
   server: { host: "127.0.0.1", port: 4200 },
 });

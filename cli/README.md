@@ -1,6 +1,6 @@
 # agentry
 
-`agentry` shows and manages what a Claude Code session loads: skills, MCP servers, hooks, plugins, and CLAUDE.md and rule files. It keeps a skill shelf, backs up every file it changes, installs items from the agentry-labs catalog, and opens a terminal UI with `agentry tui`.
+`agentry` shows and manages what a Claude Code session loads: skills, MCP servers, hooks, plugins, and CLAUDE.md and rule files. It keeps a skill shelf, backs up every file it changes, installs items from the agentry-labs catalog, and opens a terminal UI with `agentry tui` or a local web UI with `agentry ui`.
 
 It is written in strict TypeScript (ESM) and needs Node.js 22 or newer. It lives in this repo's `cli/` folder; the repo overview is in the [root README](../README.md).
 
@@ -42,6 +42,7 @@ Without linking, `npm install -g /path/to/agentry-labs/cli` also works.
 - `src/bin/agentry.ts`: the command router
 - `packages/core/`: the command modules (shelf, catalog, scan, fix and undo, doctor, status, MCP, hook and plugin toggles, rules, backups, tokens, paths), `data.ts` (the facade both UIs call) and `inventory/` (readers for skills, MCP servers, hooks and plugins)
 - `packages/tui/`: the Ink terminal UI (TSX) behind `agentry tui`
+- `packages/web/`: the web UI behind `agentry ui` (TanStack Start, Tailwind, shadcn components) and its local server; `src/contract/` is the typed rpc between them, `src/server/router.ts` implements it over core
 - These are npm workspaces; `npm run build` bundles them into the one published package with esbuild
 - `src/test/`: vitest suites; `src/test/helpers/` builds a temp HOME and project
 - `docs/`: design docs, including `claude-config-sources.md` (what Claude Code reads and where)
@@ -135,6 +136,19 @@ agentry ui                     # web UI on 127.0.0.1 (see agentry ui below)
 ```
 
 `agentry --help` loads no UI code, so it works even before `npm install`. Run tests with `npm test`.
+
+### agentry ui
+
+`agentry ui` serves a local web UI for the same things the terminal UI does: Skills, MCP, Hooks, Plugins, Rules, Catalog, Doctor and Backups, in a sidebar with the same three groups. Run it from the project folder:
+
+```bash
+agentry ui                       # picks a free port, prints a URL with a one-time token, opens your browser
+agentry ui --no-open --port 4200 # print the URL only, on a port you choose
+```
+
+It is a local tool and stays one. The server listens on `127.0.0.1` only. The printed URL carries a random token that is swapped for an `HttpOnly`, `SameSite=Strict` cookie on the first visit (and removed from the address bar); every other request needs that cookie, a wrong `Host` is refused, and a write from another origin is refused. Stop it with Ctrl-C.
+
+Every change goes through the same backup-first functions as the terminal UI. A change that has a preview shows it first and writes nothing until you press Apply (`y`; `n` cancels). Removals keep a copy that Backups can restore. Secrets in MCP servers and hook commands are masked before they reach the browser. The keys match the terminal UI: `↑ ↓` move, `space` turns the row on or off in the scope picked in the sidebar (Global or This project), `s` shelve, `x` remove, `/` search, `?` help.
 
 ### agentry tui
 

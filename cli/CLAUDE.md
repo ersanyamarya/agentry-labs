@@ -8,14 +8,14 @@ Run from `cli/` (the npm workspace root; one `npm install` links every package):
 
 ```bash
 npm install                  # deps for the CLI and all packages/*
-npm run build                # esbuild bundles src/bin/agentry.ts plus workspace code -> dist/bin/ (lazy TUI chunk)
-npm test                     # builds dist/ once (globalSetup), then vitest runs the cli, core and tui projects
-npx vitest run --project core   # one package's tests (cli | core | tui)
+npm run build                # builds the web app (vite) into dist/web, then esbuild bundles src/bin/agentry.ts plus workspace code -> dist/bin/ (lazy TUI and web chunks)
+npm test                     # builds dist/ once (globalSetup), then vitest runs the cli, core, tui and web projects
+npx vitest run --project core   # one package's tests (cli | core | tui | web)
 npm run typecheck            # tsc -p packages/core && tsc -p packages/tui && tsc -p .  (noEmit; esbuild does the emit)
 npm run lint                 # biome lint .
 npm run format               # biome format --write .
 npm run check                # biome check . (includes the package boundary rules)
-npm run pack:check           # builds, packs, installs the tarball into a temp prefix and runs agentry --help/--version/status
+npm run pack:check           # builds, packs, checks the size budget, installs the tarball into a temp prefix, runs agentry --help/--version/status, and starts agentry ui from the install
 npm link                     # puts `agentry` on PATH from dist/ (run npm run build first)
 ```
 
@@ -31,7 +31,7 @@ their `exports` point at TypeScript source. They reach the tarball only by being
 - `packages/core/` (`@agentry/core`, imported per file as `@agentry/core/<file>`): command modules; `types.ts` holds config shapes; `version.ts` finds the CLI's `package.json` by walking up; `renames.json` is imported as JSON (inlined by the bundle); `data.ts` (`createData`) is the facade both UIs call
 - `packages/core/src/inventory/`: readers for skills, MCP servers, hooks and plugins
 - `packages/tui/` (`@agentry/tui`, exports `run` from `src/index.tsx`): Ink UI in TSX (`app.tsx`, `components/`, pure helpers such as `rows.ts`, `icons.ts`, `theme.ts`)
-- `packages/web/` (`@agentry/web`, from Phase 3 of `docs/web-ui-plan.md`): TanStack Start app; the CLI imports `@agentry/web/serve`
+- `packages/web/` (`@agentry/web`): TanStack Start app and its local server. `src/serve.ts` + `src/serve/` are the token/cookie/Host/Origin server the CLI imports as `@agentry/web/serve`; `src/contract/` is the oRPC contract, `src/server/router.ts` implements it over `createData`; `src/components/` the screens (shared `list-screen`, `details-panel`, `preview-flow`); `src/components/ui/` is shadcn output, kept as shipped. Design: `docs/web-ui-design.md`
 - Boundaries (Biome `noRestrictedImports` overrides plus `noUndeclaredDependencies` per `package.json`): core imports no `react`, `ink*` or `@tanstack/*`; tui and web import `@agentry/core/*` only, never each other
 - Tests sit with the package whose code they import: `packages/core/src/test/` (in-process lib tests), `packages/tui/src/test/` (`tui-*.test.ts`, helper `helpers/tui.tsx`), `src/test/` (tests that spawn the CLI: router, scan, shelf and the other command tests, `tui-pty`, `tui-loader`)
 - `src/test/helpers/`: shared by every package's tests: `fixture.ts` and `fake-claude.ts` build temp HOME and project dirs, `paths.ts` locates the CLI root and bin, `build.ts` is the vitest globalSetup, `pty-run.py` drives the TUI in a pty
