@@ -6,6 +6,7 @@ import {
   lstatSync,
   mkdirSync,
   readdirSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -115,5 +116,47 @@ describe("agentry ui end to end", () => {
     const backups = join(fx.configDir, "backups/agentry");
     expect(existsSync(backups)).toBe(true);
     expect(readdirSync(backups).length).toBeGreaterThan(0);
+  });
+
+  test("a removed skill can be restored from Backups over HTTP: the file is back", async () => {
+    const { backups } = await client.load({ dir: fx.repo });
+    const removed = backups.items.find(
+      (item) => item.kind === "removed" && item.name.includes("notes")
+    );
+    expect(removed).toBeDefined();
+    const id = removed?.id ?? "";
+    const preview = await client.backups.restoreBackup({
+      dir: fx.repo,
+      id,
+      dryRun: true,
+    });
+    expect(preview.ok).toBe(true);
+    expect(existsSync(join(fx.configDir, "skills/notes"))).toBe(false);
+    const result = await client.backups.restoreBackup({ dir: fx.repo, id });
+    expect(result.ok).toBe(true);
+    expect(existsSync(join(fx.configDir, "skills/notes/SKILL.md"))).toBe(true);
+  });
+
+  test("Doctor: previewFix writes nothing, applyFix removes the broken link, and the finding is gone on reload", async () => {
+    const link = join(fx.configDir, "skills/dangling");
+    symlinkSync("/nonexistent/target", link);
+    const before = await client.load({ dir: fx.repo });
+    const finding = before.doctor.findings.find(
+      (item) => item.id === "broken-skill-link"
+    );
+    expect(finding).toBeDefined();
+    if (!finding) {
+      return;
+    }
+    const preview = await client.doctor.previewFix({ dir: fx.repo, finding });
+    expect(preview.appliable).toBe(true);
+    expect(lstatSync(link).isSymbolicLink()).toBe(true);
+    const applied = await client.doctor.applyFix({ dir: fx.repo, finding });
+    expect(applied.ok).toBe(true);
+    expect(existsSync(link)).toBe(false);
+    const after = await client.load({ dir: fx.repo });
+    expect(
+      after.doctor.findings.some((item) => item.id === "broken-skill-link")
+    ).toBe(false);
   });
 });

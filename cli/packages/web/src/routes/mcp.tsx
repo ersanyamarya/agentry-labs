@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ComingLater } from "../components/coming-later.js";
+import { McpScreen } from "../components/mcp-screen.js";
 
 export const Route = createFileRoute("/mcp")({
-  component: () => <ComingLater title="MCP" />,
+  component: McpScreen,
 });

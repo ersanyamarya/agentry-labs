@@ -4,6 +4,8 @@ import { vi } from "vitest";
 import { loadFixture } from "./fixtures.js";
 
 const write = () => vi.fn(async () => ({ ok: true, text: "done" }));
+const preview = () =>
+  vi.fn(async () => ({ appliable: true, text: "Would change a file" }));
 
 export const mockClient = {
   info: vi.fn(async () => ({ dir: "/work/app", version: "0.1.0" })),
@@ -16,6 +18,37 @@ export const mockClient = {
     demoteSkill: write(),
     removeSkill: write(),
   },
+  mcp: {
+    previewMcp: preview(),
+    applyMcp: write(),
+    previewMcpRemove: preview(),
+    applyMcpRemove: write(),
+    previewMcpAdd: preview(),
+    applyMcpAdd: write(),
+    previewMcpSet: preview(),
+    applyMcpSet: write(),
+  },
+  hooks: { previewHook: preview(), applyHook: write() },
+  plugins: {
+    previewPlugin: preview(),
+    applyPlugin: write(),
+    previewPluginInstall: preview(),
+    applyPluginInstall: write(),
+  },
+  rules: { removeRule: write() },
+  catalog: {
+    refreshCatalog: write(),
+    addFromCatalog: write(),
+    updateFromCatalog: write(),
+    removeAgent: write(),
+  },
+  doctor: {
+    previewFix: preview(),
+    applyFix: write(),
+    previewUndo: preview(),
+    applyUndo: write(),
+  },
+  backups: { restoreBackup: write(), pruneBackups: write() },
 };
 
 export const mockOrpc = () => ({

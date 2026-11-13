@@ -1,0 +1,231 @@
+// Backups core made before a change: restore a removed skill or an updated copy, delete one, or delete the old ones.
+// Every write is previewed first. Fixes are undone from Doctor, not here.
+
+import { useMemo } from "react";
+import type { LoadData } from "../contract/index.js";
+import { useListState } from "../hooks/use-list-state.js";
+import { useAppData } from "../lib/app-data.js";
+import { formatAge, formatBytes } from "../lib/format.js";
+import { client } from "../lib/orpc.js";
+import { ActionButton } from "./action-button.js";
+import { DetailsPanel, NoSelection } from "./details-panel.js";
+import { ListScreen } from "./list-screen.js";
+import { Pill } from "./pill.js";
+import { usePreviewFlow } from "./preview-flow.js";
+import { Button } from "./ui/button.js";
+import { Kbd } from "./ui/kbd.js";
+
+type BackupRow = LoadData["backups"]["items"][number];
+
+export const PRUNE_DAYS = 30;
+
+const FILTERS = {
+  all: () => true,
+  removed: (row: BackupRow) => row.kind === "removed",
+  updated: (row: BackupRow) => row.kind === "updated",
+  fix: (row: BackupRow) => row.kind === "fix",
+};
+
+export const BackupsScreen = () => {
+  const { data, dir } = useAppData();
+  const flow = usePreviewFlow();
+  const rows = useMemo(() => data?.backups.items ?? [], [data]);
+
+  const restore = (target: BackupRow | undefined) => {
+    if (!target) {
+      return;
+    }
+    if (target.kind === "fix") {
+      flow.start({
+        title: target.name,
+        preview: async () => ({
+          appliable: false,
+          text: "Fix backups are undone from Doctor (Undo last fix), not restored here.",
+        }),
+        apply: async () => ({ ok: false, text: "Nothing to apply." }),
+      });
+      return;
+    }
+    const input = { dir, id: target.id };
+    flow.start({
+      title: `Restore ${target.name}`,
+      preview: async () => {
+        const result = await client.backups.restoreBackup({
+          ...input,
+          dryRun: true,
+        });
+        return { appliable: result.ok, text: result.text };
+      },
+      apply: () => client.backups.restoreBackup(input),
+    });
+  };
+  const prune = (
+    input: { ids: string[] } | { olderThan: number },
+    title: string
+  ) =>
+    flow.start({
+      title,
+      preview: async () => {
+        const result = await client.backups.pruneBackups({
+          dir,
+          ...input,
+          dryRun: true,
+        });
+        return { appliable: result.ok, text: result.text };
+      },
+      apply: () => client.backups.pruneBackups({ dir, ...input }),
+      note: "Deleted backups cannot be restored.",
+    });
+  const pruneOld = () =>
+    prune({ olderThan: PRUNE_DAYS }, `Delete backups ${PRUNE_DAYS}+ days old`);
+  const removeOne = (target: BackupRow | undefined) =>
+    target && prune({ ids: [target.id] }, `Delete backup ${target.name}`);
+
+  const list = useListState(rows, {
+    id: (item) => item.id,
+    text: (item) => `${item.name} ${item.detail}`,
+    filters: FILTERS,
+    keys: { x: removeOne, d: pruneOld, u: restore },
+  });
+  const current = list.selected;
+
+  return (
+    <>
+      <ListScreen<BackupRow>
+        action={
+          <Button className="h-11 px-4" onClick={pruneOld} variant="outline">
+            Delete {PRUNE_DAYS}+ days old <Kbd>d</Kbd>
+          </Button>
+        }
+        columns={[
+          {
+            header: "Backup",
+            cell: (item) => (
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="truncate font-mono text-sm font-medium">
+                  {item.name}
+                </span>
+                <span className="text-muted-text truncate text-xs">
+                  {item.what ?? item.detail}
+                </span>
+              </div>
+            ),
+          },
+          {
+            header: "Kind",
+            className: "w-28",
+            cell: (item) => (
+              <Pill
+                tone={
+                  item.kind === "removed"
+                    ? "error"
+                    : item.kind === "updated"
+                      ? "project"
+                      : "muted"
+                }
+              >
+                {item.kind}
+              </Pill>
+            ),
+          },
+          {
+            header: "Size",
+            className: "w-24",
+            cell: (item) => (
+              <span className="text-muted-text font-mono text-xs">
+                {formatBytes(item.bytes)}
+              </span>
+            ),
+          },
+          {
+            header: "Age",
+            className: "w-24",
+            cell: (item) => (
+              <span className="text-muted-text text-xs">
+                {formatAge(item.days)}
+              </span>
+            ),
+          },
+        ]}
+        details={
+          current ? (
+            <DetailsPanel
+              actions={
+                <>
+                  <ActionButton keyHint="u" onClick={() => restore(current)}>
+                    Restore
+                  </ActionButton>
+                  <ActionButton
+                    danger
+                    keyHint="x"
+                    onClick={() => removeOne(current)}
+                  >
+                    Delete
+                  </ActionButton>
+                </>
+              }
+              badge={<Pill tone="muted">{current.kind}</Pill>}
+              fields={[
+                ["Item", current.name],
+                ["Taken", `${current.date} (${formatAge(current.days)})`],
+                ["Size", formatBytes(current.bytes)],
+                [
+                  "From",
+                  <span className="font-mono text-xs" key="f">
+                    {current.from ?? "-"}
+                  </span>,
+                ],
+                [
+                  "Copy",
+                  <span className="font-mono text-xs" key="p">
+                    {current.path}
+                  </span>,
+                ],
+              ]}
+              note={current.detail}
+              title={current.name}
+            />
+          ) : (
+            <NoSelection what="a backup" />
+          )
+        }
+        detailsLabel="Backup details"
+        empty={`Nothing is kept under ${data?.paths.backupsDir ?? "the backups folder"} yet.`}
+        filter={{
+          value: list.filter,
+          onChange: list.setFilter,
+          options: [
+            { value: "all", label: "All", count: list.counts.all ?? 0 },
+            {
+              value: "removed",
+              label: "Removed",
+              count: list.counts.removed ?? 0,
+            },
+            {
+              value: "updated",
+              label: "Updated",
+              count: list.counts.updated ?? 0,
+            },
+            { value: "fix", label: "Fixes", count: list.counts.fix ?? 0 },
+          ],
+        }}
+        hint="↑↓ move · u restore · x delete · d delete 30+ days old · / search"
+        onSelect={list.setSelectedId}
+        rowId={(item) => item.id}
+        rows={list.shown}
+        search={{
+          inputRef: list.searchRef,
+          value: list.query,
+          onChange: list.setQuery,
+          placeholder: "Search backups",
+        }}
+        selectedId={list.selectedId}
+        setSheetOpen={list.setSheetOpen}
+        sheetOpen={list.sheetOpen}
+        summary={`${rows.length} backups`}
+        title="Backups"
+      />
+      {flow.dialog}
+    </>
+  );
+};

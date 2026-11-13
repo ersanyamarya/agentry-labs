@@ -5,6 +5,8 @@
 import { SearchIcon } from "lucide-react";
 import type { ReactNode, RefObject } from "react";
 import { useMediaQuery } from "../hooks/use-media-query.js";
+import { useAppData } from "../lib/app-data.js";
+import { whileLoading } from "../lib/format.js";
 import { Input } from "./ui/input.js";
 import { Kbd } from "./ui/kbd.js";
 import {
@@ -77,12 +79,16 @@ export const ListScreen = <T,>({
   title,
 }: ListScreenProps<T>) => {
   const wide = useMediaQuery("(min-width: 1100px)");
+  // Until `load` answers every list would read "0 rows"; say it is loading instead.
+  const { loading } = useAppData();
   return (
     <section className="flex flex-col gap-5 px-8 py-7">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <p className="text-muted-text text-sm">{summary}</p>
+          <p className="text-muted-text text-sm">
+            {whileLoading(loading, summary)}
+          </p>
         </div>
         {action}
       </div>
@@ -143,7 +149,7 @@ export const ListScreen = <T,>({
                     className="text-muted-text py-8"
                     colSpan={columns.length}
                   >
-                    {empty}
+                    {whileLoading(loading, empty)}
                   </TableCell>
                 </TableRow>
               ) : (

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ComingLater } from "../components/coming-later.js";
+import { PluginsScreen } from "../components/plugins-screen.js";
 
 export const Route = createFileRoute("/plugins")({
-  component: () => <ComingLater title="Plugins" />,
+  component: PluginsScreen,
 });

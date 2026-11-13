@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ComingLater } from "../components/coming-later.js";
+import { CatalogScreen } from "../components/catalog-screen.js";
 
 export const Route = createFileRoute("/catalog")({
-  component: () => <ComingLater title="Catalog" />,
+  component: CatalogScreen,
 });
