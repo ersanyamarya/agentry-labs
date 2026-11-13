@@ -1,6 +1,6 @@
 {
   "name": "@ersanyamarya/agentry-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "agentry: inspect and manage what a Claude Code session loads (skills, MCP servers, hooks, plugins, CLAUDE.md), with a terminal UI",
   "keywords": [
     "claude-code",
@@ -38,7 +38,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build:web && esbuild src/bin/agentry.ts --bundle --platform=node --format=esm --target=node22 --splitting --outdir=dist/bin --jsx=automatic --external:figures --external:ink --external:ink-spinner --external:react",
+    "build": "npm run build:web && node -e \"fs.rmSync('dist/bin',{recursive:true,force:true})\" && esbuild src/bin/agentry.ts --bundle --platform=node --format=esm --target=node22 --splitting --outdir=dist/bin --jsx=automatic --external:figures --external:ink --external:ink-spinner --external:react",
     "postbuild": "node -e \"fs.chmodSync('dist/bin/agentry.js',0o755)\"",
     "build:web": "npm run build -w @agentry/web && node -e \"fs.rmSync('dist/web',{recursive:true,force:true});fs.cpSync('packages/web/dist','dist/web',{recursive:true})\"",
     "check": "biome check .",

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 - Web UI: `agentry ui` serves a local web app (TanStack Start, shadcn components) on 127.0.0.1 behind a one-time token, with all eight sections (Skills, MCP, Hooks, Plugins, Rules, Catalog, Doctor, Backups). Writes use the same backup-first functions as the terminal UI; previewed changes wait for Apply. `--port` and `--no-open` are options. The package ships the built app (about 3 MB more).
 - Web UI Skills: shelf groups show as chips (click to filter, switch to turn a whole group on or off) and in a Group column; rows have checkboxes (`m` marks, `a` marks all, `esc` clears) and a bulk bar for Turn on, Turn off, Shelve and Remove. Bulk removals still keep a backup of each skill.
