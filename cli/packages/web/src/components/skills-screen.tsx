@@ -7,12 +7,13 @@ import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useShortcuts } from "../hooks/use-shortcuts.js";
 import { useAppData, useReload } from "../lib/app-data.js";
-import { orpc } from "../lib/orpc.js";
+import { client, orpc } from "../lib/orpc.js";
 import { useScope } from "../lib/scope.js";
 import {
   type Filter,
   filterCounts,
   filterRows,
+  groupSummaries,
   isOn,
   type SkillRow,
   scopeLabel,
@@ -63,6 +64,13 @@ const ScopeBadge = ({ row }: { row: SkillRow }) => {
   );
 };
 
+function canShelve(row?: SkillRow) {
+  return row?.kind === "global" || row?.kind === "project";
+}
+function canRemove(row?: SkillRow) {
+  return row !== undefined && row.kind !== "plugin";
+}
+
 const tokensText = (tokens: number | null) =>
   tokens === null ? "tokens not measured" : `~${tokens} tokens`;
 
@@ -78,6 +86,7 @@ export const SkillsScreen = () => {
   const [shelving, setShelving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [group, setGroup] = useState("");
+  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
 
   const all = useMemo(() => (data ? skillRows(data) : []), [data]);
   const rows = useMemo(
@@ -86,6 +95,27 @@ export const SkillsScreen = () => {
   );
   const counts = filterCounts(all);
   const selected = rows.find((row) => row.id === selectedId) ?? rows[0];
+  const groups = useMemo(() => groupSummaries(all, scope), [all, scope]);
+  const checkedRows = all.filter((row) => checked.has(row.id));
+  // Bulk actions apply to the ticked rows; with none ticked, to the row selected in the list.
+  const targets =
+    checkedRows.length > 0 ? checkedRows : selected ? [selected] : [];
+  const shelvable = targets.filter(canShelve);
+  const removable = targets.filter(canRemove);
+  const flippable = targets.filter((row) => row.kind === "shelf");
+  const shownIds = rows.map((row) => row.id);
+  const toggleChecked = (id: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) {
+        next.add(id);
+      }
+      return next;
+    });
+  const allChecked =
+    shownIds.length > 0 && shownIds.every((id) => checked.has(id));
+  const toggleAll = () =>
+    setChecked(allChecked ? new Set() : new Set(shownIds));
 
   const done = (result: { ok: boolean; text: string }) => {
     const first =
@@ -123,10 +153,47 @@ export const SkillsScreen = () => {
       global: scope === "global",
     });
   };
-  const canShelve = (row?: SkillRow) =>
-    row?.kind === "global" || row?.kind === "project";
-  const canRemove = (row?: SkillRow) =>
-    row !== undefined && row.kind !== "plugin";
+
+  // One call per row, in order; a failure on one row does not stop the rest.
+  const runBulk = async (
+    label: string,
+    items: SkillRow[],
+    call: (row: SkillRow) => Promise<{ ok: boolean; text: string }>
+  ) => {
+    const failed: string[] = [];
+    for (const row of items) {
+      try {
+        if (!(await call(row)).ok) {
+          failed.push(row.name);
+        }
+      } catch {
+        failed.push(row.name);
+      }
+    }
+    const okCount = items.length - failed.length;
+    if (failed.length > 0) {
+      toast.error(
+        `${label}: ${okCount} done, ${failed.length} failed (${failed.slice(0, 3).join(", ")})`
+      );
+    } else {
+      toast.success(`${label}: ${okCount} done`);
+    }
+    setChecked(new Set());
+    reload();
+  };
+  const bulkFlip = (on: boolean) =>
+    runBulk(on ? "Turned on" : "Turned off", flippable, (row) =>
+      client.skills.toggleShelf({
+        dir,
+        target: row.target,
+        on,
+        global: scope === "global",
+      })
+    );
+  const groupFlip = (name: string, on: boolean) =>
+    client.skills
+      .toggleShelf({ dir, target: name, on, global: scope === "global" })
+      .then(done, (error: Error) => toast.error(error.message));
 
   const move = (step: number) => {
     const index = rows.findIndex((row) => row.id === selected?.id);
@@ -156,8 +223,11 @@ export const SkillsScreen = () => {
         event.preventDefault();
         searchRef.current?.focus();
       },
-      s: () => canShelve(selected) && setShelving(true),
-      x: () => canRemove(selected) && setRemoving(true),
+      s: () => shelvable.length > 0 && setShelving(true),
+      x: () => removable.length > 0 && setRemoving(true),
+      m: () => selected && toggleChecked(selected.id),
+      a: toggleAll,
+      esc: () => setChecked(new Set()),
     },
     !busy
   );
@@ -284,11 +354,22 @@ export const SkillsScreen = () => {
                   {row.name}
                 </span>
                 <span className="text-muted-text truncate text-xs">
-                  {row.group ? `${row.group} · ` : ""}
                   {tokensText(row.tokens)}
                 </span>
               </div>
             ),
+          },
+          {
+            header: "Group",
+            className: "w-40",
+            cell: (row) =>
+              row.group ? (
+                <span className="text-body truncate font-mono text-xs">
+                  {row.group}
+                </span>
+              ) : (
+                <span className="text-muted-foreground text-xs">-</span>
+              ),
           },
           {
             header: "Scope",
@@ -313,7 +394,7 @@ export const SkillsScreen = () => {
             { value: "shelf", label: "Shelf", count: counts.shelf },
           ],
         }}
-        hint="↑↓ move · space toggle · s shelve · x remove · / search"
+        hint="↑↓ move · space toggle · m mark · a mark all · s shelve · x remove · / search"
         onSelect={setSelectedId}
         rowId={(row) => row.id}
         rows={rows}
@@ -324,15 +405,117 @@ export const SkillsScreen = () => {
           placeholder: "Search skills",
         }}
         selectedId={selected?.id}
+        selection={{
+          allChecked,
+          checked,
+          label: (id) => all.find((row) => row.id === id)?.name ?? id,
+          onToggle: toggleChecked,
+          onToggleAll: toggleAll,
+        }}
         setSheetOpen={setSheetOpen}
         sheetOpen={sheetOpen}
         summary={`${all.length} skills · ${counts.on} on · ${counts.shelf} on the shelf`}
         title="Skills"
+        toolbar={
+          <>
+            {groups.length > 0 ? (
+              <fieldset
+                aria-label="Shelf groups"
+                className="flex flex-wrap items-center gap-2"
+              >
+                <span className="text-muted-foreground text-xs tracking-[0.06em] uppercase">
+                  Groups
+                </span>
+                {groups.map((item) => (
+                  <span
+                    className={`flex h-11 items-center gap-2.5 rounded-lg border px-3 ${filter === `group:${item.name}` ? "bg-selected" : ""}`}
+                    key={item.name}
+                  >
+                    <button
+                      className="font-mono text-sm"
+                      onClick={() =>
+                        setFilter(
+                          filter === `group:${item.name}`
+                            ? "all"
+                            : `group:${item.name}`
+                        )
+                      }
+                      type="button"
+                    >
+                      {item.name}{" "}
+                      <span className="text-muted-text">{item.count}</span>
+                    </button>
+                    <Switch
+                      aria-label={`Turn group ${item.name} ${item.on ? "off" : "on"}`}
+                      checked={item.on}
+                      onCheckedChange={(on) => groupFlip(item.name, on)}
+                    />
+                  </span>
+                ))}
+              </fieldset>
+            ) : null}
+            {checkedRows.length > 0 ? (
+              <div
+                aria-label="Bulk actions"
+                className="bg-selected flex flex-wrap items-center gap-2 rounded-lg px-3 py-2"
+                role="toolbar"
+              >
+                <span className="mr-2 text-sm">
+                  {checkedRows.length} selected
+                </span>
+                <Button
+                  className="h-11"
+                  disabled={flippable.length === 0}
+                  onClick={() => bulkFlip(true)}
+                  variant="outline"
+                >
+                  Turn on
+                </Button>
+                <Button
+                  className="h-11"
+                  disabled={flippable.length === 0}
+                  onClick={() => bulkFlip(false)}
+                  variant="outline"
+                >
+                  Turn off
+                </Button>
+                <Button
+                  className="h-11"
+                  disabled={shelvable.length === 0}
+                  onClick={() => setShelving(true)}
+                  variant="outline"
+                >
+                  Shelve
+                </Button>
+                <Button
+                  className="border-error-border text-error hover:text-error h-11"
+                  disabled={removable.length === 0}
+                  onClick={() => setRemoving(true)}
+                  variant="outline"
+                >
+                  Remove
+                </Button>
+                <Button
+                  className="h-11"
+                  onClick={() => setChecked(new Set())}
+                  variant="ghost"
+                >
+                  Clear
+                </Button>
+              </div>
+            ) : null}
+          </>
+        }
       />
       <Dialog onOpenChange={setShelving} open={shelving}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Shelve {selected?.name}</DialogTitle>
+            <DialogTitle>
+              Shelve{" "}
+              {shelvable.length === 1
+                ? shelvable[0]?.name
+                : `${shelvable.length} skills`}
+            </DialogTitle>
             <DialogDescription>
               The skill moves to the shelf, off. Pick an existing group or type
               a new name.
@@ -353,15 +536,30 @@ export const SkillsScreen = () => {
           <DialogFooter>
             <Button
               className="h-11"
-              disabled={group.trim() === "" || selected === undefined}
+              disabled={group.trim() === "" || shelvable.length === 0}
               onClick={() => {
-                if (selected) {
+                const name = group.trim();
+                const [only] = shelvable;
+                if (
+                  shelvable.length === 1 &&
+                  only &&
+                  checkedRows.length === 0
+                ) {
                   shelve.mutate({
                     dir,
-                    skill: selected.name,
-                    group: group.trim(),
-                    project: selected.kind === "project",
+                    skill: only.name,
+                    group: name,
+                    project: only.kind === "project",
                   });
+                } else {
+                  runBulk("Shelved", shelvable, (row) =>
+                    client.skills.shelveSkill({
+                      dir,
+                      skill: row.name,
+                      group: name,
+                      project: row.kind === "project",
+                    })
+                  );
                 }
                 setShelving(false);
               }}
@@ -374,9 +572,19 @@ export const SkillsScreen = () => {
       <AlertDialog onOpenChange={setRemoving} open={removing}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {selected?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Remove{" "}
+              {removable.length === 1
+                ? removable[0]?.name
+                : `${removable.length} skills`}
+              ?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This deletes {selected?.source}. A copy is kept under{" "}
+              This deletes{" "}
+              {removable.length === 1
+                ? removable[0]?.source
+                : `${removable.length} skill folders`}
+              . A copy{removable.length === 1 ? "" : " of each"} is kept under{" "}
               {data?.paths.backupsDir}, and Backups can restore it.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -385,16 +593,23 @@ export const SkillsScreen = () => {
             <AlertDialogAction
               className="h-11"
               onClick={() => {
-                if (selected) {
-                  remove.mutate({
-                    dir,
-                    target:
-                      selected.kind === "shelf"
-                        ? selected.target
-                        : selected.name,
-                    project: selected.kind === "project",
-                    backup: true,
-                  });
+                const input = (row: SkillRow) => ({
+                  dir,
+                  target: row.kind === "shelf" ? row.target : row.name,
+                  project: row.kind === "project",
+                  backup: true,
+                });
+                const [only] = removable;
+                if (
+                  removable.length === 1 &&
+                  only &&
+                  checkedRows.length === 0
+                ) {
+                  remove.mutate(input(only));
+                } else {
+                  runBulk("Removed", removable, (row) =>
+                    client.skills.removeSkill(input(row))
+                  );
                 }
               }}
             >

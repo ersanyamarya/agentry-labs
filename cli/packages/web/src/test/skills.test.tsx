@@ -96,6 +96,59 @@ describe("the Skills screen", () => {
     );
   });
 
+  test("shelf groups show as chips: one filters the list, its switch turns the whole group on", async () => {
+    await mount();
+    await userEvent.click(screen.getByRole("button", { name: /^audit 2/ }));
+    expect(inTable().queryByText("run-fallow")).toBeNull();
+    expect(inTable().getByText("audit-one")).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("switch", { name: "Turn group audit on" })
+    );
+    await waitFor(() =>
+      expect(mockClient.skills.toggleShelf).toHaveBeenCalledWith({
+        dir: "/work/app",
+        target: "audit",
+        on: true,
+        global: false,
+      })
+    );
+  });
+
+  test("ticking rows shows a bulk bar; Turn on calls toggleShelf once per ticked shelf skill", async () => {
+    await mount();
+    await userEvent.click(screen.getByLabelText("Select all shown"));
+    expect(screen.getByText("4 selected")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Turn on" }));
+    await waitFor(() =>
+      expect(mockClient.skills.toggleShelf).toHaveBeenCalledTimes(2)
+    );
+    expect(mockClient.skills.toggleShelf).toHaveBeenCalledWith({
+      dir: "/work/app",
+      target: "audit/audit-one",
+      on: true,
+      global: false,
+    });
+    await waitFor(() => expect(screen.queryByText("4 selected")).toBeNull());
+  });
+
+  test("bulk Remove asks once for all ticked skills, then removes each", async () => {
+    await mount();
+    await userEvent.click(screen.getByLabelText("Select run-fallow"));
+    await userEvent.click(screen.getByLabelText("Select proj-only"));
+    const bar = within(screen.getByRole("toolbar", { name: "Bulk actions" }));
+    await userEvent.click(bar.getByRole("button", { name: "Remove" }));
+    expect(await screen.findByText("Remove 2 skills?")).toBeTruthy();
+    expect(mockClient.skills.removeSkill).not.toHaveBeenCalled();
+    await userEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Remove",
+      })
+    );
+    await waitFor(() =>
+      expect(mockClient.skills.removeSkill).toHaveBeenCalledTimes(2)
+    );
+  });
+
   test("an installed skill's switch is disabled: it explains instead of writing", async () => {
     await mount();
     const row = screen.getByRole("switch", { name: /run-fallow/ });

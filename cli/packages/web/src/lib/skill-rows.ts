@@ -83,9 +83,13 @@ export const scopeLabel = (row: SkillRow) => {
   return row.project ? "This project" : "Shelf";
 };
 
-export type Filter = "all" | "on" | "project" | "shelf";
+// "group:<name>" shows one shelf group.
+export type Filter = "all" | "on" | "project" | "shelf" | `group:${string}`;
 
 export const matchesFilter = (row: SkillRow, filter: Filter) => {
+  if (filter.startsWith("group:")) {
+    return row.group === filter.slice("group:".length);
+  }
   switch (filter) {
     case "on":
       return row.global || row.project || row.kind === "plugin";
@@ -114,3 +118,29 @@ export const filterCounts = (rows: SkillRow[]) => ({
   project: rows.filter((row) => matchesFilter(row, "project")).length,
   shelf: rows.filter((row) => matchesFilter(row, "shelf")).length,
 });
+
+export interface GroupSummary {
+  count: number;
+  name: string;
+  // On in the scope the switch acts on, for every skill in the group.
+  on: boolean;
+}
+
+export const groupSummaries = (
+  rows: SkillRow[],
+  scope: Scope
+): GroupSummary[] => {
+  const byName = new Map<string, SkillRow[]>();
+  for (const row of rows) {
+    if (row.group) {
+      byName.set(row.group, [...(byName.get(row.group) ?? []), row]);
+    }
+  }
+  return [...byName.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, items]) => ({
+      name,
+      count: items.length,
+      on: items.every((row) => isOn(row, scope)),
+    }));
+};

@@ -6,6 +6,7 @@ import { useEffect } from "react";
 const KEY_NAMES: Record<string, string> = {
   ArrowDown: "down",
   ArrowUp: "up",
+  Escape: "esc",
   " ": "space",
 };
 

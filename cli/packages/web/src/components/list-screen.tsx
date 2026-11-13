@@ -32,6 +32,14 @@ export interface Column<T> {
   header: string;
 }
 
+export interface Selection {
+  allChecked: boolean;
+  checked: ReadonlySet<string>;
+  label: (id: string) => string;
+  onToggle: (id: string) => void;
+  onToggleAll: () => void;
+}
+
 export interface ListScreenProps<T> {
   action?: ReactNode;
   columns: Column<T>[];
@@ -54,10 +62,14 @@ export interface ListScreenProps<T> {
     value: string;
   };
   selectedId?: string;
+  // Adds a checkbox column for bulk actions.
+  selection?: Selection;
   setSheetOpen: (open: boolean) => void;
   sheetOpen: boolean;
   summary: string;
   title: string;
+  // Extra controls under the filter row (groups, the bulk bar).
+  toolbar?: ReactNode;
 }
 
 export const ListScreen = <T,>({
@@ -73,10 +85,12 @@ export const ListScreen = <T,>({
   rows,
   search,
   selectedId,
+  selection,
   sheetOpen,
   setSheetOpen,
   summary,
   title,
+  toolbar,
 }: ListScreenProps<T>) => {
   const wide = useMediaQuery("(min-width: 1100px)");
   // Until `load` answers every list would read "0 rows"; say it is loading instead.
@@ -127,11 +141,23 @@ export const ListScreen = <T,>({
           ))}
         </ToggleGroup>
       </div>
+      {toolbar}
       <div className="flex items-start gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                {selection ? (
+                  <TableHead className="w-10">
+                    <input
+                      aria-label="Select all shown"
+                      checked={selection.allChecked}
+                      className="accent-primary size-4"
+                      onChange={selection.onToggleAll}
+                      type="checkbox"
+                    />
+                  </TableHead>
+                ) : null}
                 {columns.map((column) => (
                   <TableHead
                     className={`text-muted-foreground text-[12px] tracking-[0.06em] uppercase ${column.className ?? ""}`}
@@ -147,7 +173,7 @@ export const ListScreen = <T,>({
                 <TableRow className="hover:bg-transparent">
                   <TableCell
                     className="text-muted-text py-8"
-                    colSpan={columns.length}
+                    colSpan={columns.length + (selection ? 1 : 0)}
                   >
                     {whileLoading(loading, empty)}
                   </TableCell>
@@ -166,6 +192,18 @@ export const ListScreen = <T,>({
                         setSheetOpen(true);
                       }}
                     >
+                      {selection ? (
+                        <TableCell className="w-10">
+                          <input
+                            aria-label={`Select ${selection.label(id)}`}
+                            checked={selection.checked.has(id)}
+                            className="accent-primary size-4"
+                            onChange={() => selection.onToggle(id)}
+                            onClick={(event) => event.stopPropagation()}
+                            type="checkbox"
+                          />
+                        </TableCell>
+                      ) : null}
                       {columns.map((column) => (
                         <TableCell
                           className={column.className}
