@@ -21,12 +21,10 @@ import { createMcpReader } from "./inventory/mcp.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import { createSkillsReader } from "./inventory/skills.js";
 import type { Paths } from "./paths.js";
-import renamesData from "./renames.json" with { type: "json" };
+import { defaultRenames } from "./renames.js";
 import type { Finding, ReadError, Severity } from "./types.js";
 
 const SEVERITIES: Severity[] = ["error", "warning", "info"];
-
-const defaultRenames = (): Record<string, string> => renamesData;
 
 /** The `agentry doctor --json` document. */
 export interface DoctorReport {

@@ -35,7 +35,7 @@ Remember, before writing any code:
 ├── claude-md-files/     # Reusable Claude Code project guidance
 │   └── BASIC_CLAUDE.md
 ├── rules/               # commit-attribution, context7
-├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs; hooks/ holds hook scripts it copies to ~/.claude/hooks (prefer-trail.mjs: denies grep/cat/find on source in trail-indexed repos, `# no-trail: <why>` overrides)
+├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs (trail and context-mode wire themselves: see the README)
 ├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
 ├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
 ├── cli/                 # agentry CLI and Ink terminal UI, in TypeScript (src/bin; npm workspaces packages/core, packages/tui and packages/web; design docs in cli/docs). See cli/README.md and cli/CLAUDE.md
@@ -131,9 +131,8 @@ The `bun run cover` log prints the counts it used; check they match the change, 
 ### MCP Configuration
 This repo has no project MCP servers (`.mcp.json` stays gitignored for local experiments). It relies on the global ones:
 - **context7**: library documentation lookup (`CONTEXT7_API_KEY` exported from your shell profile, since GUI-launched Claude does not read shell rc files)
-- **trail**: prebuilt code graph for finding and tracing code; its hooks need `TRAIL_INVOKED_AS=trail`
-  (in `global/settings.fragment.json`'s `env`) or they print the old command names
-- **context-mode**: plugin for sandboxed execution and indexing of large outputs
+- **trail**: code graph; `trail init` writes its own hooks and skill into ~/.claude, and agents call the `trail` CLI (`ask`, `grep`, `skeleton`, `callers`, `map`). The fragment only sets `TRAIL_INVOKED_AS=trail`
+- **context-mode**: installed from npm (`context-mode setup`), which registers it as a Claude Code plugin; sandboxed execution and indexing of large outputs
 
 `global/mcp.json` holds only these always-useful servers. Repo-specific ones (fallow, shadcn, chrome-devtools) go in that
 repo's tracked `.mcp.json`, started with `npx -y <pkg>@latest` so they work without a local install and secrets come from

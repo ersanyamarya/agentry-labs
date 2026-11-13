@@ -30,6 +30,7 @@ beforeEach(() => {
     !root.startsWith(realpathSync(homedir())),
     "TMPDIR must be outside the home directory"
   );
+  process.env.AGENTRY_RENAMES = '{"graft":"trail"}';
   home = join(root, "home");
   configDir = join(home, ".claude");
   ws = join(home, "ws");
@@ -46,7 +47,10 @@ beforeEach(() => {
     );
   }
 });
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => {
+  delete process.env.AGENTRY_RENAMES;
+  rmSync(root, { recursive: true, force: true });
+});
 
 const put = (file: string, text: string) => {
   mkdirSync(dirname(file), { recursive: true });

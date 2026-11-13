@@ -22,7 +22,7 @@ import { createPluginsReader } from "./inventory/plugins.js";
 import type { JsonPath } from "./json-edit.js";
 import { createJsonEdit } from "./json-edit.js";
 import { maskShell } from "./mask.js";
-import renamesData from "./renames.json" with { type: "json" };
+import { defaultRenames } from "./renames.js";
 import type {
   ClaudeJson,
   ClaudeProject,
@@ -34,8 +34,6 @@ import type {
   TextFix,
   UnfixableFix,
 } from "./types.js";
-
-const defaultRenames = (): Record<string, string> => renamesData;
 
 type OnPath = (command: string, ctx: FixContext) => boolean;
 
@@ -536,7 +534,7 @@ const dupPluginScope: FixMaker = (finding, ctx) => {
 };
 
 export const createFixes = ({
-  renames = defaultRenames(),
+  renames,
   env = process.env,
 }: {
   renames?: Record<string, string>;
@@ -552,7 +550,10 @@ export const createFixes = ({
     "dup-mcp-plugin": dupMcpPlugin,
     "missing-mcp-command": missingMcpCommand,
     "stale-name": (finding, ctx) =>
-      staleName(finding, ctx, { renames, onPath }),
+      staleName(finding, ctx, {
+        renames: renames ?? defaultRenames(),
+        onPath,
+      }),
     "broken-skill-link": brokenSkillLink,
     "shelf-duplicate": shelfDuplicate,
     "dup-plugin-scope": dupPluginScope,

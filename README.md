@@ -86,7 +86,12 @@ node scripts/apply-global.mjs          # prints the plan
 node scripts/apply-global.mjs --write  # applies it and saves backups
 ```
 
-The merge also installs `global/hooks/prefer-trail.mjs` into `~/.claude/hooks`. In a repo indexed by trail (a `graft/` or `.trail/` folder) it denies `grep`, `rg`, `find`, `cat`, `head`, `tail`, `Grep`, `Glob` and a first whole-file `Read` of source, and names the trail tool to use. End a Bash command with `# no-trail: <why>` to run it anyway (logged to `~/.claude/trail-bypass.log`); `PREFER_TRAIL=off` disables it.
+trail and context-mode wire themselves, so the merge does not touch them. Install each once, from any folder:
+
+```bash
+npm install -g @trailhq/trail-code && trail init --agents claude   # hooks + skill in ~/.claude
+npm install -g context-mode && context-mode setup --agents claude-code        # plugin from the npm copy; update with `context-mode upgrade`
+```
 
 The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (export it from your shell profile; the desktop app does not read shell rc files). Compare skill copies across projects with `node scripts/skill-drift.mjs`.
 

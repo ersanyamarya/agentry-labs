@@ -92,6 +92,7 @@ export const createFixture = ({
     CLAUDE_CONFIG_DIR: configDir,
     AGENTRY_HOME: home,
     AGENTRY_MANAGED_DIR: managedDir,
+    AGENTRY_RENAMES: '{"graft":"trail"}',
   };
   const run = (
     args: string[],
