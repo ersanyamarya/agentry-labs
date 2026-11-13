@@ -6,6 +6,7 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
+import logo from "../assets/logo.svg?url";
 import { AppShell } from "../components/app-shell.js";
 import appCss from "../styles/globals.css?url";
 
@@ -30,7 +31,10 @@ const RootComponent = () => (
 export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootComponent,
   head: () => ({
-    links: [{ href: appCss, rel: "stylesheet" }],
+    links: [
+      { href: logo, rel: "icon", type: "image/svg+xml" },
+      { href: appCss, rel: "stylesheet" },
+    ],
     meta: [
       { charSet: "utf-8" },
       { content: "width=device-width, initial-scale=1", name: "viewport" },
