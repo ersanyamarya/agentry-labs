@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+/* Dark only. Tokens come from cli/docs/web-ui-design.md "Tokens"; change them there first. */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #0f0f12;
+  --card-foreground: #fafafa;
+  --popover: #0f0f12;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+  --secondary: #111114;
+  --secondary-foreground: #fafafa;
+  --muted: #111114;
+  --muted-foreground: #8e8e98;
+  --accent: #1c1c21;
+  --accent-foreground: #fafafa;
+  --destructive: #f87171;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #38bdf8;
+  --radius: 0.5rem;
+
+  --sidebar: #0c0c0f;
+  --sidebar-foreground: #a1a1aa;
+  --sidebar-primary: #4ade80;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent: #1c1c21;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #38bdf8;
+
+  /* Meaning colours: on, this project, error. Each has a badge background. */
+  --on: #4ade80;
+  --on-bg: #14301f;
+  --project: #fbbf24;
+  --project-bg: #33280a;
+  --error: #f87171;
+  --error-bg: #3b1414;
+  --error-border: #4a1d1d;
+  --row-border: #1f1f23;
+  --selected: #18181d;
+  --body: #d4d4d8;
+  --muted-text: #a1a1aa;
+}
+
+@theme inline {
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-on: var(--on);
+  --color-on-bg: var(--on-bg);
+  --color-project: var(--project);
+  --color-project-bg: var(--project-bg);
+  --color-error: var(--error);
+  --color-error-bg: var(--error-bg);
+  --color-error-border: var(--error-border);
+  --color-row-border: var(--row-border);
+  --color-selected: var(--selected);
+  --color-body: var(--body);
+  --color-muted-text: var(--muted-text);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+}

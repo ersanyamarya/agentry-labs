@@ -38,16 +38,17 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "esbuild src/bin/agentry.ts --bundle --platform=node --format=esm --target=node22 --splitting --outdir=dist/bin --jsx=automatic --external:figures --external:ink --external:ink-spinner --external:react",
+    "build": "npm run build:web && esbuild src/bin/agentry.ts --bundle --platform=node --format=esm --target=node22 --splitting --outdir=dist/bin --jsx=automatic --external:figures --external:ink --external:ink-spinner --external:react",
     "postbuild": "node -e \"fs.chmodSync('dist/bin/agentry.js',0o755)\"",
+    "build:web": "npm run build -w @agentry/web && node -e \"fs.rmSync('dist/web',{recursive:true,force:true});fs.cpSync('packages/web/dist','dist/web',{recursive:true})\"",
     "check": "biome check .",
     "format": "biome format --write .",
     "lint": "biome lint .",
+    "pack:check": "node scripts/pack-check.mjs",
     "prepublishOnly": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && npm run build && npm test",
     "test": "VITEST_MAX_WORKERS=10 vitest run --testTimeout=0",
     "test:watch": "vitest",
-    "typecheck": "tsc -p packages/core && tsc -p packages/tui && tsc -p .",
-    "pack:check": "node scripts/pack-check.mjs"
+    "typecheck": "tsc -p packages/core && tsc -p packages/tui && tsc -p packages/web && tsc -p ."
   },
   "dependencies": {
     "figures": "^6.1.0",
@@ -58,7 +59,10 @@
   "devDependencies": {
     "@agentry/core": "*",
     "@agentry/tui": "*",
+    "@agentry/web": "*",
     "@biomejs/biome": "^2.6.4",
+    "@orpc/client": "^1.16.2",
+    "@orpc/contract": "^1.16.2",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "esbuild": "^0.28.2",

@@ -35,7 +35,7 @@ test("no arguments without a terminal prints help and exits 0", () => {
 });
 
 test("ui without a terminal refuses instead of rendering", () => {
-  const result = agentry(root, ["ui"]);
+  const result = agentry(root, ["tui"]);
   assert.equal(result.status, 2);
   assert.match(result.stderr, /needs an interactive terminal/);
 });

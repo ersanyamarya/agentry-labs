@@ -79,7 +79,8 @@ Commands:
                                       Turn a settings hook off (parked in <config>/agentry/parked-hooks.json, 0600) and
                                       back on, or delete it. Previewed as a diff, backed up, undoable with fix --undo.
                                       Plugin hooks are refused: they belong to the plugin
-  ui                                  Open the terminal UI (needs a terminal)
+  tui                                 Open the terminal UI (needs a terminal); a bare agentry in a terminal opens it too
+  ui [--port <n>] [--no-open]         Serve the web UI on 127.0.0.1 behind a one-time token and open it in the browser
   shelf list                          List shelf groups, their token cost and whether each is on
   shelf status [--json]               Show what is on in this project and globally, plus broken links
   shelf on <target>... [--global]     Link groups or skills into this project (or ~/.claude)
@@ -208,6 +209,8 @@ const parseCli = (argv: string[]) =>
       depth: { type: "string" },
       "only-problems": { type: "boolean" },
       "no-cache": { type: "boolean" },
+      "no-open": { type: "boolean" },
+      port: { type: "string" },
       "dry-run": { type: "boolean" },
       project: { type: "boolean" },
       yes: { type: "boolean", short: "y" },
@@ -401,6 +404,43 @@ const runUi = async (): Promise<number> => {
   });
 };
 
+// Serves the web UI until Ctrl-C. The web package loads lazily, like the terminal UI, so other commands never pay for it.
+const runWebUi = async (rest: string[], values: Values): Promise<number> => {
+  const { parseUiArgs, serve } = await import("@agentry/web/serve");
+  const flags = [
+    ...rest,
+    ...(values.port === undefined ? [] : ["--port", values.port]),
+    ...(values["no-open"] ? ["--no-open"] : []),
+  ];
+  let args: ReturnType<typeof parseUiArgs>;
+  try {
+    args = parseUiArgs(flags);
+  } catch (error) {
+    return usageError((error as Error).message);
+  }
+  const server = await serve({
+    port: args.port,
+    ...(args.open ? {} : { open: false as const }),
+  });
+  await new Promise<void>((resolve) => {
+    const stop = () => {
+      server.close().then(resolve, resolve);
+    };
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+  });
+  return 0;
+};
+
+// Both UIs, kept out of main() so its branching stays under the complexity limit.
+const UI_COMMANDS = new Map<
+  string,
+  (rest: string[], values: Values) => Promise<number>
+>([
+  ["tui", () => runUi()],
+  ["ui", runWebUi],
+]);
+
 const main = (argv: string[]): number | Promise<number> => {
   let parsed: ReturnType<typeof parseCli>;
   try {
@@ -428,8 +468,9 @@ const main = (argv: string[]): number | Promise<number> => {
     console.log(USAGE);
     return 0;
   }
-  if (command === "ui") {
-    return runUi();
+  const ui = UI_COMMANDS.get(String(command));
+  if (ui) {
+    return ui(rest, values);
   }
   if (command === "status") {
     if (rest.length > 1) {

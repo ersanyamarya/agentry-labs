@@ -1,4 +1,4 @@
-// Runs the real `agentry ui` in a pseudo-terminal (python3 pty, test/helpers/pty-run.py) and looks at the bytes it writes: colour must be real SGR
+// Runs the real `agentry tui` in a pseudo-terminal (python3 pty, test/helpers/pty-run.py) and looks at the bytes it writes: colour must be real SGR
 // escapes on a TTY, also when TERM is unset, and absent with NO_COLOR. Why colour can go missing: chalk (inside Ink)
 // decides its level once at load from TTY-ness, TERM, COLORTERM and FORCE_COLOR, and never reads NO_COLOR.
 
@@ -46,7 +46,7 @@ const ui = (extra: Record<string, string | undefined>) =>
         delete env[key];
       }
     }
-    const child = spawn("python3", [runner, process.execPath, bin, "ui"], {
+    const child = spawn("python3", [runner, process.execPath, bin, "tui"], {
       cwd: fx.repo,
       env,
     });

@@ -10,4 +10,5 @@ node_modules/
 
 # CLI build output and dependencies (cli/ is its own npm package)
 cli/dist/
+cli/packages/*/dist/
 cli/node_modules/

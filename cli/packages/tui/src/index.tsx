@@ -1,4 +1,4 @@
-// Terminal UI entry. src/bin/agentry.ts imports this only for `agentry ui` (and bare `agentry` in a terminal), so Ink and
+// Terminal UI entry. src/bin/agentry.ts imports this only for `agentry tui` (and bare `agentry` in a terminal), so Ink and
 // React never load for other commands. All reads and actions go through src/tui/data.ts, which calls the lib/ functions.
 
 import { createData } from "@agentry/core/data";
@@ -32,7 +32,7 @@ export const run = async ({
     stderr = process.stderr,
   } = io;
   if (!stdin.isTTY) {
-    stderr.write("agentry ui needs an interactive terminal.\n");
+    stderr.write("agentry tui needs an interactive terminal.\n");
     return 2;
   }
   const start = startDir ?? makePaths(process.cwd()).projectRoot();

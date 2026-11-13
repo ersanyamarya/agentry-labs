@@ -9,15 +9,27 @@ const root = join(import.meta.dirname, "..");
 const tmp = mkdtempSync(join(tmpdir(), "agentry-pack-"));
 const home = join(tmp, "home");
 const prefix = join(tmp, "prefix");
-const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { cwd: root, encoding: "utf8", ...opts });
+const run = (cmd, args, opts = {}) =>
+  execFileSync(cmd, args, { cwd: root, encoding: "utf8", ...opts });
 
 try {
   run("npm", ["run", "build"], { stdio: "inherit" });
-  const packed = JSON.parse(run("npm", ["pack", "--json", "--pack-destination", tmp]));
+  const packed = JSON.parse(
+    run("npm", ["pack", "--json", "--pack-destination", tmp])
+  );
   const tarball = join(tmp, packed[0].filename);
-  console.log(`packed ${packed[0].filename}: ${packed[0].entryCount} files, ${packed[0].unpackedSize} bytes unpacked`);
-  run("npm", ["install", "-g", "--prefix", prefix, tarball], { stdio: "inherit" });
-  const env = { ...process.env, HOME: home, AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: join(home, ".claude") };
+  console.log(
+    `packed ${packed[0].filename}: ${packed[0].entryCount} files, ${packed[0].unpackedSize} bytes unpacked`
+  );
+  run("npm", ["install", "-g", "--prefix", prefix, tarball], {
+    stdio: "inherit",
+  });
+  const env = {
+    ...process.env,
+    HOME: home,
+    AGENTRY_HOME: home,
+    CLAUDE_CONFIG_DIR: join(home, ".claude"),
+  };
   const bin = join(prefix, "bin", "agentry");
   for (const args of [["--help"], ["--version"], ["status", "--json"]]) {
     const out = run(bin, args, { env });

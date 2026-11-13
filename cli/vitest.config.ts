@@ -14,6 +14,7 @@ export default defineConfig({
           include: ["src/test/**/*.test.ts"],
         },
       },
+      "packages/web",
       {
         test: {
           name: "tui",

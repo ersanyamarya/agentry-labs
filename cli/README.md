@@ -1,6 +1,6 @@
 # agentry
 
-`agentry` shows and manages what a Claude Code session loads: skills, MCP servers, hooks, plugins, and CLAUDE.md and rule files. It keeps a skill shelf, backs up every file it changes, installs items from the agentry-labs catalog, and opens a terminal UI with `agentry ui`.
+`agentry` shows and manages what a Claude Code session loads: skills, MCP servers, hooks, plugins, and CLAUDE.md and rule files. It keeps a skill shelf, backs up every file it changes, installs items from the agentry-labs catalog, and opens a terminal UI with `agentry tui`.
 
 It is written in strict TypeScript (ESM) and needs Node.js 22 or newer. It lives in this repo's `cli/` folder; the repo overview is in the [root README](../README.md).
 
@@ -41,7 +41,7 @@ Without linking, `npm install -g /path/to/agentry-labs/cli` also works.
 - `src/bin/agentry.ts`: the command router
 - `src/bin/agentry.ts`: the command router
 - `packages/core/`: the command modules (shelf, catalog, scan, fix and undo, doctor, status, MCP, hook and plugin toggles, rules, backups, tokens, paths), `data.ts` (the facade both UIs call) and `inventory/` (readers for skills, MCP servers, hooks and plugins)
-- `packages/tui/`: the Ink terminal UI (TSX) behind `agentry ui`
+- `packages/tui/`: the Ink terminal UI (TSX) behind `agentry tui`
 - These are npm workspaces; `npm run build` bundles them into the one published package with esbuild
 - `src/test/`: vitest suites; `src/test/helpers/` builds a temp HOME and project
 - `docs/`: design docs, including `claude-config-sources.md` (what Claude Code reads and where)
@@ -130,16 +130,17 @@ agentry mcp set files --env FILES_TOKEN=new   # change env/args of a user server
 agentry hook list              # every hook with an 8-hex id; then: hook disable|enable|remove <id> [--scope S] [--dry-run] [--yes]
 agentry plugin install demo@market --scope project   # claude plugin install through the preview/backup path; also: uninstall demo
 agentry plugin disable demo    # also: enable; --scope user|project|local, --dry-run, --yes; backed up, undo with agentry fix --undo; refuses a plugin set by macOS MDM (names the source)
-agentry ui                     # terminal UI (Ink); a bare `agentry` in a terminal opens it too
+agentry tui                    # terminal UI (Ink); a bare `agentry` in a terminal opens it too
+agentry ui                     # web UI on 127.0.0.1 (see agentry ui below)
 ```
 
 `agentry --help` loads no UI code, so it works even before `npm install`. Run tests with `npm test`.
 
-### agentry ui
+### agentry tui
 
-`agentry ui` is a keyboard-driven view of the project you run it in: what loads, what it costs, what is wrong.
+`agentry tui` is a keyboard-driven view of the project you run it in: what loads, what it costs, what is wrong.
 
-Start it from the project folder with `agentry ui`, or type a bare `agentry` in a terminal. It needs a terminal: without one it prints a message and exits `2`. The `p` picker switches to another repo (current repo, recent repos, then repos under the scan roots).
+Start it from the project folder with `agentry tui`, or type a bare `agentry` in a terminal. It needs a terminal: without one it prints a message and exits `2`. The `p` picker switches to another repo (current repo, recent repos, then repos under the scan roots).
 
 - **Sidebar:** a left rail with three groups: Library (Skills, MCP, Hooks, Plugins, Rules), Discover (Catalog) and Health (Doctor, Backups), each with its count. The rail also holds the project path, the skill-description tokens every session pays, and the problems found. It is 22 columns wide from 90 columns, 16 from 70, and below that a one-line section header replaces it. `tab` moves the keys between the rail and the list: on the rail, `↑`/`↓` pick a section and `enter` goes back to the list. A details pane beside the list shows the selected row; the footer lists only the keys that work on the selected row, then `tab sidebar` and `? help` on the right; every other key is in help.
 - **Copying:** on any preview or result, `c` copies its text (refusals and errors included) to the system clipboard (`pbcopy`, `clip`, `wl-copy` or `xclip`; otherwise the terminal's OSC 52 escape).
