@@ -277,11 +277,104 @@ step_fetch_source() {
 }
 
 stub() { STEP_REASON="not implemented yet"; return 3; }
-step_wire_context_mode() { has_part context-mode || { STEP_REASON="not selected"; return 3; }; stub; }
-step_wire_trail() { has_part trail || { STEP_REASON="not selected"; return 3; }; stub; }
-step_apply_config() { has_part config || { STEP_REASON="not selected"; return 3; }; stub; }
+
+config_dir() { echo "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; }
+
+# True when context-mode's own doctor reports PASS for claude-code (its exit code is 0 even when claude is missing).
+cm_wired() {
+  context-mode doctor --json --no-input --agents claude-code </dev/null 2>/dev/null | node -e '
+    let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+      try { process.exit(JSON.parse(s).agents.some((a) => a.id === "claude-code" && a.status === "PASS") ? 0 : 1); }
+      catch { process.exit(1); }
+    });'
+}
+
+# True when trail's user-level files exist and its recorded dist folder is still there (the statusline needs it).
+trail_wired() {
+  [ -f "$HOME/.claude/helpers/graft-hooks.cjs" ] && [ -f "$HOME/.claude/skills/trail/SKILL.md" ] \
+    && [ -f "$(config_dir)/helpers/trail-statusline.cjs" ] || return 1
+  node -e 'const fs = require("fs"); process.exit(fs.existsSync(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).claudeDist) ? 0 : 1)' \
+    "$HOME/.trail/install.json" 2>/dev/null
+}
+
+step_wire_context_mode() {
+  has_part context-mode || { STEP_REASON="not selected"; return 3; }
+  if ! command -v claude >/dev/null 2>&1; then
+    say "    ${RED}Claude Code (claude) is not on PATH.${NC} Install Claude Code first, then run this again."
+    return 1
+  fi
+  if cm_wired; then STEP_REASON="already wired"; return 3; fi
+  exec_cmd context-mode setup --yes --no-input --agents claude-code || return 1
+  [ "$DRY_RUN" = true ] && { STEP_REASON="dry run"; return 3; }
+  return 0
+}
+
+step_wire_trail() {
+  has_part trail || { STEP_REASON="not selected"; return 3; }
+  if trail_wired; then STEP_REASON="already wired"; return 3; fi
+  make_tmp
+  local scratch="$TMP_ROOT/scratch" settings="$HOME/.claude/settings.json"
+  show_cmd "cd <scratch dir> && DO_NOT_TRACK=1 trail init --agents claude --no-build"
+  if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
+  mkdir -p "$scratch"
+  if [ -f "$settings" ]; then cp "$settings" "$TMP_ROOT/settings.before.json"; else echo '{}' > "$TMP_ROOT/settings.before.json"; fi
+  (cd "$scratch" && DO_NOT_TRACK=1 trail init --agents claude --no-build </dev/null) || return 1
+  if [ -f "$HOME/.claude/settings.json" ]; then cp "$HOME/.claude/settings.json" "$TMP_ROOT/settings.after.json"; fi
+  if [ -f "$scratch/.trail/statusline.cjs" ]; then
+    mkdir -p "$(config_dir)/helpers"
+    cp "$scratch/.trail/statusline.cjs" "$(config_dir)/helpers/trail-statusline.cjs"
+    say "    status line script copied to $(config_dir)/helpers/trail-statusline.cjs"
+  fi
+  return 0
+}
+
+step_apply_config() {
+  has_part config || { STEP_REASON="not selected"; return 3; }
+  if [ -z "$SOURCE_DIR" ]; then STEP_REASON="dry run: repo not cloned"; return 3; fi
+  command -v node >/dev/null 2>&1 || { say "    ${RED}node is required.${NC}"; return 1; }
+  make_tmp
+  local out rc=0 flag="--write"
+  [ "$DRY_RUN" = true ] && flag=""
+  show_cmd node "$SOURCE_DIR/scripts/apply-global.mjs" "${flag:-(preview)}" --report "$TMP_ROOT/apply-report.json"
+  # shellcheck disable=SC2086
+  out="$(node "$SOURCE_DIR/scripts/apply-global.mjs" $flag --report "$TMP_ROOT/apply-report.json" </dev/null 2>&1)" || rc=$?
+  printf '%s\n' "$out" | sed 's/^/    /'
+  [ "$rc" -eq 0 ] || return 1
+  case "$out" in *"Nothing to add."*) STEP_REASON="already applied"; return 3 ;; esac
+  [ "$DRY_RUN" = true ] && { STEP_REASON="dry run"; return 3; }
+  return 0
+}
+
 step_manifest() { stub; }
-step_verify() { stub; }
+
+VERIFY_FAILED=""
+check_line() { # label, status(0=ok)
+  if [ "$2" -eq 0 ]; then say "    ${GREEN}${G_OK}${NC} $1"; else say "    ${RED}${G_FAIL}${NC} $1"; VERIFY_FAILED="$VERIFY_FAILED
+      - $1"; fi
+}
+
+step_verify() {
+  if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
+  local rc
+  VERIFY_FAILED=""
+  if has_part agentry; then
+    rc=0; (cd "$HOME" && env -u AGENTRY_HOME agentry doctor) </dev/null >/dev/null 2>&1 || rc=$?
+    check_line "agentry doctor" "$rc"
+    if [ -d "$HOME/ws" ]; then
+      rc=0; env -u AGENTRY_HOME agentry scan "$HOME/ws" </dev/null >/dev/null 2>&1 || rc=$?
+      check_line "agentry scan ~/ws" "$rc"
+    else
+      say "    ${YELLOW}${G_SKIP}${NC} agentry scan skipped: no ~/ws"
+    fi
+  fi
+  if has_part context-mode; then rc=0; cm_wired || rc=$?; check_line "context-mode doctor (claude-code PASS)" "$rc"; fi
+  if has_part trail; then rc=0; command -v trail >/dev/null 2>&1 || rc=$?; check_line "trail on PATH" "$rc"; fi
+  if [ -n "$VERIFY_FAILED" ]; then
+    say "    ${RED}Failed checks:${NC}$VERIFY_FAILED"
+    return 1
+  fi
+  return 0
+}
 
 build_install_steps() {
   add_step "Check prerequisites" "nothing" step_prereqs
@@ -295,10 +388,16 @@ build_install_steps() {
 }
 
 next_steps() {
+  local help="" c
+  if command -v agentry >/dev/null 2>&1; then help="$(env -u AGENTRY_HOME agentry --help </dev/null 2>&1 || true)"; fi
   say ""
   say "${BOLD}Next steps${NC}"
   say "  ${G_ARROW} Open a new Claude Code session."
-  say "  ${G_ARROW} Pick skill bundles with ${BOLD}agentry tui${NC} (terminal UI) or ${BOLD}agentry ui${NC} (web UI)."
+  for c in "tui|agentry tui|pick skill bundles in the terminal UI" "ui|agentry ui|pick skill bundles in the web UI" \
+    "catalog list|agentry catalog list|see the skill catalog" "shelf list|agentry shelf list|see the skill shelf" \
+    "shelf on|agentry shelf on <group> [--global]|turn a bundle on"; do
+    case "$help" in *"${c%%|*}"*) say "  ${G_ARROW} ${BOLD}$(echo "$c" | cut -d'|' -f2)${NC}: $(echo "$c" | cut -d'|' -f3)" ;; esac
+  done
 }
 
 do_install() {

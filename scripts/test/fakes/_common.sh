@@ -10,7 +10,7 @@ fake_install_tools() {
       @ersanyamarya/agentry-cli) name=agentry ;;
       @trailhq/trail-code) name=trail ;;
     esac
-    printf '#!/bin/sh\necho "%s 1.0.0"\n' "$name" > "$FAKE_BIN/$name"
+    printf '#!/bin/sh\nexec sh "$FAKE_BIN/_tool.sh" %s "$@"\n' "$name" > "$FAKE_BIN/$name"
     chmod +x "$FAKE_BIN/$name"
   done
 }

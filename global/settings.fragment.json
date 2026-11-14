@@ -1,5 +1,25 @@
 {
 	"env": {
 		"TRAIL_INVOKED_AS": "trail"
+	},
+	"hooks": {
+		"SessionStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "sh \"$HOME/.claude/helpers/trail-autobuild.sh\""
+					}
+				]
+			}
+		]
+	},
+	"statusLine": {
+		"type": "command",
+		"command": "node \"$HOME/.claude/helpers/trail-statusline.cjs\""
+	},
+	"subagentStatusLine": {
+		"type": "command",
+		"command": "node \"$HOME/.claude/helpers/trail-statusline.cjs\""
 	}
 }

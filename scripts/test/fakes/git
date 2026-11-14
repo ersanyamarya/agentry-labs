@@ -1,5 +1,5 @@
 #!/bin/sh
 . "$(dirname "$0")/_common.sh"
 fake_log "git $*"
-[ "$1" = clone ] && { mkdir -p "$4/scripts"; }
+[ "$1" = clone ] && { mkdir -p "$5"; cp -R "$FAKE_REPO/scripts" "$FAKE_REPO/global" "$FAKE_REPO/rules" "$5/"; }
 exit 0

@@ -6,6 +6,7 @@ general	agents/super-planner.agent.md
 general	claude-md-files/BASIC_CLAUDE.md
 general	rules/commit-attribution.md
 general	rules/context7.md
+general	rules/trail.md
 general	skills/agentry
 general	skills/generate-commit-message
 general	skills/humanize-and-unslop
