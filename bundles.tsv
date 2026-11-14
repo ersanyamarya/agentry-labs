@@ -2,7 +2,6 @@
 # (agentry shelf on <group> [--global]). `agentry catalog` reads this file for shelf groups.
 # Bundles: general, web, flutter, flutter-assets, mongodb. Checked by scripts/check-bundles.mjs.
 # Skills tied to gentlemans-stack layers and generators live in that repo's .claude/skills, not here.
-general	agents/super-planner.agent.md
 general	claude-md-files/BASIC_CLAUDE.md
 general	rules/commit-attribution.md
 general	rules/context7.md

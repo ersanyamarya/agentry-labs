@@ -29,7 +29,7 @@ const rules = entries('rules', (n) => n !== 'README.md');
 
 const repo = fs.readFileSync(path.join(ROOT, '.git/config'), 'utf8').match(/url = .*github\.com[:/](.+?)(?:\.git)?\s/)?.[1] ?? '';
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-const counts = [plural(skills.length, 'skill'), plural(agents.length, 'agent'), plural(guidance.length, 'guidance file'), rules.length ? plural(rules.length, 'rule') : '']
+const counts = [plural(skills.length, 'skill'), agents.length ? plural(agents.length, 'agent') : '', plural(guidance.length, 'guidance file'), rules.length ? plural(rules.length, 'rule') : '']
   .filter(Boolean)
   .join(' · ');
 

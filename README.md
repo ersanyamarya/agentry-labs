@@ -1,8 +1,8 @@
 # Agentry Labs
 
-![Agentry Labs: reusable skills, rules, agents, and tooling for AI agents](.github/assets/cover.jpg)
+![Agentry Labs: reusable skills, rules, Claude guidance, and tooling for AI agents](.github/assets/cover.jpg)
 
-Reusable skills, rules, agents, Claude guidance, and tooling for AI agents
+Reusable skills, rules, Claude guidance, and tooling for AI agents
 
 ## What is Agentry Labs?
 
@@ -85,7 +85,6 @@ Build steps, scripts, the catalog source and every command are in [cli/README.md
 ## Project layout
 
 - `skills/`: Claude Code skills, one folder each
-- `agents/`: agent definitions
 - `rules/`: commit-attribution, context7 and trail rules (setup installs each as a user-level rule)
 - `claude-md-files/`: reusable CLAUDE.md templates
 - `global/`: the settings fragment, MCP config and `helpers/` that the `config` part of `scripts/setup.sh` applies through `scripts/apply-global.mjs`
@@ -137,11 +136,6 @@ Build steps, scripts, the catalog source and every command are in [cli/README.md
 `image-artifact-setup` and `lighthouse-audit` are in `web`; `flutter-brand-icons`, `flutter-bundle-google-fonts`, `flutter-device-scripts-setup` and `flutter-store-assets` are in `flutter-assets`. Turn a bundle on with `agentry shelf on <group>` (see [Skill shelf](#skill-shelf)).
 
 Skills tied to gentlemans-stack layers, generators and libs (Nx workspace and package linking, `api-endpoints`, `service-handler-tests`, `domain-repository-tests` and similar) live in that repo's `.claude/skills` and reach projects through its sync, not from here.
-
-### Agents (`.claude/agents/`)
-| Agent | Description |
-|-------|-------------|
-| `super-planner` | Investigate a task and produce a verified, execution-ready plan without making changes |
 
 ### Rules (`.claude/rules/`)
 | Rule | Description |

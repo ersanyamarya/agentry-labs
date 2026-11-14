@@ -30,8 +30,6 @@ Remember, before writing any code:
 │   ├── phased-plan/            # Write a phased plan with a model per task: Sonnet rows inline, Haiku and Opus rows as subagents
 │   ├── run-fallow/             # Run fallow CLI for dead code, dupes, complexity, security
 │   └── skill-architect/        # Create, improve, review, and validate skills
-├── agents/              # Custom agent definitions
-│   └── super-planner.agent.md
 ├── claude-md-files/     # Reusable Claude Code project guidance
 │   └── BASIC_CLAUDE.md
 ├── rules/               # commit-attribution, context7, trail (setup installs each as a user-level rule)
