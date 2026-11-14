@@ -1,0 +1,7 @@
+#!/bin/sh
+. "$(dirname "$0")/_common.sh"
+fake_log "npm $*"
+[ -z "${FAKE_NPM_SLEEP:-}" ] || sleep "$FAKE_NPM_SLEEP"
+[ -z "${FAKE_NPM_FAIL:-}" ] || { echo "npm ERR! fake failure" >&2; exit 1; }
+[ "$1" = install ] && { shift 2; fake_install_tools "$@"; }
+exit 0

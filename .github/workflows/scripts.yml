@@ -17,3 +17,5 @@ jobs:
       - run: node scripts/check-bundles.mjs
       - run: node --test scripts/test/
       - run: node skills/skill-architect/scripts/validate.mjs skills/*/
+      - run: shellcheck scripts/setup.sh scripts/utils.sh scripts/test/*.sh
+      - run: bash scripts/test/setup.test.sh

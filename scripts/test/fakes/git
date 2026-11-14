@@ -1,0 +1,5 @@
+#!/bin/sh
+. "$(dirname "$0")/_common.sh"
+fake_log "git $*"
+[ "$1" = clone ] && { mkdir -p "$4/scripts"; }
+exit 0

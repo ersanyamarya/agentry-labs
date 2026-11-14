@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_common.sh"
+fake_log "mise $*"
+[ -z "${FAKE_MISE_FAIL:-}" ] || exit 1
+[ "$1" = use ] && { shift 2; fake_install_tools "$@"; }
+exit 0

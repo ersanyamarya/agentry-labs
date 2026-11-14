@@ -1,0 +1,3 @@
+#!/bin/sh
+[ "$1" = "--version" ] && { echo "${FAKE_NODE_VERSION:-v24.15.0}"; exit 0; }
+exit 0
