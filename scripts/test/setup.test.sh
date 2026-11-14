@@ -207,6 +207,125 @@ assert_has "lists tui" "$OUT" "agentry tui"
 assert_lacks "omits catalog list" "$OUT" "agentry catalog list"
 done_env
 
+# snap: files under HOME (no backups, .bak copies or the manifest) plus the canonical settings.json
+snap() {
+  (cd "$T/home" && find . -type f ! -path './.claude/backups/*' ! -name '*.bak-*' ! -path './.claude/agentry/*' | sort)
+  [ ! -f "$T/home/.claude/settings.json" ] || node -e 'const o = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); const s = (v) => Array.isArray(v) ? v.map(s) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, s(v[k])])) : v; console.log(JSON.stringify(s(o)))' "$T/home/.claude/settings.json"
+}
+FULL="new_env x npm realnode git claude"
+
+echo "uninstall: install, uninstall, install again"
+$FULL
+run --source "$REPO" install --all
+FIRST="$(snap)"
+run --source "$REPO" uninstall --all --yes
+assert_eq "uninstall exit 0" "$RC" 0
+assert_lacks "config removed" "$(snap)" "trail-autobuild.sh"
+assert_lacks "trail wiring removed" "$(snap)" "graft-hooks"
+assert_has "tools kept by default" "$OUT" "kept"
+if [ -x "$T/bin/agentry" ]; then pass "tools still installed"; else fail "tools still installed"; fi
+run --source "$REPO" install --all
+assert_eq "same state as one install" "$(snap)" "$FIRST"
+done_env
+
+echo "uninstall: hand-made entries survive, backups are made"
+$FULL
+mkdir -p "$T/home/.claude"
+printf '{"myKey":"x","hooks":{"Stop":[{"hooks":[{"type":"command","command":"mine"}]}]}}\n' > "$T/home/.claude/settings.json"
+run --source "$REPO" install --all
+assert_has "mcp added" "$(cat "$T/home/.claude/.claude.json")" context7
+node -e 'const fs = require("fs"); const p = process.argv[1]; const o = JSON.parse(fs.readFileSync(p, "utf8")); o.mcpServers.mine = { command: "mine" }; fs.writeFileSync(p, JSON.stringify(o));' "$T/home/.claude/.claude.json"
+run --source "$REPO" uninstall --all --yes
+assert_eq "exit 0" "$RC" 0
+assert_has "hand-made setting kept" "$(cat "$T/home/.claude/settings.json")" '"myKey"'
+assert_has "hand-made hook kept" "$(cat "$T/home/.claude/settings.json")" '"mine"'
+assert_has "hand-made MCP server kept" "$(cat "$T/home/.claude/.claude.json")" '"mine"'
+assert_lacks "context7 removed" "$(cat "$T/home/.claude/.claude.json")" 'context7'
+assert_eq "backup set exists" "$(find "$T/home/.claude/backups/agentry-setup" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ' | sed 's/^0$/none/;s/^[1-9][0-9]*$/some/')" "some"
+done_env
+
+echo "uninstall: dry run changes nothing"
+$FULL
+run --source "$REPO" install --all
+BEFORE="$(snap)"
+BEFORE_LOG="$(logged)"
+run --source "$REPO" uninstall --all --dry-run
+assert_eq "exit 0" "$RC" 0
+assert_eq "state unchanged" "$(snap)" "$BEFORE"
+assert_lacks "no uninstall commands ran" "$(logged | tail -n +"$(( $(printf '%s\n' "$BEFORE_LOG" | wc -l) + 1 ))")" "uninstall --yes"
+assert_has "preview printed" "$OUT" "would remove"
+done_env
+
+echo "uninstall: not installed"
+$FULL
+rm -f "$T/bin/trail"
+run --source "$REPO" uninstall --only trail
+assert_eq "exit 0" "$RC" 0
+assert_has "reports not installed" "$OUT" "not installed"
+done_env
+
+echo "uninstall: other agents wired by trail are left alone"
+$FULL
+run --source "$REPO" install --all
+ENVX="FAKE_TRAIL_CODEX=1" run --source "$REPO" uninstall --only trail --yes
+assert_eq "exit 0" "$RC" 0
+assert_has "names the other agent file" "$OUT" ".codex/config.toml"
+assert_has "trail wiring kept" "$(snap)" "graft-hooks"
+done_env
+
+echo "uninstall: tools"
+$FULL
+run --source "$REPO" install --all
+run --source "$REPO" uninstall --all --yes --remove-tools
+assert_eq "exit 0" "$RC" 0
+assert_has "npm uninstall argv" "$(logged)" "npm uninstall -g @ersanyamarya/agentry-cli"
+if [ ! -e "$T/bin/agentry" ]; then pass "agentry removed"; else fail "agentry removed"; fi
+done_env
+new_env x mise npm realnode git claude
+run --source "$REPO" install --all
+run --source "$REPO" uninstall --all --yes --remove-tools
+assert_has "mise unuse argv" "$(logged)" "mise unuse -g -y npm:@ersanyamarya/agentry-cli"
+done_env
+$FULL
+run --source "$REPO" install --all
+printf 'y\n' > "$T/ans"
+ENVX="SETUP_TTY=$T/ans" run --source "$REPO" uninstall --all
+assert_has "prompt answered yes removes tools" "$(logged)" "npm uninstall -g"
+done_env
+$FULL
+run --source "$REPO" install --all
+printf '\n' > "$T/ans"
+ENVX="SETUP_TTY=$T/ans" run --source "$REPO" uninstall --all
+assert_lacks "prompt default keeps tools" "$(logged)" "npm uninstall -g"
+done_env
+
+echo "status"
+$FULL
+run --source "$REPO" install --all
+run --source "$REPO" status
+assert_eq "exit 0" "$RC" 0
+assert_has "agentry installed" "$OUT" "agentry: installed"
+assert_has "trail installed" "$OUT" "trail: installed"
+assert_has "context-mode installed" "$OUT" "context-mode: installed"
+assert_has "config installed" "$OUT" "config: installed"
+run --source "$REPO" uninstall --only config --yes
+run --source "$REPO" status
+assert_has "config no longer installed" "$OUT" "config: missing"
+rm -f "$T/home/.claude/helpers/graft-hooks.cjs"
+run --source "$REPO" status
+assert_has "trail partial when its files are gone" "$OUT" "trail: partial"
+done_env
+
+echo "menu: Uninstall, then Choose parts"
+$FULL
+run --source "$REPO" install --all
+printf '4\n2\n4\n' > "$T/ans"
+ENVX="SETUP_TTY=$T/ans" run --source "$REPO" --yes
+assert_eq "exit 0" "$RC" 0
+assert_lacks "config removed" "$(snap)" "trail-autobuild.sh"
+assert_has "trail wiring remains" "$(snap)" "graft-hooks"
+done_env
+
 echo "---"
 echo "$PASS passed, $FAILN failed"
 [ "$FAILN" -eq 0 ]

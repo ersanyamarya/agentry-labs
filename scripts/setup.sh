@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034,SC2329
+# shellcheck disable=SC2034,SC2153,SC2329
 # agentry-labs machine setup: installs agentry, trail and context-mode, then wires them.
 # Runs on macOS /bin/bash 3.2 and Linux bash. Run with --help for usage.
 set -euo pipefail
@@ -157,6 +157,10 @@ STEP_TITLE=(); STEP_CHG=(); STEP_FN=()
 STEP_REASON=""
 N_DONE=0; N_SKIP=0; N_FAIL=0
 MANAGER=""
+TOOLS_INSTALLED=""
+CM_RAN=false
+TRAIL_RAN=false
+CONFIG_RAN=false
 
 add_step() { # title, changes text, function
   STEP_TITLE[${#STEP_TITLE[@]}]="$1"
@@ -226,7 +230,7 @@ step_prereqs() {
     return 1
   fi
   say "    node $v, npm $(command -v mise >/dev/null 2>&1 && echo "(mise found: will use it)" || echo "(no mise: will use npm)")"
-  if [ -z "$SOURCE_DIR" ] && has_part config && ! command -v git >/dev/null 2>&1; then
+  if [ -z "$SOURCE_DIR" ] && ! command -v git >/dev/null 2>&1; then
     say "    ${RED}git is required to clone the repo.${NC} Install git or pass --source <dir>."
     return 1
   fi
@@ -253,6 +257,7 @@ step_tools() {
     exec_cmd npm install -g $specs || return 1
   fi
   if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
+  TOOLS_INSTALLED="$tools"
   for t in $tools; do
     if "$(bin_of "$t")" --version </dev/null >/dev/null 2>&1; then
       say "    $t $("$(bin_of "$t")" --version </dev/null 2>&1 | head -1)"
@@ -264,16 +269,21 @@ step_tools() {
   return 0
 }
 
+# Clones the repo into the scratch dir unless --source was given. Sets SOURCE_DIR.
+ensure_source() {
+  [ -z "$SOURCE_DIR" ] || return 0
+  make_tmp
+  exec_cmd git clone --depth 1 "$REPO_URL" "$TMP_ROOT/repo" || return 1
+  SOURCE_DIR="$TMP_ROOT/repo"
+}
+
 step_fetch_source() {
-  if ! has_part config; then STEP_REASON="not needed without the config part"; return 3; fi
   if [ -n "$SOURCE_DIR" ]; then STEP_REASON="using --source $SOURCE_DIR"; return 3; fi
   if [ "$DRY_RUN" = true ]; then
     show_cmd git clone --depth 1 "$REPO_URL" "<temp dir>"
     STEP_REASON="dry run"; return 3
   fi
-  make_tmp
-  exec_cmd git clone --depth 1 "$REPO_URL" "$TMP_ROOT/repo" || return 1
-  SOURCE_DIR="$TMP_ROOT/repo"
+  ensure_source
 }
 
 stub() { STEP_REASON="not implemented yet"; return 3; }
@@ -306,6 +316,7 @@ step_wire_context_mode() {
   if cm_wired; then STEP_REASON="already wired"; return 3; fi
   exec_cmd context-mode setup --yes --no-input --agents claude-code || return 1
   [ "$DRY_RUN" = true ] && { STEP_REASON="dry run"; return 3; }
+  CM_RAN=true
   return 0
 }
 
@@ -325,6 +336,7 @@ step_wire_trail() {
     cp "$scratch/.trail/statusline.cjs" "$(config_dir)/helpers/trail-statusline.cjs"
     say "    status line script copied to $(config_dir)/helpers/trail-statusline.cjs"
   fi
+  TRAIL_RAN=true
   return 0
 }
 
@@ -342,10 +354,55 @@ step_apply_config() {
   [ "$rc" -eq 0 ] || return 1
   case "$out" in *"Nothing to add."*) STEP_REASON="already applied"; return 3 ;; esac
   [ "$DRY_RUN" = true ] && { STEP_REASON="dry run"; return 3; }
+  CONFIG_RAN=true
   return 0
 }
 
-step_manifest() { stub; }
+# ---------- manifest ----------
+mf() { node "$SOURCE_DIR/scripts/setup-manifest.mjs" --config "$(config_dir)" "$@"; }
+manifest_file() { echo "$(config_dir)/agentry/install-manifest.json"; }
+# manifest_get <part> <dotted.key>: prints the value, or nothing
+manifest_get() {
+  [ -f "$(manifest_file)" ] || return 0
+  node -e 'const fs = require("fs"); const m = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); let v = m.parts[process.argv[2]];
+    for (const k of process.argv[3] ? process.argv[3].split(".") : []) v = v == null ? v : v[k];
+    if (v != null) console.log(typeof v === "object" ? JSON.stringify(v) : v);' "$(manifest_file)" "$1" "${2:-}" 2>/dev/null || true
+}
+manifest_has() { [ -n "$(manifest_get "$1")" ]; }
+
+step_manifest() {
+  if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
+  [ -n "$SOURCE_DIR" ] || { STEP_REASON="no repo source"; return 3; }
+  command -v node >/dev/null 2>&1 || { STEP_REASON="node missing"; return 3; }
+  make_tmp
+  local changed=false t pkg f="$TMP_ROOT/record.json"
+  for t in $TOOLS_INSTALLED; do
+    pkg="$(pkg_of "$t")"
+    printf '{"tools":{"manager":"%s","packages":{"%s":"latest"}}}\n' "$MANAGER" "$pkg" > "$f"
+    mf record "$t" "$f" || return 1
+    say "    recorded $t ($MANAGER)"; changed=true
+  done
+  if [ "$CONFIG_RAN" = true ] && [ -f "$TMP_ROOT/apply-report.json" ]; then
+    mf record config "$TMP_ROOT/apply-report.json" || return 1
+    say "    recorded config"; changed=true
+  fi
+  if [ "$TRAIL_RAN" = true ] && [ -f "$TMP_ROOT/settings.before.json" ]; then
+    mf diff-settings "$TMP_ROOT/settings.before.json" "$HOME/.claude/settings.json" > "$TMP_ROOT/trail-diff.json" || return 1
+    node -e 'const fs = require("fs"), crypto = require("crypto"); const [diff, sl, out, settings] = process.argv.slice(1);
+      const d = JSON.parse(fs.readFileSync(diff, "utf8")); const entry = { settingsFile: settings, hooks: d.hooks, files: [] };
+      if (fs.existsSync(sl)) entry.files.push({ path: sl, sha256: crypto.createHash("sha256").update(fs.readFileSync(sl)).digest("hex") });
+      fs.writeFileSync(out, JSON.stringify(entry));' "$TMP_ROOT/trail-diff.json" "$(config_dir)/helpers/trail-statusline.cjs" "$f" "$HOME/.claude/settings.json" || return 1
+    mf record trail "$f" || return 1
+    say "    recorded trail wiring"; changed=true
+  fi
+  if [ "$CM_RAN" = true ]; then
+    echo '{"wired":true}' > "$f"
+    mf record context-mode "$f" || return 1
+    say "    recorded context-mode wiring"; changed=true
+  fi
+  if [ "$changed" = false ]; then STEP_REASON="nothing new"; return 3; fi
+  return 0
+}
 
 VERIFY_FAILED=""
 check_line() { # label, status(0=ok)
@@ -408,22 +465,182 @@ do_install() {
   [ "$DRY_RUN" = true ] || next_steps
 }
 
+# ---------- status ----------
+status_line() { # symbol-color label state detail
+  say "  $1 $2: $3${4:+ ${DIM}($4)${NC}}"
+}
+
+part_status() {
+  local p="$1" ver mgr detail
+  case "$p" in
+    agentry | trail | context-mode)
+      if ! command -v "$(bin_of "$p")" >/dev/null 2>&1; then
+        status_line "${YELLOW}${G_SKIP}${NC}" "$p" "missing" "not on PATH"; return 0
+      fi
+      ver="$("$(bin_of "$p")" --version </dev/null 2>&1 | head -1)"
+      mgr="$(manifest_get "$p" tools.manager)"
+      detail="$ver${mgr:+, installed by setup via $mgr}"
+      if [ "$p" = trail ] && ! trail_wired; then
+        status_line "${YELLOW}~${NC}" "$p" "partial" "$detail; not wired: run setup install --only trail"; return 0
+      fi
+      if [ "$p" = context-mode ]; then
+        if ! command -v claude >/dev/null 2>&1; then status_line "${YELLOW}~${NC}" "$p" "partial" "$detail; claude is not on PATH"; return 0; fi
+        if ! cm_wired; then status_line "${YELLOW}~${NC}" "$p" "partial" "$detail; not wired: run setup install --only context-mode"; return 0; fi
+      fi
+      status_line "${GREEN}${G_OK}${NC}" "$p" "installed" "$detail" ;;
+    config)
+      local js
+      if [ -n "$SOURCE_DIR" ] && js="$(mf config-status 2>/dev/null)" && [ -n "$js" ]; then
+        node -e 'const s = JSON.parse(process.argv[1]);
+          if (!s.recorded) process.exit(3);
+          const bad = s.missing.length + s.changed.length;
+          console.log((bad === 0 ? "installed" : s.present === 0 ? "missing" : "partial") + "|" + s.present + "/" + s.total + " entries present" +
+            (s.missing.length ? "; missing: " + s.missing.join(", ") : "") + (s.changed.length ? "; changed since install: " + s.changed.join(", ") : ""));' "$js" > "$TMP_ROOT/cfg.status" 2>/dev/null && {
+          local st="${TMP_ROOT:+$(cut -d'|' -f1 "$TMP_ROOT/cfg.status")}" det
+          det="$(cut -d'|' -f2- "$TMP_ROOT/cfg.status")"
+          case "$st" in
+            installed) status_line "${GREEN}${G_OK}${NC}" config installed "$det" ;;
+            missing) status_line "${YELLOW}${G_SKIP}${NC}" config missing "$det" ;;
+            *) status_line "${YELLOW}~${NC}" config partial "$det" ;;
+          esac
+          return 0; }
+      fi
+      if [ -f "$(config_dir)/helpers/trail-autobuild.sh" ]; then
+        status_line "${YELLOW}~${NC}" config "present" "not recorded by setup, so uninstall will not touch it"
+      else
+        status_line "${YELLOW}${G_SKIP}${NC}" config missing "nothing recorded"
+      fi ;;
+  esac
+}
+
 do_status() {
+  make_tmp
+  ensure_source 2>/dev/null || true
   say "${BOLD}Status${NC}"
-  local p v
-  for p in agentry trail context-mode; do
-    if command -v "$(bin_of "$p")" >/dev/null 2>&1; then
-      v="$("$(bin_of "$p")" --version </dev/null 2>&1 | head -1)"
-      say "  ${GREEN}${G_OK}${NC} $p $v"
-    else
-      say "  ${YELLOW}${G_SKIP}${NC} $p missing"
-    fi
+  local p parts="$SEL"
+  [ -n "$parts" ] || parts="$ALL_PARTS"
+  for p in $parts; do part_status "$p"; done
+}
+
+# ---------- uninstall ----------
+SETUP_BACKUP=""
+# backup_files <label> <file>...: copies the existing files into <config>/backups/agentry-setup/<stamp>-<label>/
+backup_files() {
+  local label="$1" f dest
+  shift
+  SETUP_BACKUP="$(config_dir)/backups/agentry-setup/$(date -u '+%Y-%m-%dT%H-%M-%S')-$label"
+  for f in "$@"; do
+    [ -f "$f" ] || continue
+    dest="$SETUP_BACKUP/files$(dirname "$f")"
+    mkdir -p "$dest" && cp -p "$f" "$dest/"
   done
+  say "    backup: $SETUP_BACKUP"
+}
+
+step_remove_config() {
+  has_part config || { STEP_REASON="not selected"; return 3; }
+  if ! manifest_has config; then STEP_REASON="not installed (nothing recorded by setup)"; return 3; fi
+  ensure_source || return 1
+  local flag="--write" out rc=0
+  [ "$DRY_RUN" = true ] && flag=""
+  show_cmd node "$SOURCE_DIR/scripts/apply-global.mjs" --remove "$(manifest_file)" "${flag:-(preview)}"
+  # shellcheck disable=SC2086
+  out="$(node "$SOURCE_DIR/scripts/apply-global.mjs" --remove "$(manifest_file)" $flag </dev/null 2>&1)" || rc=$?
+  printf '%s\n' "$out" | sed 's/^/    /'
+  [ "$rc" -eq 0 ] || return 1
+  if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
+  mf forget config || return 1
+}
+
+step_remove_trail() {
+  has_part trail || { STEP_REASON="not selected"; return 3; }
+  if ! command -v trail >/dev/null 2>&1; then
+    if manifest_has trail && [ "$DRY_RUN" != true ]; then ensure_source && mf forget trail; fi
+    STEP_REASON="not installed"; return 3
+  fi
+  if ! trail_wired && ! manifest_has trail; then STEP_REASON="not installed (not wired)"; return 3; fi
+  make_tmp
+  local scratch="$TMP_ROOT/scratch-un" preview paths bad
+  mkdir -p "$scratch"
+  show_cmd "cd <scratch dir> && trail uninstall"
+  preview="$(cd "$scratch" && DO_NOT_TRACK=1 trail uninstall </dev/null 2>&1)" || { printf '%s\n' "$preview" | sed 's/^/    /'; return 1; }
+  paths="$(printf '%s\n' "$preview" | grep '\[machine-wide\]' | sed 's/^.*would remove: //; s/ \[machine-wide\].*$//')"
+  bad="$(printf '%s\n' "$paths" | grep -v '^$' | grep -v "^$HOME/.claude/" || true)"
+  printf '%s\n' "$paths" | grep -v '^$' | sed 's/^/    would remove: /' || true
+  if [ -n "$bad" ]; then
+    say "    ${YELLOW}trail also wired other agents${NC}; setup will not remove those:"
+    printf '%s\n' "$bad" | sed 's/^/      /'
+    say "    Remove them yourself with: trail uninstall --yes"
+    STEP_REASON="left alone (other agents wired)"; return 3
+  fi
+  if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
+  backup_files trail-uninstall "$HOME/.claude/settings.json"
+  show_cmd "cd <scratch dir> && trail uninstall --yes"
+  (cd "$scratch" && DO_NOT_TRACK=1 trail uninstall --yes </dev/null) || return 1
+  # the statusline copy setup made, only if still the file it recorded
+  local sl rec
+  sl="$(config_dir)/helpers/trail-statusline.cjs"
+  rec="$(manifest_get trail files)"
+  if [ -n "$rec" ] && [ -f "$sl" ]; then
+    case "$rec" in *"$(node -e 'process.stdout.write(require("crypto").createHash("sha256").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' "$sl")"*) rm -f "$sl"; say "    removed $sl" ;; *) say "    kept $sl (changed since install)" ;; esac
+  fi
+  ensure_source && mf forget trail
+  return 0
+}
+
+step_remove_context_mode() {
+  has_part context-mode || { STEP_REASON="not selected"; return 3; }
+  if ! command -v context-mode >/dev/null 2>&1; then STEP_REASON="not installed"; return 3; fi
+  if ! cm_wired && ! manifest_has context-mode; then STEP_REASON="not installed (not wired)"; return 3; fi
+  say "    ${YELLOW}note:${NC} context-mode setup --remove undoes every agent it was set up for, not only Claude Code."
+  if [ "$DRY_RUN" = true ]; then
+    show_cmd context-mode setup --remove --dry-run --yes --no-input --agents claude-code
+    context-mode setup --remove --dry-run --yes --no-input --agents claude-code </dev/null 2>&1 | sed 's/^/    /' || true
+    STEP_REASON="dry run"; return 3
+  fi
+  backup_files context-mode-remove "$(config_dir)/settings.json" "$(config_dir)/.claude.json"
+  exec_cmd context-mode setup --remove --yes --no-input --agents claude-code || return 1
+  ensure_source && mf forget context-mode
+  return 0
+}
+
+tools_remove_confirmed() {
+  [ "$REMOVE_TOOLS" = true ] && return 0
+  [ "$YES" = true ] && return 1
+  tty_ok || return 1
+  [ -n "${MENU_FD:-}" ] || exec 3<"${SETUP_TTY:-/dev/tty}"
+  ask "Also remove the CLIs (agentry, trail, context-mode) that setup installed? [y/N]: "
+  case "$ANSWER" in y | Y | yes) return 0 ;; esac
+  return 1
+}
+
+step_remove_tools() {
+  local t mgr pkg any=false
+  for t in $(selected_tools); do manifest_has "$t" && any=true; done
+  if [ "$any" = false ]; then STEP_REASON="no tools recorded as installed by setup"; return 3; fi
+  if ! tools_remove_confirmed; then STEP_REASON="kept (use --remove-tools to remove them)"; return 3; fi
+  for t in $(selected_tools); do
+    mgr="$(manifest_get "$t" tools.manager)"
+    [ -n "$mgr" ] || continue
+    pkg="$(pkg_of "$t")"
+    if [ "$mgr" = mise ]; then exec_cmd mise unuse -g -y "npm:$pkg" || return 1
+    else exec_cmd npm uninstall -g "$pkg" || return 1; fi
+    [ "$DRY_RUN" = true ] || mf forget "$t"
+  done
+  [ "$DRY_RUN" = true ] && { STEP_REASON="dry run"; return 3; }
+  return 0
 }
 
 do_uninstall() {
-  say "${YELLOW}uninstall is not implemented yet.${NC}"
-  return 1
+  [ -n "$SEL" ] || die_usage "choose parts with --all or --only <part>"
+  make_tmp
+  if [ "$DRY_RUN" != true ]; then ensure_source || return 1; fi
+  add_step "Remove config entries" "only what the manifest lists and that still matches" step_remove_config
+  add_step "Remove trail wiring" "<config>/ hooks and skill of trail" step_remove_trail
+  add_step "Remove context-mode wiring" "plugin registration" step_remove_context_mode
+  add_step "Remove tools" "global CLIs, only with --remove-tools or a yes" step_remove_tools
+  print_plan
+  run_steps
 }
 
 # ---------- menu ----------
@@ -455,6 +672,7 @@ pick_parts() { # prompt; sets SEL from numbers like "1 3"
 
 run_menu() {
   exec 3<"${SETUP_TTY:-/dev/tty}"
+  MENU_FD=3
   say "${BOLD}agentry-labs setup${NC}"
   say "  1) Install everything"
   say "  2) Choose parts"
@@ -466,7 +684,12 @@ run_menu() {
     1) CMD=install; for p in $ALL_PARTS; do add_part "$p"; done; do_install ;;
     2) CMD=install; pick_parts || return 2; do_install ;;
     3) do_status ;;
-    4) do_uninstall ;;
+    4)
+      CMD=uninstall
+      say "  1) Everything"; say "  2) Choose parts"
+      ask "Uninstall [1-2]: "
+      if [ "$ANSWER" = 1 ]; then for p in $ALL_PARTS; do add_part "$p"; done; else pick_parts || return 2; fi
+      do_uninstall ;;
     5 | "") say "Bye." ;;
     *) say "${RED}Not a choice: $ANSWER${NC}"; return 2 ;;
   esac

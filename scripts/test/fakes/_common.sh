@@ -14,3 +14,15 @@ fake_install_tools() {
     chmod +x "$FAKE_BIN/$name"
   done
 }
+# Removes the fake binaries for package specs (npm:@scope/pkg, @scope/pkg or pkg).
+fake_uninstall_tools() {
+  local spec name
+  for spec in "$@"; do
+    name="${spec#npm:}"; name="${name%@latest}"
+    case "$name" in
+      @ersanyamarya/agentry-cli) name=agentry ;;
+      @trailhq/trail-code) name=trail ;;
+    esac
+    rm -f "$FAKE_BIN/$name"
+  done
+}

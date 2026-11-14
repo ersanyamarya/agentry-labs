@@ -13,6 +13,21 @@ case "$name" in
       printf '{"claudeDist":"%s"}\n' "$FAKE_BIN" > "$HOME/.trail/install.json"
       [ -f "$HOME/.claude/settings.json" ] || printf '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"node graft-hooks.cjs Stop"}]}]}}\n' > "$HOME/.claude/settings.json"
       echo '// fake statusline' > .trail/statusline.cjs
+    fi
+    if [ "$1" = uninstall ]; then
+      apply=false
+      for a in "$@"; do [ "$a" = "--yes" ] && apply=true; done
+      echo "claude:"
+      echo "  - would remove: $HOME/.claude/helpers/graft-hooks.cjs [machine-wide] (hooks shim (user level), deleted)"
+      echo "  - would remove: $HOME/.claude/skills/trail/SKILL.md [machine-wide] (trail skill, deleted)"
+      [ -z "${FAKE_TRAIL_CODEX:-}" ] || echo "  - would remove: $HOME/.codex/config.toml [machine-wide] (codex config)"
+      if [ "$apply" = true ]; then
+        rm -f "$HOME/.claude/helpers/graft-hooks.cjs" "$HOME/.trail/install.json"
+        rm -rf "$HOME/.claude/skills/trail"
+        grep -q 'graft-hooks.cjs' "$HOME/.claude/settings.json" 2>/dev/null && rm -f "$HOME/.claude/settings.json"
+      else
+        echo "Dry run: nothing was touched. Re-run with -y to remove."
+      fi
     fi ;;
   context-mode)
     case "$1" in
@@ -22,7 +37,12 @@ case "$name" in
         else
           echo '{"command":"doctor","exitCode":0,"agents":[{"id":"claude-code","status":"FAIL"}]}'
         fi ;;
-      setup) touch "$FAKE_BIN/.cm-wired" ;;
+      setup)
+        case " $* " in
+          *" --dry-run "*) echo "would remove context-mode wiring" ;;
+          *" --remove "*) rm -f "$FAKE_BIN/.cm-wired" ;;
+          *) touch "$FAKE_BIN/.cm-wired" ;;
+        esac ;;
     esac ;;
   agentry)
     case "$1" in
