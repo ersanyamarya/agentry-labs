@@ -308,6 +308,24 @@ ENVX="SETUP_TTY=$T/ans" run --source "$REPO" uninstall --all
 assert_lacks "prompt default keeps tools" "$(logged)" "npm uninstall -g"
 done_env
 
+echo "uninstall: leftovers"
+$FULL
+run --source "$REPO" install --all
+node -e 'const fs = require("fs"); const p = process.argv[1]; const o = JSON.parse(fs.readFileSync(p, "utf8")); o.extraKnownMarketplaces = { "context-mode": { source: { source: "directory", path: "/nonexistent/context-mode" } } }; o.enabledPlugins = {}; fs.writeFileSync(p, JSON.stringify(o));' "$T/home/.claude/settings.json"
+run --source "$REPO" uninstall --all --yes --remove-tools
+assert_eq "exit 0" "$RC" 0
+assert_lacks "marketplace entry cleaned" "$(cat "$T/home/.claude/settings.json" 2>/dev/null)" "context-mode"
+assert_eq "manifest and helpers folder gone" "$(find "$T/home/.claude" -path '*/agentry*' -o -path '*/helpers*' | grep -vc backups)" "0"
+done_env
+$FULL
+run --source "$REPO" install --all
+ENVX="FAKE_TRAIL_CODEX=1" run --source "$REPO" uninstall --all --yes --remove-tools
+assert_eq "exit 0" "$RC" 0
+assert_has "says it kept trail" "$OUT" "kept the trail CLI"
+if [ -x "$T/bin/trail" ]; then pass "trail CLI kept"; else fail "trail CLI kept"; fi
+if [ ! -x "$T/bin/agentry" ]; then pass "other CLIs removed"; else fail "other CLIs removed"; fi
+done_env
+
 echo "status"
 $FULL
 run --source "$REPO" install --all

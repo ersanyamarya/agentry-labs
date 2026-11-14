@@ -87,3 +87,10 @@ test("configStatus reports missing and changed entries", () => {
 	assert.deepEqual(st.changed.sort(), [file, "statusLine"].sort());
 	assert.deepEqual(st.missing.sort(), [join(dir, "gone"), "Stop hook", "env.A"].sort());
 });
+
+test("forgetting the last part deletes the manifest and its empty folder", () => {
+	const dir = cfg();
+	record(dir, "trail", { wired: true });
+	forget(dir, "trail");
+	assert.ok(!existsSync(join(dir, "agentry")));
+});

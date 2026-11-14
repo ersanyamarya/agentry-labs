@@ -13,7 +13,7 @@
 //   config-status                 print which recorded config entries are present, missing or changed (JSON)
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -63,6 +63,13 @@ export function forget(configDir, part, keys = []) {
 	const entry = manifest.parts[part];
 	if (entry && keys.length) for (const k of keys) delete entry[k];
 	if (!keys.length || (entry && Object.keys(entry).length === 0)) delete manifest.parts[part];
+	if (Object.keys(manifest.parts).length === 0) {
+		// nothing left to remember: delete the manifest and its folder when empty
+		const path = manifestPath(configDir);
+		if (existsSync(path)) unlinkSync(path);
+		if (existsSync(dirname(path)) && readdirSync(dirname(path)).length === 0) rmdirSync(dirname(path));
+		return manifest;
+	}
 	save(configDir, manifest);
 	return manifest;
 }

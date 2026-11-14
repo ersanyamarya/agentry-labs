@@ -159,6 +159,7 @@ N_DONE=0; N_SKIP=0; N_FAIL=0
 MANAGER=""
 TOOLS_INSTALLED=""
 CM_RAN=false
+TRAIL_KEPT=false
 TRAIL_RAN=false
 CONFIG_RAN=false
 
@@ -572,6 +573,7 @@ step_remove_trail() {
     say "    ${YELLOW}trail also wired other agents${NC}; setup will not remove those:"
     printf '%s\n' "$bad" | sed 's/^/      /'
     say "    Remove them yourself with: trail uninstall --yes"
+    TRAIL_KEPT=true
     STEP_REASON="left alone (other agents wired)"; return 3
   fi
   if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
@@ -584,9 +586,25 @@ step_remove_trail() {
   rec="$(manifest_get trail files)"
   if [ -n "$rec" ] && [ -f "$sl" ]; then
     case "$rec" in *"$(node -e 'process.stdout.write(require("crypto").createHash("sha256").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' "$sl")"*) rm -f "$sl"; say "    removed $sl" ;; *) say "    kept $sl (changed since install)" ;; esac
+    rmdir "$(config_dir)/helpers" 2>/dev/null || true
   fi
   ensure_source && mf forget trail settingsFile hooks files
   return 0
+}
+
+# context-mode's own remove leaves its marketplace entry in settings.json, pointing at the npm folder; drop it only when that folder is gone.
+clean_cm_marketplace() {
+  local f
+  f="$(config_dir)/settings.json"
+  [ -f "$f" ] || return 0
+  node -e 'const fs = require("fs"); const f = process.argv[1]; const s = JSON.parse(fs.readFileSync(f, "utf8"));
+    const m = s.extraKnownMarketplaces && s.extraKnownMarketplaces["context-mode"]; if (!m) process.exit(0);
+    const dir = (m.source && (m.source.path || m.source.url)) || ""; if (dir && fs.existsSync(dir)) process.exit(0);
+    delete s.extraKnownMarketplaces["context-mode"];
+    if (!Object.keys(s.extraKnownMarketplaces).length) delete s.extraKnownMarketplaces;
+    if (s.enabledPlugins && !Object.keys(s.enabledPlugins).length) delete s.enabledPlugins;
+    if (Object.keys(s).length) fs.writeFileSync(f, JSON.stringify(s, null, 2) + "\n"); else fs.unlinkSync(f);
+    console.log("    removed the leftover context-mode marketplace entry from " + f);' "$f" || true
 }
 
 step_remove_context_mode() {
@@ -601,6 +619,7 @@ step_remove_context_mode() {
   fi
   backup_files context-mode-remove "$(config_dir)/settings.json" "$(config_dir)/.claude.json"
   exec_cmd context-mode setup --remove --yes --no-input --agents claude-code || return 1
+  clean_cm_marketplace
   ensure_source && mf forget context-mode wired
   return 0
 }
@@ -623,6 +642,10 @@ step_remove_tools() {
   for t in $(selected_tools); do
     mgr="$(manifest_get "$t" tools.manager)"
     [ -n "$mgr" ] || continue
+    if [ "$t" = trail ] && [ "$TRAIL_KEPT" = true ]; then
+      say "    ${YELLOW}kept the trail CLI${NC}: its hooks for other agents still point at it"
+      continue
+    fi
     pkg="$(pkg_of "$t")"
     if [ "$mgr" = mise ]; then exec_cmd mise unuse -g -y "npm:$pkg" || return 1
     else exec_cmd npm uninstall -g "$pkg" || return 1; fi
