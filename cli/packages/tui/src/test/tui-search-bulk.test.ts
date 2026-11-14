@@ -64,7 +64,7 @@ describe("/ search", () => {
   test("works on every tab; esc leaves with the filter cleared", async () => {
     ui = createUi();
     await ui.ready();
-    for (const tab of ["2", "3", "4", "5", "6", "7", "8"]) {
+    for (const tab of ["2", "3", "4", "5", "6", "7", "8", "9"]) {
       await ui.press(tab, "/", "z", "z", "z");
       await ui.until(/\/zzz_/);
       await ui.press(KEYS.esc);
@@ -145,7 +145,7 @@ describe("m marks and bulk actions", () => {
     }
     const backups = join(ui.fx.configDir, "backups/agentry/removed");
     assert.equal(readdirSync(backups).length, 3);
-    await ui.press("8");
+    await ui.press("9");
     await ui.until(/d (delete 30\+ days old|prune)/);
     await ui.press("m", KEYS.down, "m", "x");
     await ui.until(/Delete 2 backups \(preview\)/);

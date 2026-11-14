@@ -197,6 +197,19 @@ export const ruleEntrySchema = z.object({
   tokens: z.number(),
 });
 
+export const agentEntrySchema = z.object({
+  bytes: z.number(),
+  description: z.string(),
+  id: z.string(),
+  label: z.string(),
+  model: z.string().optional(),
+  name: z.string(),
+  path: z.string(),
+  scope: z.enum(["user", "project"]),
+  tokens: z.number(),
+  tools: z.string().optional(),
+});
+
 export const shelfGroupSchema = z.object({
   name: z.string(),
   tokens: z.number(),
@@ -252,6 +265,7 @@ export const loadSchema = z.object({
   parkedHooks: listOf(parkedHookSchema),
   parked: listOf(parkedMcpSchema),
   rules: listOf(ruleEntrySchema),
+  agents: listOf(agentEntrySchema),
   groups: listOf(shelfGroupSchema),
   catalog: z.object({
     fetched: z.boolean(),

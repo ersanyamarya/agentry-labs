@@ -1,6 +1,7 @@
 // The UI's only door to lib/: every read and every action goes through the same functions the CLI uses.
 // `makePaths(dir)` builds the paths for one project folder; options reach the lib factories so tests can inject fixtures.
 
+import { createAgents } from "./agents.js";
 import { createBackups } from "./backups.js";
 import { type CatalogOptions, createCatalog } from "./catalog.js";
 import { createDoctor, type DoctorOptions } from "./doctor.js";
@@ -154,6 +155,7 @@ export const createData = ({
       ),
       parked: attempt("parked", () => createMcpToggle(paths).listParked(), []),
       rules: attempt("rules", () => createRules(paths, noIo).entries(), []),
+      agents: attempt("agents", () => createAgents(paths, noIo).entries(), []),
       groups: attempt("shelf", () => createShelf(paths, noIo).groups(), []),
       catalog: attempt(
         "catalog",

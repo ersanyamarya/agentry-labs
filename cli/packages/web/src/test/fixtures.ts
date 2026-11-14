@@ -165,6 +165,30 @@ export const loadFixture = (): LoadData =>
     ]),
     parkedHooks: list([]),
     parked: list([]),
+    agents: list([
+      {
+        id: "user:reviewer.md",
+        name: "reviewer",
+        description: "Reviews diffs",
+        model: "sonnet",
+        tools: "Read, Grep",
+        scope: "user",
+        label: "~/.claude/agents/reviewer.md",
+        path: "/home/me/.claude/agents/reviewer.md",
+        tokens: 12,
+        bytes: 300,
+      },
+      {
+        id: "project:helper.md",
+        name: "helper",
+        description: "",
+        scope: "project",
+        label: ".claude/agents/helper.md",
+        path: "/work/app/.claude/agents/helper.md",
+        tokens: 3,
+        bytes: 80,
+      },
+    ]),
     rules: list([
       {
         id: "r1",

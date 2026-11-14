@@ -184,7 +184,7 @@ describe("rendered with real escape codes", () => {
       ui.frame()!.includes!(`${YELLOW}◐ partial`),
       "a group with one of two skills linked is partial"
     );
-    await ui.press("7");
+    await ui.press("8");
     await ui.until(/\[fake-bad\]/);
     assert.ok(ui.frame()!.includes!(`${YELLOW}▲`), "warning icon is yellow");
     assert.ok(ui.frame()!.includes!("\u001B[34mℹ"), "info icon is blue");
@@ -200,7 +200,7 @@ describe("rendered with real escape codes", () => {
       stripAnsi(ui.frame()!),
       /video\s+2 skills\s+~\d+\s+o off\s+o off/
     );
-    await ui.press("7");
+    await ui.press("8");
     await ui.until(/\[fake-bad\]/);
     assert.doesNotMatch(ui.frame()!, COLOUR_CODE);
     assert.match(stripAnsi(ui.frame()!), /! Warnings/);

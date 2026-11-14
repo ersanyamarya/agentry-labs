@@ -27,7 +27,7 @@ const drawn = (color: boolean, props: Record<string, unknown>) =>
   ).lastFrame() ?? "";
 
 const DOCTOR = {
-  tab: 6,
+  tab: 7,
   project: "/work/app",
   counts: { Skills: 12, Doctor: 3 },
   summary: { error: 2, warning: 1, tokens: 3100 },
@@ -37,13 +37,14 @@ let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());
 
 describe("the rail", () => {
-  test("section order is the design order, which the 1-8 keys follow", () => {
+  test("section order is the design order, which the 1-9 keys follow", () => {
     assert.deepEqual(TAB_NAMES, [
       "Skills",
       "MCP",
       "Hooks",
       "Plugins",
       "Rules",
+      "Agents",
       "Catalog",
       "Doctor",
       "Backups",
@@ -62,7 +63,7 @@ describe("the rail", () => {
     const frame = stripAnsi(drawn(true, DOCTOR));
     assert.match(
       frame,
-      /LIBRARY[\s\S]*Skills\s+12[\s\S]*MCP[\s\S]*Hooks[\s\S]*Plugins[\s\S]*Rules[\s\S]*DISCOVER[\s\S]*Catalog[\s\S]*HEALTH[\s\S]*› Doctor\s+3[\s\S]*Backups/
+      /LIBRARY[\s\S]*Skills\s+12[\s\S]*MCP[\s\S]*Hooks[\s\S]*Plugins[\s\S]*Rules[\s\S]*Agents[\s\S]*DISCOVER[\s\S]*Catalog[\s\S]*HEALTH[\s\S]*› Doctor\s+3[\s\S]*Backups/
     );
     assert.match(frame, /● 3 problems/);
   });
@@ -91,14 +92,14 @@ describe("the rail", () => {
   test("under 70 columns a one-line section header takes its place", () => {
     const line = render(
       React.createElement(SectionLine as never, {
-        tab: 6,
+        tab: 7,
         counts: { Doctor: 3 },
         summary: { error: 2, warning: 0, tokens: 1 },
       })
     ).lastFrame();
     assert.match(
       stripAnsi(line ?? ""),
-      /agentry\s+‹ Doctor 3 ›\s+7\/8\s+2 problems/
+      /agentry\s+‹ Doctor 3 ›\s+8\/9\s+2 problems/
     );
   });
 });
@@ -140,6 +141,7 @@ describe("keys", () => {
       "Hooks",
       "Plugins",
       "Rules",
+      "Agents",
       "Catalog",
       "Doctor",
       "Backups",

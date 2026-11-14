@@ -5,6 +5,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ActivityIcon,
   ArchiveIcon,
+  BotIcon,
   BoxIcon,
   GitBranchIcon,
   LayersIcon,
@@ -47,6 +48,7 @@ export const SIDEBAR_GROUPS: { label: string; items: Section[] }[] = [
       { key: "hooks", name: "Hooks", to: "/hooks", icon: GitBranchIcon },
       { key: "plugins", name: "Plugins", to: "/plugins", icon: BoxIcon },
       { key: "rules", name: "Rules", to: "/rules", icon: ListIcon },
+      { key: "agents", name: "Agents", to: "/agents", icon: BotIcon },
     ],
   },
   {
@@ -73,6 +75,7 @@ export const sectionCounts = (
   hooks: data?.status.hooks.items.length,
   plugins: data?.status.plugins.items.length,
   rules: data?.rules.items.length,
+  agents: data?.agents.items.length,
   catalog: data?.catalog.fetched ? data.catalog.entries.length : undefined,
   doctor: data?.doctor.findings.length,
   backups: data?.backups.items.length,

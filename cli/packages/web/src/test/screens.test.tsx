@@ -12,6 +12,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { AgentsScreen } from "../components/agents-screen.js";
 import { BackupsScreen } from "../components/backups-screen.js";
 import { CatalogScreen } from "../components/catalog-screen.js";
 import { DoctorScreen } from "../components/doctor-screen.js";
@@ -151,6 +152,21 @@ describe("Plugins", () => {
         name: "tool@market",
       })
     );
+  });
+});
+
+describe("Agents", () => {
+  test("lists agents by scope with model and details, and offers no write", async () => {
+    mount(<AgentsScreen />);
+    await inTable().findByText("reviewer");
+    expect(inTable().getByText("sonnet")).toBeTruthy();
+    await userEvent.click(screen.getByRole("radio", { name: /This project/ }));
+    expect(inTable().queryByText("reviewer")).toBeNull();
+    expect(inTable().getByText("helper")).toBeTruthy();
+    await userEvent.click(screen.getByRole("radio", { name: /All/ }));
+    await userEvent.click(inTable().getByText("reviewer"));
+    expect(await screen.findByText("Read, Grep")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /remove/i })).toBeNull();
   });
 });
 

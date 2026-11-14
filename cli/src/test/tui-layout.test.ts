@@ -71,7 +71,7 @@ test("the footer lists only the keys of the current tab", async () => {
   assert.doesNotMatch(ui.frame()!, /s shelve/);
   await ui.press("4");
   await ui.until(/space on\/off/);
-  await ui.press("7");
+  await ui.press("8");
   await ui.until(/enter fix {3}u undo {3}e edit/);
   assert.doesNotMatch(ui.frame()!, /space on\/off/);
 });
@@ -113,7 +113,7 @@ test("the rail lists the sections in three groups with counts: no digits, no ico
   const rail = stripAnsi(ui.rail());
   assert.match(
     rail,
-    /LIBRARY[\s\S]*Skills\s+\d+[\s\S]*MCP\s+\d+[\s\S]*Hooks\s+\d+[\s\S]*Plugins\s+\d+[\s\S]*Rules\s+\d+[\s\S]*DISCOVER[\s\S]*Catalog[\s\S]*HEALTH[\s\S]*Doctor\s+\d+[\s\S]*Backups\s+\d+/
+    /LIBRARY[\s\S]*Skills\s+\d+[\s\S]*MCP\s+\d+[\s\S]*Hooks\s+\d+[\s\S]*Plugins\s+\d+[\s\S]*Rules\s+\d+[\s\S]*Agents\s+\d+[\s\S]*DISCOVER[\s\S]*Catalog[\s\S]*HEALTH[\s\S]*Doctor\s+\d+[\s\S]*Backups\s+\d+/
   );
   assert.doesNotMatch(rail, /[✦⇄⚑⬡✚☰⟲§]|\(\d+\)|\d [A-Z]/);
   assert.match(rail, /^› Skills/m);

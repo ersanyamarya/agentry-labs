@@ -45,7 +45,7 @@ describe("remove with and without a copy", () => {
 
 describe("Backups tab", () => {
   test("is tab 7 with a count, says when empty, and lists a removed skill after x", async () => {
-    await ui.press("8");
+    await ui.press("9");
     await ui.until(/\(no backups\)/);
     assert.match(ui.rail(), /Backups\s+0/);
     assert.match(
@@ -57,7 +57,7 @@ describe("Backups tab", () => {
     await removeNotes();
     await ui.press("y");
     await ui.until(/Backups tab restores it/);
-    await ui.press("8");
+    await ui.press("9");
     await ui.until(/notes \(global\)\s+removed\s+\d+ B\s+today/);
     assert.match(ui.rail(), /Backups\s+1/);
     assert.match(ui.frame()!, /BACKUP\s+KIND\s+SIZE\s+AGE/);
@@ -68,7 +68,7 @@ describe("Backups tab", () => {
     await removeNotes();
     await ui.press("y");
     await ui.until(/Backups tab restores it/);
-    await ui.press("8");
+    await ui.press("9");
     await ui.until(/removed\s+\d+ B/);
     await ui.press("u");
     await ui.until(/Restore notes \(global\) \(preview\)/);
@@ -94,7 +94,7 @@ describe("Backups tab", () => {
       })
     );
     await ui.press("r");
-    await ui.press("8");
+    await ui.press("9");
     await ui.until(/fix set/);
     assert.doesNotMatch(ui.frame()!, /u restore/);
     await ui.press("x");
@@ -139,7 +139,7 @@ describe("Backups tab", () => {
       })
     );
     await ui.press("r");
-    await ui.press("8");
+    await ui.press("9");
     await ui.untilRail(/Backups\s+2/);
     await ui.press("d");
     await ui.until(/Delete backups 30\+ days old \(preview\)/);
@@ -162,7 +162,7 @@ describe("Backups tab", () => {
       })
     );
     await ui.press("r");
-    await ui.press("8");
+    await ui.press("9");
     await ui.until(/fix set/);
     await ui.press("u");
     await ui.until(/u restores a removed skill/);

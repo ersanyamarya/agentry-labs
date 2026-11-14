@@ -67,7 +67,7 @@ beforeEach(async () => {
   git("commit", "-q", "-m", "init");
   ui = createUi({ catalogRepo: origin });
   await ui.ready();
-  await ui.press("6", "f");
+  await ui.press("7", "f");
   await ui.until(/web bundle/);
 });
 afterEach(() => ui?.stop());
@@ -302,7 +302,7 @@ describe("Rules tab", () => {
     await ui.until(/Removed style\.md/);
     assert.equal(existsSync(configFile("rules/style.md")), false);
     assert.equal(existsSync(configFile("backups/agentry/removed")), true);
-    await ui.press("8");
+    await ui.press("9");
     await ui.until(/style\.md \(user rule\)/);
     assert.match(stripAnsi(ui.frame()!), /removed rule/);
   });

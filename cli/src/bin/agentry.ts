@@ -2,6 +2,7 @@
 // agentry: shows and manages what a Claude Code session loads. Run `agentry --help`.
 
 import { parseArgs } from "node:util";
+import { createAgents } from "@agentry/core/agents";
 import { createBackups } from "@agentry/core/backups";
 import { createCatalog } from "@agentry/core/catalog";
 import { createDoctor } from "@agentry/core/doctor";
@@ -119,6 +120,8 @@ Commands:
   catalog remove agent/<name>... [--project] [--no-backup] [--dry-run] [--yes]
                                       Remove an installed agent (~/.claude/agents, or --project: .claude/agents), keeping a copy
                                       under ~/.claude/backups/agentry/removed/ unless --no-backup; previews, then asks (or --yes)
+  agents list [--json]                List the agents installed for the user and this project, with their model and
+                                      listing cost (add or remove them with catalog add|remove agent/<name>)
   rules list [--json]                 List the CLAUDE.md and rule files loaded for this project and the user, with tokens
   rules remove <file> [--dry-run] [--no-backup]
                                       Delete one of them (label as list shows it, a path, or a unique file name), keeping a copy
@@ -357,6 +360,13 @@ const runCatalog = async (
   return usageError(
     "Usage: agentry catalog refresh | list [--json] | add <item>... [--group G] [--project] [--dry-run] [--yes] | update <item>... | --all [--dry-run] [--yes] | remove agent/<name>... [--project] [--no-backup] [--dry-run] [--yes]"
   );
+};
+
+const runAgents = (args: string[], { json }: Values): number => {
+  if (args.length === 1 && args[0] === "list") {
+    return createAgents(createPaths()).list({ json });
+  }
+  return usageError("Usage: agentry agents list [--json]");
 };
 
 const runRules = (
@@ -723,8 +733,9 @@ const main = (argv: string[]): number | Promise<number> => {
   if (command === "catalog") {
     return runCatalog(rest, values);
   }
-  if (command === "rules") {
-    return runRules(rest, values);
+  const listing = { rules: runRules, agents: runAgents }[command];
+  if (listing) {
+    return listing(rest, values);
   }
   return usageError(`Unknown command: ${command}`);
 };

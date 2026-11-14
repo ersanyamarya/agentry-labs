@@ -10,12 +10,15 @@ import { ROLE, ThemeContext, useStyle } from "../theme.js";
 import { Text } from "./text.js";
 
 export const SIDEBAR_GROUPS = [
-  { label: "LIBRARY", items: ["Skills", "MCP", "Hooks", "Plugins", "Rules"] },
+  {
+    label: "LIBRARY",
+    items: ["Skills", "MCP", "Hooks", "Plugins", "Rules", "Agents"],
+  },
   { label: "DISCOVER", items: ["Catalog"] },
   { label: "HEALTH", items: ["Doctor", "Backups"] },
 ] as const;
 
-// Section order, which is also the order of the 1-8 keys.
+// Section order, which is also the order of the 1-9 keys.
 export const TAB_NAMES: string[] = SIDEBAR_GROUPS.flatMap((group) => [
   ...group.items,
 ]);

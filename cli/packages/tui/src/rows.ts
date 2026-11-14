@@ -566,6 +566,66 @@ export const ruleRows = (data: Data): Row[] => {
   return rows;
 };
 
+export const agentKeys = (row: Row | undefined): KeyHint[] =>
+  row?.file ? [["e", "open file", "edit"]] : [];
+
+// The subagents Claude Code can start (core/agents.ts), user then project. Cost is the name and description Claude lists.
+export const agentRows = (data: Data): Row[] => {
+  if (data.agents.length === 0) {
+    return [
+      {
+        id: "none:agents",
+        label: "  (no agents)",
+        details: [
+          "No ~/.claude/agents/*.md or .claude/agents/*.md was found.",
+          "note: the Catalog tab can add an agent (~/.claude/agents, or o for this project only).",
+        ],
+      },
+    ];
+  }
+  const rows = [
+    header(
+      "h:agents",
+      "Agents",
+      withCells([
+        cell(seg("Cost", DIM), 5, "right"),
+        cell(seg("Model", DIM), 8),
+      ])
+    ),
+  ];
+  for (const [scope, title] of [
+    ["user", "User"],
+    ["project", "This project"],
+  ]) {
+    const list = data.agents.filter((entry) => entry.scope === scope);
+    if (list.length > 0) {
+      rows.push(spacer(`agents-${scope}`), header(`h:agents-${scope}`, title));
+      rows.push(
+        ...list.map((entry) => ({
+          id: `agent:${entry.id}`,
+          label: `  ${entry.name}`,
+          ...withCells([
+            cell(cost(entry.tokens), 5, "right"),
+            cell(seg(entry.model ?? "-", DIM), 8),
+          ]),
+          details: [
+            `agent: ${entry.name}`,
+            `scope: ${title}`,
+            ...(entry.description ? [`description: ${entry.description}`] : []),
+            ...(entry.model ? [`model: ${entry.model}`] : []),
+            ...(entry.tools ? [`tools: ${entry.tools}`] : []),
+            `tokens: ${tokens(entry.tokens)} (name and description; the body loads when the agent runs)`,
+            `path: ${entry.path}`,
+            "note: install or remove agents from the Catalog tab; e opens the file.",
+          ],
+          file: entry.path,
+        }))
+      );
+    }
+  }
+  return rows;
+};
+
 export const BACKUPS_KEYS: KeyHint[] = [["d", "delete 30+ days old", "prune"]];
 
 export const backupKeys = (row: Row | undefined): KeyHint[] => [

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Agents: a new Agents section in the terminal UI (key `6`) and the web UI lists the agents installed for you (`~/.claude/agents`) and this project (`.claude/agents`) with model, tools and listing cost, and `agentry agents list [--json]` prints the same. Read-only; add or remove agents from the Catalog. The Catalog, Doctor and Backups sections move to keys `7`, `8` and `9`. Agents that plugins ship are not listed yet.
+
 ## 0.3.1
 
 - Catalog: MCP servers now show the `general` bundle instead of `global`. A bundle is a topic, never a scope, and the agentry-labs catalog now has five bundles: `general`, `web`, `flutter`, `flutter-assets` and `mongodb`.

@@ -6,8 +6,8 @@ Design source: https://claude.ai/artifact/8vveH6tfBvzc3xQWgWoEMq (private canvas
 
 - **Local only.** `agentry ui` starts a server on `127.0.0.1`, prints the URL and opens the browser. No hosted version.
 - **Same logic as the TUI.** The web server calls `@agentry/core` (today's `src/lib`). Web and TUI never import each other.
-- **Sidebar, not top tabs.** Eight sections in three groups, in both the web UI and the TUI:
-  - Library: Skills, MCP, Hooks, Plugins, Rules
+- **Sidebar, not top tabs.** Nine sections in three groups, in both the web UI and the TUI:
+  - Library: Skills, MCP, Hooks, Plugins, Rules, Agents
   - Discover: Catalog
   - Health: Doctor, Backups
 - **Scope switcher** at the top of the sidebar: Global (`~/.claude`) or This project.

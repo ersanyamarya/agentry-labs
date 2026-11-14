@@ -8,7 +8,7 @@ export const KEYS: [string, string][] = [
   ],
   [
     "← / →, 1-8",
-    "switch section (1-8 follow the sidebar: Skills, MCP, Hooks, Plugins, Rules, Catalog, Doctor, Backups)",
+    "switch section (1-9 follow the sidebar: Skills, MCP, Hooks, Plugins, Rules, Agents, Catalog, Doctor, Backups)",
   ],
   ["↑ / ↓", "move between rows"],
   ["enter", "details, expand a group, preview a fix"],

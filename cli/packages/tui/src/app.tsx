@@ -5,6 +5,7 @@ import { Box, useApp, useInput, useStdin, useStdout } from "ink";
 import React from "react";
 import type { CopyOptions } from "./clipboard.js";
 import { copyText } from "./clipboard.js";
+import { AgentsTab } from "./components/agents-tab.js";
 import { BackupsTab } from "./components/backups-tab.js";
 import { Busy } from "./components/busy.js";
 import { CatalogTab } from "./components/catalog-tab.js";
@@ -41,7 +42,7 @@ import { colorEnabled, ThemeContext } from "./theme.js";
 import type { Api, Data, KeyHint, Lock } from "./types.js";
 
 // Skills and MCP report the keys of their selected row (setKeys); the others use a fixed list.
-const TAB_KEYS: KeyHint[][] = [[], [], [], [], [], [], DOCTOR_KEYS, []];
+const TAB_KEYS: KeyHint[][] = [[], [], [], [], [], [], [], DOCTOR_KEYS, []];
 
 // `size` ({ cols, rows }) overrides the terminal size, for tests.
 export interface AppProps {
@@ -176,7 +177,7 @@ export const App = ({
       } else if (key.rightArrow) {
         setTab((tab + 1) % TAB_NAMES.length);
         setMessage("");
-      } else if (/^[1-8]$/.test(input)) {
+      } else if (/^[1-9]$/.test(input)) {
         setTab(Number(input) - 1);
         setMessage("");
       } else if (input === "r") {
@@ -208,6 +209,7 @@ export const App = ({
         Hooks: data.status.hooks.items.length,
         Plugins: data.status.plugins.items.length,
         Rules: data.rules.length,
+        Agents: data.agents.length,
         ...(data.catalog.fetched && { Catalog: data.catalog.entries.length }),
         Doctor: data.doctor.findings.length,
         Backups: data.backups.length,
@@ -267,11 +269,13 @@ export const App = ({
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
         <RulesTab {...shared} active={isActive(4)} setKeys={keysFor(4)} />,
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
-        <CatalogTab {...shared} active={isActive(5)} setKeys={keysFor(5)} />,
+        <AgentsTab {...shared} active={isActive(5)} setKeys={keysFor(5)} />,
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
-        <DoctorTab {...shared} active={isActive(6)} />,
+        <CatalogTab {...shared} active={isActive(6)} setKeys={keysFor(6)} />,
         // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
-        <BackupsTab {...shared} active={isActive(7)} setKeys={keysFor(7)} />,
+        <DoctorTab {...shared} active={isActive(7)} />,
+        // biome-ignore lint/correctness/useJsxKeyInIterable: fixed-length tuple of tabs, not a dynamic list
+        <BackupsTab {...shared} active={isActive(8)} setKeys={keysFor(8)} />,
       ]
     : [];
 

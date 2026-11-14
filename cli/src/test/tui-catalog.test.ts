@@ -43,7 +43,7 @@ afterEach(() => ui?.stop());
 
 describe("Catalog tab", () => {
   test("says it is not fetched, then f fetches and lists the skills by bundle", async () => {
-    await ui.press("6");
+    await ui.press("7");
     await ui.until(/catalog not fetched/);
     assert.match(ui.frame()!, /f fetch\b/);
     await ui.press("f");
@@ -53,7 +53,7 @@ describe("Catalog tab", () => {
   });
 
   test("i previews and y adds the skill to the shelf, off; it then shows where it is", async () => {
-    await ui.press("6", "f");
+    await ui.press("7", "f");
     await ui.until(/web bundle/);
     await ui.moveTo(/^>\s+\S\s+alpha/);
     await ui.press("i");
@@ -72,7 +72,7 @@ describe("Catalog tab", () => {
   });
 
   test("x on an installed skill previews, y deletes it and keeps a copy", async () => {
-    await ui.press("6", "f");
+    await ui.press("7", "f");
     await ui.until(/web bundle/);
     await ui.moveTo(/^>\s+\S\s+alpha/);
     await ui.press("i");

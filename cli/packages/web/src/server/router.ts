@@ -62,6 +62,7 @@ const toJson = (loaded: Loaded) => ({
   parkedHooks: listPart(loaded.parkedHooks),
   parked: listPart(loaded.parked),
   rules: listPart(loaded.rules),
+  agents: listPart(loaded.agents),
   groups: listPart(loaded.groups),
   catalog: loaded.catalog,
 });

@@ -10,7 +10,7 @@ import {
 let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());
 
-const TABS = ["1", "2", "3", "4", "5", "6", "7", "8"];
+const TABS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const lines = () => stripAnsi(ui.frame()!).split("\n");
 // With the left rail, for checks against the terminal width.
 const fullLines = () => stripAnsi(ui.raw()).split("\n");
@@ -121,6 +121,7 @@ describe("80x24, in colour and without", () => {
     "Catalog",
     "Backups",
     "Rules",
+    "Agents",
   ];
   for (const [label, env] of [
     ["colour", {}],
@@ -154,7 +155,7 @@ describe("80x24, in colour and without", () => {
         if (label === "NO_COLOR") {
           assert.match(
             rail,
-            /^[>›] (Skills|MCP|Hooks|Plugins|Rules|Catalog|Doctor|Backups)/m
+            /^[>›] (Skills|MCP|Hooks|Plugins|Rules|Agents|Catalog|Doctor|Backups)/m
           );
           assert.match(rail, /[●*] 1 problem/);
         }

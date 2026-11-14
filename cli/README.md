@@ -104,6 +104,7 @@ agentry catalog add claude-md/BASIC_CLAUDE # -> ./CLAUDE.md, refused when the pr
 agentry catalog add mcp/trail --project --dry-run   # through `mcp add`: masked preview, backup, undo (--yes to apply)
 agentry catalog update --all --dry-run     # or <item>...; lists every file it overwrites, saves the old copy under backups/updated/, asks (--yes for scripts)
 agentry catalog remove agent/super-planner [--project]   # delete an installed agent; a copy is kept under backups/removed/ (--no-backup, --dry-run, --yes)
+agentry agents list [--json]               # agents installed for you and this project, with model and listing cost
 agentry rules list [--json]                # CLAUDE.md and rule files loaded here, with tokens
 agentry rules remove CLAUDE.md [--dry-run] [--no-backup]   # delete one; a copy is kept in the backups
 ```
@@ -141,7 +142,7 @@ agentry ui                     # web UI on 127.0.0.1 (see agentry ui below)
 
 ### agentry ui
 
-`agentry ui` serves a local web UI for the same things the terminal UI does: Skills, MCP, Hooks, Plugins, Rules, Catalog, Doctor and Backups, in a sidebar with the same three groups. Run it from the project folder:
+`agentry ui` serves a local web UI for the same things the terminal UI does: Skills, MCP, Hooks, Plugins, Rules, Agents, Catalog, Doctor and Backups, in a sidebar with the same three groups. Run it from the project folder:
 
 ```bash
 agentry ui                       # picks a free port, prints a URL with a one-time token, opens your browser
@@ -158,7 +159,7 @@ Every change goes through the same backup-first functions as the terminal UI. A 
 
 Start it from the project folder with `agentry tui`, or type a bare `agentry` in a terminal. It needs a terminal: without one it prints a message and exits `2`. The `p` picker switches to another repo (current repo, recent repos, then repos under the scan roots).
 
-- **Sidebar:** a left rail with three groups: Library (Skills, MCP, Hooks, Plugins, Rules), Discover (Catalog) and Health (Doctor, Backups), each with its count. The rail also holds the project path, the skill-description tokens every session pays, and the problems found. It is 22 columns wide from 90 columns, 16 from 70, and below that a one-line section header replaces it. `tab` moves the keys between the rail and the list: on the rail, `↑`/`↓` pick a section and `enter` goes back to the list. A details pane beside the list shows the selected row; the footer lists only the keys that work on the selected row, then `tab sidebar` and `? help` on the right; every other key is in help.
+- **Sidebar:** a left rail with three groups: Library (Skills, MCP, Hooks, Plugins, Rules, Agents), Discover (Catalog) and Health (Doctor, Backups), each with its count. The rail also holds the project path, the skill-description tokens every session pays, and the problems found. It is 22 columns wide from 90 columns, 16 from 70, and below that a one-line section header replaces it. `tab` moves the keys between the rail and the list: on the rail, `↑`/`↓` pick a section and `enter` goes back to the list. A details pane beside the list shows the selected row; the footer lists only the keys that work on the selected row, then `tab sidebar` and `? help` on the right; every other key is in help.
 - **Copying:** on any preview or result, `c` copies its text (refusals and errors included) to the system clipboard (`pbcopy`, `clip`, `wl-copy` or `xclip`; otherwise the terminal's OSC 52 escape).
 - **Changes it can make** (all except the plain shelf toggle are previewed first and wait for `y`):
   - **Skills, shelf:** Each shelf row has two columns, **Project** (this project) and **Global**, each `● on`, `○ off` or `◐ partial`. `space` toggles the Project column of the selected row and `g` toggles the Global column; there is no mode to switch. Same as `agentry shelf on|off [--global]`.
@@ -173,6 +174,7 @@ Start it from the project folder with `agentry tui`, or type a bare `agentry` in
   - **Skills, removing:** `x` on a shelved skill, a global skill folder or a project-only skill folder (`agentry shelf remove <skill> --project` on the CLI) previews the delete, saying whether a copy is kept; `y` copies the folder to `~/.claude/backups/agentry/removed/<time>/` and removes it (same as `agentry shelf remove`). `X` does the same but keeps no copy (`--no-backup`). It refuses while the skill is linked into a project.
   - **Backups:** the tab lists the fix sets, removed-skill copies and updated copies with size and age. `u` previews moving a removed skill or an updated copy back (it never overwrites), `x` previews deleting the selected backup, `d` previews deleting every backup 30 or more days old; `y` applies, `c` copies the preview. Same as `agentry backups restore|delete|prune`. Deleting a fix set that is not undone yet ends `agentry fix --undo` for it, and the preview says so.
   - **Catalog:** `f` fetches the agentry-labs repo (a shallow git clone under `~/.claude/cache/agentry/catalog`; the only network use), then the tab lists its skills by bundle, then agents, rules, CLAUDE.md files and MCP servers, with where each is installed. `i` previews and `y` installs the selected item: a skill onto the shelf under its bundle name (off; turn it on from the Skills tab), an agent into `~/.claude/agents`, a rule into `~/.claude/rules`, a CLAUDE.md file as the project's `CLAUDE.md` (refused when it has one), an MCP server through the MCP add path (masked preview, backup, undo). `o` does the same for an agent or MCP server in this project only. `outdated` marks an installed skill, agent, rule or CLAUDE.md file whose files differ from the cached clone, and an MCP server whose catalog entry differs from yours; `u` previews each file it would overwrite or add (files only in your copy are kept) and `y` replaces them after saving the current copy under `~/.claude/backups/agentry/updated/`. Without a local edit you cannot tell an upstream change from your own edit, so the preview says every overwritten file loses local changes. `x` removes an installed skill, agent or rule (a copy goes to the backups). Same as `agentry catalog`.
+  - **Agents:** the subagents Claude Code can start, from `~/.claude/agents` and the project's `.claude/agents`, with model, tools and the cost of their name and description. Read-only: `e` opens the file; add or remove agents from the Catalog tab. Agents that plugins ship are not listed yet.
   - **Rules:** the CLAUDE.md and rule files Claude Code loads every session: `~/.claude/CLAUDE.md`, `~/.claude/rules/**/*.md`, the project's `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md` and `.claude/rules/**/*.md`, with the token cost of the whole file. `e` opens one; `x` previews removing it (a copy goes to the backups, so the Backups tab restores it) and `y` confirms; `X` keeps no copy. Same as `agentry rules`.
 - **Rows that cannot be toggled** say why in the status line and the details: global skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
 - **Hooks** list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
@@ -182,7 +184,7 @@ State is one mark per row: `●` on or active green, `○` off or disabled gray 
 | Key | Action |
 |---|---|
 | tab | move the keys between the sidebar and the list |
-| ← / →, 1-8 | switch section (1-8 follow the sidebar order) |
+| ← / →, 1-9 | switch section (1-9 follow the sidebar order) |
 | ↑ / ↓ | move between rows |
 | enter | details, expand a group, preview a fix |
 | space | Skills: shelf row on/off for this project; plugin rows: on/off; MCP, Hooks: turn off (saved) / add back |
@@ -219,6 +221,7 @@ LIBRARY              │ ▸ flutter-assets                                     
   Hooks            0 │ ▸ web-audit                                                 1 skills    ~135          ○          ○
   Plugins          5 │
   Rules            6 │Global skills
+  Agents           2 │
                      │   humanize-and-unslop                                                    ~44                     ●
 DISCOVER             │   run-fallow                                                            ~158                     ●
   Catalog         28 │  ↓ 17 more

@@ -157,6 +157,7 @@ describe("load", () => {
     const loaded = await http.load({ dir: fx.repo });
     expect(Object.keys(loaded).sort()).toEqual(
       [
+        "agents",
         "backups",
         "catalog",
         "dir",
