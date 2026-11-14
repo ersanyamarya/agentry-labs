@@ -18,7 +18,7 @@ const root = path.resolve(positionals[0]);
 const limit = Number(values.limit);
 const exists = (p) => fs.existsSync(p);
 const read = (p) => (exists(p) ? fs.readFileSync(p, 'utf8') : '');
-const skip = new Set(['node_modules', '.git', 'build', 'dist', 'Pods', '.dart_tool', '.nx', '.claude', '.graft', 'graft']);
+const skip = new Set(['node_modules', '.git', 'build', 'dist', 'Pods', '.dart_tool', '.nx', '.claude', '.graft', 'graft', '.trail']);
 
 /** Files up to `depth` levels below `dir`, skipping build and dependency folders. */
 const walk = (dir, depth, match, out = []) => {
