@@ -375,7 +375,7 @@ export const createCatalog = (
     ): void => {
       const bundle =
         bundles.get(`${kind}/${name}`) ??
-        (kind === "mcp" ? "global" : "extras");
+        (kind === "mcp" ? "general" : "extras");
       const installs = (fields.installs ?? [])
         .filter((one): one is InstallInput => Boolean(one))
         .map(

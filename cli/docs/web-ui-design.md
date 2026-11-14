@@ -42,7 +42,7 @@ Fonts: Inter (UI), JetBrains Mono (names, paths, keys, counts). Radii: 8px contr
 - **Sidebar:** brand (`agentry`, version), scope switcher, three labelled groups with counts, Doctor shows a red count pill, footer shows `● N problems` and a `?` hint. Active item: `#1c1c21` background, white text, `aria-current="page"`.
 - **List screens** (Skills, MCP, Hooks, Plugins, Rules, Backups): title + summary line, "Add" button, search input (`/`) + segmented filter, table (switch, name + one-line description, scope badge, bundle) with a key hint line below, and a details panel on the right (name, scope badge, description, path, scope segmented control, Shelve / Remove with key chips). The panel is a Sheet below 1100px.
 - **Doctor:** three stat cards (errors, warnings, passing), then one card per finding: severity badge, title, area, explanation, the command that fixes it in a code box, and a primary "Fix it" button. Passing checks collapse into one row.
-- **Catalog:** search + bundle filter (All, global, flutter, mongodb, web), responsive card grid (`minmax(280px, 1fr)`), each card: name, bundle badge, description, Install / Installed.
+- **Catalog:** search + bundle filter (All, general, web, flutter, flutter-assets, mongodb), responsive card grid (`minmax(280px, 1fr)`), each card: name, bundle badge, description, Install / Installed.
 - **TUI:** 232-column-wide left rail with the same groups and counts, list on the right with `›` cursor, `●` on, `◐` this project, `○` shelf, a description line for the selected row, and a keys bar at the bottom.
 
 ## Server and security

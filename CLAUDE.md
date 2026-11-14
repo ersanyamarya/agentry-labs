@@ -25,8 +25,8 @@ Remember, before writing any code:
 ├── skills/              # Claude Code skills (self-contained, invoked as /<skill-name>)
 │   ├── agentry/                # Answer setup questions from agentry status/doctor/scan JSON
 │   ├── humanize-and-unslop/    # Edit/detect AI-slop patterns in writing (scan.mjs + judgment)
-│   ├── image-artifact-setup/   # Scaffold OG/social card generators using Playwright (shelf-only, in no bundle; also used by the README cover)
-│   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, write fix plan (shelf-only)
+│   ├── image-artifact-setup/   # Scaffold OG/social card generators using Playwright (web bundle; also used by the README cover)
+│   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, write fix plan
 │   ├── phased-plan/            # Write a phased plan with a model per task: Sonnet rows inline, Haiku and Opus rows as subagents
 │   ├── run-fallow/             # Run fallow CLI for dead code, dupes, complexity, security
 │   └── skill-architect/        # Create, improve, review, and validate skills
@@ -36,7 +36,7 @@ Remember, before writing any code:
 │   └── BASIC_CLAUDE.md
 ├── rules/               # commit-attribution, context7
 ├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs (trail and context-mode wire themselves: see the README)
-├── bundles.tsv          # tags each component `global`, `flutter`, `mongodb` or `web`; used by install.sh --bundle
+├── bundles.tsv          # tags each component with one of five topic bundles: general, web, flutter, flutter-assets, mongodb
 ├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
 ├── cli/                 # agentry CLI and Ink terminal UI, in TypeScript (src/bin; npm workspaces packages/core, packages/tui and packages/web; design docs in cli/docs). See cli/README.md and cli/CLAUDE.md
 └── .github/             # CI (validates every skill) and assets/cover.jpg
@@ -79,30 +79,30 @@ claude -p "/image-artifact-setup"
 | Skill | Bundle |
 |-------|--------|
 | `acquire-codebase-knowledge` | flutter |
-| `agentry` | global |
-| `flutter-brand-icons` | shelf |
-| `flutter-bundle-google-fonts` | shelf |
-| `flutter-device-scripts-setup` | shelf |
+| `agentry` | general |
+| `flutter-brand-icons` | flutter-assets |
+| `flutter-bundle-google-fonts` | flutter-assets |
+| `flutter-device-scripts-setup` | flutter-assets |
 | `flutter-lib-refactor` | flutter |
 | `flutter-logging-strategy` | flutter |
 | `flutter-quality-gate` | flutter |
-| `flutter-store-assets` | shelf |
-| `generate-commit-message` | global |
-| `humanize-and-unslop` | global |
-| `image-artifact-setup` | shelf |
-| `lighthouse-audit` | shelf |
+| `flutter-store-assets` | flutter-assets |
+| `generate-commit-message` | general |
+| `humanize-and-unslop` | general |
+| `image-artifact-setup` | web |
+| `lighthouse-audit` | web |
 | `mongodb-data-modeling` | mongodb |
 | `mongoose-schema-docs` | mongodb |
-| `phased-plan` | global |
-| `run-fallow` | global |
+| `phased-plan` | general |
+| `run-fallow` | web |
 | `shadcn` | web |
-| `skill-architect` | global |
-| `sync-docs-from-diff` | global |
+| `skill-architect` | general |
+| `sync-docs-from-diff` | general |
 | `theme-hardcoding-audit` | flutter |
-| `write-linkedin-post` | global |
-| `write-project-readme` | global |
+| `write-linkedin-post` | general |
+| `write-project-readme` | general |
 
-Each skill's bundle is set in `bundles.tsv`; the README lists them all. `shelf` means the skill is in no bundle: it lives in `~/.claude/skill-shelf/<group>/` and is linked in with `agentry shelf on <group>`.
+Each skill's bundle is set in `bundles.tsv`; the README lists them all. Every bundle is a shelf group in `~/.claude/skill-shelf/<group>/`, linked in with `agentry shelf on <group> [--global]`.
 
 ## Conventions
 
@@ -116,7 +116,7 @@ Each skill's bundle is set in `bundles.tsv`; the README lists them all. `shelf` 
 
 
 ### Bundles
-Skills that assume gentlemans-stack layers or generators belong in that repo, not here. Every new skill, rule, or agent gets a line in `bundles.tsv` (`global`, `flutter`, `mongodb` or `web`). Check install changes with `./scripts/install.sh --source . --bundle <name> --dry-run`.
+Skills that assume gentlemans-stack layers or generators belong in that repo, not here. Every new skill, rule, agent or claude-md file gets exactly one line in `bundles.tsv` with one of the five topics (`general`, `web`, `flutter`, `flutter-assets`, `mongodb`). `node scripts/check-bundles.mjs` checks it, and CI runs it. A bundle is a topic, never a scope.
 
 ### README cover
 `.github/assets/cover.jpg` is generated from the repo: the README title and tagline, the skill names in `skills/*/SKILL.md`, and the counts of skills, agents, rules, and guidance files. Regenerate it in the same change whenever you add, remove, or rename anything in `skills/`, `agents/`, `rules/`, or `claude-md-files/`, or edit the README title or tagline:

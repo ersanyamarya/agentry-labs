@@ -1,0 +1,19 @@
+name: scripts
+
+on:
+  push:
+    paths: ["scripts/**", "global/**", "rules/**", "skills/**", "agents/**", "claude-md-files/**", "bundles.tsv"]
+  pull_request:
+    paths: ["scripts/**", "global/**", "rules/**", "skills/**", "agents/**", "claude-md-files/**", "bundles.tsv"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - run: node scripts/check-bundles.mjs
+      - run: node --test scripts/test/
+      - run: node skills/skill-architect/scripts/validate.mjs skills/*/

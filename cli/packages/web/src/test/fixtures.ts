@@ -233,7 +233,7 @@ export const loadFixture = (): LoadData =>
       entries: [
         {
           id: "skill/write-linkedin-post",
-          bundle: "global",
+          bundle: "general",
           description: "One concise LinkedIn post.",
           kind: "skill",
           name: "write-linkedin-post",
@@ -254,7 +254,7 @@ export const loadFixture = (): LoadData =>
         },
         {
           id: "agent/super-planner",
-          bundle: "global",
+          bundle: "general",
           description: "Plans big changes.",
           kind: "agent",
           name: "super-planner",

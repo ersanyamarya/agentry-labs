@@ -66,11 +66,11 @@ Run `./scripts/install.sh --help` for all selectors, options, and examples.
 
 ### Bundles and syncing
 
-`bundles.tsv` tags each component `global`, `flutter`, `mongodb` or `web`. Install a bundle, or re-run the same command to sync it:
+`bundles.tsv` tags each component with one topic bundle: `general`, `web`, `flutter`, `flutter-assets` or `mongodb`. A bundle is a topic, never a scope: pick global or project when you turn it on (`agentry shelf on <group> [--global]`). Install a bundle, or re-run the same command to sync it:
 
 ```bash
-# Global bundle into ~/.claude (from a local checkout; omit --source to clone from GitHub)
-./scripts/install.sh --source . --global --bundle global
+# General bundle into ~/.claude (from a local checkout; omit --source to clone from GitHub)
+./scripts/install.sh --source . --global --bundle general
 
 # Flutter skills into the current project
 ./scripts/install.sh --source /path/to/agentry-labs --bundle flutter
@@ -99,9 +99,8 @@ The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (exp
 
 Every installed skill puts its name and description in every session, and past the listing budget Claude Code drops
 descriptions, so rarely used skills crowd out the useful ones. Rarely used groups live in `~/.claude/skill-shelf/<group>/`
-instead (currently `video`, `audit`, `flutter-assets`, `design`, `web-audit`, `dev-tools`) and are symlinked in when
-needed. The shelved skills (`image-artifact-setup`, `lighthouse-audit`, and four flutter-assets skills) are in no bundle, so
-installs never copy them back. Turn them on with `agentry shelf on <group>`; every shelf command is in [cli/README.md](cli/README.md#command-reference).
+instead (the five bundles, plus local groups such as `video`, `audit`, `design`, `dev-tools`) and are symlinked in when
+needed. Every bundle is a shelf group, so installs never copy them back. Turn one on with `agentry shelf on <group>`; every shelf command is in [cli/README.md](cli/README.md#command-reference).
 
 ### agentry CLI
 
@@ -177,7 +176,7 @@ Build steps, scripts, the catalog source and every command are in [cli/README.md
 |-------|-------------|
 | `shadcn` | Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI, including chat interfaces. |
 
-Shelved skills (`image-artifact-setup`, `lighthouse-audit`, `flutter-brand-icons`, `flutter-bundle-google-fonts`, `flutter-device-scripts-setup`, `flutter-store-assets`) are in no bundle; they live on the shelf (`agentry shelf on <group>`, see [Skill shelf](#skill-shelf)).
+`image-artifact-setup` and `lighthouse-audit` are in `web`; `flutter-brand-icons`, `flutter-bundle-google-fonts`, `flutter-device-scripts-setup` and `flutter-store-assets` are in `flutter-assets`. Turn a bundle on with `agentry shelf on <group>` (see [Skill shelf](#skill-shelf)).
 
 Skills tied to gentlemans-stack layers, generators and libs (Nx workspace and package linking, `api-endpoints`, `service-handler-tests`, `domain-repository-tests` and similar) live in that repo's `.claude/skills` and reach projects through its sync, not from here.
 

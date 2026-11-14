@@ -60,7 +60,7 @@ beforeEach(async () => {
   );
   write(
     join(origin, "bundles.tsv"),
-    "web\tskills/alpha\nglobal\tagents/helper.agent.md\n"
+    "web\tskills/alpha\ngeneral\tagents/helper.agent.md\n"
   );
   git("init", "-q");
   git("add", "-A");

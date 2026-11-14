@@ -386,7 +386,7 @@ describe("clean setup", () => {
     skill(join(configDir, "skills"), "mine");
     skill(join(repo, ".claude", "skills"), "theirs");
     skill(join(configDir, "skill-shelf", "video"), "other");
-    writeFileSync(join(repo, "bundles.tsv"), "global\tskills/mine\n");
+    writeFileSync(join(repo, "bundles.tsv"), "general\tskills/mine\n");
     const dir = pluginRoot("tools");
     skill(join(dir, "skills"), "s1");
     install({

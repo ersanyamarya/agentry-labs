@@ -67,7 +67,7 @@ beforeEach(() => {
   );
   write(
     join(origin, "bundles.tsv"),
-    "global\tagents/helper.agent.md\nglobal\trules/style.md\nglobal\tclaude-md-files/BASIC_CLAUDE.md\nweb\tskills/alpha\n"
+    "general\tagents/helper.agent.md\ngeneral\trules/style.md\ngeneral\tclaude-md-files/BASIC_CLAUDE.md\nweb\tskills/alpha\n"
   );
   execFileSync("git", ["init", "-q"], { cwd: origin });
   commit("init");
@@ -98,7 +98,7 @@ describe("catalog kinds", () => {
     assert.equal(
       json.find((entry: Record<string, any>) => entry.id === "rule/style")
         .bundle,
-      "global"
+      "general"
     );
     assert.equal(
       json.find((entry: Record<string, any>) => entry.id === "rule/shared")
@@ -117,8 +117,8 @@ describe("catalog kinds", () => {
     );
     const { stdout } = catalog("list");
     assert.match(stdout, /^web +alpha +~ *\d+ +not installed$/m);
-    assert.match(stdout, /^global +agent\/helper +~ *\d+ +not installed$/m);
-    assert.match(stdout, /^global +mcp\/docs +- +not installed$/m);
+    assert.match(stdout, /^general +agent\/helper +~ *\d+ +not installed$/m);
+    assert.match(stdout, /^general +mcp\/docs +- +not installed$/m);
   });
 
   test("agents: dry run, user and project targets, never overwrites", () => {
