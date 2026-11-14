@@ -9,7 +9,7 @@
 //   record <part> <json-file>     merge entries from the JSON file into that part (arrays are unioned, objects merged)
 //   diff-settings <before> <after>  print the hook entries and top-level keys added between two settings.json files
 //   show                          print the manifest
-//   forget <part>                 drop a part (after its uninstall)
+//   forget <part> [key...]        drop a part, or only those keys of it (after its uninstall)
 //   config-status                 print which recorded config entries are present, missing or changed (JSON)
 
 import { createHash } from "node:crypto";
@@ -57,9 +57,12 @@ export function record(configDir, part, entries) {
 	return manifest;
 }
 
-export function forget(configDir, part) {
+// With keys, drops only those keys of the part (the part goes once it is empty); without, the whole part.
+export function forget(configDir, part, keys = []) {
 	const manifest = load(configDir);
-	delete manifest.parts[part];
+	const entry = manifest.parts[part];
+	if (entry && keys.length) for (const k of keys) delete entry[k];
+	if (!keys.length || (entry && Object.keys(entry).length === 0)) delete manifest.parts[part];
 	save(configDir, manifest);
 	return manifest;
 }
@@ -134,10 +137,10 @@ function main(argv) {
 			console.log(JSON.stringify(configStatus(configDir)));
 			return;
 		case "forget":
-			forget(configDir, a);
+			forget(configDir, a, args.slice(2));
 			return;
 		default:
-			console.error("usage: setup-manifest.mjs [--config <dir>] record <part> <file> | diff-settings <before> <after> | show | forget <part>");
+			console.error("usage: setup-manifest.mjs [--config <dir>] record <part> <file> | diff-settings <before> <after> | show | forget <part> [key...]");
 			process.exit(2);
 	}
 }

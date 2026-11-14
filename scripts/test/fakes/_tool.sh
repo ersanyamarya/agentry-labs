@@ -27,6 +27,7 @@ case "$name" in
         grep -q 'graft-hooks.cjs' "$HOME/.claude/settings.json" 2>/dev/null && rm -f "$HOME/.claude/settings.json"
       else
         echo "Dry run: nothing was touched. Re-run with -y to remove."
+        echo "Entries marked [machine-wide] affect every project; --no-global skips them."
       fi
     fi ;;
   context-mode)

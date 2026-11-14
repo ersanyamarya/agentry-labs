@@ -4,10 +4,11 @@ Repository maintenance and installation scripts.
 
 | Script | Purpose | Usage |
 |---|---|---|
-| [`install.sh`](install.sh) | Interactively or non-interactively install selected skills, rules, agents, and Claude guidance files. | `./scripts/install.sh [options] [selector ...]` |
+| [`setup.sh`](setup.sh) | Install, check and remove the machine setup: the agentry, trail and context-mode CLIs plus the user-level config. | `curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh \| bash`, or `bash scripts/setup.sh --help` |
+| [`apply-global.mjs`](apply-global.mjs) | Merge `global/` (settings fragment, MCP file, helpers) and `rules/` into the Claude config dir; `--remove <manifest>` takes back only what setup recorded. | `node scripts/apply-global.mjs [--write] [--report <file>]` |
+| [`setup-manifest.mjs`](setup-manifest.mjs) | Read and write the install manifest that `setup.sh` uses for status and uninstall. | Called by `setup.sh` |
+| [`check-bundles.mjs`](check-bundles.mjs) | Check that every component has exactly one valid line in `bundles.tsv`. | `node scripts/check-bundles.mjs` |
+| [`skill-drift.mjs`](skill-drift.mjs) | Compare every skill across repos after normalising project names. | `node scripts/skill-drift.mjs` |
 | [`utils.sh`](utils.sh) | Shared colorized logging helpers sourced by executable scripts. | Source from another script; do not run directly. |
 
-Use `./scripts/install.sh --help` for the complete selector syntax and examples.
-Installations target the current project's `./.claude` directory by default;
-pass `--global` to target `~/.claude` and also link the `agentry` command
-(`npm install`, `npm run build` + `npm link` in the checkout's `cli/` folder, or in a clone in `~/.agentry-labs/cli`).
+Tests: `node --test scripts/test/` and `bash scripts/test/setup.test.sh` (also run it with `/bin/bash`, which is 3.2 on macOS).

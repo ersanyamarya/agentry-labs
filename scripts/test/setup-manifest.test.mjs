@@ -25,6 +25,15 @@ test("round trip: record merges and unions, forget drops a part", () => {
 	assert.deepEqual(Object.keys(load(dir).parts), ["trail"]);
 });
 
+test("forget with keys keeps the rest of the part, and drops the part once empty", () => {
+	const dir = cfg();
+	record(dir, "context-mode", { tools: { manager: "npm" }, wired: true });
+	forget(dir, "context-mode", ["wired"]);
+	assert.deepEqual(load(dir).parts["context-mode"], { tools: { manager: "npm" } });
+	forget(dir, "context-mode", ["tools"]);
+	assert.deepEqual(load(dir).parts, {});
+});
+
 test("writes are atomic: no temp file is left behind", () => {
 	const dir = cfg();
 	record(dir, "agentry", { tools: { manager: "mise" } });

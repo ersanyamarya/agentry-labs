@@ -8,89 +8,47 @@ Reusable skills, rules, agents, Claude guidance, and tooling for AI agents
 
 A collection of framework-agnostic AI agent components — Claude Code skills and guidance files, GitHub Copilot agents, Cursor rules, and MCP configs. Designed for reuse across projects.
 
-## Requirements
+## Install on any machine
 
-- Bash and Git. The installer clones this repo from GitHub unless `--source` points at a local checkout.
-- Node.js for the `.mjs` scripts in `scripts/`.
+One command installs the tools and wires them for Claude Code:
 
-## Getting started
-
-### One-line Installer
 ```bash
-curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash
 ```
 
-By default, the installer writes to `./.claude` in the current project. Pass
-`--global` to write to `~/.claude` instead. The installer opens a chooser when
-run in an interactive terminal; select a whole component type, an individual
-component, or everything:
+On a terminal it opens a menu. To skip the menu, pass arguments after `bash -s --`:
 
 ```bash
-# See every available selector
-./scripts/install.sh --list
-
-# Install every skill and rule
-./scripts/install.sh --type skills --type rules
-
-# Install only one skill
-./scripts/install.sh skills/run-fallow
-
-# Install one skill globally
-./scripts/install.sh --global skills/run-fallow
-
-# Mix component types and individual components
-./scripts/install.sh skills/run-fallow rules agents/super-planner.agent.md
-
-# Install the basic Claude project guidance template
-./scripts/install.sh claude-md-files/BASIC_CLAUDE.md
-
-# Install everything into a custom agent directory
-./scripts/install.sh --all --target "$HOME/.config/my-agent"
-
-# Select components through the one-line installer
-curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- skills/run-fallow
-
-# Install globally through the one-line installer
-curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- --global skills/run-fallow
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- install --all --yes
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- status
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- uninstall --all --yes
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- install --only trail --dry-run
 ```
 
-Run `./scripts/install.sh --help` for all selectors, options, and examples.
+It installs four parts, each one optional (`--only <part>`):
 
-### Manual Copy
-1. Clone this repo
-2. Copy skills to the current project's Claude Code directory:
-   ```bash
-   mkdir -p .claude/skills
-   cp -r skills/* .claude/skills/
-   ```
+| Part | What it does |
+|---|---|
+| `agentry` | The agentry CLI (npm `@ersanyamarya/agentry-cli`) |
+| `trail` | The trail code-map CLI (npm `@trailhq/trail-code`), wired into Claude Code by its own `trail init` |
+| `context-mode` | The context-mode CLI (npm `context-mode`), wired as a Claude Code plugin by its own `setup` |
+| `config` | User-level rules, the settings fragment, the trail autobuild hook and status line, and the context7 MCP entry |
 
-### Bundles and syncing
+Requirements: Node.js 24.15 or newer, plus Claude Code. Tools install at `@latest` with mise if it is on your PATH, else with `npm install -g`. Setup never installs mise or Node. It clones this repo into a temp folder and deletes it afterwards, records what it added in `<config>/agentry/install-manifest.json`, and backs up every file it changes. `uninstall` removes only what it recorded and keeps anything you edited. Use `--dry-run` to preview any command.
 
-`bundles.tsv` tags each component with one topic bundle: `general`, `web`, `flutter`, `flutter-assets` or `mongodb`. A bundle is a topic, never a scope: pick global or project when you turn it on (`agentry shelf on <group> [--global]`). Install a bundle, or re-run the same command to sync it:
+Skills are not installed by setup. When it finishes, pick bundles with `agentry tui` (terminal UI) or `agentry ui` (web UI), or use `agentry catalog list`, `agentry catalog add <item>` and `agentry shelf on <group> [--global]`.
 
-```bash
-# General bundle into ~/.claude (from a local checkout; omit --source to clone from GitHub)
-./scripts/install.sh --source . --global --bundle general
+### Bundles
 
-# Flutter skills into the current project
-./scripts/install.sh --source /path/to/agentry-labs --bundle flutter
+`bundles.tsv` tags each component with one topic bundle: `general`, `web`, `flutter`, `flutter-assets` or `mongodb`. A bundle is a topic, never a scope: pick global or project when you turn it on (`agentry shelf on <group> [--global]`). `node scripts/check-bundles.mjs` checks the file, and CI runs it.
 
-# See what would change without writing
-./scripts/install.sh --source . --bundle flutter --dry-run
-```
+### Manual copy
 
-Global settings, hooks and MCP servers live in `global/`. Preview the merge into `~/.claude`, then apply it:
+Skip setup and copy a skill into the current project:
 
 ```bash
-node scripts/apply-global.mjs          # prints the plan
-node scripts/apply-global.mjs --write  # applies it and saves backups
-```
-
-trail and context-mode wire themselves, so the merge does not touch them. Install each once, from any folder:
-
-```bash
-npm install -g @trailhq/trail-code && trail init --agents claude   # hooks + skill in ~/.claude
-npm install -g context-mode && context-mode setup --agents claude-code        # plugin from the npm copy; update with `context-mode upgrade`
+mkdir -p .claude/skills
+cp -r skills/run-fallow .claude/skills/
 ```
 
 The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (export it from your shell profile; the desktop app does not read shell rc files). Compare skill copies across projects with `node scripts/skill-drift.mjs`.
@@ -117,7 +75,7 @@ Build steps, scripts, the catalog source and every command are in [cli/README.md
 
 
 ## Commands
-1. Install skills
+1. Pick a bundle in `agentry tui`, or copy a skill
 2. Invoke a skill by name in Claude Code, interactively or with `-p`. Skills also trigger on their own when a request matches their description.
    ```bash
    claude -p "/run-fallow"
@@ -128,10 +86,10 @@ Build steps, scripts, the catalog source and every command are in [cli/README.md
 
 - `skills/`: Claude Code skills, one folder each
 - `agents/`: agent definitions
-- `rules/`: commit-attribution and context7 rules
+- `rules/`: commit-attribution, context7 and trail rules (setup installs each as a user-level rule)
 - `claude-md-files/`: reusable CLAUDE.md templates
-- `global/`: settings fragment and MCP config merged by `scripts/apply-global.mjs`, plus `hooks/` scripts it copies to `~/.claude/hooks`
-- `scripts/`: installer, global-settings merge, skill drift check and the README cover generator
+- `global/`: the settings fragment, MCP config and `helpers/` that the `config` part of `scripts/setup.sh` applies through `scripts/apply-global.mjs`
+- `scripts/`: `setup.sh` and its helpers, the bundle check, the skill drift check and the README cover generator
 - `cli/`: the `agentry` CLI and terminal UI in TypeScript, with its own [README](cli/README.md) and [CLAUDE.md](cli/CLAUDE.md)
 - `bundles.tsv`: the bundle each component belongs to
 
@@ -190,6 +148,7 @@ Skills tied to gentlemans-stack layers, generators and libs (Nx workspace and pa
 |------|-------------|
 | `commit-attribution` | No AI attribution lines in commits or pull requests |
 | `context7` | When and how to fetch current library docs with the Context7 MCP |
+| `trail` | Use the trail CLI before grep or reading whole files in indexed repos |
 
 ### Claude MD files (`.claude/claude-md-files/`)
 | File | Description |

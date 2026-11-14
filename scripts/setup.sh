@@ -368,7 +368,7 @@ manifest_get() {
     for (const k of process.argv[3] ? process.argv[3].split(".") : []) v = v == null ? v : v[k];
     if (v != null) console.log(typeof v === "object" ? JSON.stringify(v) : v);' "$(manifest_file)" "$1" "${2:-}" 2>/dev/null || true
 }
-manifest_has() { [ -n "$(manifest_get "$1")" ]; }
+manifest_has() { [ -n "$(manifest_get "$1" "${2:-}")" ]; } # <part> [dotted.key]
 
 step_manifest() {
   if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
@@ -558,13 +558,14 @@ step_remove_trail() {
     if manifest_has trail && [ "$DRY_RUN" != true ]; then ensure_source && mf forget trail; fi
     STEP_REASON="not installed"; return 3
   fi
-  if ! trail_wired && ! manifest_has trail; then STEP_REASON="not installed (not wired)"; return 3; fi
+  if ! trail_wired && ! manifest_has trail settingsFile; then STEP_REASON="not installed (not wired)"; return 3; fi
   make_tmp
   local scratch="$TMP_ROOT/scratch-un" preview paths bad
   mkdir -p "$scratch"
   show_cmd "cd <scratch dir> && trail uninstall"
   preview="$(cd "$scratch" && DO_NOT_TRACK=1 trail uninstall </dev/null 2>&1)" || { printf '%s\n' "$preview" | sed 's/^/    /'; return 1; }
-  paths="$(printf '%s\n' "$preview" | grep '\[machine-wide\]' | sed 's/^.*would remove: //; s/ \[machine-wide\].*$//')"
+  # only "would remove: /path [machine-wide]" lines; trail also prints a legend line that names [machine-wide]
+  paths="$(printf '%s\n' "$preview" | sed -n 's/^.*would remove: \(\/.*\) \[machine-wide\].*$/\1/p')"
   bad="$(printf '%s\n' "$paths" | grep -v '^$' | grep -v "^$HOME/.claude/" || true)"
   printf '%s\n' "$paths" | grep -v '^$' | sed 's/^/    would remove: /' || true
   if [ -n "$bad" ]; then
@@ -584,14 +585,14 @@ step_remove_trail() {
   if [ -n "$rec" ] && [ -f "$sl" ]; then
     case "$rec" in *"$(node -e 'process.stdout.write(require("crypto").createHash("sha256").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' "$sl")"*) rm -f "$sl"; say "    removed $sl" ;; *) say "    kept $sl (changed since install)" ;; esac
   fi
-  ensure_source && mf forget trail
+  ensure_source && mf forget trail settingsFile hooks files
   return 0
 }
 
 step_remove_context_mode() {
   has_part context-mode || { STEP_REASON="not selected"; return 3; }
   if ! command -v context-mode >/dev/null 2>&1; then STEP_REASON="not installed"; return 3; fi
-  if ! cm_wired && ! manifest_has context-mode; then STEP_REASON="not installed (not wired)"; return 3; fi
+  if ! cm_wired && ! manifest_has context-mode wired; then STEP_REASON="not installed (not wired)"; return 3; fi
   say "    ${YELLOW}note:${NC} context-mode setup --remove undoes every agent it was set up for, not only Claude Code."
   if [ "$DRY_RUN" = true ]; then
     show_cmd context-mode setup --remove --dry-run --yes --no-input --agents claude-code
@@ -600,7 +601,7 @@ step_remove_context_mode() {
   fi
   backup_files context-mode-remove "$(config_dir)/settings.json" "$(config_dir)/.claude.json"
   exec_cmd context-mode setup --remove --yes --no-input --agents claude-code || return 1
-  ensure_source && mf forget context-mode
+  ensure_source && mf forget context-mode wired
   return 0
 }
 
@@ -616,7 +617,7 @@ tools_remove_confirmed() {
 
 step_remove_tools() {
   local t mgr pkg any=false
-  for t in $(selected_tools); do manifest_has "$t" && any=true; done
+  for t in $(selected_tools); do manifest_has "$t" tools && any=true; done
   if [ "$any" = false ]; then STEP_REASON="no tools recorded as installed by setup"; return 3; fi
   if ! tools_remove_confirmed; then STEP_REASON="kept (use --remove-tools to remove them)"; return 3; fi
   for t in $(selected_tools); do
@@ -625,7 +626,7 @@ step_remove_tools() {
     pkg="$(pkg_of "$t")"
     if [ "$mgr" = mise ]; then exec_cmd mise unuse -g -y "npm:$pkg" || return 1
     else exec_cmd npm uninstall -g "$pkg" || return 1; fi
-    [ "$DRY_RUN" = true ] || mf forget "$t"
+    [ "$DRY_RUN" = true ] || mf forget "$t" tools
   done
   [ "$DRY_RUN" = true ] && { STEP_REASON="dry run"; return 3; }
   return 0

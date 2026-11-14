@@ -279,12 +279,21 @@ run --source "$REPO" install --all
 run --source "$REPO" uninstall --all --yes --remove-tools
 assert_eq "exit 0" "$RC" 0
 assert_has "npm uninstall argv" "$(logged)" "npm uninstall -g @ersanyamarya/agentry-cli"
+# removing the wiring must not forget the tool record of the same part
+assert_has "trail CLI removed too" "$(logged)" "npm uninstall -g @trailhq/trail-code"
+assert_has "context-mode CLI removed too" "$(logged)" "npm uninstall -g context-mode"
 if [ ! -e "$T/bin/agentry" ]; then pass "agentry removed"; else fail "agentry removed"; fi
+# trail's preview ends with a legend line naming [machine-wide]; it is not a path, so the wiring still goes
+assert_lacks "trail wiring removed" "$(snap)" "graft-hooks"
+assert_lacks "no foreign path reported" "$OUT" "Entries marked"
+assert_eq "manifest empty" "$(node "$REPO/scripts/setup-manifest.mjs" --config "$T/home/.claude" show | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(Object.keys(JSON.parse(s).parts).join(",")))')" ""
 done_env
 new_env x mise npm realnode git claude
 run --source "$REPO" install --all
 run --source "$REPO" uninstall --all --yes --remove-tools
 assert_has "mise unuse argv" "$(logged)" "mise unuse -g -y npm:@ersanyamarya/agentry-cli"
+assert_has "mise unuse trail" "$(logged)" "mise unuse -g -y npm:@trailhq/trail-code"
+assert_has "mise unuse context-mode" "$(logged)" "mise unuse -g -y npm:context-mode"
 done_env
 $FULL
 run --source "$REPO" install --all

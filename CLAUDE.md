@@ -34,10 +34,10 @@ Remember, before writing any code:
 │   └── super-planner.agent.md
 ├── claude-md-files/     # Reusable Claude Code project guidance
 │   └── BASIC_CLAUDE.md
-├── rules/               # commit-attribution, context7
-├── global/              # settings.fragment.json + mcp.json, merged by scripts/apply-global.mjs (trail and context-mode wire themselves: see the README)
+├── rules/               # commit-attribution, context7, trail (setup installs each as a user-level rule)
+├── global/              # settings.fragment.json, mcp.json and helpers/, applied by the `config` part of setup.sh through scripts/apply-global.mjs (trail and context-mode wire themselves)
 ├── bundles.tsv          # tags each component with one of five topic bundles: general, web, flutter, flutter-assets, mongodb
-├── scripts/             # install.sh, utils.sh, apply-global.mjs, skill-drift.mjs, image-gen-tools/ (README cover generator)
+├── scripts/             # setup.sh, setup-manifest.mjs, check-bundles.mjs, utils.sh, apply-global.mjs, skill-drift.mjs, test/, image-gen-tools/ (README cover generator)
 ├── cli/                 # agentry CLI and Ink terminal UI, in TypeScript (src/bin; npm workspaces packages/core, packages/tui and packages/web; design docs in cli/docs). See cli/README.md and cli/CLAUDE.md
 └── .github/             # CI (validates every skill) and assets/cover.jpg
 ```
@@ -45,11 +45,17 @@ Remember, before writing any code:
 ## Common Commands
 
 ```bash
-# Install components into the current project's .claude directory
-curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash
+# Install agentry, trail, context-mode and the user-level config on a machine
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- install --all --yes
 
-# Install components globally
-curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/install.sh | bash -s -- --global
+# Check or remove it
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- status
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- uninstall --all --yes
+
+# Script tests (run the bash test under /bin/bash too: macOS has bash 3.2)
+node scripts/check-bundles.mjs && node --test scripts/test/
+bash scripts/test/setup.test.sh
 
 # Manual local install
 mkdir -p .claude/skills
@@ -145,7 +151,8 @@ repo's tracked `.mcp.json`, started with `npx -y <pkg>@latest` so they work with
 | File | Update it when… |
 | --- | --- |
 | `CLAUDE.md` (this file) | A layer, convention or the skill list changes |
-| `README.md` | The installer, bundles or the component list changes |
+| `README.md` | The installer, bundles or the component list changes; the one-liner and examples change with the commands or parts of `scripts/setup.sh` |
+| `global/` | The settings fragment or helpers change what the `config` part installs (update the README and this file) |
 | `cli/README.md`, `cli/CLAUDE.md` | The `agentry` commands, flags, env vars, layout, build or test steps change |
 | `bundles.tsv` | A skill, rule or agent is added, removed or moved to another bundle |
 
