@@ -27,7 +27,7 @@ Remember, before writing any code:
 │   ├── humanize-and-unslop/    # Edit/detect AI-slop patterns in writing (scan.mjs + judgment)
 │   ├── image-artifact-setup/   # Scaffold OG/social card generators using Playwright (web bundle; also used by the README cover)
 │   ├── lighthouse-audit/       # Run Lighthouse, diagnose against source, write fix plan
-│   ├── phased-plan/            # Write a short phased plan with a model per task (one file, no subagent)
+│   ├── phased-plan/            # Write a short phased plan with a model per task (Opus plans, one file)
 │   ├── run-fallow/             # Run fallow CLI for dead code, dupes, complexity, security
 │   └── skill-architect/        # Create, improve, review, and validate skills
 ├── claude-md-files/     # Reusable Claude Code project guidance

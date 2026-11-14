@@ -4,7 +4,7 @@
 		{
 			"id": "cli-tool-plan",
 			"prompt": "Let's make a plan in phases to turn a shell script into a proper CLI with a terminal UI. Put it in docs so I can execute it from a different session. Each phase needs a task table with a checkbox, the task, and the model (cheapest that works).",
-			"expected_output": "Reads the project's CLAUDE.md, README and the script, asks at most one round of three scope questions with recommendations, then writes docs/<name>-plan.md itself (no subagent): a title, two sentences, a one-paragraph Run it note with the test command, phases each with Value and Done when lines and a 3-column task table of 3 to 8 rows, mostly sonnet and haiku rows, any opus row ending in 'Why opus: ...'. No decisions log, out-of-scope list or restated project facts. Runs check-plan.mjs until errorCount is 0 and reports phases and any opus rows.",
+			"expected_output": "Reads the project's CLAUDE.md, README and the script, asks at most one round of three scope questions with recommendations, then has Opus write docs/<name>-plan.md (inline when the session runs Opus, else one opus subagent with a self-contained brief): a title, two sentences, a one-paragraph Run it note with the test command, phases each with Value and Done when lines and a 3-column task table of 3 to 8 rows, mostly sonnet and haiku rows, any opus row ending in 'Why opus: ...'. No decisions log, out-of-scope list or restated project facts. Runs check-plan.mjs until errorCount is 0 and reports phases and any opus rows.",
 			"files": []
 		},
 		{
@@ -17,7 +17,9 @@
 			"id": "opus-overuse",
 			"prompt": "Review docs/migration-plan.md: half the tasks are Opus. Fix the model choices and make sure the file passes the plan check.",
 			"expected_output": "Downgrades opus rows whose only justification is size or importance to sonnet (or haiku for mechanical rows), keeps opus only where a mistake is costly and hard to catch (spec others build on, hard-to-undo writes, security) and ends each remaining one with 'Why opus: ...'. Runs check-plan.mjs, fixes table or checkbox errors, and reports the before and after model counts.",
-			"files": ["docs/migration-plan.md"]
+			"files": [
+				"docs/migration-plan.md"
+			]
 		}
 	]
 }
