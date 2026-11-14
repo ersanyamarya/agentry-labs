@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Catalog: MCP servers now show the `general` bundle instead of `global`. A bundle is a topic, never a scope, and the agentry-labs catalog now has five bundles: `general`, `web`, `flutter`, `flutter-assets` and `mongodb`.
+
 ## 0.3.0
 
 - Doctor: `dup-hook-scope` finds a hook that a project or local settings file repeats from your user settings (for example a project copy of trail's graft-hooks.cjs), so it runs twice; `agentry fix` removes the project copy, with a backup.
