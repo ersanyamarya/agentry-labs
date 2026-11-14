@@ -1,89 +1,64 @@
 #!/usr/bin/env node
-// Checks a phased plan's mechanical rules: phase sections, Value/Done when lines, task table shape, checkboxes, models.
-// Usage: node check-plan.mjs <plan.md> [--models "Haiku 5.5,Sonnet 5.5,Opus 5.5"] [--limit N]
+// Checks a phased plan: every phase has Value and Done when lines and 3-cell task rows with a checkbox and a known
+// model, and every opus row says why. Usage: node check-plan.mjs <plan.md> [--models "haiku,sonnet,opus"]
+// A model cell may carry a version suffix (opus-5-5). Prints JSON; exits 1 on errors.
 import fs from 'node:fs';
 import { parseArgs } from 'node:util';
 
 const { values, positionals } = parseArgs({
 	allowPositionals: true,
-	options: {
-		limit: { type: 'string', default: '15' },
-		models: { type: 'string', default: 'Haiku 5.5,Sonnet 5.5,Opus 5.5' },
-	},
+	options: { models: { type: 'string', default: 'haiku,sonnet,opus' } },
 });
-
 if (positionals.length !== 1) {
-	console.error('Usage: node check-plan.mjs <plan.md> [--models "Haiku 5.5,Sonnet 5.5,Opus 5.5"] [--limit N]');
+	console.error('Usage: node check-plan.mjs <plan.md> [--models "haiku,sonnet,opus"]');
 	process.exit(1);
 }
 
-const lines = fs.readFileSync(positionals[0], 'utf8').split('\n');
-const limit = Number(values.limit);
-const allowed = values.models.split(',').map((m) => m.trim());
-const priciest = allowed[allowed.length - 1];
-
+const models = values.models.split(',').map((m) => m.trim().toLowerCase());
+const priciest = models[models.length - 1];
 const errors = [];
 const phases = [];
-const priciestRows = [];
-const modelCounts = Object.fromEntries(allowed.map((m) => [m, 0]));
-let current;
+const counts = Object.fromEntries(models.map((m) => [m, 0]));
+let phase;
 
-// Unescaped pipes split table cells, even inside backticks.
+// Unescaped pipes split cells, even inside backticks.
 const cellsOf = (line) => line.replace(/\\\|/g, '\u0000').split('|').slice(1, -1).map((c) => c.trim());
 
-for (const [index, line] of lines.entries()) {
-	const n = index + 1;
-	const phase = line.match(/^##\s+Phase\s+(\S+?):?\s+(.*)$/);
-	if (phase) {
-		current = { done: 0, doneWhen: false, line: n, name: `Phase ${phase[1]}: ${phase[2]}`, tasks: 0, value: false };
-		phases.push(current);
+for (const [i, line] of fs.readFileSync(positionals[0], 'utf8').split('\n').entries()) {
+	const n = i + 1;
+	const heading = line.match(/^##\s+Phase\s+\S+?:?\s+(.*)$/);
+	if (heading) {
+		phase = { name: heading[1], line: n, rows: 0, done: 0, value: false, doneWhen: false };
+		phases.push(phase);
 		continue;
 	}
-	if (/^##\s/.test(line)) {
-		current = undefined;
-		continue;
-	}
-	if (!current) continue;
-	if (line.startsWith('**Value:**')) current.value = true;
-	if (line.startsWith('**Done when:**')) current.doneWhen = true;
+	if (/^##\s/.test(line)) phase = undefined;
+	if (!phase) continue;
+	if (line.startsWith('**Value:**')) phase.value = true;
+	if (line.startsWith('**Done when:**')) phase.doneWhen = true;
 	if (!/^\|\s*\[/.test(line)) continue;
 
+	phase.rows += 1;
 	const cells = cellsOf(line);
-	current.tasks += 1;
 	if (cells.length !== 3) {
-		errors.push(`L${n}: task row has ${cells.length} cells, expected 3 (escape "|" inside a cell as "\\|")`);
+		errors.push(`L${n}: row has ${cells.length} cells, expected 3 (escape "|" in a cell as "\\|")`);
 		continue;
 	}
 	const [box, task, model] = cells;
-	if (box === '[x]') current.done += 1;
+	if (box === '[x]') phase.done += 1;
 	else if (box !== '[ ]') errors.push(`L${n}: checkbox is "${box}", expected "[ ]" or "[x]"`);
-	if (!task) errors.push(`L${n}: empty task description`);
-	if (!allowed.includes(model)) errors.push(`L${n}: model "${model}" is not one of ${allowed.join(', ')}`);
-	else modelCounts[model] += 1;
-	if (model === priciest) priciestRows.push(`L${n} ${current.name.split(':')[0]}: ${task.slice(0, 90)}`);
+	const tier = models.find((m) => model.toLowerCase() === m || model.toLowerCase().startsWith(`${m}-`));
+	if (!tier) errors.push(`L${n}: model "${model}" is not one of ${models.join(', ')}`);
+	else counts[tier] += 1;
+	if (tier === priciest && !/why(\s+\S+)?:/i.test(task)) errors.push(`L${n}: ${priciest} row has no "Why ${priciest}: <reason>"`);
 }
 
 for (const p of phases) {
-	if (!p.value) errors.push(`L${p.line}: ${p.name} has no "**Value:**" line`);
-	if (!p.doneWhen) errors.push(`L${p.line}: ${p.name} has no "**Done when:**" line`);
-	if (p.tasks === 0) errors.push(`L${p.line}: ${p.name} has no task rows`);
+	if (!p.value) errors.push(`L${p.line}: "${p.name}" has no **Value:** line`);
+	if (!p.doneWhen) errors.push(`L${p.line}: "${p.name}" has no **Done when:** line`);
+	if (p.rows === 0) errors.push(`L${p.line}: "${p.name}" has no task rows`);
 }
 if (phases.length === 0) errors.push('no "## Phase <n>: <title>" headings found');
-for (const heading of ['How to use this plan', 'Decisions log']) {
-	if (!lines.some((l) => new RegExp(`^##\\s+${heading}`, 'i').test(l))) errors.push(`missing "## ${heading}" section`);
-}
 
-console.log(
-	JSON.stringify(
-		{
-			errors: errors.slice(0, limit),
-			errorCount: errors.length,
-			models: modelCounts,
-			phases: phases.map((p) => `${p.name.slice(0, 60)}: ${p.done}/${p.tasks} done`),
-			priciestModelRows: priciestRows.slice(0, limit),
-		},
-		null,
-		2,
-	),
-);
-process.exit(errors.length > 0 ? 1 : 0);
+console.log(JSON.stringify({ errors, errorCount: errors.length, models: counts, phases: phases.map((p) => `${p.name}: ${p.done}/${p.rows} done`) }, null, 2));
+process.exit(errors.length ? 1 : 0);
