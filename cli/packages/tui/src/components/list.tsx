@@ -5,6 +5,7 @@
 // through useStyle, so NO_COLOR drops them; the selected row is inverse + bold with a ">" marker. The details sit beside
 // the list from 110 columns up, under it (paired, short) below that (see layout.ts).
 
+import { messages } from "@agentry/core/messages";
 import { Box } from "ink";
 import React from "react";
 import {
@@ -272,7 +273,7 @@ const DetailLine = ({
       <Text dimColor>{`${match[1]}: `}</Text>
       <Text
         {...style(
-          ["state", "this project", "global"].includes(match[1])
+          messages().core.stateLabels.includes(match[1])
             ? { ...stateStyle(match[2]), bold: true }
             : {}
         )}

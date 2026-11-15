@@ -947,6 +947,8 @@ export const en = {
     scopeNames: { user: allProjects, desktop: "desktop" },
     scopeTitle: { user: "User", project: `This ${thisProject}` },
     columns: { state: "STATE", scope: "SCOPE" },
+    // Detail-line labels whose value is drawn in its state colour.
+    stateLabels: ["state", `this ${thisProject}`, allProjects],
     detail: {
       scope: (scope: string) => `scope: ${scope}`,
       state: (state: string) => `state: ${state}`,
