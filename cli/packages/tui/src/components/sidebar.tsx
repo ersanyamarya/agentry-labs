@@ -3,19 +3,22 @@
 // inverse, so focus shows without colour. Doctor's count is red when it holds errors, and says `err` without colour.
 // Under 70 columns the rail is hidden and SectionLine, one line, takes its place.
 
+import { messages } from "@agentry/core/messages";
 import { Box } from "ink";
 import React from "react";
 import { compactTokens, middle, pad } from "../layout.js";
 import { ROLE, ThemeContext, useStyle } from "../theme.js";
 import { Text } from "./text.js";
 
+const { sidebar: T } = messages();
+
 export const SIDEBAR_GROUPS = [
   {
-    label: "LIBRARY",
+    label: T.groups.library,
     items: ["Skills", "MCP", "Hooks", "Plugins", "Rules", "Agents"],
   },
-  { label: "DISCOVER", items: ["Catalog"] },
-  { label: "HEALTH", items: ["Doctor", "Backups"] },
+  { label: T.groups.discover, items: ["Catalog"] },
+  { label: T.groups.health, items: ["Doctor", "Backups"] },
 ] as const;
 
 // Section order, which is also the order of the 1-9 keys.
@@ -35,9 +38,6 @@ export interface TabSummary {
   warning?: number;
 }
 
-const plural = (count: number, word: string) =>
-  `${count} ${word}${count === 1 ? "" : "s"}`;
-
 const useCounts = (counts: Record<string, number>, summary?: TabSummary) => {
   const { color } = React.useContext(ThemeContext);
   const error = summary?.error ?? 0;
@@ -46,14 +46,14 @@ const useCounts = (counts: Record<string, number>, summary?: TabSummary) => {
   const countText = (name: string) =>
     counts[name] === undefined
       ? ""
-      : `${counts[name]}${!color && name === "Doctor" && error > 0 ? " err" : ""}`;
+      : `${counts[name]}${!color && name === "Doctor" && error > 0 ? T.err : ""}`;
   return { error, warning, countText };
 };
 
 const problemsOf = (error: number, warning: number) => {
   const total = error + warning;
   return {
-    text: total > 0 ? plural(total, "problem") : "no problems",
+    text: total > 0 ? T.problems(total) : T.noProblems,
     style: error > 0 ? ROLE.danger : warning > 0 ? ROLE.warn : ROLE.muted,
   };
 };
@@ -102,7 +102,7 @@ export const Sidebar = ({
       </Text>
       {summary ? (
         <Text dimColor wrap="truncate-end">
-          {`${compactTokens(summary.tokens)} tokens`}
+          {T.tokens(compactTokens(summary.tokens))}
         </Text>
       ) : null}
       {SIDEBAR_GROUPS.map((group) => (
@@ -138,7 +138,7 @@ export const Sidebar = ({
           {`${ascii ? "*" : "●"} ${problems.text}`}
         </Text>
         <Text dimColor wrap="truncate-end">
-          {inner >= 17 ? "? help  tab focus" : "? help"}
+          {inner >= 17 ? T.helpWide : T.helpNarrow}
         </Text>
       </Box>
     </Box>

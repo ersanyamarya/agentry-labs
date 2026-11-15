@@ -3,10 +3,16 @@
 // https://no-color.org) drops the colour props but keeps bold, dim and inverse, and every badge is also a word
 // (on, off, partial, error...), so nothing depends on colour alone.
 
+import { messages } from "@agentry/core/messages";
 import type { Severity } from "@agentry/core/types";
 import React from "react";
 import { type Icons, iconsFor } from "./icons.js";
 import type { Seg, Style } from "./types.js";
+
+const {
+  core: { scopeNames },
+  doctor: { headings },
+} = messages();
 
 export const seg = (text: string, style?: Style): Seg => ({
   text,
@@ -117,9 +123,9 @@ export const SCOPE_STYLES: Record<string, Style> = {
   shelf: { color: "yellow" },
 };
 export const SCOPE_NAMES: Record<string, string> = {
-  user: "global",
-  "desktop-config": "desktop",
-  "desktop-extension": "desktop",
+  user: scopeNames.user,
+  "desktop-config": scopeNames.desktop,
+  "desktop-extension": scopeNames.desktop,
 };
 export const scopeStyle = (scope: string): Style =>
   SCOPE_STYLES[scope] ??
@@ -140,7 +146,7 @@ export const SEVERITY: Record<
   Severity,
   { icon: string; style: Style; heading: string }
 > = {
-  error: { icon: "✖", style: RED, heading: "Errors" },
-  warning: { icon: "▲", style: YELLOW, heading: "Warnings" },
-  info: { icon: "ℹ", style: ROLE.info, heading: "Info" },
+  error: { icon: "✖", style: RED, heading: headings.error },
+  warning: { icon: "▲", style: YELLOW, heading: headings.warning },
+  info: { icon: "ℹ", style: ROLE.info, heading: headings.info },
 };
