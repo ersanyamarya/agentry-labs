@@ -11,6 +11,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AgentsScreen } from "../components/agents-screen.js";
 import { BackupsScreen } from "../components/backups-screen.js";
@@ -21,6 +22,7 @@ import { McpScreen } from "../components/mcp-screen.js";
 import { PluginsScreen } from "../components/plugins-screen.js";
 import { RulesScreen } from "../components/rules-screen.js";
 import { ScopeProvider } from "../lib/scope.js";
+import { loadFixture } from "./fixtures.js";
 import { mockClient } from "./mock-orpc.js";
 
 vi.mock("../lib/orpc.js", async () =>
@@ -155,6 +157,20 @@ describe("Plugins", () => {
   });
 });
 
+describe("Plugins keys", () => {
+  test("a opens the install dialog; the retired i only says to press a", async () => {
+    mount(<PluginsScreen />);
+    await inTable().findByText("demo");
+    await userEvent.keyboard("i");
+    expect(toast.message).toHaveBeenCalledWith(
+      "Installing a plugin now uses a: press a to install one."
+    );
+    expect(screen.queryByLabelText("Plugin")).toBeNull();
+    await userEvent.keyboard("a");
+    expect(await screen.findByLabelText("Plugin")).toBeTruthy();
+  });
+});
+
 describe("Agents", () => {
   test("lists agents by scope with model and details, and offers no write", async () => {
     mount(<AgentsScreen />);
@@ -198,7 +214,43 @@ describe("Rules", () => {
   });
 });
 
+describe("Rules delete", () => {
+  test("X deletes with no copy: backup false in the dry run", async () => {
+    mount(<RulesScreen />);
+    await inTable().findByText("commit-attribution");
+    await userEvent.click(screen.getByRole("radio", { name: /This project/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /All projects/ }));
+    await userEvent.click(inTable().getByText("commit-attribution"));
+    await userEvent.keyboard("X");
+    await dialog();
+    expect(mockClient.rules.removeRule).toHaveBeenCalledWith({
+      dir: "/work/app",
+      target: "r1",
+      backup: false,
+      dryRun: true,
+    });
+  });
+});
+
 describe("Backups", () => {
+  test("X previews deleting the selected backup; the retired x only says to press X", async () => {
+    mount(<BackupsScreen />);
+    await inTable().findByText("notes (global)");
+    await userEvent.click(inTable().getByText("notes (global)"));
+    await userEvent.keyboard("x");
+    expect(toast.message).toHaveBeenCalledWith(
+      "Deleting a backup now uses X: press X to delete this backup."
+    );
+    expect(mockClient.backups.pruneBackups).not.toHaveBeenCalled();
+    await userEvent.keyboard("X");
+    await dialog();
+    expect(mockClient.backups.pruneBackups).toHaveBeenCalledWith({
+      dir: "/work/app",
+      ids: ["b1"],
+      dryRun: true,
+    });
+  });
+
   test("shows age and size; restore previews with a dry run; fix backups point to Doctor", async () => {
     mount(<BackupsScreen />);
     await inTable().findByText("notes (global)");
@@ -249,6 +301,16 @@ describe("Doctor", () => {
     expect(mockClient.doctor.applyFix).not.toHaveBeenCalled();
   });
 
+  test("u previews the undo", async () => {
+    mount(<DoctorScreen />);
+    await screen.findByText("Hook script is missing");
+    await userEvent.keyboard("u");
+    await dialog();
+    expect(mockClient.doctor.previewUndo).toHaveBeenCalledWith({
+      dir: "/work/app",
+    });
+  });
+
   test("Undo last fix previews the undo", async () => {
     mount(<DoctorScreen />);
     await screen.findByText("Hook script is missing");
@@ -280,6 +342,69 @@ describe("Catalog", () => {
       names: ["skill/write-linkedin-post"],
       dryRun: true,
     });
+  });
+
+  test("a adds the first item (a skill) straight away, with no where-to-put choice", async () => {
+    mount(<CatalogScreen />);
+    await screen.findByText("write-linkedin-post");
+    await userEvent.keyboard("a");
+    await dialog();
+    expect(mockClient.catalog.addFromCatalog).toHaveBeenCalledWith({
+      dir: "/work/app",
+      names: ["skill/write-linkedin-post"],
+      dryRun: true,
+    });
+  });
+
+  test("an agent asks where it goes: this project previews with project true", async () => {
+    const fixture = loadFixture();
+    mockClient.load.mockResolvedValueOnce({
+      ...fixture,
+      catalog: {
+        ...fixture.catalog,
+        entries: [
+          ...fixture.catalog.entries,
+          {
+            id: "agent/scout",
+            bundle: "general",
+            description: "Scouts the repo.",
+            kind: "agent",
+            name: "scout",
+            installs: [],
+            outdated: false,
+            tokens: null,
+          },
+        ],
+      },
+    });
+    mount(<CatalogScreen />);
+    await screen.findByText("scout");
+    const card = screen.getByText("scout").closest("li") as HTMLElement;
+    await userEvent.click(within(card).getByRole("button", { name: "Add" }));
+    const choice = await dialog();
+    expect(mockClient.catalog.addFromCatalog).not.toHaveBeenCalled();
+    expect(
+      within(choice).getByRole("button", { name: "Add to all projects" })
+    ).toBeTruthy();
+    await userEvent.click(
+      within(choice).getByRole("button", { name: "Add to this project" })
+    );
+    await waitFor(() =>
+      expect(mockClient.catalog.addFromCatalog).toHaveBeenCalledWith({
+        dir: "/work/app",
+        names: ["agent/scout"],
+        project: true,
+        dryRun: true,
+      })
+    );
+  });
+
+  test("the retired i only says to press a", async () => {
+    mount(<CatalogScreen />);
+    await screen.findByText("write-linkedin-post");
+    await userEvent.keyboard("i");
+    expect(toast.message).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   test("an outdated entry says Update and previews an update", async () => {

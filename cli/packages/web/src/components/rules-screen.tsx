@@ -29,13 +29,16 @@ export const RulesScreen = () => {
   const flow = usePreviewFlow();
   const rows = useMemo(() => data?.rules.items ?? [], [data]);
 
-  const remove = (target: RuleRow | undefined) => {
+  // x keeps a copy in the backups; X (keepCopy false) keeps none.
+  const remove = (target: RuleRow | undefined, keepCopy = true) => {
     if (!target) {
       return;
     }
-    const input = { dir, target: target.id, backup: true };
+    const input = { dir, target: target.id, backup: keepCopy };
     flow.start({
-      title: t.removeTitle(target.label),
+      title: keepCopy
+        ? t.removeTitle(target.label)
+        : t.deleteTitle(target.label),
       // core's dry run is the preview: the same call without dryRun applies.
       preview: async () => {
         const result = await client.rules.removeRule({
@@ -45,15 +48,17 @@ export const RulesScreen = () => {
         return { appliable: result.ok, text: result.text };
       },
       apply: () => client.rules.removeRule(input),
-      note: t.copyKept(data?.paths.backupsDir),
+      note: keepCopy ? t.copyKept(data?.paths.backupsDir) : undefined,
     });
   };
+
+  const deleteRule = (target: RuleRow | undefined) => remove(target, false);
 
   const list = useListState(rows, {
     id: (item) => item.id,
     text: (item) => `${item.label} ${item.title}`,
     filters: FILTERS,
-    keys: { x: remove },
+    keys: { x: (item) => remove(item), X: deleteRule },
   });
   const current = list.selected;
 
@@ -108,13 +113,22 @@ export const RulesScreen = () => {
           current ? (
             <DetailsPanel
               actions={
-                <ActionButton
-                  danger
-                  keyHint="x"
-                  onClick={() => remove(current)}
-                >
-                  {m.web.common.remove}
-                </ActionButton>
+                <>
+                  <ActionButton
+                    danger
+                    keyHint="x"
+                    onClick={() => remove(current)}
+                  >
+                    {m.web.common.remove}
+                  </ActionButton>
+                  <ActionButton
+                    danger
+                    keyHint="X"
+                    onClick={() => remove(current, false)}
+                  >
+                    {m.web.common.deleteNoCopy}
+                  </ActionButton>
+                </>
               }
               badge={
                 <Pill tone={current.scope === "user" ? "on" : "project"}>

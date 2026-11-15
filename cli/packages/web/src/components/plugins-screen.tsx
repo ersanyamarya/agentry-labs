@@ -4,6 +4,7 @@
 import { messages } from "@agentry/core/messages";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { LoadData } from "../contract/index.js";
 import { useListState } from "../hooks/use-list-state.js";
 import { useAppData } from "../lib/app-data.js";
@@ -23,6 +24,7 @@ import {
   DialogTitle,
 } from "./ui/dialog.js";
 import { Input } from "./ui/input.js";
+import { Kbd } from "./ui/kbd.js";
 import { Label } from "./ui/label.js";
 import { Switch } from "./ui/switch.js";
 
@@ -95,7 +97,11 @@ export const PluginsScreen = () => {
         turn(item);
       },
       x: uninstall,
-      i: () => setInstalling(true),
+      a: () => {
+        setName("");
+        setInstalling(true);
+      },
+      i: () => toast.message(m.flows.inventory.nowPressA),
     },
   });
   const current = list.selected;
@@ -111,7 +117,8 @@ export const PluginsScreen = () => {
               setInstalling(true);
             }}
           >
-            <PlusIcon aria-hidden="true" className="size-4" /> {t.installPlugin}
+            <PlusIcon aria-hidden="true" className="size-4" /> {t.installPlugin}{" "}
+            <Kbd>a</Kbd>
           </Button>
         }
         columns={[

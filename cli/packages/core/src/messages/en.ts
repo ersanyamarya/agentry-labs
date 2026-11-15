@@ -45,6 +45,8 @@ const web = {
   common: {
     cancel: "Cancel",
     remove: "Remove",
+    delete: "Delete",
+    deleteNoCopy: "Delete (no copy)",
     clear: "Clear",
     done: "Done.",
     failed: "Failed.",
@@ -82,6 +84,7 @@ const web = {
     turnedOn: "Loaded",
     turnedOff: "Unloaded",
     shelved: `Moved to the ${library}`,
+    moved: "Moved",
     removed: "Removed",
     path: "Path",
     cost: "Cost",
@@ -110,7 +113,15 @@ const web = {
     emptyNone: "No skills yet. Add one from the catalog.",
     emptyNoMatch: "No skills match.",
     filters: { all: "All", on: capital(loaded) },
-    hint: "↑↓ move · space toggle · m mark · a mark all · s move to the library · x remove · / search",
+    hint: `↑↓ move · space ${loaded}/${notLoaded} · g ${allProjects} · * mark · m move · x remove (copy kept) · X delete (no copy) · / search`,
+    nowPressStar:
+      "Marking all rows now uses the checkbox in the header; * marks one row.",
+    move: "Move",
+    moveDialogDescription: `Pick where it goes. Moving to the ${library} asks for a ${bundle} next.`,
+    moveNone: "Nothing to move here: plugin skills move with their plugin.",
+    deleteTitle: (what: string) => `Delete ${what}?`,
+    deleteDescription: (what: string) =>
+      `This deletes ${what} and keeps no copy. It cannot be restored from Backups.`,
     searchPlaceholder: "Search skills",
     summary: (all: number, loadedCount: number, inLibrary: number) =>
       `${all} skills · ${loadedCount} ${loaded} · ${inLibrary} in the ${library}`,
@@ -143,6 +154,8 @@ const web = {
     title: (action: string, name: string) => `${action} ${name}`,
     note: `Skills go to the ${library}, ${notLoaded}. An update keeps a copy of the old one in the backups.`,
     removeAgentTitle: (name: string) => `Remove agent ${name}`,
+    deleteAgentTitle: (name: string) => `Delete agent ${name} (no copy)`,
+    addChoiceDescription: `Where should it go? ${capital(allProjects)}, or ${thisProject} only.`,
     heading: "Catalog",
     summary: (n: number) =>
       `${n} items from agentry-labs, ready to add to ${thisProject} or ${allProjects}`,
@@ -181,7 +194,8 @@ const web = {
     selectOne: "a file",
     detailsLabel: "Rule details",
     empty: "No CLAUDE.md or rule files.",
-    hint: "↑↓ move · x remove · / search",
+    hint: "↑↓ move · x remove (copy kept) · X delete (no copy) · / search",
+    deleteTitle: (label: string) => `Delete ${label} (no copy)`,
     searchPlaceholder: "Search rules",
     summary: (n: number) => `${n} files`,
     heading: "Rules",
@@ -206,7 +220,7 @@ const web = {
     selectOne: "a hook",
     detailsLabel: "Hook details",
     empty: "No hooks.",
-    hint: `↑↓ move · space ${off}/${on} · x remove · / search`,
+    hint: `↑↓ move · space ${off}/${on} · x remove (undo: agentry fix --undo) · / search`,
     searchPlaceholder: "Search hooks",
     summary: (n: number, onCount: number) => `${n} hooks · ${onCount} ${on}`,
     pageTitle: "Hooks",
@@ -231,7 +245,7 @@ const web = {
     selectOne: "a plugin",
     detailsLabel: "Plugin details",
     empty: "No plugins.",
-    hint: `↑↓ move · space ${off}/${on} · i install · x uninstall · / search`,
+    hint: `↑↓ move · space ${off}/${on} · a install plugin · x uninstall · / search`,
     searchPlaceholder: "Search plugins",
     summary: (n: number, onCount: number) => `${n} plugins · ${onCount} ${on}`,
     title: "Plugins",
@@ -261,7 +275,7 @@ const web = {
     empty: (backupsDir: string | undefined) =>
       `Nothing is kept under ${backupsDir ?? "the backups folder"} yet.`,
     filters: { removed: "Removed", updated: "Updated", fix: "Fixes" },
-    hint: "↑↓ move · u restore · x delete · d delete 30+ days old · / search",
+    hint: "↑↓ move · u restore · X delete (no copy) · d delete 30+ days old · / search",
     searchPlaceholder: "Search backups",
     summary: (n: number) => `${n} backups`,
     title: "Backups",
@@ -276,6 +290,7 @@ const web = {
     noProblems: "No problems found.",
     findings: (n: number) => `${n} findings in ~/.claude and ${thisProject}`,
     undo: "Undo last fix",
+    hint: "u undo last fix",
     noFix: "No automatic fix. Change it by hand.",
     fixIt: "Fix it",
   },
@@ -303,7 +318,7 @@ const web = {
     selectOne: "a server",
     detailsLabel: "Server details",
     empty: "No MCP servers.",
-    hint: `↑↓ move · space ${off}/${on} · a add · x remove · / search`,
+    hint: `↑↓ move · space ${off}/${on} · a add server · s edit env/args · x remove (undo: agentry fix --undo) · / search`,
     searchPlaceholder: "Search servers",
     summary: (n: number, onCount: number) => `${n} servers · ${onCount} ${on}`,
     title: "MCP",
@@ -351,17 +366,66 @@ const web = {
     selectAria: (label: string) => `Select ${label}`,
   },
   help: {
-    keys: [
+    // Keys that work the same on every screen.
+    shared: [
       ["↑ ↓", "move between rows"],
-      [
-        "space",
-        "turn the selected row on or off, in the scope chosen in the sidebar",
-      ],
-      ["s", `move a skill to the ${library}`],
-      ["x", "remove the selected row (a copy is kept in the backups)"],
       ["/", "search the rows"],
+      ["y / n", "apply or cancel a previewed change"],
       ["?", "this help"],
     ] as [string, string][],
+    // Keys that only work on one screen, by section id (the route name).
+    screens: {
+      skills: [
+        [
+          "space",
+          `${loaded}/${notLoaded} the selected skill, in the scope chosen in the sidebar`,
+        ],
+        ["g", `${loaded}/${notLoaded} for ${allProjects}`],
+        ["*", "mark a row; the next key then applies to all marked rows"],
+        ["esc", "clear the marks"],
+        ["m", `move: ${allProjects}, ${thisProject} only, or the ${library}`],
+        ["x", "remove (a copy is kept in the backups)"],
+        ["X", "delete (no copy kept)"],
+      ],
+      mcp: [
+        ["a", "add a server"],
+        ["space", `turn a server ${off} (saved) or add it back`],
+        ["s", `edit env/args of a server for ${allProjects}`],
+        ["x", "remove a server (undo: agentry fix --undo)"],
+      ],
+      hooks: [
+        ["space", `turn a hook ${off} (saved) or ${on} again`],
+        ["x", "remove a hook (undo: agentry fix --undo)"],
+      ],
+      plugins: [
+        ["space", `${on}/${off} (applies to new sessions)`],
+        ["a", "install a plugin"],
+        ["x", "uninstall the plugin"],
+      ],
+      rules: [
+        ["x", "remove the file (a copy is kept in the backups)"],
+        ["X", "delete the file (no copy kept)"],
+      ],
+      agents: [],
+      catalog: [
+        [
+          "a",
+          `add the item; agents and MCP ask ${allProjects} or ${thisProject}`,
+        ],
+        ["u", "update an outdated item"],
+        ["x", `remove an ${added} agent (a copy is kept in the backups)`],
+        ["X", `delete an ${added} agent (no copy kept)`],
+        ["f", "fetch the latest catalog"],
+      ],
+      doctor: [["u", "undo the last fix"]],
+      backups: [
+        ["u", "restore a removed skill or an updated copy"],
+        ["X", "delete a backup (no copy kept)"],
+        ["d", "delete the backups 30+ days old"],
+      ],
+    } as Record<string, [string, string][]>,
+    forScreen: (name: string) =>
+      `Keys for ${name}, then the keys every screen shares.`,
     title: "Keyboard shortcuts",
     description:
       "The same keys as the terminal UI. They are text while you type in a field.",

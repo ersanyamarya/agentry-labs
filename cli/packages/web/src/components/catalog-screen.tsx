@@ -3,7 +3,7 @@
 
 import { messages } from "@agentry/core/messages";
 import { DownloadIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { LoadData } from "../contract/index.js";
 import { useListState } from "../hooks/use-list-state.js";
@@ -12,6 +12,14 @@ import { client } from "../lib/orpc.js";
 import { Pill } from "./pill.js";
 import { usePreviewFlow } from "./preview-flow.js";
 import { Button } from "./ui/button.js";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog.js";
 import { Input } from "./ui/input.js";
 import { Kbd } from "./ui/kbd.js";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group.js";
@@ -62,44 +70,82 @@ export const CatalogScreen = () => {
     }
   };
 
-  const install = (entry: Entry | undefined) => {
+  // The entry waiting for the all projects / this project choice (agents and MCP servers only).
+  const [choosing, setChoosing] = useState<Entry | undefined>();
+
+  const install = (entry: Entry | undefined, project?: boolean) => {
     if (!entry || (entry.installed && !entry.outdated)) {
       return;
     }
     const names = [entry.id];
+    const where = project === undefined ? {} : { project };
     flow.start({
       title: t.title(entry.outdated ? t.update : t.add, entry.name),
       preview: () =>
         asPreview(
           entry.outdated
             ? client.catalog.updateFromCatalog({ dir, names, dryRun: true })
-            : client.catalog.addFromCatalog({ dir, names, dryRun: true })
+            : client.catalog.addFromCatalog({
+                dir,
+                names,
+                ...where,
+                dryRun: true,
+              })
         ),
       apply: () =>
         entry.outdated
           ? client.catalog.updateFromCatalog({ dir, names })
-          : client.catalog.addFromCatalog({ dir, names }),
+          : client.catalog.addFromCatalog({ dir, names, ...where }),
       note: t.note,
     });
   };
-  const removeAgent = (entry: Entry | undefined) => {
+  // a adds; agents and MCP servers first ask all projects or this project. An outdated item updates instead.
+  const add = (entry: Entry | undefined) => {
+    if (entry && !entry.installed && ["agent", "mcp"].includes(entry.kind)) {
+      setChoosing(entry);
+      return;
+    }
+    install(entry);
+  };
+  const update = (entry: Entry | undefined) => {
+    if (entry && !entry.outdated) {
+      toast.message(m.catalog.notices.upToDate(entry.name));
+      return;
+    }
+    install(entry);
+  };
+  // x keeps a copy in the backups; X (keepCopy false) keeps none.
+  const removeAgent = (entry: Entry | undefined, keepCopy = true) => {
     if (entry?.kind !== "agent" || !entry.installed) {
       return;
     }
-    const input = { dir, target: `agent/${entry.name}`, backup: true };
+    const input = { dir, target: `agent/${entry.name}`, backup: keepCopy };
     flow.start({
-      title: t.removeAgentTitle(entry.name),
+      title: keepCopy
+        ? t.removeAgentTitle(entry.name)
+        : t.deleteAgentTitle(entry.name),
       preview: () =>
         asPreview(client.catalog.removeAgent({ ...input, dryRun: true })),
       apply: () => client.catalog.removeAgent(input),
     });
   };
 
+  const deleteAgent = (entry: Entry | undefined) => removeAgent(entry, false);
+
   const list = useListState(entries, {
     id: (entry) => entry.id,
     text: (entry) => `${entry.name} ${entry.description}`,
     filters,
-    keys: { i: install, u: install, x: removeAgent, f: () => fetchCatalog() },
+    paused: choosing !== undefined,
+    keys: {
+      a: add,
+      u: update,
+      x: (entry) => removeAgent(entry),
+      X: deleteAgent,
+      f: () => fetchCatalog(),
+      i: () => toast.message(m.catalog.notices.nowPressA),
+      o: () => toast.message(m.catalog.notices.nowPressA),
+    },
   });
 
   const fetched = data?.catalog.fetched ?? false;
@@ -174,7 +220,9 @@ export const CatalogScreen = () => {
                   <Button
                     className="h-11 flex-1"
                     disabled={Boolean(entry.installed) && !entry.outdated}
-                    onClick={() => install(entry)}
+                    onClick={() =>
+                      entry.outdated ? install(entry) : add(entry)
+                    }
                     variant={
                       entry.installed && !entry.outdated ? "outline" : "default"
                     }
@@ -203,6 +251,37 @@ export const CatalogScreen = () => {
           ) : null}
         </>
       ) : null}
+      <Dialog
+        onOpenChange={(open) => !open && setChoosing(undefined)}
+        open={choosing !== undefined}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {m.catalog.notices.addTitleMenu(choosing?.name)}
+            </DialogTitle>
+            <DialogDescription>{t.addChoiceDescription}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            {[
+              [m.catalog.notices.addAllProjects, false],
+              [m.catalog.notices.addThisProject, true],
+            ].map(([label, project]) => (
+              <Button
+                className="h-11"
+                key={String(label)}
+                onClick={() => {
+                  install(choosing, project as boolean);
+                  setChoosing(undefined);
+                }}
+                variant="outline"
+              >
+                {label}
+              </Button>
+            ))}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {flow.dialog}
     </section>
   );

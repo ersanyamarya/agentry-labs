@@ -3,6 +3,7 @@
 
 import { messages } from "@agentry/core/messages";
 import { useMemo } from "react";
+import { toast } from "sonner";
 import type { LoadData } from "../contract/index.js";
 import { useListState } from "../hooks/use-list-state.js";
 import { useAppData } from "../lib/app-data.js";
@@ -89,7 +90,12 @@ export const BackupsScreen = () => {
     id: (item) => item.id,
     text: (item) => `${item.name} ${item.detail}`,
     filters: FILTERS,
-    keys: { x: removeOne, d: pruneOld, u: restore },
+    keys: {
+      X: removeOne,
+      x: () => toast.message(m.backups.notices.nowPressX),
+      d: pruneOld,
+      u: restore,
+    },
   });
   const current = list.selected;
 
@@ -161,7 +167,7 @@ export const BackupsScreen = () => {
                   </ActionButton>
                   <ActionButton
                     danger
-                    keyHint="x"
+                    keyHint="X"
                     onClick={() => removeOne(current)}
                   >
                     {t.delete}

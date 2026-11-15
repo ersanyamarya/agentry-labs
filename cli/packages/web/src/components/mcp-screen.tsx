@@ -135,6 +135,13 @@ export const McpScreen = () => {
     }
   };
 
+  const edit = (target: McpRow | undefined) => {
+    if (target?.userScope && !target.parked) {
+      setFields({ ...fields, args: "", env: "" });
+      setForm("edit");
+    }
+  };
+
   const list = useListState(rows, {
     id: (item) => item.id,
     text: (item) => `${item.name} ${item.detail}`,
@@ -147,6 +154,7 @@ export const McpScreen = () => {
       },
       x: remove,
       a: () => setForm("add"),
+      s: (item) => edit(item),
     },
   });
   const row = list.selected;
@@ -290,12 +298,7 @@ export const McpScreen = () => {
                     </ActionButton>
                   ) : null}
                   {row.userScope && !row.parked ? (
-                    <ActionButton
-                      onClick={() => {
-                        setFields({ ...fields, args: "", env: "" });
-                        setForm("edit");
-                      }}
-                    >
+                    <ActionButton keyHint="s" onClick={() => edit(row)}>
                       {t.edit}
                     </ActionButton>
                   ) : null}

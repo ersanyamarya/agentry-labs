@@ -102,6 +102,34 @@ describe("the sidebar", () => {
     expect(await screen.findByText("Keyboard shortcuts")).toBeTruthy();
   });
 
+  test("the help dialog lists the current screen's keys and not other screens' keys", async () => {
+    await mount("/skills");
+    await userEvent.keyboard("?");
+    const box = await screen.findByRole("dialog");
+    expect(
+      within(box).getByText(
+        "move: all projects, this project only, or the library"
+      )
+    ).toBeTruthy();
+    expect(
+      within(box).getByText(
+        "mark a row; the next key then applies to all marked rows"
+      )
+    ).toBeTruthy();
+    expect(within(box).queryByText("undo the last fix")).toBeNull();
+    expect(within(box).queryByText("install a plugin")).toBeNull();
+    expect(within(box).getByText("this help")).toBeTruthy();
+  });
+
+  test("on Doctor the help dialog lists u and none of the Skills keys", async () => {
+    await mount("/doctor");
+    await userEvent.keyboard("?");
+    const box = await screen.findByRole("dialog");
+    expect(within(box).getByText("undo the last fix")).toBeTruthy();
+    expect(within(box).queryByText(/move: all projects/)).toBeNull();
+    expect(within(box).queryByText(/mark a row/)).toBeNull();
+  });
+
   test("the scope switcher starts on This project and switches to All projects", async () => {
     await mount();
     const project = await screen.findByRole("radio", { name: "This project" });

@@ -1,5 +1,6 @@
 // The page frame: sidebar on the left, the section on the right using the whole width (no containers, no max width).
 
+import { useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { useShortcuts } from "../hooks/use-shortcuts.js";
 import { useAppData } from "../lib/app-data.js";
@@ -13,6 +14,9 @@ import { TooltipProvider } from "./ui/tooltip.js";
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const { data, version } = useAppData();
   const [help, setHelp] = useState(false);
+  const screen = useRouterState({
+    select: (state) => state.location.pathname.split("/")[1],
+  });
   useShortcuts({ "?": () => setHelp(true) });
   return (
     <ScopeProvider>
@@ -27,7 +31,7 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
           />
           <SidebarInset className="min-w-0">{children}</SidebarInset>
         </SidebarProvider>
-        <HelpDialog onOpenChange={setHelp} open={help} />
+        <HelpDialog onOpenChange={setHelp} open={help} screen={screen} />
         <Toaster />
       </TooltipProvider>
     </ScopeProvider>

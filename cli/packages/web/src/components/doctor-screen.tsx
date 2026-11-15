@@ -4,12 +4,14 @@
 import { messages } from "@agentry/core/messages";
 import { UndoIcon } from "lucide-react";
 import type { LoadData } from "../contract/index.js";
+import { useShortcuts } from "../hooks/use-shortcuts.js";
 import { useAppData } from "../lib/app-data.js";
 import { whileLoading } from "../lib/format.js";
 import { client } from "../lib/orpc.js";
 import { Pill, type Tone } from "./pill.js";
 import { usePreviewFlow } from "./preview-flow.js";
 import { Button } from "./ui/button.js";
+import { Kbd } from "./ui/kbd.js";
 
 const m = messages();
 const t = m.web.doctor;
@@ -48,6 +50,8 @@ export const DoctorScreen = () => {
       apply: () => client.doctor.applyUndo({ dir }),
     });
 
+  useShortcuts({ u: undo });
+
   return (
     <section className="flex flex-col gap-8 px-8 py-7">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -61,7 +65,8 @@ export const DoctorScreen = () => {
           </p>
         </div>
         <Button className="h-11 px-4" onClick={undo} variant="outline">
-          <UndoIcon aria-hidden="true" className="size-4" /> {t.undo}
+          <UndoIcon aria-hidden="true" className="size-4" /> {t.undo}{" "}
+          <Kbd>u</Kbd>
         </Button>
       </div>
       <dl className="flex flex-wrap gap-x-12 gap-y-4">

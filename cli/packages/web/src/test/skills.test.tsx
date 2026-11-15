@@ -7,6 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { SkillsScreen } from "../components/skills-screen.js";
 import { ScopeProvider } from "../lib/scope.js";
@@ -194,6 +195,86 @@ describe("the Skills screen", () => {
     );
     await userEvent.keyboard("x");
     expect(await screen.findByText(/Remove audit-two\?/)).toBeTruthy();
+  });
+
+  test("m opens the move dialog with only the moves that apply to the row", async () => {
+    await mount();
+    await userEvent.click(inTable().getByText("run-fallow")); // a folder for all projects
+    await userEvent.keyboard("m");
+    let box = await screen.findByRole("dialog");
+    expect(
+      within(box).getByRole("button", { name: /Move to the library/ })
+    ).toBeTruthy();
+    expect(
+      within(box).getByRole("button", { name: /Move to this project only/ })
+    ).toBeTruthy();
+    expect(
+      within(box).queryByRole("button", { name: /all projects/ })
+    ).toBeNull();
+    await userEvent.click(
+      within(box).getByRole("button", { name: /Move to this project only/ })
+    );
+    await waitFor(() =>
+      expect(mockClient.skills.demoteSkill).toHaveBeenCalledWith({
+        dir: "/work/app",
+        skill: "run-fallow",
+      })
+    );
+    await userEvent.click(inTable().getByText("audit-two")); // a library skill
+    await userEvent.keyboard("m");
+    box = await screen.findByRole("dialog");
+    expect(
+      within(box).getByRole("button", { name: /Move out of the library/ })
+    ).toBeTruthy();
+    expect(
+      within(box).queryByRole("button", { name: /Move to the library/ })
+    ).toBeNull();
+  });
+
+  test("s, o, u and a are retired: each shows a notice naming the new key", async () => {
+    await mount();
+    await userEvent.click(inTable().getByText("run-fallow"));
+    await userEvent.keyboard("s");
+    expect(toast.message).toHaveBeenCalledWith(
+      "Moves now live under m: press m to move this skill."
+    );
+    await userEvent.keyboard("a");
+    expect(screen.queryByText("4 selected")).toBeNull();
+    expect(toast.message).toHaveBeenCalledWith(
+      expect.stringContaining("* marks one row")
+    );
+  });
+
+  test("* marks the selected row and esc clears the marks", async () => {
+    await mount();
+    await userEvent.click(inTable().getByText("audit-two"));
+    await userEvent.keyboard("*");
+    expect(await screen.findByText("1 selected")).toBeTruthy();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByText("1 selected")).toBeNull());
+  });
+
+  test("X asks to delete with no copy, then removes with backup false", async () => {
+    await mount();
+    await userEvent.click(inTable().getByText("run-fallow"));
+    await userEvent.keyboard("X");
+    expect(await screen.findByText(/Delete run-fallow\?/)).toBeTruthy();
+    await userEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Delete",
+      })
+    );
+    await waitFor(() =>
+      expect(mockClient.skills.removeSkill).toHaveBeenCalledWith(
+        {
+          dir: "/work/app",
+          target: "run-fallow",
+          project: false,
+          backup: false,
+        },
+        expect.anything()
+      )
+    );
   });
 
   test("below 1100px the details open in a sheet instead of a column", async () => {

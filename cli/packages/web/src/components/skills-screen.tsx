@@ -71,9 +71,26 @@ const ScopeBadge = ({ row }: { row: SkillRow }) => {
 function canShelve(row?: SkillRow) {
   return row?.kind === "global" || row?.kind === "project";
 }
+
+// The moves that apply to a row, as in the terminal UI's menu: a library skill goes to all projects, a folder in
+// ~/.claude/skills to the library or this project only, a project folder to the library or all projects.
+type Move = "library" | "all" | "project";
+const MOVES: Record<string, Move[]> = {
+  shelf: ["all"],
+  global: ["library", "project"],
+  project: ["library", "all"],
+};
+const movesFor = (row?: SkillRow): Move[] =>
+  row ? (MOVES[row.kind] ?? []) : [];
 function canRemove(row?: SkillRow) {
   return row !== undefined && row.kind !== "plugin";
 }
+
+const MOVE_LABELS: Record<Move, string> = {
+  library: m.skills.notices.moveToLibrary,
+  all: m.skills.notices.moveToAll,
+  project: m.skills.notices.moveToProject,
+};
 
 const tokensText = (tokens: number | null) =>
   tokens === null ? t.tokensNotMeasured : t.tokens(tokens);
@@ -89,6 +106,8 @@ export const SkillsScreen = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [shelving, setShelving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [keepCopy, setKeepCopy] = useState(true);
+  const [moving, setMoving] = useState(false);
   const [group, setGroup] = useState("");
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
 
@@ -107,6 +126,10 @@ export const SkillsScreen = () => {
   const shelvable = targets.filter(canShelve);
   const removable = targets.filter(canRemove);
   const flippable = targets.filter((row) => row.kind === "shelf");
+  // Only the moves that apply to at least one target; each runs on the targets it applies to.
+  const moves = (["library", "all", "project"] as const).filter((kind) =>
+    targets.some((row) => movesFor(row).includes(kind))
+  );
   const shownIds = rows.map((row) => row.id);
   const toggleChecked = (id: string) =>
     setChecked((prev) => {
@@ -134,26 +157,54 @@ export const SkillsScreen = () => {
   };
   const toggle = useMutation(orpc.skills.toggleShelf.mutationOptions(options));
   const shelve = useMutation(orpc.skills.shelveSkill.mutationOptions(options));
-  const unshelve = useMutation(
-    orpc.skills.unshelveSkill.mutationOptions(options)
-  );
-  const promote = useMutation(
-    orpc.skills.promoteSkill.mutationOptions(options)
-  );
-  const demote = useMutation(orpc.skills.demoteSkill.mutationOptions(options));
   const remove = useMutation(orpc.skills.removeSkill.mutationOptions(options));
 
-  const flip = (row: SkillRow) => {
+  // forceGlobal is the g key: always for all projects, whatever scope the sidebar shows.
+  const flip = (row: SkillRow, forceGlobal = false) => {
     if (row.kind !== "shelf") {
       toast.message(t.installedAlwaysOn(row.name));
       return;
     }
+    const global = forceGlobal || scope === "global";
     toggle.mutate({
       dir,
       target: row.target,
-      on: !isOn(row, scope),
-      global: scope === "global",
+      on: !isOn(row, global ? "global" : "project"),
+      global,
     });
+  };
+  const askRemove = (copy: boolean) => {
+    if (removable.length > 0) {
+      setKeepCopy(copy);
+      setRemoving(true);
+    }
+  };
+  const askMove = () => {
+    if (moves.length === 0) {
+      toast.message(t.moveNone);
+      return;
+    }
+    setMoving(true);
+  };
+  const runMove = (kind: Move) => {
+    setMoving(false);
+    if (kind === "library") {
+      setShelving(true);
+      return;
+    }
+    const applies = targets.filter((row) => movesFor(row).includes(kind));
+    const [only] = applies;
+    const call = (row: SkillRow) =>
+      kind === "all"
+        ? row.kind === "shelf"
+          ? client.skills.unshelveSkill({ dir, target: row.target })
+          : client.skills.promoteSkill({ dir, skill: row.name })
+        : client.skills.demoteSkill({ dir, skill: row.name });
+    if (applies.length === 1 && only && checkedRows.length === 0) {
+      call(only).then(done, (error: Error) => toast.error(error.message));
+    } else {
+      runBulk(t.moved, applies, call);
+    }
   };
 
   // One call per row, in order; a failure on one row does not stop the rest.
@@ -209,7 +260,8 @@ export const SkillsScreen = () => {
       setSelectedId(next.id);
     }
   };
-  const busy = shelving || removing;
+  const deleteSelected = () => askRemove(false);
+  const busy = shelving || removing || moving;
   useShortcuts(
     {
       down: (event) => {
@@ -230,10 +282,15 @@ export const SkillsScreen = () => {
         event.preventDefault();
         searchRef.current?.focus();
       },
-      s: () => shelvable.length > 0 && setShelving(true),
-      x: () => removable.length > 0 && setRemoving(true),
-      m: () => selected && toggleChecked(selected.id),
-      a: toggleAll,
+      g: () => selected && flip(selected, true),
+      x: () => askRemove(true),
+      X: deleteSelected,
+      m: askMove,
+      "*": () => selected && toggleChecked(selected.id),
+      s: () => toast.message(m.skills.notices.nowPressM),
+      o: () => toast.message(m.skills.notices.nowPressM),
+      u: () => toast.message(m.skills.notices.nowPressM),
+      a: () => toast.message(t.nowPressStar),
       esc: () => setChecked(new Set()),
     },
     !busy
@@ -269,49 +326,27 @@ export const SkillsScreen = () => {
         ) : null}
       </dl>
       <div className="flex flex-wrap gap-2">
-        {canShelve(selected) ? (
-          <Button
-            className="h-11 flex-1"
-            onClick={() => setShelving(true)}
-            variant="outline"
-          >
-            {t.shelve} <Kbd>s</Kbd>
-          </Button>
-        ) : null}
-        {selected.kind === "shelf" ? (
-          <Button
-            className="h-11 flex-1"
-            onClick={() => unshelve.mutate({ dir, target: selected.target })}
-            variant="outline"
-          >
-            {t.unshelve}
-          </Button>
-        ) : null}
-        {selected.kind === "global" ? (
-          <Button
-            className="h-11 flex-1"
-            onClick={() => demote.mutate({ dir, skill: selected.name })}
-            variant="outline"
-          >
-            {t.onlyThisProject}
-          </Button>
-        ) : null}
-        {selected.kind === "project" ? (
-          <Button
-            className="h-11 flex-1"
-            onClick={() => promote.mutate({ dir, skill: selected.name })}
-            variant="outline"
-          >
-            {t.allProjects}
+        {movesFor(selected).length > 0 ? (
+          <Button className="h-11 flex-1" onClick={askMove} variant="outline">
+            {t.move} <Kbd>m</Kbd>
           </Button>
         ) : null}
         {canRemove(selected) ? (
           <Button
             className="border-error-border text-error hover:text-error h-11 flex-1"
-            onClick={() => setRemoving(true)}
+            onClick={() => askRemove(true)}
             variant="outline"
           >
             {m.web.common.remove} <Kbd className="text-error">x</Kbd>
+          </Button>
+        ) : null}
+        {canRemove(selected) ? (
+          <Button
+            className="border-error-border text-error hover:text-error h-11 flex-1"
+            onClick={() => askRemove(false)}
+            variant="outline"
+          >
+            {m.web.common.deleteNoCopy} <Kbd className="text-error">X</Kbd>
           </Button>
         ) : null}
       </div>
@@ -489,16 +524,16 @@ export const SkillsScreen = () => {
                 </Button>
                 <Button
                   className="h-11"
-                  disabled={shelvable.length === 0}
-                  onClick={() => setShelving(true)}
+                  disabled={moves.length === 0}
+                  onClick={askMove}
                   variant="outline"
                 >
-                  {t.shelve}
+                  {t.move}
                 </Button>
                 <Button
                   className="border-error-border text-error hover:text-error h-11"
                   disabled={removable.length === 0}
-                  onClick={() => setRemoving(true)}
+                  onClick={() => askRemove(true)}
                   variant="outline"
                 >
                   {m.web.common.remove}
@@ -515,6 +550,34 @@ export const SkillsScreen = () => {
           </>
         }
       />
+      <Dialog onOpenChange={setMoving} open={moving}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {m.skills.notices.moveTitle(
+                targets.length === 1
+                  ? (targets[0]?.name ?? "")
+                  : t.count(targets.length)
+              )}
+            </DialogTitle>
+            <DialogDescription>{t.moveDialogDescription}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            {moves.map((kind) => (
+              <Button
+                className="h-11 justify-start"
+                key={kind}
+                onClick={() => runMove(kind)}
+                variant="outline"
+              >
+                {kind === "all" && targets.every((row) => row.kind === "shelf")
+                  ? m.skills.notices.moveOutOfLibrary
+                  : MOVE_LABELS[kind]}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog onOpenChange={setShelving} open={shelving}>
         <DialogContent>
           <DialogHeader>
@@ -579,20 +642,26 @@ export const SkillsScreen = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t.removeTitle(
+              {(keepCopy ? t.removeTitle : t.deleteTitle)(
                 removable.length === 1
                   ? (removable[0]?.name ?? "")
                   : t.count(removable.length)
               )}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t.removeDescription(
-                removable.length === 1
-                  ? (removable[0]?.source ?? "")
-                  : t.folders(removable.length),
-                removable.length === 1,
-                data?.paths.backupsDir
-              )}
+              {keepCopy
+                ? t.removeDescription(
+                    removable.length === 1
+                      ? (removable[0]?.source ?? "")
+                      : t.folders(removable.length),
+                    removable.length === 1,
+                    data?.paths.backupsDir
+                  )
+                : t.deleteDescription(
+                    removable.length === 1
+                      ? (removable[0]?.source ?? "")
+                      : t.folders(removable.length)
+                  )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -606,7 +675,7 @@ export const SkillsScreen = () => {
                   dir,
                   target: row.kind === "shelf" ? row.target : row.name,
                   project: row.kind === "project",
-                  backup: true,
+                  backup: keepCopy,
                 });
                 const [only] = removable;
                 if (
@@ -622,7 +691,7 @@ export const SkillsScreen = () => {
                 }
               }}
             >
-              {m.web.common.remove}
+              {keepCopy ? m.web.common.remove : m.web.common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
