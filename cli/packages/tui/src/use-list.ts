@@ -3,6 +3,7 @@
 // holds the "typing" lock (see use-flow.ts), so q and the tab keys reach nobody. `*` marks or unmarks the selected row
 // and esc (when no filter is active) clears the marks; a tab applies a bulk action to `marked` (see bulk-flow.ts).
 
+import { messages } from "@agentry/core/messages";
 import type { Key } from "ink";
 import React from "react";
 import type { Row, SetLock } from "./types.js";
@@ -89,11 +90,13 @@ export const useList = ({
     typing
       ? `/${query}_`
       : query
-        ? `filter "${query}": ${rows.length} of ${all.filter((one) => !one.header).length} (/ edit, esc clear)`
+        ? messages().listStatus.filter(
+            query,
+            rows.length,
+            all.filter((one) => !one.header).length
+          )
         : "",
-    markedIds.size > 0
-      ? `${markedIds.size} marked (space/x apply to all, esc clears)`
-      : "",
+    markedIds.size > 0 ? messages().listStatus.marked(markedIds.size) : "",
   ]
     .filter(Boolean)
     .join("  ·  ");

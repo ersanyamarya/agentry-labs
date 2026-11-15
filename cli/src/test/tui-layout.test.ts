@@ -87,8 +87,8 @@ test("a long path in the details is cut in the middle with an ellipsis, keeping 
 test("the help overlay lists the new keys and the colour legend", async () => {
   await ui.press("?");
   await ui.until(/Keys \(\? or esc to close\)/);
-  assert.match(ui.frame()!, /m {12}Skills: a menu of the moves that apply/);
-  assert.match(ui.frame()!, /s {12}MCP: edit env\/args/);
+  assert.match(ui.frame()!, /m {12}move: all projects/);
+  assert.doesNotMatch(ui.frame()!, /MCP: edit env/);
   assert.match(
     ui.frame()!,
     /● loaded \/ active green, ○ not loaded \/ disabled gray, ◐ partial yellow/

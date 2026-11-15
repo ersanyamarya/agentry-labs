@@ -317,7 +317,7 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
         "right"
       ),
     ]),
-    details: [...skillDetails(skill), D.toggle(whyFixed(skill))],
+    details: [whyFixed(skill), ...skillDetails(skill)],
     file: skill.kind === "broken" ? undefined : `${skill.source}/SKILL.md`,
   });
   section(S.sections.global, own("user"), skillRow);
@@ -801,6 +801,7 @@ export const mcpRows = (data: Data): Row[] => [
       ]),
       file: server.source,
       details: [
+        ...(mine ? [] : [MCP_WHY[server.scope] ?? X.detail.notManaged]),
         X.detail.server(server.name),
         D.scope(server.scope),
         D.state(badgeText(server.state)),
@@ -810,13 +811,15 @@ export const mcpRows = (data: Data): Row[] => [
         ...headers,
         X.detail.tokens,
         D.source(server.source),
-        D.toggle(
-          mine
-            ? server.scope === "user"
-              ? X.detail.toggleUser
-              : X.detail.toggleOther
-            : (MCP_WHY[server.scope] ?? X.detail.notManaged)
-        ),
+        ...(mine
+          ? [
+              D.toggle(
+                server.scope === "user"
+                  ? X.detail.toggleUser
+                  : X.detail.toggleOther
+              ),
+            ]
+          : []),
       ],
     };
   }),
@@ -868,6 +871,7 @@ export const hookRows = (data: Data): Row[] => [
       ]),
       file: hook.source,
       details: [
+        ...(mine ? [] : [HOOK_WHY]),
         H.detail.id(hook.id ?? "-"),
         H.detail.event(hook.event),
         H.detail.matcher(hook.matcher),
@@ -877,7 +881,7 @@ export const hookRows = (data: Data): Row[] => [
         D.state(hook.state),
         H.detail.output,
         D.source(hook.source),
-        D.toggle(mine ? H.detail.toggle : HOOK_WHY),
+        ...(mine ? [D.toggle(H.detail.toggle)] : []),
       ],
     };
   }),

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { messages } from "@agentry/core/messages";
 import { afterEach, beforeEach, describe, test } from "vitest";
-import { createUi, KEYS } from "./helpers/tui.js";
+import { createUi, KEYS, squash, stripAnsi } from "./helpers/tui.js";
 
 let ui: ReturnType<typeof createUi>;
 afterEach(() => ui?.stop());
@@ -232,5 +233,83 @@ describe("doctor tab: fix and undo", () => {
     await ui.press("y");
     assert.match(text(), /BAD/);
     assert.deepEqual(backups(), []);
+  });
+});
+
+describe("help per tab", () => {
+  const { help } = messages();
+  const TABS = Object.keys(help.tabs);
+
+  test("? on Skills lists the Skills keys and the shared ones, not Catalog or Backups keys", async () => {
+    ui = createUi();
+    await ui.ready();
+    await ui.press("?");
+    await ui.until(/Keys \(\? or esc to close\)/);
+    assert.match(ui.frame()!, /g {12}loaded\/not loaded for all projects/);
+    assert.match(ui.frame()!, /m {12}move: all projects/);
+    assert.match(ui.frame()!, /q {12}quit/);
+    assert.doesNotMatch(ui.frame()!, /fetch the latest catalog/);
+    assert.doesNotMatch(ui.frame()!, /delete the backups 30\+ days old/);
+    assert.doesNotMatch(ui.frame()!, /restore a removed skill/);
+    assert.doesNotMatch(ui.frame()!, /install a plugin/);
+  });
+
+  test("Catalog and Backups help list their own keys and no Skills-only ones", async () => {
+    ui = createUi();
+    await ui.ready();
+    await ui.press("7");
+    await ui.press("?");
+    await ui.until(/Keys \(\? or esc to close\)/);
+    assert.match(ui.frame()!, /f {12}fetch the latest catalog/);
+    assert.doesNotMatch(ui.frame()!, /move: all projects/);
+    assert.doesNotMatch(ui.frame()!, /delete the backups 30\+ days old/);
+    await ui.press("?");
+    await ui.press("9");
+    await ui.press("?");
+    await ui.until(/d {12}delete the backups 30\+ days old/);
+    assert.doesNotMatch(ui.frame()!, /fetch the latest catalog/);
+    assert.doesNotMatch(ui.frame()!, /move: all projects/);
+  });
+
+  test("on an 80-column terminal every tab's help fits: no line wider than 80, no truncation mark, every row's last word shown", async () => {
+    ui = createUi({ size: { cols: 80, rows: 80 } });
+    await ui.ready();
+    for (const [index, name] of TABS.entries()) {
+      await ui.press(String(index + 1));
+      await ui.press("?");
+      await ui.until(/Keys \(\? or esc to close\)/);
+      const raw = stripAnsi(ui.raw());
+      for (const line of raw.split("\n")) {
+        assert.ok(line.length <= 80, `${name}: line wider than 80: ${line}`);
+      }
+      const box = stripAnsi(ui.frame()!)
+        .split("\n")
+        .filter((line) => line.includes("│"))
+        .join("\n");
+      assert.doesNotMatch(box, /…/, `${name}: help is truncated`);
+      const text = squash(ui.raw());
+      for (const [, what] of [...help.tabs[name]!, ...help.shared]) {
+        assert.ok(
+          text.includes(what.split(" ").at(-1)!),
+          `${name}: ${what} missing`
+        );
+      }
+      await ui.press("?");
+    }
+  });
+});
+
+describe("why-not hint", () => {
+  test("a skill folder that cannot be toggled says why under the list and as the first details line, before any key", async () => {
+    ui = createUi({ personal: ["notes"] });
+    await ui.ready();
+    await ui.moveTo(/^>\s+notes/);
+    const why =
+      /Folder in ~\/\.claude\/skills, loaded in all projects\. m moves it/;
+    assert.match(squash(ui.frame()!), why);
+    const hits = squash(ui.frame()!).split("m moves it").length - 1;
+    assert.equal(hits, 2, "status line and details both carry it");
+    await ui.moveTo(/^>\s+proj/);
+    assert.doesNotMatch(squash(ui.frame()!), /Folder in ~\/\.claude\/skills/);
   });
 });

@@ -229,11 +229,7 @@ export const ListPane = ({
             : `  ↑ ${start} more`}
         </Text>
       ) : null}
-      {status ? (
-        <Text dimColor wrap="truncate-end">
-          {` ${status}`}
-        </Text>
-      ) : null}
+      {status ? <Text dimColor>{` ${status}`}</Text> : null}
     </Box>
   );
 };
@@ -445,7 +441,7 @@ export const Panes = ({
       height={height}
       marked={marked}
       rows={rows}
-      status={status}
+      status={[status, row?.why].filter(Boolean).join("  ·  ")}
       width={layout.listWidth}
     />
     <DetailsPane

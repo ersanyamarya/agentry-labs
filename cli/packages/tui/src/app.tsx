@@ -310,7 +310,7 @@ export const App = ({
           {railWidth === 0 ? (
             <SectionLine counts={counts} summary={summary} tab={tab} />
           ) : null}
-          {overlay === "help" ? <Help /> : null}
+          {overlay === "help" ? <Help tab={tab} /> : null}
           {overlay === "picker" ? (
             <Picker
               // biome-ignore lint/performance/noJsxPropsBind: a one-line handler on a rarely re-rendered overlay

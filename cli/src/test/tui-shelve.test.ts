@@ -131,7 +131,7 @@ describe("unshelve and why a row cannot be toggled", () => {
     await gotoNotes();
     await ui.press(KEYS.space);
     await ui.until(
-      /skill for all projects \(~\/\.claude\/skills\): m moves it to the library/
+      /Folder in ~\/\.claude\/skills, loaded in all projects\. m moves it to the library/
     );
     await ui.press(KEYS.down, KEYS.space);
     await ui.until(/skill for this project \(this repo.s \.claude\/skills\)/);

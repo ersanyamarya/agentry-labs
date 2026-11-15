@@ -447,34 +447,85 @@ export const en = {
   },
   help: {
     title: "Keys (? or esc to close)",
-    tab: "move the keys between the sidebar and the list; on the sidebar, ↑ / ↓ pick a section and enter goes back to the list",
-    sections:
-      "switch section (1-9 follow the sidebar: Skills, MCP, Hooks, Plugins, Rules, Agents, Catalog, Doctor, Backups)",
-    rows: "move between rows",
-    enter: "details, expand a group, preview a fix",
-    space: `Skills: ${library} ${bundle} row ${loaded}/${notLoaded} for ${thisProject}; plugin rows: ${on}/${off}; MCP, Hooks: turn ${off} (saved) / add back`,
-    globalToggle: `Skills: ${library} ${bundle} row ${loaded}/${notLoaded} for ${allProjects}`,
-    shelve: `MCP: edit env/args of a server for ${allProjects}`,
-    move: `Skills: a menu of the moves that apply to the row (${allProjects}, ${thisProject} only, ${library})`,
-    unshelve:
-      "Doctor: undo last fix; Backups: restore a removed skill or updated copy; Catalog: update an outdated item (skill, agent, rule, CLAUDE.md, MCP server)",
-    remove: `Skills: remove a skill; Catalog: remove an ${added} skill, agent or rule (a copy is kept in the backups); Rules: remove a file; MCP, Hooks: remove; Plugins: uninstall`,
-    removeNoCopy:
-      "Skills, Catalog, Rules: delete and keep no copy; Backups: delete a backup",
-    prune: "Backups: delete the backups 30+ days old",
-    add: `Catalog: add the selected skill (to the ${library}, ${notLoaded}), rule or CLAUDE.md; an agent or MCP server asks ${allProjects} or ${thisProject}. MCP: add a server. Plugins: install a plugin`,
-    fetch: "Catalog: fetch or update the agentry-labs catalog",
-    search:
-      "search the rows of the current tab: type, enter keeps it, esc clears it (q and tab are text while typing)",
-    mark: "mark or unmark the selected row; esc clears the marks; space, g, x, X, a, u then apply to all marked rows, one preview, one y",
-    open: "open the selected row's file in $EDITOR",
-    confirm: "confirm or cancel a previewed change; c copies the preview",
-    refresh: "refresh",
-    switchProject: "switch project",
-    help: "this help",
-    quit: "quit",
-    legendStates: `● ${loaded} / active green, ○ ${notLoaded} / disabled gray, ◐ partial yellow. Cost: dim < 100, yellow < 500, red 500+.`,
-    legendNotes: `* marks a row. Skills > Token total: description tokens per scope: ${allProjects}, ${thisProject}, plugins. No colour: set NO_COLOR. Plugin changes apply to new sessions (undo: agentry fix --undo).`,
+    // Keys that work the same on every tab.
+    shared: [
+      ["tab", "switch between the sidebar and the list"],
+      ["← / →, 1-9", "switch section"],
+      ["↑ / ↓", "move between rows"],
+      ["/", "search the rows (enter keeps it)"],
+      ["*", "mark a row; the next key then applies to all marked rows"],
+      ["esc", "clear the search or the marks"],
+      ["e", "open the selected row's file in $EDITOR"],
+      ["y / n", "confirm or cancel a previewed change (c copies it)"],
+      ["r", "refresh"],
+      ["p", "switch project"],
+      ["?", "this help"],
+      ["q", "quit"],
+    ] as [string, string][],
+    // Keys that only work on one tab, by tab name.
+    tabs: {
+      Skills: [
+        [
+          "space",
+          `${loaded}/${notLoaded} for ${thisProject}; plugin: ${on}/${off}`,
+        ],
+        ["g", `${loaded}/${notLoaded} for ${allProjects}`],
+        ["m", `move: ${allProjects}, ${thisProject} only, or the ${library}`],
+        ["x", "remove (a copy is kept in the backups)"],
+        ["X", "delete (no copy kept)"],
+        ["enter", `expand a ${bundle}, show details`],
+      ],
+      MCP: [
+        ["a", "add a server"],
+        ["space", `turn a server ${off} (saved) or add it back`],
+        ["s", `edit env/args of a server for ${allProjects}`],
+        ["x", "remove a server (undo: agentry fix --undo)"],
+      ],
+      Hooks: [
+        ["space", `turn a hook ${off} (saved) or ${on} again`],
+        ["x", "remove a hook (undo: agentry fix --undo)"],
+      ],
+      Plugins: [
+        ["space", `${on}/${off} (applies to new sessions)`],
+        ["a", "install a plugin"],
+        ["x", "uninstall the plugin"],
+      ],
+      Rules: [
+        ["x", "remove the file (a copy is kept in the backups)"],
+        ["X", "delete the file (no copy kept)"],
+      ],
+      Agents: [["enter", "show details (read only; e opens the file)"]],
+      Catalog: [
+        [
+          "a",
+          `add the item; agents and MCP ask ${allProjects} or ${thisProject}`,
+        ],
+        ["u", "update an outdated item"],
+        ["x", `remove an ${added} item (a copy is kept in the backups)`],
+        ["X", `delete an ${added} item (no copy kept)`],
+        ["f", "fetch the latest catalog"],
+      ],
+      Doctor: [
+        ["enter", "preview a fix"],
+        ["u", "undo the last fix"],
+      ],
+      Backups: [
+        ["u", "restore a removed skill or an updated copy"],
+        ["X", "delete a backup (no copy kept)"],
+        ["d", "delete the backups 30+ days old"],
+      ],
+    } as Record<string, [string, string][]>,
+    legend: [
+      `● ${loaded} / active green, ○ ${notLoaded} / disabled gray, ◐ partial yellow.`,
+      "Cost: dim < 100, yellow < 500, red 500+. No colour: set NO_COLOR.",
+      "Plugin changes apply to new sessions (undo: agentry fix --undo).",
+    ] as string[],
+  },
+  // The dim status line under a list.
+  listStatus: {
+    marked: (n: number) => `${n} marked (space/x apply to all, esc clears)`,
+    filter: (query: string, shown: number, total: number) =>
+      `filter "${query}": ${shown} of ${total} (/ edit, esc clear)`,
   },
   skills: {
     notices: {
@@ -554,7 +605,7 @@ export const en = {
     },
     whyFixed: {
       project: `skill for ${thisProject} (this repo's .claude/skills): e opens it, m moves it to the ${library} or ${allProjects}`,
-      global: `skill for ${allProjects} (~/.claude/skills): m moves it to the ${library} or ${thisProject} only`,
+      global: `Folder in ~/.claude/skills, loaded in ${allProjects}. m moves it to the ${library} or ${thisProject} only.`,
       broken: "broken skill: see the Doctor tab",
       symlink: `skill for ${allProjects} is a symlink, not a folder: only folders move to the ${library}`,
     },
