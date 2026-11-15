@@ -70,7 +70,7 @@ cd scripts/image-gen-tools && bun install && bun run cover
 cd cli && npm install && npm test
 cd cli && npm run build && npm link
 
-# Shelf and setup checks (any folder once linked)
+# Library and setup checks (any folder once linked)
 agentry shelf list
 agentry plugin disable <name> --dry-run
 agentry status --json
@@ -110,7 +110,7 @@ claude -p "/image-artifact-setup"
 | `write-linkedin-post` | general |
 | `write-project-readme` | general |
 
-Each skill's bundle is set in `bundles.tsv`; the README lists them all. Every bundle is a shelf group in `~/.claude/skill-shelf/<group>/`, linked in with `agentry shelf on <group> [--global]`.
+Each skill's bundle is set in `bundles.tsv`; the README lists them all. Every bundle is a library bundle in `~/.claude/skill-shelf/<bundle>/`, linked in with `agentry shelf on <bundle> [--global]`.
 
 ## Conventions
 

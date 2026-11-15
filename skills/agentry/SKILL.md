@@ -26,4 +26,4 @@ The `agentry` CLI reports what a Claude session loads (skills, MCP servers, hook
    - Offer `agentry fix` (preview, backup, confirm, write, re-check) or `agentry scan --fix`. Run it only after the user agrees, and let it ask its own confirmation; add `--yes` only if the user asks.
    - `agentry fix --undo` restores the last backup.
    - For findings the CLI reports as having no fix, explain the finding and the `fix` text; do not edit settings JSON by hand to work around it.
-   - Turning shelf skills on or off: `agentry shelf on|off <group-or-skill>`.
+   - Loading library skills: `agentry shelf on|off <bundle-or-skill>`.

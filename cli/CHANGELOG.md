@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+- Words: the terminal UI, the web UI and the command help say the same thing the same way. **Library** (was shelf), **Bundle** (was group, and the catalog's bundle is the same thing), **this project** and **all projects** (was project, global and user scope), **loaded** and **not loaded** for skills (MCP servers, hooks and plugins keep on and off), **added** in the Catalog (plugins stay installed), and "move to the library" and "move out of the library" (was shelve and unshelve). The sidebar section that held Skills, MCP, Hooks, Plugins, Rules and Agents is now **Setup**.
+- Keys: each key means one thing on every tab. `*` marks a row and `esc` clears the marks (was `m` and `M`). `m` opens the Skills move menu with only the moves that apply (it replaces `s`, `a`, `o` and the unshelve `u` on Skills). `a` adds on Catalog, Plugins and MCP (Catalog agents and MCP servers ask all projects or this project; it replaces `i` and `o`). `x` removes with a copy kept, `X` deletes with no copy, also on Backups. `u` is named per tab: undo last fix, restore, update. A retired key shows one notice naming the new key. The web UI follows the same keys, and `g` now toggles a library skill for all projects there too.
+- Help: `?` shows only the current tab's keys, in the terminal UI and the web UI. A row that cannot be toggled says why in the status line and the details before any key is pressed.
+- Messages: all user-facing text of both UIs and the core previews lives in `@agentry/core/messages` (a `terms` glossary and typed messages, English only), and a guard test fails when new hard-coded text appears in the UI packages. This also makes a second language a new file, not a rewrite.
+- Compatibility: no command, flag, folder (`~/.claude/skill-shelf`) or JSON change except one added field: `agentry shelf status --json` links carry `bundle` next to `group`. `agentry --help` describes the shelf as a library of bundles.
+
 ## 0.5.0
 
 - Status: `agentry status` (and `--json`) gains a Copilot block with what GitHub Copilot loads for the folder: skills, instructions, hooks, MCP servers (secrets masked), agents, whether the folder is trusted, and `includeCoAuthoredBy`. `copilot` is `null` when `~/.copilot` is missing; the rest of the output is unchanged.

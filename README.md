@@ -43,11 +43,11 @@ Requirements: Node.js 24.15 or newer, plus Claude Code. Tools install at `@lates
 
 Copilot reads, per repo, the project `CLAUDE.md`, `.claude/rules`, `.claude/skills`, `.claude/agents`, `.mcp.json` and the hooks in `.claude/settings.json`. It does not read anything under `~/.claude`. The `copilot` part therefore mirrors the user-level pieces into `~/.copilot`: each rule in `rules/` becomes `instructions/<name>.instructions.md`, the trail hook goes to `hooks/`, and the context7 entry goes into `mcp-config.json`. The Claude files stay the source. Everything setup adds is recorded and backed up, and `uninstall` removes only what is still unchanged. The facts behind this are in [`cli/docs/copilot-config-sources.md`](cli/docs/copilot-config-sources.md). `agentry status` shows what Copilot loads for a folder, and `agentry doctor` flags Copilot problems (a hook that runs twice, a literal key in an MCP entry, the Co-authored-by trailer still on).
 
-Skills are not installed by setup. When it finishes, pick bundles with `agentry tui` (terminal UI) or `agentry ui` (web UI), or use `agentry catalog list`, `agentry catalog add <item>` and `agentry shelf on <group> [--global]`.
+Skills are not added by setup. When it finishes, pick bundles with `agentry tui` (terminal UI) or `agentry ui` (web UI), or use `agentry catalog list`, `agentry catalog add <item>` and `agentry shelf on <bundle> [--global]`.
 
 ### Bundles
 
-`bundles.tsv` tags each component with one topic bundle: `general`, `web`, `flutter`, `flutter-assets` or `mongodb`. A bundle is a topic, never a scope: pick global or project when you turn it on (`agentry shelf on <group> [--global]`). `node scripts/check-bundles.mjs` checks the file, and CI runs it.
+`bundles.tsv` tags each component with one topic bundle: `general`, `web`, `flutter`, `flutter-assets` or `mongodb`. A bundle is a topic, never a scope: pick all projects or this project when you load it (`agentry shelf on <bundle> [--global]`, or the scope in the UI). `node scripts/check-bundles.mjs` checks the file, and CI runs it.
 
 ### Manual copy
 
@@ -60,16 +60,14 @@ cp -r skills/run-fallow .claude/skills/
 
 The context7 MCP entry reads `CONTEXT7_API_KEY` from your shell environment (export it from your shell profile; the desktop app does not read shell rc files). Compare skill copies across projects with `node scripts/skill-drift.mjs`.
 
-### Skill shelf
+### Skill library
 
-Every installed skill puts its name and description in every session, and past the listing budget Claude Code drops
-descriptions, so rarely used skills crowd out the useful ones. Rarely used groups live in `~/.claude/skill-shelf/<group>/`
-instead (the five bundles, plus local groups such as `video`, `audit`, `design`, `dev-tools`) and are symlinked in when
-needed. Every bundle is a shelf group, so installs never copy them back. Turn one on with `agentry shelf on <group>`; every shelf command is in [cli/README.md](cli/README.md#command-reference).
+Every loaded skill puts its name and description in every session, and past the listing budget Claude Code drops
+descriptions, so rarely used skills crowd out the useful ones. Rarely used bundles live in `~/.claude/skill-shelf/<bundle>/` instead (the five topic bundles, plus local bundles such as `video`, `audit`, `design`, `dev-tools`) and are linked in when needed. Every bundle is in the library, so installs never copy them back. Load one with `agentry shelf on <bundle>`; every shelf command is in [cli/README.md](cli/README.md#command-reference).
 
 ### agentry CLI
 
-`agentry` is the TypeScript CLI in [`cli/`](cli/). It shows what a Claude Code session loads, manages MCP servers, hooks, plugins and the skill shelf, and has a terminal UI (`agentry tui`) and a local web UI (`agentry ui`). It needs Node.js 22 or newer.
+`agentry` is the TypeScript CLI in [`cli/`](cli/). It shows what a Claude Code session loads, manages MCP servers, hooks, plugins and the skill library, and has a terminal UI (`agentry tui`) and a local web UI (`agentry ui`). It needs Node.js 22 or newer.
 
 ```bash
 npm install -g @ersanyamarya/agentry-cli   # puts `agentry` on your PATH
@@ -140,7 +138,7 @@ Build steps, scripts, the catalog source and every command are in [cli/README.md
 |-------|-------------|
 | `shadcn` | Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI, including chat interfaces. |
 
-`image-artifact-setup` and `lighthouse-audit` are in `web`; `flutter-brand-icons`, `flutter-bundle-google-fonts`, `flutter-device-scripts-setup` and `flutter-store-assets` are in `flutter-assets`. Turn a bundle on with `agentry shelf on <group>` (see [Skill shelf](#skill-shelf)).
+`image-artifact-setup` and `lighthouse-audit` are in `web`; `flutter-brand-icons`, `flutter-bundle-google-fonts`, `flutter-device-scripts-setup` and `flutter-store-assets` are in `flutter-assets`. Load a bundle with `agentry shelf on <bundle>` (see [Skill library](#skill-library)).
 
 Skills tied to gentlemans-stack layers, generators and libs (Nx workspace and package linking, `api-endpoints`, `service-handler-tests`, `domain-repository-tests` and similar) live in that repo's `.claude/skills` and reach projects through its sync, not from here.
 

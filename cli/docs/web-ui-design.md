@@ -7,11 +7,11 @@ Design source: https://claude.ai/artifact/8vveH6tfBvzc3xQWgWoEMq (private canvas
 - **Local only.** `agentry ui` starts a server on `127.0.0.1`, prints the URL and opens the browser. No hosted version.
 - **Same logic as the TUI.** The web server calls `@agentry/core` (today's `src/lib`). Web and TUI never import each other.
 - **Sidebar, not top tabs.** Nine sections in three groups, in both the web UI and the TUI:
-  - Library: Skills, MCP, Hooks, Plugins, Rules, Agents
+  - Setup: Skills, MCP, Hooks, Plugins, Rules, Agents
   - Discover: Catalog
   - Health: Doctor, Backups
-- **Scope switcher** at the top of the sidebar: Global (`~/.claude`) or This project.
-- **Same keys everywhere.** `space` toggle, `s` shelve, `x` remove, `/` search, `?` help, `q` quit (TUI), `tab` moves focus between sidebar and list. On the web they show as `kbd` chips on the buttons and work as shortcuts.
+- **Scope switcher** at the top of the sidebar: All projects (`~/.claude`) or This project.
+- **Same keys everywhere.** `space` load or unload, `m` move, `*` mark, `x` remove, `X` delete, `/` search, `?` help, `q` quit (TUI), `tab` moves focus between sidebar and list. On the web they show as `kbd` chips on the buttons and work as shortcuts.
 - **Stack.** TanStack Start (Router + Query), React, Tailwind, shadcn components, oRPC contract between UI and server, Vitest + Testing Library, Biome/Ultracite. Mirrors `gentlemans-stack/apps/todo-ui`.
 
 ## Tokens (dark, shadcn zinc + green)
@@ -28,7 +28,7 @@ Design source: https://claude.ai/artifact/8vveH6tfBvzc3xQWgWoEMq (private canvas
 | body | `#d4d4d8` | paragraphs |
 | muted | `#a1a1aa` | secondary text |
 | dim | `#8e8e98` | labels, counts (4.5:1 on all surfaces; do not go darker) |
-| accent / on | `#4ade80` (badge bg `#14301f`) | on, global, passing |
+| accent / on | `#4ade80` (badge bg `#14301f`) | loaded, all projects, passing |
 | project / warn | `#fbbf24` (badge bg `#33280a`) | this project, warnings |
 | error | `#f87171` (badge bg `#3b1414`, border `#4a1d1d`) | errors, Remove |
 | cursor | `#38bdf8` | TUI cursor `›` |
@@ -40,10 +40,10 @@ Fonts: Inter (UI), JetBrains Mono (names, paths, keys, counts). Radii: 8px contr
 - **No containers, full width (decided 2026-11-12).** Content sits flat on the page background and uses the whole width next to the sidebar: no `max-width`, no bordered or filled cards around tables, lists, findings or the catalog. Structure comes from spacing and hairline dividers (`border-t` in `#1f1f23`), not boxes. The `card` token is for floating surfaces only (dialogs, sheets, popovers). Where this section below says "card", read "flat block". Padding is comfortable: 32px sides, 24px between blocks, rows at least 56px high.
 - **Shell:** 240px sidebar + fluid content (`max-w` none, 28/32px padding). Under 800px the sidebar stacks above the content.
 - **Sidebar:** brand (`agentry`, version), scope switcher, three labelled groups with counts, Doctor shows a red count pill, footer shows `● N problems` and a `?` hint. Active item: `#1c1c21` background, white text, `aria-current="page"`.
-- **List screens** (Skills, MCP, Hooks, Plugins, Rules, Backups): title + summary line, "Add" button, search input (`/`) + segmented filter, table (switch, name + one-line description, scope badge, bundle) with a key hint line below, and a details panel on the right (name, scope badge, description, path, scope segmented control, Shelve / Remove with key chips). The panel is a Sheet below 1100px.
+- **List screens** (Skills, MCP, Hooks, Plugins, Rules, Backups): title + summary line, "Add" button, search input (`/`) + segmented filter, table (switch, name + one-line description, scope badge, bundle) with a key hint line below, and a details panel on the right (name, scope badge, description, path, scope segmented control, Move / Remove with key chips). The panel is a Sheet below 1100px.
 - **Doctor:** three stat cards (errors, warnings, passing), then one card per finding: severity badge, title, area, explanation, the command that fixes it in a code box, and a primary "Fix it" button. Passing checks collapse into one row.
-- **Catalog:** search + bundle filter (All, general, web, flutter, flutter-assets, mongodb), responsive card grid (`minmax(280px, 1fr)`), each card: name, bundle badge, description, Install / Installed.
-- **TUI:** 232-column-wide left rail with the same groups and counts, list on the right with `›` cursor, `●` on, `◐` this project, `○` shelf, a description line for the selected row, and a keys bar at the bottom.
+- **Catalog:** search + bundle filter (All, general, web, flutter, flutter-assets, mongodb), responsive card grid (`minmax(280px, 1fr)`), each card: name, bundle badge, description, Add / Added.
+- **TUI:** 22-column left rail (16 columns from 70 wide, hidden below) with the same sections and counts, list on the right with `›` cursor, `●` loaded or on, `◐` partial, `○` not loaded or off, a description line for the selected row, and a keys bar at the bottom.
 
 ## Server and security
 

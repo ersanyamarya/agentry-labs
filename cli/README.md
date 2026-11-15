@@ -1,6 +1,6 @@
 # agentry
 
-`agentry` shows and manages what a Claude Code session loads: skills, MCP servers, hooks, plugins, and CLAUDE.md and rule files. It keeps a skill shelf, backs up every file it changes, installs items from the agentry-labs catalog, and opens a terminal UI with `agentry tui` or a local web UI with `agentry ui`.
+`agentry` shows and manages what a Claude Code session loads: skills, MCP servers, hooks, plugins, and CLAUDE.md and rule files. It keeps a skill library, backs up every file it changes, installs items from the agentry-labs catalog, and opens a terminal UI with `agentry tui` or a local web UI with `agentry ui`.
 
 It is written in strict TypeScript (ESM) and needs Node.js 22 or newer. It lives in this repo's `cli/` folder; the repo overview is in the [root README](../README.md).
 
@@ -73,18 +73,18 @@ Icons are Unicode by default.
 
 ## Command reference
 
-### Skill shelf, backups, scan, catalog and rules
+### Skill library, backups, scan, catalog and rules
 
 ```bash
-agentry shelf list                        # groups, the description tokens each costs when on, and where each is on
-agentry shelf status [--json]             # what is on in this project and globally, plus broken links
-agentry shelf on video audit/review       # several targets at once: a group, group/skill, or a skill name unique across groups
-agentry shelf on video --global           # ~/.claude/skills, every project (default: this project's .claude)
+agentry shelf list                        # bundles, the description tokens each costs when loaded, and where each is loaded
+agentry shelf status [--json]             # what is loaded in this project and in all projects, plus broken links
+agentry shelf on video audit/review       # several targets at once: a bundle, bundle/skill, or a skill name unique across bundles
+agentry shelf on video --global           # ~/.claude/skills, all projects (default: this project only)
 agentry shelf off video                   # remove those links
-agentry shelf off --all                   # remove every shelf link in this project (add --global for ~/.claude)
+agentry shelf off --all                   # unload every library link in this project (add --global for all projects)
 agentry shelf on audit --dry-run          # print the links and exclude lines it would change; write nothing
-agentry shelf shelve pdf docs             # move ~/.claude/skills/pdf onto the shelf as group docs
-agentry shelf unshelve pdf                # move it back to ~/.claude/skills
+agentry shelf shelve pdf docs             # move ~/.claude/skills/pdf into the library as bundle docs
+agentry shelf unshelve pdf                # move it back out of the library to ~/.claude/skills (all projects)
 agentry shelf promote my-skill            # move this project's .claude/skills/my-skill to ~/.claude/skills (every project)
 agentry shelf demote my-skill             # the reverse: ~/.claude/skills/my-skill into this project (add --dry-run to preview)
 agentry shelf remove docs/pdf             # delete it; a copy is kept in ~/.claude/backups/agentry/removed/<time>/
@@ -94,37 +94,31 @@ agentry backups restore <id> [--dry-run]  # move a removed skill or an updated c
 agentry backups prune --older-than 30 --kind removed --dry-run   # or --all; --kind fix|removed|updated; previewed, then asked (--yes for scripts)
 agentry backups delete <id>... [--yes]    # delete chosen backups; a fix set not yet undone can then not be undone
 agentry scan ~/ws --find-skill pdf        # every repo/worktree with .claude/skills/pdf, git-tracked ones marked; --global adds ~/.claude/skills (--remove-skill keeps a copy unless --no-backup)
-agentry scan ~/ws --remove-skill pdf --dry-run   # delete that folder from each (no copy; shelf links are skipped)
+agentry scan ~/ws --remove-skill pdf --dry-run   # delete that folder from each (no copy; library links are skipped)
 agentry catalog refresh                   # fetch the agentry-labs skill catalog (shallow git clone, cached)
-agentry catalog list [--json]             # skills, agents, rules, CLAUDE.md files and MCP servers (kind/name), where each is installed, "outdated" when it differs
-agentry catalog add run-fallow --group dev # a skill goes onto the shelf (off); never overwrites
+agentry catalog list [--json]             # skills, agents, rules, CLAUDE.md files and MCP servers (kind/name), where each is added, "outdated" when it differs
+agentry catalog add run-fallow --group dev # a skill goes into the library (not loaded); never overwrites
 agentry catalog add agent/super-planner [--project]   # agent -> ~/.claude/agents (or .claude/agents)
 agentry catalog add rule/context7          # rule -> ~/.claude/rules
 agentry catalog add claude-md/BASIC_CLAUDE # -> ./CLAUDE.md, refused when the project has one
 agentry catalog add mcp/trail --project --dry-run   # through `mcp add`: masked preview, backup, undo (--yes to apply)
 agentry catalog update --all --dry-run     # or <item>...; lists every file it overwrites, saves the old copy under backups/updated/, asks (--yes for scripts)
-agentry catalog remove agent/super-planner [--project]   # delete an installed agent; a copy is kept under backups/removed/ (--no-backup, --dry-run, --yes)
-agentry agents list [--json]               # agents installed for you and this project, with model and listing cost
+agentry catalog remove agent/super-planner [--project]   # delete an added agent; a copy is kept under backups/removed/ (--no-backup, --dry-run, --yes)
+agentry agents list [--json]               # agents added for you and this project, with model and listing cost
 agentry rules list [--json]                # CLAUDE.md and rule files loaded here, with tokens
 agentry rules remove CLAUDE.md [--dry-run] [--no-backup]   # delete one; a copy is kept in the backups
 ```
 
-`list` estimates each group's cost as the frontmatter `description` of its skills and agents, at about four characters
-per token: what the group adds to every session once it is on. Project links are listed in `.git/info/exclude` (the
-shared one in a worktree), so they never show as untracked. `shelve` refuses to overwrite a folder, and both `shelve`
-and `unshelve` refuse while a link to the skill exists; run `off` first.
+`list` estimates each bundle's cost as the frontmatter `description` of its skills and agents, at about four characters per token: what the bundle adds to every session once it is loaded. Project links are listed in `.git/info/exclude` (the shared one in a worktree), so they never show as untracked. `shelve` refuses to overwrite a folder, and both `shelve` and `unshelve` refuse while a link to the skill exists; run `off` first.
 
-A group's agents sit in `~/.claude/skill-shelf/<group>/agents/*.md` (the `audit` group carries `slop-auditor-analyst`) and
-are linked into `.claude/agents` with its skills. Claude Code watches skill folders, so a running session picks skills up;
-start a new session if a linked agent doesn't show. To shelve another group, move its skill folders (and agents) into a new
-`~/.claude/skill-shelf/<group>/`. Leave `~/.claude/skills/synced/` alone: claude.ai manages it.
+A bundle's agents sit in `~/.claude/skill-shelf/<bundle>/agents/*.md` (the `audit` bundle carries `slop-auditor-analyst`) and are linked into `.claude/agents` with its skills. Claude Code watches skill folders, so a running session picks skills up; start a new session if a linked agent doesn't show. To add another bundle, move its skill folders (and agents) into a new `~/.claude/skill-shelf/<bundle>/`. Leave `~/.claude/skills/synced/` alone: claude.ai manages it.
 
 ### agentry CLI
 
 ```bash
 agentry --help                 # commands and options
-agentry shelf list             # shelf groups, their token cost and whether each is on
-agentry shelf on video         # also: off <group>, off --all, shelve, unshelve; --global for ~/.claude, --dry-run to preview
+agentry shelf list             # library bundles, their token cost and whether each is loaded
+agentry shelf on video         # also: off <bundle>, off --all, shelve, unshelve; --global for all projects, --dry-run to preview
 agentry mcp disable context7   # park a user-scope MCP server (also: enable, list-parked; --dry-run, --yes); undo with agentry fix --undo
 agentry mcp disable plugin:context-mode:context-mode   # plugin, project (.mcp.json) and local servers: off for this project only (disabledMcpServers)
 agentry mcp add files --command npx --arg=-y --arg @scope/files --env FILES_TOKEN=abc   # add a server (--url U --header K:V for http; --scope user|project; --dry-run, --yes)
@@ -143,7 +137,7 @@ agentry ui                     # web UI on 127.0.0.1 (see agentry ui below)
 
 ### agentry ui
 
-`agentry ui` serves a local web UI for the same things the terminal UI does: Skills, MCP, Hooks, Plugins, Rules, Agents, Catalog, Doctor and Backups, in a sidebar with the same three groups. Run it from the project folder:
+`agentry ui` serves a local web UI for the same things the terminal UI does: Skills, MCP, Hooks, Plugins, Rules, Agents, Catalog, Doctor and Backups, in a sidebar with the same three sections. Run it from the project folder:
 
 ```bash
 agentry ui                       # picks a free port, prints a URL with a one-time token, opens your browser
@@ -152,7 +146,7 @@ agentry ui --no-open --port 4200 # print the URL only, on a port you choose
 
 It is a local tool and stays one. The server listens on `127.0.0.1` only. The printed URL carries a random token that is swapped for an `HttpOnly`, `SameSite=Strict` cookie on the first visit (and removed from the address bar); every other request needs that cookie, a wrong `Host` is refused, and a write from another origin is refused. Stop it with Ctrl-C.
 
-Every change goes through the same backup-first functions as the terminal UI. A change that has a preview shows it first and writes nothing until you press Apply (`y`; `n` cancels). Removals keep a copy that Backups can restore. Secrets in MCP servers and hook commands are masked before they reach the browser. The keys match the terminal UI: `↑ ↓` move, `space` turns the row on or off in the scope picked in the sidebar (Global or This project), `s` shelve, `x` remove, `/` search, `?` help.
+Every change goes through the same backup-first functions as the terminal UI. A change that has a preview shows it first and writes nothing until you press Apply (`y`; `n` cancels). Removals keep a copy that Backups can restore. Secrets in MCP servers and hook commands are masked before they reach the browser. The keys match the terminal UI: `↑ ↓` move, `space` loads or unloads the selected skill for this project, `g` for all projects, `m` move, `*` mark, `esc` clears the marks, `x` remove, `X` delete, `/` search, `?` help.
 
 ### agentry tui
 
@@ -160,80 +154,85 @@ Every change goes through the same backup-first functions as the terminal UI. A 
 
 Start it from the project folder with `agentry tui`, or type a bare `agentry` in a terminal. It needs a terminal: without one it prints a message and exits `2`. The `p` picker switches to another repo (current repo, recent repos, then repos under the scan roots).
 
-- **Sidebar:** a left rail with three groups: Library (Skills, MCP, Hooks, Plugins, Rules, Agents), Discover (Catalog) and Health (Doctor, Backups), each with its count. The rail also holds the project path, the skill-description tokens every session pays, and the problems found. It is 22 columns wide from 90 columns, 16 from 70, and below that a one-line section header replaces it. `tab` moves the keys between the rail and the list: on the rail, `↑`/`↓` pick a section and `enter` goes back to the list. A details pane beside the list shows the selected row; the footer lists only the keys that work on the selected row, then `tab sidebar` and `? help` on the right; every other key is in help.
+- **Sidebar:** a left rail with three sections: Setup (Skills, MCP, Hooks, Plugins, Rules, Agents), Discover (Catalog) and Health (Doctor, Backups), each with its count. The rail also holds the project path, the skill-description tokens every session pays, and the problems found. It is 22 columns wide from 90 columns, 16 from 70, and below that a one-line section header replaces it. `tab` moves the keys between the rail and the list: on the rail, `↑`/`↓` pick a section and `enter` goes back to the list. A details pane beside the list shows the selected row; the footer lists only the keys that work on the selected row, then `tab sidebar` and `? help` on the right; every other key is in help.
 - **Copying:** on any preview or result, `c` copies its text (refusals and errors included) to the system clipboard (`pbcopy`, `clip`, `wl-copy` or `xclip`; otherwise the terminal's OSC 52 escape).
-- **Changes it can make** (all except the plain shelf toggle are previewed first and wait for `y`):
-  - **Skills, shelf:** Each shelf row has two columns, **Project** (this project) and **Global**, each `● on`, `○ off` or `◐ partial`. `space` toggles the Project column of the selected row and `g` toggles the Global column; there is no mode to switch. Same as `agentry shelf on|off [--global]`.
-  - **Skills, shelving:** `s` on a global skill (a real folder under `~/.claude/skills`) asks for a shelf group (`↑/↓` and `enter`, or `n` to type a new name), previews the move, and `y` runs `agentry shelf shelve`. Afterwards the skill sits under Shelf, off, and toggles with `space`. `u` on a shelved skill moves it back (`agentry shelf unshelve`). Both refuse to overwrite, and to move a skill that is still linked.
-  - **Skills, scope moves:** `a` on a project-only skill (This project only) previews moving the folder to `~/.claude/skills` so every project loads it; `o` on a global skill folder previews moving it into this project only. `y` moves it (no copy kept); both refuse links and never overwrite. Same as `agentry shelf promote|demote <skill>`.
-  - **Plugins, install:** `i` on the Plugins tab asks for `name@marketplace` (the marketplace must already be added to claude), then a scope, previews the `claude plugin install` command and the settings file it backs up; `x` previews `claude plugin uninstall` (a scope pick when it is installed at several). Same as `agentry plugin install|uninstall`. `fix --undo` restores the settings file only; the cache and `installed_plugins.json` stay as claude left them.
+- **Changes it can make** (all except loading and unloading a skill are previewed first and wait for `y`):
+  - **Skills, loading:** each Skills row has two state columns, **This project** and **All projects**, each `● loaded`, `○ not loaded` or `◐ partial`. `space` loads or unloads the selected skill for this project, `g` for all projects. Same as `agentry shelf on|off [--global]`.
+  - **Skills, moving:** `m` opens a short menu for the row: All projects (`~/.claude/skills`), This project only, or the Library. Moving into the Library asks for a bundle (`↑/↓` and `enter`, or `n` to type a new name); the skill then sits there, not loaded, until `space`. `y` runs the move; both refuse to overwrite and refuse a skill that is still linked. Same as `agentry shelf shelve|unshelve|promote|demote`. The retired `s`, `a`, `o` and `u` keys show a notice that names `m`.
+  - **Plugins, add:** `a` on the Plugins tab asks for `name@marketplace` (the marketplace must already be added to claude), then a scope, and previews the `claude plugin install` command and the settings file it backs up; `x` previews `claude plugin uninstall` (a scope pick when it is installed at several). Same as `agentry plugin install|uninstall`. `fix --undo` restores the settings file only; the cache and `installed_plugins.json` stay as claude left them.
   - **Plugins:** `space` on a plugin row (Plugins tab) or a `plugin:*` row (Skills tab) previews the `enabledPlugins` edit as a diff; `y` writes it with a backup. Same as `agentry plugin enable|disable`, and `agentry fix --undo` restores it. It applies to new sessions only.
   - **Doctor:** `enter` previews a fix as a diff. `y` applies it through the same engine as the CLI, with a backup first. `u` previews undoing the last fix set, and `y` restores it.
-  - **MCP:** `space` on a user-scope server previews turning it off (its config is saved, then `claude mcp remove --scope user` runs, with a backup of `~/.claude.json`); turned-off servers stay in the list as `○ off`, and `space` adds them back with `claude mcp add-json`. Same as `agentry mcp disable|enable <name>`, `agentry mcp list-parked`. The saved configs live in `~/.claude/agentry/parked-mcp.json` (mode 0600), with their secrets, exactly as exposed as `~/.claude.json`. Plugin, project `.mcp.json` and desktop servers say who manages them instead.
-  - **MCP, add and edit:** `a` opens an add form (name, command or url, env or headers, user or project scope) ending in a masked preview; `y` runs `claude mcp add-json` (user) or edits `.mcp.json` (project). Typed env and header values show as `****`. `s` on a user server edits its env (`KEY=VALUE` sets, `-KEY` removes) and args (replaces them), as a text edit of `~/.claude.json`. Same as `agentry mcp add|set`; the form splits on spaces, so arguments with spaces need the CLI.
+  - **MCP:** `space` on a server for all projects previews turning it off (its config is saved, then `claude mcp remove --scope user` runs, with a backup of `~/.claude.json`); turned-off servers stay in the list as `○ off`, and `space` adds them back with `claude mcp add-json`. Same as `agentry mcp disable|enable <name>`, `agentry mcp list-parked`. The saved configs live in `~/.claude/agentry/parked-mcp.json` (mode 0600), with their secrets, exactly as exposed as `~/.claude.json`. Plugin, project `.mcp.json` and desktop servers say who manages them instead.
+  - **MCP, add and edit:** `a` opens an add form (name, command or url, env or headers, all projects or this project) ending in a masked preview; `y` runs `claude mcp add-json` (all projects) or edits `.mcp.json` (this project). Typed env and header values show as `****`. `s` on a server for all projects edits its env (`KEY=VALUE` sets, `-KEY` removes) and args (replaces them), as a text edit of `~/.claude.json`. Same as `agentry mcp add|set`; the form splits on spaces, so arguments with spaces need the CLI.
   - **Hooks:** `space` on a hook from user, project or local settings previews turning it off: the entry moves out of the settings file into `~/.claude/agentry/parked-hooks.json` (mode 0600, raw command, so as sensitive as the settings file) and shows as `○ off`; `space` again puts it back in the same event and matcher group. `x` deletes it. Plugin hooks say the plugin manages them. Backed up, undo with `agentry fix --undo`; same as `agentry hook disable|enable|remove <id>` (ids come from `agentry hook list`: a hash of event, matcher and command).
-  - **Skills, removing:** `x` on a shelved skill, a global skill folder or a project-only skill folder (`agentry shelf remove <skill> --project` on the CLI) previews the delete, saying whether a copy is kept; `y` copies the folder to `~/.claude/backups/agentry/removed/<time>/` and removes it (same as `agentry shelf remove`). `X` does the same but keeps no copy (`--no-backup`). It refuses while the skill is linked into a project.
-  - **Backups:** the tab lists the fix sets, removed-skill copies and updated copies with size and age. `u` previews moving a removed skill or an updated copy back (it never overwrites), `x` previews deleting the selected backup, `d` previews deleting every backup 30 or more days old; `y` applies, `c` copies the preview. Same as `agentry backups restore|delete|prune`. Deleting a fix set that is not undone yet ends `agentry fix --undo` for it, and the preview says so.
-  - **Catalog:** `f` fetches the agentry-labs repo (a shallow git clone under `~/.claude/cache/agentry/catalog`; the only network use), then the tab lists its skills by bundle, then agents, rules, CLAUDE.md files and MCP servers, with where each is installed. `i` previews and `y` installs the selected item: a skill onto the shelf under its bundle name (off; turn it on from the Skills tab), an agent into `~/.claude/agents`, a rule into `~/.claude/rules`, a CLAUDE.md file as the project's `CLAUDE.md` (refused when it has one), an MCP server through the MCP add path (masked preview, backup, undo). `o` does the same for an agent or MCP server in this project only. `outdated` marks an installed skill, agent, rule or CLAUDE.md file whose files differ from the cached clone, and an MCP server whose catalog entry differs from yours; `u` previews each file it would overwrite or add (files only in your copy are kept) and `y` replaces them after saving the current copy under `~/.claude/backups/agentry/updated/`. Without a local edit you cannot tell an upstream change from your own edit, so the preview says every overwritten file loses local changes. `x` removes an installed skill, agent or rule (a copy goes to the backups). Same as `agentry catalog`.
+  - **Skills, removing:** `x` on a library skill, an all-projects skill folder or a this-project-only skill folder (`agentry shelf remove <skill> --project` on the CLI) previews the delete, saying whether a copy is kept; `y` copies the folder to `~/.claude/backups/agentry/removed/<time>/` and removes it (same as `agentry shelf remove`). `X` does the same but keeps no copy (`--no-backup`). It refuses while the skill is linked into a project.
+  - **Backups:** the tab lists the fix sets, removed-skill copies and updated copies with size and age. `u` previews moving a removed skill or an updated copy back (it never overwrites), `X` previews deleting the selected backup, `d` previews deleting every backup 30 or more days old; `y` applies, `c` copies the preview. Pressing `x` shows a notice to use `X`. Same as `agentry backups restore|delete|prune`. Deleting a fix set that is not undone yet ends `agentry fix --undo` for it, and the preview says so.
+  - **Catalog:** `f` fetches the agentry-labs repo (a shallow git clone under `~/.claude/cache/agentry/catalog`; the only network use), then the tab lists its skills by bundle, then agents, rules, CLAUDE.md files and MCP servers, with where each is added. `a` previews and `y` adds the selected item: a skill into the Library under its bundle (not loaded; load it from the Skills tab), a rule into `~/.claude/rules`, a CLAUDE.md file as the project's `CLAUDE.md` (refused when it has one), or an agent or MCP server after a scope pick (all projects or this project); an MCP server goes through the MCP add path (masked preview, backup, undo). `outdated` marks an added skill, agent, rule or CLAUDE.md file whose files differ from the cached clone, and an MCP server whose catalog entry differs from yours; `u` previews each file it would overwrite or add (files only in your copy are kept) and `y` replaces them after saving the current copy under `~/.claude/backups/agentry/updated/`. Without a local edit you cannot tell an upstream change from your own edit, so the preview says every overwritten file loses local changes. `x` removes an added skill, agent or rule (a copy goes to the backups). `i` and `o` show a notice to use `a`. Same as `agentry catalog`.
   - **Agents:** the subagents Claude Code can start, from `~/.claude/agents` and the project's `.claude/agents`, with model, tools and the cost of their name and description. Read-only: `e` opens the file; add or remove agents from the Catalog tab. Agents that plugins ship are not listed yet.
   - **Rules:** the CLAUDE.md and rule files Claude Code loads every session: `~/.claude/CLAUDE.md`, `~/.claude/rules/**/*.md`, the project's `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md` and `.claude/rules/**/*.md`, with the token cost of the whole file. `e` opens one; `x` previews removing it (a copy goes to the backups, so the Backups tab restores it) and `y` confirms; `X` keeps no copy. Same as `agentry rules`.
-- **Rows that cannot be toggled** say why in the status line and the details: global skills ("press s to move it onto the shelf"), project skills ("files live in the repo") and symlinked or broken skills.
+- **Rows that cannot be toggled** say why in the status line and the details: all-projects skills ("press m to move it"), project skills ("files live in the repo") and symlinked or broken skills.
 - **Hooks** list what loads and its source file, with secrets masked. `e` opens a source file in `$EDITOR`.
 
-State is one mark per row: `●` on or active green, `○` off or disabled gray (the whole row dim), `◐` partial yellow. The word is in the details pane. Colour is off when `NO_COLOR` is set; then the mark stays, a `STATE` column adds the word, the active section keeps its `>` marker and Doctor reads `2 err`, so nothing depends on colour. Token cost is dim under 100, yellow under 500, red from 500; the active section is cyan and bold, and Doctor's count is red when it holds errors; kind glyphs (`✦ ⇄ ⚑ ⬡`, or Nerd Font ones with `AGENTRY_ICONS=nerd`) appear only on Doctor and Catalog rows, where kinds mix, never in the sidebar; scope tags `global` cyan, `project` magenta, `plugin` blue, `shelf` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
+State is one mark per row: `●` loaded or on (active green), `○` not loaded or off (disabled gray, the whole row dim), `◐` partial yellow. The word is in the details pane. Colour is off when `NO_COLOR` is set; then the mark stays, a `STATE` column adds the word, the active section keeps its `>` marker and Doctor reads `2 err`, so nothing depends on colour. Token cost is dim under 100, yellow under 500, red from 500; the active section is cyan and bold, and Doctor's count is red when it holds errors; kind glyphs (`✦ ⇄ ⚑ ⬡`, or Nerd Font ones with `AGENTRY_ICONS=nerd`) appear only on Doctor and Catalog rows, where kinds mix, never in the sidebar; scope tags `all projects` cyan, `this project` magenta, `plugin` blue, `library` yellow; Doctor `✖` error red, `▲` warning yellow, `ℹ` info blue; the selected row is inverse with a `>`.
+
+Shared by every tab:
 
 | Key | Action |
 |---|---|
-| tab | move the keys between the sidebar and the list |
+| tab | move focus between the sidebar and the list |
 | ← / →, 1-9 | switch section (1-9 follow the sidebar order) |
 | ↑ / ↓ | move between rows |
-| enter | details, expand a group, preview a fix |
-| space | Skills: shelf row on/off for this project; plugin rows: on/off; MCP, Hooks: turn off (saved) / add back |
-| a | MCP: add a server (user or project scope) |
-| g | Skills: shelf row on/off globally |
-| s | Skills: move a global or project-only skill onto the shelf (CLI: `shelf shelve <skill> <group> [--project]`); MCP: edit env/args of a user server |
-| a | Skills: move a project-only skill to ~/.claude/skills (all projects) |
-| o | Skills: move a global skill into this project only; Catalog: add an agent or MCP server to this project only |
-| u | Skills: unshelve a skill; Doctor: undo the last fix set; Backups: restore a removed skill or updated copy; Catalog: update an outdated item (skill, agent, rule, CLAUDE.md, MCP server) |
-| x | Skills: remove a skill, keeping a copy in the backups; Catalog: remove an installed skill, agent or rule (a copy is kept in the backups); Rules: remove a file; Backups: delete a backup; MCP, Hooks: remove; Plugins: uninstall |
-| X | Skills, Catalog, Rules: remove and keep no copy |
-| d | Backups: delete the backups 30+ days old |
-| i | Catalog: add the selected skill (to the shelf, off), agent, rule, CLAUDE.md or MCP server; Plugins: install a plugin |
-| f | Catalog: fetch or update the agentry-labs catalog |
-| / | search the rows of the current tab: type, enter keeps it, esc clears it (q and tab keys are text while typing) |
-| m / M | mark or unmark the selected row / clear marks; space, g, x, X, i, u then apply to all marked rows, one preview, one y |
+| / | search the rows (enter keeps it, esc clears it) |
+| * | mark or unmark the row; the next key applies to all marked rows (one preview, one y) |
+| esc | clear the search, or the marks |
 | e | open the selected row's file in $EDITOR |
-| y / n | confirm or cancel a previewed change; c copies the preview |
+| y / n | apply or cancel a previewed change; c copies the preview |
 | r | refresh |
 | p | switch project |
-| ? | this help |
+| ? | this tab's keys, then the shared keys |
 | q | quit |
 
-Press `?` in the UI to see the same table. Layout: from 110 columns of list (132 with the sidebar) the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its Project/Global badges are never cut (a long name is shortened with `…` in the middle instead). The path in the sidebar is cut in the middle to fit, a list taller than its box ends in `↓ N more`, and the footer is one line that drops `tab sidebar`, then trailing row keys, before it drops `? help`. `/` filters the rows of any tab; `m` marks rows (shown with `*`, counted under the list) so one space or `x` previews and applies to all of them at once. The last Skills row, Token total, breaks the description tokens down into global, this project and plugins. Screenshot below is a plain-text capture of the Skills section at 122 columns, with two shelf groups marked (colours are lost in text; not an image), with the home folder shown as `~`:
+Per tab (the footer shows the keys that apply to the selected row):
+
+| Tab | Keys |
+|---|---|
+| Skills | `space` load or unload here · `g` load or unload for all projects · `m` move (all projects, this project only, or the Library) · `x` remove (copy kept) · `X` delete (no copy) · `enter` expand a bundle, show details |
+| MCP | `a` add a server (all projects or this project) · `space` turn off (saved) or add back · `s` edit env and args of a server for all projects · `x` remove (undo: `agentry fix --undo`) |
+| Hooks | `space` turn off (saved) or on again · `x` remove (undo: `agentry fix --undo`) |
+| Plugins | `a` install · `space` on or off (new sessions) · `x` uninstall |
+| Rules | `e` open · `x` remove the file (copy kept) · `X` delete (no copy) |
+| Agents | `e` open the file (read only) |
+| Catalog | `f` fetch the catalog · `a` add (agents and MCP servers ask all projects or this project) · `u` update an outdated item · `x` remove an added item (copy kept) · `X` delete (no copy) |
+| Doctor | `enter` preview a fix · `u` undo the last fix set |
+| Backups | `u` restore a removed skill or updated copy · `X` delete a backup (no copy kept) · `d` delete backups 30+ days old |
+
+Retired keys (`s`, `a`, `o`, `u` on Skills; `i`, `o` on Catalog; `x` on Backups) show a one-line notice that names the new key.
+
+Press `?` to see the current tab's keys, then the shared keys. The web UI uses the same letters on Skills (`space`, `g`, `m`, `*`, `esc`, `x`, `X`) and `u` on Doctor. Layout: from 110 columns of list (132 with the sidebar) the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its Project/Global badges are never cut (a long name is shortened with `…` in the middle instead). The path in the sidebar is cut in the middle to fit, a list taller than its box ends in `↓ N more`, and the footer is one line that drops `tab sidebar`, then trailing row keys, before it drops `? help`. `/` filters the rows of any tab; `*` marks rows (counted under the list) so one key (`space`, `g`, `x`, `X` or `u`) previews and applies to all of them at once. The last Skills row, Token total, breaks the description tokens down into all projects, this project and plugins. Sketch below shows the Skills section at about 122 columns, hand-updated to the current labels (not a capture), with two bundles marked (colours are lost in text; not an image), with the home folder shown as `~`:
 
 ```text
-agentry              │ Shelf                                                       Skills      Cost    Project     Global
-~/ws/aryan…ntry-labs │*▸ audit                                                     7 skills   ~1078          ○          ○
-~1k tokens           │>▸ design                                                    2 skills    ~296          ○          ○
-                     │ ▸ dev-tools                                                 1 skills    ~103          ○          ○
-LIBRARY              │ ▸ flutter-assets                                            4 skills    ~606          ○          ○
-› Skills          24 │ ▸ general                                                   0 skills      ~0          ○          ○
-  MCP              4 │ ▸ video                                                     28 skills  ~3001          ○          ○
-  Hooks            0 │ ▸ web-audit                                                 1 skills    ~135          ○          ○
+agentry              │ Library                                                     Skills      Cost   This project  All projects
+~/ws/aryan…ntry-labs │*▸ audit                                                     7 skills   ~1078          ○             ○
+~1k tokens           │>▸ design                                                    2 skills    ~296          ○             ○
+                     │ ▸ dev-tools                                                 1 skills    ~103          ○             ○
+SETUP                │ ▸ flutter-assets                                            4 skills    ~606          ○             ○
+› Skills          24 │ ▸ general                                                   0 skills      ~0          ○             ○
+  MCP              4 │ ▸ video                                                     28 skills  ~3001          ○             ○
+  Hooks            0 │ ▸ web-audit                                                 1 skills    ~135          ○             ○
   Plugins          5 │
-  Rules            6 │Global skills
+  Rules            6 │All projects skills
   Agents           2 │
-                     │   humanize-and-unslop                                                    ~44                     ●
-DISCOVER             │   run-fallow                                                            ~158                     ●
+                     │   humanize-and-unslop                                                    ~44                       ●
+DISCOVER             │   run-fallow                                                            ~158                       ●
   Catalog         28 │  ↓ 17 more
-                     │ 2 marked (space/x apply to all, M clears)
+                     │ 2 marked (space, g, x, X or u apply to all; esc clears)
 HEALTH               │
   Doctor           0 │────────────────────────────────────────────────────────────────────────────────────────────────────
   Backups          0 │Details
-                     │shelf group: design (opt-in)
-● no problems        │this project: ○ off     global: ○ off
+                     │bundle: design (not loaded)
+● no problems        │this project: ○ not loaded     all projects: ○ not loaded
 ? help  tab focus    │contains: 2 skills
-                     │cost when on: ~296 tokens
-                     │toggle: space = this project, g = global; enter expands
-                     │space project   g global   enter expand                                             tab sidebar   ? help
+                     │cost when loaded: ~296 tokens
+                     │toggle: space = this project, g = all projects; enter expands
+                     │space loaded/not loaded   g all projects   enter expand                    tab sidebar   ? help
 ```

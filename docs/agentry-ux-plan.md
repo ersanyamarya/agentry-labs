@@ -223,10 +223,10 @@ nothing stale. Nothing is published.
 
 | Done | Task | Model |
 |---|---|---|
-| [ ] | `cli/README.md` and `cli/CLAUDE.md`: TUI and web sections use the glossary and the Keymap table (one key table per tab, `*` marks, `m` move), mention `@agentry/core/messages` and the guard tests in the layout and conventions; command docs keep `agentry shelf`, `--global`, `--group` with "library", "bundle", "all projects" in descriptions. Both files carry Copilot edits: ask the user before editing. | haiku-5-5 |
-| [ ] | Root `README.md` and `CLAUDE.md` (Copilot edits: ask first), `cli/docs/web-ui-design.md` (scope switcher, state legend, keys bar), and `skills/agentry/SKILL.md` line 29 ("Turning shelf skills on or off" → "Loading library skills": the command stays `agentry shelf on`/`off`). No README cover regeneration: title, tagline and components do not change. | haiku-5-5 |
-| [ ] | `cli/CHANGELOG.md`: add `## 0.6.0` above 0.5.0 with the new words (glossary summary), the new keys (`a`, `x`/`X`, `u` names, `m` move, `*` mark, per-tab help, why-not hints), the messages module, and "no JSON, flag or folder changes" (plus the `bundle` alias if added). Bump `"version"` to `0.6.0` in `cli/package.json` and `cli/package-lock.json` (both carry Copilot edits: ask first). Do not run `npm publish`. | haiku-5-5 |
-| [ ] | Full run: every check in this phase's "Done when", a manual pass of `agentry` (all nine sections, `?` on each) and `agentry ui`, then log the result in the Decisions log. | sonnet-5-5 |
+| [x] | `cli/README.md` and `cli/CLAUDE.md`: TUI and web sections use the glossary and the Keymap table (one key table per tab, `*` marks, `m` move), mention `@agentry/core/messages` and the guard tests in the layout and conventions; command docs keep `agentry shelf`, `--global`, `--group` with "library", "bundle", "all projects" in descriptions. Both files carry Copilot edits: ask the user before editing. | haiku-5-5 |
+| [x] | Root `README.md` and `CLAUDE.md` (Copilot edits: ask first), `cli/docs/web-ui-design.md` (scope switcher, state legend, keys bar), and `skills/agentry/SKILL.md` line 29 ("Turning shelf skills on or off" → "Loading library skills": the command stays `agentry shelf on`/`off`). No README cover regeneration: title, tagline and components do not change. | haiku-5-5 |
+| [x] | `cli/CHANGELOG.md`: add `## 0.6.0` above 0.5.0 with the new words (glossary summary), the new keys (`a`, `x`/`X`, `u` names, `m` move, `*` mark, per-tab help, why-not hints), the messages module, and "no JSON, flag or folder changes" (plus the `bundle` alias if added). Bump `"version"` to `0.6.0` in `cli/package.json` and `cli/package-lock.json` (both carry Copilot edits: ask first). Do not run `npm publish`. | haiku-5-5 |
+| [x] | Full run: every check in this phase's "Done when", a manual pass of `agentry` (all nine sections, `?` on each) and `agentry ui`, then log the result in the Decisions log. | sonnet-5-5 |
 
 ## Out of scope
 
@@ -242,6 +242,7 @@ nothing stale. Nothing is published.
 
 | Date | Decision |
 |---|---|
+| 2026-11-15 | Phase 4 done: the Copilot work was committed first (three commits) so the docs edits sit on a clean tree; 0.6.0 follows the unpublished 0.5.0 (Copilot) as its own changelog entry; npm still has 0.4.0 and nothing was published. Full run green: check, typecheck, 650 tests, pack:check, scripts tests (48), setup test under both bashes (134), trail-autobuild, check-bundles. A pty pass of the TUI help screen on Skills showed the per-tab keys; a pass of `agentry ui` was not done beyond pack:check's serve test. |
 | 2026-11-15 | Decision 1 as defaulted: `*` marks, `esc` clears marks, `m` opens the Skills move menu; retired `s`, `a`, `o`, `u` show one "press m" notice. |
 | 2026-11-15 | Phase 2 decisions: sidebar heading "Library" -> "Setup"; Skills state and SCOPE columns widened to 12 (tui-widths and tui-layout still pass); `bundle` added next to `group` in `shelf status --json` links (there is no `shelf list --json`); no `--bundle` flag; MCP core text still says "user-scope" where it names the `--scope user` value. |
 | 2026-11-15 | Phase 1 slips: the skeleton commit also carried the staged deletion of `rules/commit-attribution.md`, and the web commit carried the one-line Copilot change in `web/src/contract/load.ts`. Both were already intended work; later tasks stage by explicit path. |
