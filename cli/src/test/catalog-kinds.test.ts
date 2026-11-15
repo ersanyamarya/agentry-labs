@@ -116,9 +116,9 @@ describe("catalog kinds", () => {
       "no raw config in the JSON"
     );
     const { stdout } = catalog("list");
-    assert.match(stdout, /^web +alpha +~ *\d+ +not installed$/m);
-    assert.match(stdout, /^general +agent\/helper +~ *\d+ +not installed$/m);
-    assert.match(stdout, /^general +mcp\/docs +- +not installed$/m);
+    assert.match(stdout, /^web +alpha +~ *\d+ +not added$/m);
+    assert.match(stdout, /^general +agent\/helper +~ *\d+ +not added$/m);
+    assert.match(stdout, /^general +mcp\/docs +- +not added$/m);
   });
 
   test("agents: dry run, user and project targets, never overwrites", () => {
@@ -376,14 +376,14 @@ describe("catalog update", () => {
     assert.equal(missing.status, 1);
     assert.match(
       missing.stderr,
-      /not installed; agentry catalog add agent\/helper/
+      /not added; agentry catalog add agent\/helper/
     );
     const mcp = catalog("update", "mcp/docs");
     assert.equal(mcp.status, 1);
-    assert.match(mcp.stderr, /mcp\/docs is not installed/);
+    assert.match(mcp.stderr, /mcp\/docs is not added/);
     assert.match(
       catalog("update", "--all").stdout,
-      /Everything installed is up to date/
+      /Everything added is up to date/
     );
     assert.equal(catalog("update").status, 2);
     assert.equal(catalog("update", "alpha", "--yes", "--dry-run").status, 2);
@@ -526,7 +526,7 @@ describe("catalog remove agent", () => {
     );
     const again = catalog("remove", "agent/helper", "--project", "--yes");
     assert.equal(again.status, 1);
-    assert.match(again.stderr, /not installed in this project/);
+    assert.match(again.stderr, /not added in this project/);
     const skill = catalog("remove", "skill/alpha", "--yes");
     assert.equal(skill.status, 1);
     assert.match(skill.stderr, /agentry shelf remove/);
@@ -651,7 +651,7 @@ describe("catalog update: CLAUDE.md files and MCP servers", () => {
     assert.doesNotMatch(catalog("list").stdout, /outdated/);
     assert.match(
       catalog("update", "--all").stdout,
-      /Everything installed is up to date/
+      /Everything added is up to date/
     );
     userServers({
       tool: {

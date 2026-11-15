@@ -74,16 +74,17 @@ export const isOn = (row: SkillRow, scope: Scope) =>
 const m = messages();
 
 export const scopeLabel = (row: SkillRow) => {
+  const t = m.web.skills.scope;
   if (row.kind === "plugin") {
-    return m.web.skills.scope.plugin;
+    return t.plugin;
   }
   if (row.global && row.project) {
-    return m.web.skills.scope.globalAndProject;
+    return t.globalAndProject;
   }
   if (row.global) {
-    return m.skills.headers.global;
+    return t.global;
   }
-  return row.project ? m.core.scopeTitle.project : m.skills.headers.shelf;
+  return row.project ? t.project : t.library;
 };
 
 // "group:<name>" shows one shelf group.

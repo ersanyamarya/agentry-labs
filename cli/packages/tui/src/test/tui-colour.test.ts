@@ -101,7 +101,7 @@ describe("rows carry the styles", () => {
     };
     const off = {
       text: "○",
-      plain: "○ off",
+      plain: "○ not loaded",
       style: { color: "gray", bold: true },
     };
     assert.deepEqual(
@@ -114,7 +114,7 @@ describe("rows carry the styles", () => {
     );
     const on = {
       text: "●",
-      plain: "● on",
+      plain: "● loaded",
       style: { color: "green", bold: true },
     };
     assert.deepEqual(
@@ -195,10 +195,10 @@ describe("rendered with real escape codes", () => {
     await ui.ready();
     await ui.press(KEYS.enter);
     assert.doesNotMatch(ui.frame()!, COLOUR_CODE);
-    assert.match(stripAnsi(ui.frame()!), /off/);
+    assert.match(stripAnsi(ui.frame()!), /not loaded/);
     assert.match(
       stripAnsi(ui.frame()!),
-      /video\s+2 skills\s+~\d+\s+o off\s+o off/
+      /video\s+2 skills\s+~\d+\s+o not loaded\s+o not loaded/
     );
     await ui.press("8");
     await ui.until(/\[fake-bad\]/);

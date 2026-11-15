@@ -37,7 +37,7 @@ describe("copyText", () => {
 });
 
 describe("c copies a preview or a result", () => {
-  test("on the shelve refusal preview and on the result after applying", async () => {
+  test("on the library refusal preview and on the result after applying", async () => {
     const copied: string[] = [];
     ui = createUi({
       personal: ["notes"],
@@ -52,13 +52,13 @@ describe("c copies a preview or a result", () => {
     await ui.ready();
     await ui.moveTo(/^>\s+notes/);
     await ui.press("s", KEYS.enter);
-    await ui.until(/Shelve preview/);
+    await ui.until(/Move to the library: preview/);
     assert.match(ui.frame()!, /Apply\?\s+y yes\s+n no\s+c copy/);
     await ui.press("c");
     await ui.until(/Copied to the clipboard/);
-    assert.match(copied[0], /would shelve notes/);
+    assert.match(copied[0], /would move notes/);
     await ui.press("y");
-    await ui.until(/Shelved notes/);
+    await ui.until(/Moved notes/);
     await ui.press("c");
     await ui.until(/Copied to the clipboard/);
     assert.equal(copied.length, 2);

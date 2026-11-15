@@ -15,6 +15,7 @@ import {
   SEVERITY,
   scopeStyle,
   seg,
+  skillBadgeText,
   stateMark,
   stateStyle,
 } from "./theme.js";
@@ -48,7 +49,7 @@ const markSeg = (state: string) => {
   const { mark, style } = stateMark(state);
   return mark === " "
     ? badge(state)
-    : { ...seg(mark, { ...style, bold: true }), plain: badgeText(state) };
+    : { ...seg(mark, { ...style, bold: true }), plain: skillBadgeText(state) };
 };
 const scopeBadge = (scope: string) =>
   seg(SCOPE_NAMES[scope] ?? scope, scopeStyle(scope));
@@ -77,6 +78,9 @@ const withCells = (cells: Cell[]) => ({
     .join("  ")
     .trim(),
 });
+// Wide enough for "all projects" (the scope badge) and the "This project" / "All projects" headers.
+const STATE_WIDTH = 12;
+const SCOPE_WIDTH = 12;
 // Skills tab: count, cost, then two state columns (P and G for shelf rows; scope and state for plugin skills).
 const skillCells = (
   info: string | Seg,
@@ -87,8 +91,8 @@ const skillCells = (
   withCells([
     cell(typeof info === "string" ? (info ? seg(info, DIM) : []) : info, 9),
     cell(cost(count), 5, "right"),
-    cell(first ?? [], 9, "right"),
-    cell(second ?? [], 9, "right"),
+    cell(first ?? [], STATE_WIDTH, "right"),
+    cell(second ?? [], STATE_WIDTH, "right"),
   ]);
 
 // The footer keys of the selected Skills row: only what works on it. [key, text, short text].
@@ -150,7 +154,7 @@ const groupState = (
 const skillDetails = (skill: Skill) => [
   S.detail.skill(skill.name),
   S.detail.scope(SCOPE_NAMES[skill.scope] ?? skill.scope, skill.plugin),
-  D.state(badgeText(skill.state)),
+  D.state(skillBadgeText(skill.state)),
   S.detail.tokensDescription(tokens(skill.tokens)),
   D.source(skill.source),
   ...(skill.target ? [S.detail.linksTo(skill.target)] : []),
@@ -207,8 +211,8 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
       withCells([
         cell(seg(S.headers.skills, DIM), 9),
         cell(seg(S.headers.cost, DIM), 5, "right"),
-        cell(seg(S.headers.project, DIM), 9, "right"),
-        cell(seg(S.headers.global, DIM), 9, "right"),
+        cell(seg(S.headers.project, DIM), STATE_WIDTH, "right"),
+        cell(seg(S.headers.global, DIM), STATE_WIDTH, "right"),
       ])
     ),
   ];
@@ -243,8 +247,8 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
       globalOn: group.items.some((item) => item.global),
       details: [
         S.group.title(group.name),
-        S.group.thisProject(badgeText(pState)),
-        S.group.allProjects(badgeText(gState)),
+        S.group.thisProject(skillBadgeText(pState)),
+        S.group.allProjects(skillBadgeText(gState)),
         S.group.contains(skills.length, agents),
         S.group.cost(tokens(group.tokens)),
         D.toggle(S.group.toggle),
@@ -272,8 +276,8 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
           details: [
             S.item.title(isSkill, item.name),
             S.item.bundle(group.name),
-            S.group.thisProject(badgeText(itemState(item, "project"))),
-            S.group.allProjects(badgeText(itemState(item, "global"))),
+            S.group.thisProject(skillBadgeText(itemState(item, "project"))),
+            S.group.allProjects(skillBadgeText(itemState(item, "global"))),
             D.tokens(tokens(item.tokens)),
             D.source(item.source),
             D.toggle(isSkill ? S.item.toggleSkill : S.item.toggleAgent),
@@ -304,8 +308,16 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
     ...withCells([
       cell([], 9),
       cell(cost(skill.tokens), 5, "right"),
-      cell(skill.scope === "project" ? markSeg(skill.state) : [], 9, "right"),
-      cell(skill.scope === "project" ? [] : markSeg(skill.state), 9, "right"),
+      cell(
+        skill.scope === "project" ? markSeg(skill.state) : [],
+        STATE_WIDTH,
+        "right"
+      ),
+      cell(
+        skill.scope === "project" ? [] : markSeg(skill.state),
+        STATE_WIDTH,
+        "right"
+      ),
     ]),
     details: [...skillDetails(skill), D.toggle(whyFixed(skill))],
     file: skill.kind === "broken" ? undefined : `${skill.source}/SKILL.md`,
@@ -331,7 +343,7 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
       ),
       details: [
         P.detail.plugin(plugin.id),
-        D.state(badgeText(plugin.state)),
+        D.state(skillBadgeText(plugin.state)),
         S.plugin.skills(
           mine.map((skill) => skill.name.split(":").pop()).join(", ")
         ),
@@ -435,7 +447,7 @@ const installedCell = (item: CatalogEntry) =>
           }),
           plain: item.outdated ? C.outdatedPlain : "●",
         },
-        seg(` ${item.installed}`),
+        seg(` ${C.item.where(item.installed)}`),
       ]
     : { ...seg("○", DIM), plain: C.notInstalledPlain };
 
@@ -460,7 +472,7 @@ const catalogRow = (item: CatalogEntry, icons: Icons): Row => {
       `item: ${item.id}`,
       C.item.bundle(item.bundle),
       installed
-        ? C.item.installed(Boolean(item.outdated), installed)
+        ? C.item.installed(Boolean(item.outdated), C.item.where(installed))
         : C.item.notInstalled,
       ...(item.outdated ? [C.item.outdated] : []),
       D.tokens(
@@ -755,7 +767,7 @@ export const mcpRows = (data: Data): Row[] => [
   ...(data.status.mcp.servers.length > 0 || data.parked?.length
     ? [
         columns("h:cols", X.columns.server, [
-          [COL.scope, 8],
+          [COL.scope, SCOPE_WIDTH],
           [X.columns.transport, 9],
           ["", 16],
         ]),
@@ -786,7 +798,7 @@ export const mcpRows = (data: Data): Row[] => [
         : { why: MCP_WHY[server.scope] }),
       state: server.state,
       ...withCells([
-        cell(scopeBadge(server.scope), 8),
+        cell(scopeBadge(server.scope), SCOPE_WIDTH),
         cell(seg(server.transport, DIM), 9),
         cell(unmarked(server.state), 16),
       ]),
@@ -818,7 +830,7 @@ export const mcpRows = (data: Data): Row[] => [
     mcpEnable: true,
     state: "off",
     ...withCells([
-      cell(scopeBadge("user"), 8),
+      cell(scopeBadge("user"), SCOPE_WIDTH),
       cell(seg("-", DIM), 9),
       cell([], 16),
     ]),
@@ -839,7 +851,7 @@ export const hookRows = (data: Data): Row[] => [
   ...(data.status.hooks.items.length > 0 || data.parkedHooks?.length
     ? [
         columns("h:cols", H.columns.eventMatcher, [
-          [COL.scope, 8],
+          [COL.scope, SCOPE_WIDTH],
           ["", 10],
         ]),
       ]
@@ -854,7 +866,7 @@ export const hookRows = (data: Data): Row[] => [
         : { why: HOOK_WHY }),
       state: hook.state,
       ...withCells([
-        cell(scopeBadge(hook.scope), 8),
+        cell(scopeBadge(hook.scope), SCOPE_WIDTH),
         cell(unmarked(hook.state), 10),
       ]),
       file: hook.source,
@@ -879,7 +891,7 @@ export const hookRows = (data: Data): Row[] => [
     hookScope: hook.scope,
     hookOff: true,
     state: "off",
-    ...withCells([cell(scopeBadge(hook.scope), 8), cell([], 10)]),
+    ...withCells([cell(scopeBadge(hook.scope), SCOPE_WIDTH), cell([], 10)]),
     file: hook.source,
     details: [
       H.detail.id(hook.id),
@@ -908,7 +920,7 @@ export const pluginRows = (data: Data): Row[] => [
   ...(data.status.plugins.items.length > 0
     ? [
         columns("h:cols", P.columns.plugin, [
-          [COL.scope, 8],
+          [COL.scope, SCOPE_WIDTH],
           [P.columns.version, 8],
           ["", 10],
         ]),
@@ -925,7 +937,10 @@ export const pluginRows = (data: Data): Row[] => [
       enabled: plugin.state === "active",
       label: plugin.id,
       ...withCells([
-        cell(plugin.installScope ? scopeBadge(plugin.installScope) : [], 8),
+        cell(
+          plugin.installScope ? scopeBadge(plugin.installScope) : [],
+          SCOPE_WIDTH
+        ),
         cell(seg(plugin.version ?? "", DIM), 8),
         cell(unmarked(plugin.state), 10),
       ]),

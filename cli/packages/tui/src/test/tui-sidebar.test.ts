@@ -59,11 +59,11 @@ describe("the rail", () => {
     assert.equal(sidebarWidth(69), 0);
   });
 
-  test("it draws the group labels, the items and their counts in order", () => {
+  test("it draws the section labels, the items and their counts in order", () => {
     const frame = stripAnsi(drawn(true, DOCTOR));
     assert.match(
       frame,
-      /LIBRARY[\s\S]*Skills\s+12[\s\S]*MCP[\s\S]*Hooks[\s\S]*Plugins[\s\S]*Rules[\s\S]*Agents[\s\S]*DISCOVER[\s\S]*Catalog[\s\S]*HEALTH[\s\S]*› Doctor\s+3[\s\S]*Backups/
+      /SETUP[\s\S]*Skills\s+12[\s\S]*MCP[\s\S]*Hooks[\s\S]*Plugins[\s\S]*Rules[\s\S]*Agents[\s\S]*DISCOVER[\s\S]*Catalog[\s\S]*HEALTH[\s\S]*› Doctor\s+3[\s\S]*Backups/
     );
     assert.match(frame, /● 3 problems/);
   });

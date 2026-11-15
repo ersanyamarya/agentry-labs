@@ -52,23 +52,23 @@ describe("Catalog tab", () => {
     assert.match(ui.rail(), /Catalog\s+2/);
   });
 
-  test("i previews and y adds the skill to the shelf, off; it then shows where it is", async () => {
+  test("i previews and y adds the skill to the library, not loaded; it then shows where it is", async () => {
     await ui.press("7", "f");
     await ui.until(/web bundle/);
     await ui.moveTo(/^>\s+\S\s+alpha/);
     await ui.press("i");
-    await ui.until(/Add alpha to the shelf \(preview\)/);
-    assert.match(ui.frame()!, /would add alpha to shelf group web/);
+    await ui.until(/Add alpha to the library \(preview\)/);
+    assert.match(ui.frame()!, /would add alpha to library bundle web/);
     assert.ok(
       !existsSync(join(ui.fx.configDir, "skill-shelf/web")),
       "a preview copies nothing"
     );
     await ui.press("y");
-    await ui.until(/Added alpha to the shelf, off/);
+    await ui.until(/Added alpha to the library, not loaded/);
     assert.ok(
       existsSync(join(ui.fx.configDir, "skill-shelf/web/alpha/SKILL.md"))
     );
-    await ui.until(/alpha\s+~\d+\s+● shelf\/web/);
+    await ui.until(/alpha\s+~\d+\s+● library\/web/);
   });
 
   test("x on an installed skill previews, y deletes it and keeps a copy", async () => {
@@ -78,7 +78,7 @@ describe("Catalog tab", () => {
     await ui.press("i");
     await ui.until(/Add alpha/);
     await ui.press("y");
-    await ui.until(/alpha\s+~\d+\s+● shelf\/web/);
+    await ui.until(/alpha\s+~\d+\s+● library\/web/);
     await ui.press("x");
     await ui.until(/Remove web\/alpha \(preview\)/);
     await ui.press("y");
@@ -97,7 +97,7 @@ describe("remove from the Skills tab", () => {
     await ui.moveTo(/^>\s+notes/);
     assert.match(ui.frame()!, /x remove/);
     await ui.press("x");
-    await ui.until(/Remove notes \(global\) \(preview\)/);
+    await ui.until(/Remove notes \(all projects\) \(preview\)/);
     await ui.press("n");
     await ui.until(/Cancelled/);
     assert.ok(existsSync(join(ui.fx.configDir, "skills/notes")));
@@ -108,9 +108,9 @@ describe("remove from the Skills tab", () => {
     assert.ok(!existsSync(join(ui.fx.configDir, "skills/notes")));
   });
 
-  test("x on a shelved skill removes it from the shelf; on a group row it explains", async () => {
+  test("x on a shelved skill removes it from the library; on a bundle row it explains", async () => {
     await ui.press("x");
-    await ui.until(/x removes a shelved, global or project-only skill folder/);
+    await ui.until(/x removes a skill folder from the library, all proj/);
     await ui.moveTo(/^>.* video/);
     await ui.press(KEYS.enter);
     await ui.moveTo(/^>\s+trim/);

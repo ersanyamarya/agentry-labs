@@ -52,8 +52,8 @@ describe("catalog", () => {
   test("refresh clones, list groups skills by bundle and shows where each is installed", () => {
     assert.equal(catalog("refresh").status, 0);
     const { stdout } = catalog("list");
-    assert.match(stdout, /^extras +loose +~ *\d+ +not installed$/m);
-    assert.match(stdout, /^web +alpha +~ *\d+ +not installed$/m);
+    assert.match(stdout, /^extras +loose +~ *\d+ +not added$/m);
+    assert.match(stdout, /^web +alpha +~ *\d+ +not added$/m);
     const json = JSON.parse(catalog("list", "--json").stdout);
     assert.deepEqual(
       json.map((skill: Record<string, any>) => [skill.name, skill.bundle]),
@@ -69,12 +69,15 @@ describe("catalog", () => {
     catalog("refresh");
     assert.match(
       catalog("add", "alpha", "--dry-run").stdout,
-      /would add alpha to shelf group web/
+      /would add alpha to library bundle web/
     );
     assert.equal(existsSync(join(fx.configDir, "skill-shelf/web")), false);
     const added = catalog("add", "alpha", "loose", "--group", "mine");
     assert.equal(added.status, 0);
-    assert.match(added.stdout, /added alpha to shelf group mine \(off\)/);
+    assert.match(
+      added.stdout,
+      /added alpha to library bundle mine \(not loaded\)/
+    );
     assert.equal(
       existsSync(join(fx.configDir, "skill-shelf/mine/alpha/SKILL.md")),
       true
@@ -82,7 +85,7 @@ describe("catalog", () => {
     assert.match(fx.run(["shelf", "list"]).stdout, /mine +2 skills/);
     const again = catalog("add", "alpha");
     assert.equal(again.status, 1);
-    assert.match(again.stderr, /already installed \(shelf\/mine\)/);
+    assert.match(again.stderr, /already added \(shelf\/mine\)/);
     assert.match(catalog("list").stdout, /alpha +~ *\d+ +shelf\/mine/);
   });
 
@@ -94,7 +97,7 @@ describe("catalog", () => {
     );
     assert.match(
       catalog("add", "alpha", "--group", "a/b").stderr,
-      /Not a usable group name/
+      /Not a usable bundle name/
     );
   });
 
@@ -158,6 +161,6 @@ describe("shelf remove", () => {
     assert.equal(existsSync(join(fx.configDir, "skills/mine")), false);
     const group = fx.run(["shelf", "remove", "video"]);
     assert.equal(group.status, 2);
-    assert.match(group.stderr, /is a group/);
+    assert.match(group.stderr, /is a bundle/);
   });
 });

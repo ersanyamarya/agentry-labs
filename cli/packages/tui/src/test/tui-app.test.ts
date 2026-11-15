@@ -30,7 +30,7 @@ describe("navigation", () => {
     await ui.press(KEYS.right);
     await ui.until(/server: demo/);
     await ui.press(KEYS.left);
-    await ui.until(/Shelf\s+Skills/);
+    await ui.until(/Library\s+Skills/);
     await ui.press("8");
     await ui.until(/warnings?, \d+ info|errors, \d+ warnings/);
     assert.match(ui.frame()!, /\[fake-bad\]/);
@@ -40,9 +40,9 @@ describe("navigation", () => {
     assert.match(ui.frame()!, />▸ audit/);
     await ui.press(KEYS.down);
     assert.match(ui.frame()!, />▸ video/);
-    assert.match(ui.frame()!, /shelf group: video/);
+    assert.match(ui.frame()!, /library bundle: video/);
     await ui.press(KEYS.up);
-    assert.match(ui.frame()!, /shelf group: audit/);
+    assert.match(ui.frame()!, /library bundle: audit/);
   });
 
   test("? opens the key map and esc closes it", async () => {
@@ -50,7 +50,7 @@ describe("navigation", () => {
     await ui.until(/Keys \(\? or esc to close\)/);
     assert.match(ui.frame()!, /switch project/);
     await ui.press(KEYS.esc);
-    await ui.until(/Shelf\s+Skills/);
+    await ui.until(/Library\s+Skills/);
     assert.doesNotMatch(ui.frame()!, /Keys \(/);
   });
 
@@ -79,7 +79,7 @@ describe("skills tab", () => {
     assert.match(ui.frame()!, /video\s+2 skills\s+~10\s+○\s+○/);
   });
 
-  test("space toggles a row in this project, G toggles it globally, and enter expands the group", async () => {
+  test("space toggles a row in this project, g toggles it for all projects, and enter expands the bundle", async () => {
     await ui.press(KEYS.down, KEYS.enter);
     await ui.until(/trim/);
     await ui.press(KEYS.down, KEYS.down, KEYS.space);
@@ -87,14 +87,14 @@ describe("skills tab", () => {
     assert.ok(
       lstatSync(join(ui.fx.repo, ".claude/skills/trim")).isSymbolicLink()
     );
-    await ui.until(/trim\s+shelf\s+~10\s+●\s+○/);
+    await ui.until(/trim\s+library\s+~10\s+●\s+○/);
     await ui.press(KEYS.space);
     await ui.until(/video\/trim off in/);
     assert.ok(!existsSync(join(ui.fx.repo, ".claude/skills/trim")));
 
     await ui.press("g");
     await ui.until(/video\/trim on in/);
-    await ui.until(/trim\s+shelf\s+~10\s+○\s+●/);
+    await ui.until(/trim\s+library\s+~10\s+○\s+●/);
     assert.ok(lstatSync(join(ui.fx.configDir, "skills/trim")).isSymbolicLink());
     assert.ok(!existsSync(join(ui.fx.repo, ".claude/skills/trim")));
   });

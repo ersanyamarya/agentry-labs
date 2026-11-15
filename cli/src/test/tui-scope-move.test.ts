@@ -46,16 +46,16 @@ describe("move skills between project and global scope", () => {
     assert.ok(existsSync(join(globalProj(), "SKILL.md")));
   });
 
-  test("s shelves a project-only skill: pick a group, preview, y moves it onto the shelf", async () => {
+  test("s moves a skill for this project only to the library: pick a bundle, preview, y moves it", async () => {
     await ui.moveTo(/^>\s+proj/);
-    assert.match(ui.frame()!, /\bs shelve\b/);
+    assert.match(ui.frame()!, /\bs move to the library\b/);
     await ui.press("s");
-    await ui.until(/Shelve proj: choose a group/);
+    await ui.until(/Move proj to the library: choose a bundle/);
     await ui.press(KEYS.enter);
-    await ui.until(/would shelve proj into audit/);
+    await ui.until(/would move proj into the library bundle audit/);
     assert.ok(existsSync(projectProj()), "a preview moves nothing");
     await ui.press("y");
-    await ui.until(/Shelved proj into audit/);
+    await ui.until(/Moved proj into the library bundle audit/);
     assert.ok(!existsSync(projectProj()));
     assert.ok(
       existsSync(join(ui.fx.configDir, "skill-shelf/audit/proj/SKILL.md"))
@@ -79,9 +79,9 @@ describe("move skills between project and global scope", () => {
   test("a and o on a row they do not fit say what they are for", async () => {
     await ui.moveTo(/^>\s+notes/);
     await ui.press("a");
-    await ui.until(/a moves a project-only skill/);
+    await ui.until(/a moves a skill for this project only/);
     await ui.moveTo(/^>\s+proj/);
     await ui.press("o");
-    await ui.until(/o moves a global skill into this project only/);
+    await ui.until(/o moves a skill for all projects into this project only/);
   });
 });

@@ -61,12 +61,12 @@ describe("Plugins tab: enable and disable", () => {
     assert.equal(settings(), ON.replace("true", "false"));
     assert.equal(backups().length, 1);
     await ui.until(/demo@mkt disabled\. Applies to new sessions/);
-    await ui.until(/○\s+demo@mkt\s+(global\s+)?1\.0\.0/);
+    await ui.until(/○\s+demo@mkt\s+(all projects\s+)?1\.0\.0/);
 
     await ui.press(KEYS.space);
     await ui.until(/Enable demo@mkt \(preview\)/);
     await ui.press("y");
-    await ui.until(/●\s+demo@mkt\s+(global\s+)?1\.0\.0/);
+    await ui.until(/●\s+demo@mkt\s+(all projects\s+)?1\.0\.0/);
     assert.equal(settings(), ON);
     assert.equal(backups().length, 2);
   });
@@ -75,11 +75,11 @@ describe("Plugins tab: enable and disable", () => {
     await ui.press(KEYS.space);
     await ui.until(/Disable demo@mkt/);
     await ui.press("y");
-    await ui.until(/○\s+demo@mkt\s+(global\s+)?1\.0\.0/);
+    await ui.until(/○\s+demo@mkt\s+(all projects\s+)?1\.0\.0/);
     assert.equal(ui.fx.run(["fix", "--undo", "--yes"]).status, 0);
     assert.equal(settings(), ON);
     await ui.press("r");
-    await ui.until(/●\s+demo@mkt\s+(global\s+)?1\.0\.0/);
+    await ui.until(/●\s+demo@mkt\s+(all projects\s+)?1\.0\.0/);
   });
 
   test("a plugin that managed settings control is refused in the preview and y writes nothing", async () => {
@@ -119,6 +119,6 @@ describe("NO_COLOR", () => {
     await ui.ready();
     await ui.press("4");
     await ui.until(/PLUGIN\s+SCOPE\s+VERSION\s+STATE/);
-    await ui.until(/\*\s+demo@mkt\s+global\s+1\.0\.0\s+active/);
+    await ui.until(/\*\s+demo@mkt\s+all projects\s+1\.0\.0\s+active/);
   });
 });

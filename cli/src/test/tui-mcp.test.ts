@@ -62,18 +62,18 @@ describe("MCP tab: park and add back user-scope servers", () => {
     await ui.press("y");
     await ui.until(/userdemo is turned off/);
     assert.equal(servers().userdemo, undefined);
-    await ui.until(/○\s+userdemo\s+global/);
+    await ui.until(/○\s+userdemo\s+all projects/);
     assert.doesNotMatch(ui.frame()!, new RegExp(SECRET));
 
     await ui.press(KEYS.up);
-    await ui.moveTo(/^>○\s+userdemo\s+global/);
+    await ui.moveTo(/^>○\s+userdemo\s+all projects/);
     await ui.until(/adds it back/);
     await ui.press(KEYS.space);
     await ui.until(/Add back userdemo \(preview\)/);
     await ui.press("y");
     await ui.until(/userdemo is back in user scope/);
     assert.deepEqual(servers().userdemo, USER_SERVER);
-    await ui.until(/●\s+userdemo\s+global/);
+    await ui.until(/●\s+userdemo\s+all projects/);
   });
 
   test("a project .mcp.json server is turned off for this project from the tab", async () => {

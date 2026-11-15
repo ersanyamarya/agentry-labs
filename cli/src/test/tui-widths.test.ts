@@ -47,7 +47,7 @@ for (const cols of [80, 100, 130]) {
       }
     });
 
-    test("Skills: P and G badges are whole on every shelf row; the long name is cut in the middle, not the badges", async () => {
+    test("Skills: This project and All projects badges are whole on every library row; the long name is cut in the middle, not the badges", async () => {
       ui = createUi({
         personal: ["a-rather-long-personal-skill-name-for-the-test"],
         fit: true,
@@ -59,7 +59,7 @@ for (const cols of [80, 100, 130]) {
       for (const line of shelf) {
         assert.match(line, /○\s+○/);
       }
-      assert.doesNotMatch(ui.frame()!, /[PG] [●○◐] \w*…/);
+      assert.doesNotMatch(ui.frame()!, /(project|projects) [●○◐] \w*…/);
     });
 
     test("header summary and footer fit on one line each, with the counts first when short", async () => {
@@ -171,7 +171,7 @@ describe("80x24, in colour and without", () => {
     assert.doesNotMatch(stripAnsi(ui.frame()!), /\d+\/\d+\s*$/m);
     assert.match(
       stripAnsi(ui.frame()!),
-      /this project: ○ off {5}global: ○ off/
+      /this project: ○ not loaded {5}all projects: ○ not loaded/
     );
   });
 });

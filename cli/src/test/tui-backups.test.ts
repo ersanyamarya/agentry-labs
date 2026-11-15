@@ -19,7 +19,7 @@ afterEach(() => ui?.stop());
 const removeNotes = async (key = "x") => {
   await ui.moveTo(/^>\s+notes/);
   await ui.press(key);
-  await ui.until(/Remove notes \(global\) \(preview\)/);
+  await ui.until(/Remove notes \(all projects\) \(preview\)/);
 };
 
 describe("remove with and without a copy", () => {

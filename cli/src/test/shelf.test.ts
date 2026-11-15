@@ -103,7 +103,7 @@ describe("shelf on", () => {
     const { stdout, stderr } = fx.run(["shelf", "on", "video"]);
     assert.match(
       stderr,
-      /skip trim: .* already exists and is not a shelf link/
+      /skip trim: .* already exists and is not a library link/
     );
     assert.match(stdout, /: 2 of 3 changed\./);
   });
@@ -113,7 +113,7 @@ describe("shelf on", () => {
     assert.equal(status, 1);
     assert.match(
       stderr,
-      /No group "nope" in .*skill-shelf\. Groups: audit, video/
+      /No bundle "nope" in .*skill-shelf\. Bundles: audit, video/
     );
   });
 
@@ -209,7 +209,7 @@ describe("shelf targets", () => {
     assert.equal(status, 2);
     assert.match(
       stderr,
-      /"trim" is in several groups: audio\/trim, video\/trim/
+      /"trim" is in several bundles: audio\/trim, video\/trim/
     );
     assert.ok(!existsSync(join(fx.repo, ".claude")));
   });
@@ -217,7 +217,7 @@ describe("shelf targets", () => {
   test("an unknown target exits 1 before anything is linked", () => {
     const { status, stderr } = fx.run(["shelf", "on", "audit", "video/nope"]);
     assert.equal(status, 1);
-    assert.match(stderr, /No skill "nope" in group "video"/);
+    assert.match(stderr, /No skill "nope" in bundle "video"/);
     assert.ok(!existsSync(join(fx.repo, ".claude")));
   });
 });
@@ -258,6 +258,9 @@ describe("shelf status", () => {
       ),
       ["video/skills/ffmpeg-install", "video/agents/editor.md"]
     );
+    for (const link of result.project.links) {
+      assert.equal(link.bundle, link.group);
+    }
     assert.equal(result.project.broken.length, 1);
     assert.deepEqual(Object.keys(result.project.broken[0]), [
       "kind",
@@ -312,7 +315,7 @@ describe("shelf shelve / unshelve", () => {
     globalSkill("trim");
     const { status, stderr } = fx.run(["shelf", "shelve", "trim", "other"]);
     assert.equal(status, 1);
-    assert.match(stderr, /A shelf link named trim exists/);
+    assert.match(stderr, /A library link named trim exists/);
     assert.ok(existsSync(join(fx.configDir, "skills/trim")));
   });
 
@@ -348,7 +351,7 @@ describe("shelf off --all", () => {
     assert.equal(status, 0);
     assert.equal(
       stdout,
-      `all off in ${join(fx.repo, ".claude")}: 4 of 4 changed.\n`
+      `all unloaded in ${join(fx.repo, ".claude")}: 4 of 4 changed.\n`
     );
     for (const path of [
       ".claude/skills/trim",
@@ -392,7 +395,7 @@ describe("shelf off --all", () => {
     fx.run(["shelf", "on", "video"]);
     fx.run(["shelf", "on", "audit", "--global"]);
     const { stdout } = fx.run(["shelf", "off", "--all", "--global"]);
-    assert.equal(stdout, `all off in ${fx.configDir}: 1 of 1 changed.\n`);
+    assert.equal(stdout, `all unloaded in ${fx.configDir}: 1 of 1 changed.\n`);
     assert.ok(!linkExists(join(fx.configDir, "skills/review")));
     assert.ok(existsSync(join(fx.repo, ".claude/skills/trim")));
   });
@@ -400,7 +403,7 @@ describe("shelf off --all", () => {
   test("with nothing linked changes nothing and exits 0", () => {
     assert.equal(
       fx.run(["shelf", "off", "--all"]).stdout,
-      `all off in ${join(fx.repo, ".claude")}: 0 of 0 changed.\n`
+      `all unloaded in ${join(fx.repo, ".claude")}: 0 of 0 changed.\n`
     );
   });
 
@@ -464,7 +467,7 @@ describe("--dry-run", () => {
     );
     assert.match(
       fx.run(["shelf", "off", "--all", "--dry-run"]).stdout,
-      /all off in .*: 4 of 4 would change\.\n/
+      /all unloaded in .*: 4 of 4 would change\.\n/
     );
     assert.equal(snapshot(fx.root), before);
   });
@@ -480,7 +483,7 @@ describe("--dry-run", () => {
   test("still reports unknown targets and exits 1", () => {
     const { status, stderr } = fx.run(["shelf", "on", "nope", "--dry-run"]);
     assert.equal(status, 1);
-    assert.match(stderr, /No group "nope"/);
+    assert.match(stderr, /No bundle "nope"/);
   });
 
   test("shelve and unshelve show the move and leave both folders alone", () => {
@@ -490,7 +493,7 @@ describe("--dry-run", () => {
     assert.equal(shelved.status, 0);
     assert.match(
       shelved.stdout,
-      /would shelve pdf into docs: .*skills\/pdf -> .*skill-shelf\/docs\/pdf/
+      /would move pdf into the library bundle docs: .*skills\/pdf -> .*skill-shelf\/docs\/pdf/
     );
     assert.equal(snapshot(fx.root), before);
 
@@ -498,7 +501,7 @@ describe("--dry-run", () => {
     const beforeUnshelve = snapshot(fx.root);
     const unshelved = fx.run(["shelf", "unshelve", "pdf", "--dry-run"]);
     assert.equal(unshelved.status, 0);
-    assert.match(unshelved.stdout, /would unshelve docs\/pdf/);
+    assert.match(unshelved.stdout, /would move docs\/pdf out of the library/);
     assert.equal(snapshot(fx.root), beforeUnshelve);
   });
 

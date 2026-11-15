@@ -12,7 +12,11 @@ import type { Seg, Style } from "./types.js";
 const {
   core: { scopeNames },
   doctor: { headings },
+  terms,
 } = messages();
+// The first word of a skill state: "loaded", and "not" for "not loaded".
+const LOADED = terms.loaded;
+const [NOT_LOADED = ""] = terms.notLoaded.split(" ");
 
 export const seg = (text: string, style?: Style): Seg => ({
   text,
@@ -74,6 +78,8 @@ const STATES: Record<string, Style> = {
   off: GRAY,
   disabled: GRAY,
   parked: GRAY,
+  [LOADED]: GREEN,
+  [NOT_LOADED]: GRAY,
   partial: YELLOW,
   shadowed: YELLOW,
   "pending-approval": YELLOW,
@@ -89,6 +95,8 @@ const SYMBOLS: Record<string, string> = {
   off: "○",
   disabled: "○",
   parked: "○",
+  [LOADED]: "●",
+  [NOT_LOADED]: "○",
   partial: "◐",
 };
 const word = (state: unknown) => String(state).replace(/^[●○◐]\s*/, "");
@@ -96,11 +104,22 @@ export const badgeText = (state: unknown) =>
   SYMBOLS[word(state).split(" ")[0]]
     ? `${SYMBOLS[word(state).split(" ")[0]]} ${word(state)}`
     : String(state);
+// A skill is loaded or not loaded (MCP servers, hooks and plugins keep on / off): the badge for an on / off state.
+export const skillBadgeText = (state: unknown) => {
+  const key = word(state);
+  return badgeText(
+    key === "on" || key === "active"
+      ? terms.loaded
+      : key === "off" || key === "disabled"
+        ? terms.notLoaded
+        : state
+  );
+};
 export const stateStyle = (state = ""): Style =>
   STATES[word(state).split(" ")[0]] ?? {};
 
 // Off, disabled and parked rows are dimmed whole in the list.
-const DIM_STATES = new Set(["off", "disabled", "parked"]);
+const DIM_STATES = new Set(["off", "disabled", "parked", NOT_LOADED]);
 // The one-column mark a list row shows for its state, with the mark's style and whether the whole row is dim. A word
 // with no symbol gets a blank of the same width, so names stay aligned.
 export const stateMark = (
@@ -124,6 +143,7 @@ export const SCOPE_STYLES: Record<string, Style> = {
 };
 export const SCOPE_NAMES: Record<string, string> = {
   user: scopeNames.user,
+  shelf: terms.library,
   "desktop-config": scopeNames.desktop,
   "desktop-extension": scopeNames.desktop,
 };

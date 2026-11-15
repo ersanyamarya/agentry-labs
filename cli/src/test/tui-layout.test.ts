@@ -27,8 +27,8 @@ test("the rail shows the project, tokens and problems, and the Skills tab explai
 });
 
 test("sections are bold headers with no rule and a blank line between them", () => {
-  assert.match(ui.frame()!, /^\s*Shelf\s+Skills/m);
-  assert.match(ui.frame()!, /^Global skills\s*$/m);
+  assert.match(ui.frame()!, /^\s*Library\s+Skills/m);
+  assert.match(ui.frame()!, /^Skills for all projects\s*$/m);
   const rows = skillRows({
     groups: [],
     status: {
@@ -55,17 +55,20 @@ test("sections are bold headers with no rule and a blank line between them", () 
 });
 
 test("scope badges tag the rows", async () => {
-  assert.match(ui.frame()!, /^Global skills\s*$/m);
-  assert.match(ui.frame()!, /^This project only\s*$/m);
+  assert.match(ui.frame()!, /^Skills for all projects\s*$/m);
+  assert.match(ui.frame()!, /^Skills for this project only\s*$/m);
   assert.doesNotMatch(ui.frame()!, /notes\s+personal/);
   await ui.press("4");
-  await ui.until(/●\s+demo@mkt\s+global\s+1\.0\.0/);
+  await ui.until(/●\s+demo@mkt\s+all projects\s+1\.0\.0/);
   await ui.press("2");
   await ui.until(/demo\s+project\s+stdio\s+pending-approval/);
 });
 
 test("the footer lists only the keys of the current tab", async () => {
-  assert.match(ui.frame()!, /space project {3}g global {3}enter expand/);
+  assert.match(
+    ui.frame()!,
+    /space this project {3}g all projects {3}enter expand/
+  );
   await ui.press("2");
   await ui.until(/e (open file|edit)/);
   assert.doesNotMatch(ui.frame()!, /s shelve/);
@@ -84,20 +87,23 @@ test("a long path in the details is cut in the middle with an ellipsis, keeping 
 test("the help overlay lists the new keys and the colour legend", async () => {
   await ui.press("?");
   await ui.until(/Keys \(\? or esc to close\)/);
-  assert.match(ui.frame()!, /s {12}Skills: move a global skill onto the shelf/);
-  assert.match(ui.frame()!, /u {12}Skills: unshelve a skill/);
   assert.match(
     ui.frame()!,
-    /● on \/ active green, ○ off \/ disabled gray, ◐ partial yellow/
+    /s {12}Skills: move a skill for all projects to the library/
+  );
+  assert.match(ui.frame()!, /u {12}Skills: move a skill out of the library/);
+  assert.match(
+    ui.frame()!,
+    /● loaded \/ active green, ○ not loaded \/ disabled gray, ◐ partial yellow/
   );
   await ui.press(KEYS.esc);
 });
 
-test("the footer follows the selected row: a global skill offers shelve and open, not the on/off keys", async () => {
+test("the footer follows the selected row: a skill for all projects offers move to the library and open, not the on/off keys", async () => {
   await ui.moveTo(/^>\s+notes/);
   assert.match(
     ui.frame()!,
-    /s shelve {3}o (move to this project only|this project) {3}x remove {3}X (remove, no copy|no copy) {3}e (open file|edit)/
+    /s move to the library {3}o (move to this project only|this project) {3}x remove {3}X (remove, no copy|no copy) {3}e (open file|edit)/
   );
   assert.doesNotMatch(ui.frame()!, /space project/);
 });
@@ -113,7 +119,7 @@ test("the rail lists the sections in three groups with counts: no digits, no ico
   const rail = stripAnsi(ui.rail());
   assert.match(
     rail,
-    /LIBRARY[\s\S]*Skills\s+\d+[\s\S]*MCP\s+\d+[\s\S]*Hooks\s+\d+[\s\S]*Plugins\s+\d+[\s\S]*Rules\s+\d+[\s\S]*Agents\s+\d+[\s\S]*DISCOVER[\s\S]*Catalog[\s\S]*HEALTH[\s\S]*Doctor\s+\d+[\s\S]*Backups\s+\d+/
+    /SETUP[\s\S]*Skills\s+\d+[\s\S]*MCP\s+\d+[\s\S]*Hooks\s+\d+[\s\S]*Plugins\s+\d+[\s\S]*Rules\s+\d+[\s\S]*Agents\s+\d+[\s\S]*DISCOVER[\s\S]*Catalog[\s\S]*HEALTH[\s\S]*Doctor\s+\d+[\s\S]*Backups\s+\d+/
   );
   assert.doesNotMatch(rail, /[✦⇄⚑⬡✚☰⟲§]|\(\d+\)|\d [A-Z]/);
   assert.match(rail, /^› Skills/m);
@@ -142,9 +148,9 @@ test("when the footer is short of room, `tab sidebar` goes first and `? help` st
   assert.ok([...last].length <= 40);
 });
 
-test("Skills: Project and Global hold only a mark, the token total closes the list, and there is no colour legend", () => {
+test("Skills: This project and All projects hold only a mark, the token total closes the list, and there is no colour legend", () => {
   const frame = stripAnsi(ui.frame()!);
-  assert.match(frame, /Shelf\s+Skills\s+Cost\s+Project\s+Global/);
+  assert.match(frame, /Library\s+Skills\s+Cost\s+This project\s+All projects/);
   assert.match(frame, /▸ audit\s+1 skills\s+~\d+\s+○\s+○/);
   assert.doesNotMatch(frame, /\bon\b.*\boff\b.*\bpartial\b/);
   assert.match(frame, /Token total \(every session\)\s+~\d+\s*$/m);

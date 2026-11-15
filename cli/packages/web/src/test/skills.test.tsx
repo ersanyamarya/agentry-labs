@@ -64,12 +64,14 @@ describe("the Skills screen", () => {
     await mount();
     expect(inTable().getByText("run-fallow")).toBeTruthy();
     expect(inTable().getByText("proj-only")).toBeTruthy();
-    expect(screen.getByText("4 skills · 3 on · 1 on the shelf")).toBeTruthy();
+    expect(
+      screen.getByText("4 skills · 3 loaded · 1 in the library")
+    ).toBeTruthy();
   });
 
-  test("the Shelf filter keeps only skills that are off everywhere; search narrows by name", async () => {
+  test("the Library filter keeps only skills that are not loaded anywhere; search narrows by name", async () => {
     await mount();
-    await userEvent.click(screen.getByRole("radio", { name: /Shelf/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /Library/ }));
     expect(inTable().queryByText("run-fallow")).toBeNull();
     expect(inTable().getByText("audit-two")).toBeTruthy();
     await userEvent.click(screen.getByRole("radio", { name: /All/ }));
@@ -81,7 +83,7 @@ describe("the Skills screen", () => {
   test("a shelf switch calls toggleShelf for this project, and for global after switching scope", async () => {
     await mount();
     await userEvent.click(
-      screen.getByRole("switch", { name: "Turn audit-two on" })
+      screen.getByRole("switch", { name: "Load audit-two" })
     );
     await waitFor(() =>
       expect(mockClient.skills.toggleShelf).toHaveBeenCalledWith(
@@ -102,7 +104,7 @@ describe("the Skills screen", () => {
     expect(inTable().queryByText("run-fallow")).toBeNull();
     expect(inTable().getByText("audit-one")).toBeTruthy();
     await userEvent.click(
-      screen.getByRole("switch", { name: "Turn group audit on" })
+      screen.getByRole("switch", { name: "Load bundle audit" })
     );
     await waitFor(() =>
       expect(mockClient.skills.toggleShelf).toHaveBeenCalledWith({
@@ -118,7 +120,7 @@ describe("the Skills screen", () => {
     await mount();
     await userEvent.click(screen.getByLabelText("Select all shown"));
     expect(screen.getByText("4 selected")).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Turn on" }));
+    await userEvent.click(screen.getByRole("button", { name: "Load" }));
     await waitFor(() =>
       expect(mockClient.skills.toggleShelf).toHaveBeenCalledTimes(2)
     );

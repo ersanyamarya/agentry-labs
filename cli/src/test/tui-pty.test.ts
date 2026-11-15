@@ -73,7 +73,7 @@ describe.skipIf(!hasPython)("colour in a pseudo-terminal", () => {
   test("NO_COLOR=1: no colour escapes, words still there", async () => {
     const out = await ui({ TERM: "xterm-256color", NO_COLOR: "1" });
     assert.doesNotMatch(out, COLOUR);
-    assert.match(out, /o off\s+o off/);
+    assert.match(out, /o not loaded\s+o not loaded/);
     assert.match(out, /[>›] Skills\s+\d/, "active section marked by a cursor");
   });
 

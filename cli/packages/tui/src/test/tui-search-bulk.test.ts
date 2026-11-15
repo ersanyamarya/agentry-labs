@@ -117,14 +117,14 @@ describe("m marks and bulk actions", () => {
     assert.ok(existsSync(join(ui.fx.configDir, "skills/todo")));
   });
 
-  test("space on two marked shelf groups turns both on for this project after one y", async () => {
+  test("space on two marked library bundles loads both for this project after one y", async () => {
     ui = createUi();
     await ui.ready();
     await ui.moveTo(/^>.* audit/);
     await ui.press("m", KEYS.down, "m", KEYS.space);
-    await ui.until(/Turn on for this project: 2 of 2 \(preview\)/);
+    await ui.until(/Load for this project: 2 of 2 \(preview\)/);
     await ui.press("y");
-    await ui.until(/Turned on for this project \(2 items\)/);
+    await ui.until(/Loaded for this project \(2 items\)/);
     assert.ok(
       existsSync(join(ui.fx.repo, ".claude/skills/review")) ||
         existsSync(join(ui.fx.repo, ".claude/skills/trim"))
@@ -138,9 +138,9 @@ describe("m marks and bulk actions", () => {
       await ui.press("/", ...name, KEYS.enter);
       await ui.moveTo(new RegExp(`^>\\s+${name}`));
       await ui.press("x");
-      await ui.until(/Remove \S+ \(global\) \(preview\)/);
+      await ui.until(/Remove \S+ \(all projects\) \(preview\)/);
       await ui.press("y");
-      await ui.until(/Removed \S+ \(global\)/);
+      await ui.until(/Removed \S+ \(all projects\)/);
       await ui.press(KEYS.esc);
     }
     const backups = join(ui.fx.configDir, "backups/agentry/removed");
@@ -183,13 +183,13 @@ describe("token total", () => {
     });
   });
 
-  test("the Skills tab ends with a total row listing global, this project and plugins", async () => {
+  test("the Skills tab ends with a total row listing all projects, this project and plugins", async () => {
     ui = createUi();
     await ui.ready();
     await ui.moveTo(/^>\s+Token total/);
     const frame = stripAnsi(ui.frame()!);
     assert.match(frame, /total: ~\d+ tokens/);
-    assert.match(frame, /in global: ~\d+/);
+    assert.match(frame, /in all projects: ~\d+/);
     assert.match(frame, /in this project: ~\d+/);
     assert.match(frame, /from plugins: ~\d+/);
   });

@@ -287,7 +287,7 @@ const DetailLine = ({
 // Stacked details are short of room: these neighbours share one line when both fit (first label -> the label after it).
 const PAIRS: Record<string, string> = {
   state: "tokens",
-  "this project": "global",
+  [messages().terms.thisProject]: messages().terms.allProjects,
 };
 const labelOf = (text: string) => LABELLED.exec(text)?.[1] ?? "";
 const pairUp = (lines: string[], inner: number): string[][] => {

@@ -82,19 +82,19 @@ Commands:
                                       Plugin hooks are refused: they belong to the plugin
   tui                                 Open the terminal UI (needs a terminal); a bare agentry in a terminal opens it too
   ui [--port <n>] [--no-open]         Serve the web UI on 127.0.0.1 behind a one-time token and open it in the browser
-  shelf list                          List shelf groups, their token cost and whether each is on
-  shelf status [--json]               Show what is on in this project and globally, plus broken links
-  shelf on <target>... [--global]     Link groups or skills into this project (or ~/.claude)
+  shelf list                          List the library's bundles, their token cost and whether each is on
+  shelf status [--json]               Show what is on in this project and in all projects, plus broken links
+  shelf on <target>... [--global]     Link bundles or skills into this project (--global: all projects, ~/.claude)
   shelf off <target>... [--global]    Remove those links
-  shelf off --all [--global]          Remove every shelf link in this project (or ~/.claude)
+  shelf off --all [--global]          Remove every library link in this project (--global: all projects, ~/.claude)
   shelf shelve <skill> <group> [--project]
-                                      Move ~/.claude/skills/<skill> (--project: .claude/skills/<skill> here) onto the shelf
-  shelf unshelve <skill>              Move a shelved skill back to ~/.claude/skills
+                                      Move ~/.claude/skills/<skill> (--project: .claude/skills/<skill> here) into the library
+  shelf unshelve <skill>              Move a skill out of the library back to ~/.claude/skills
   shelf promote <skill> [--dry-run]   Move .claude/skills/<skill> of this project to ~/.claude/skills (every project)
   shelf demote <skill> [--dry-run]    Move ~/.claude/skills/<skill> into this project's .claude/skills
                                       (real folders only, never overwrites, no copy kept: it is a move)
   shelf remove <skill> [--project] [--no-backup]
-                                      Delete a shelved skill or ~/.claude/skills/<skill> (--project: .claude/skills/<skill> here), keeping a copy under
+                                      Delete a skill in the library or ~/.claude/skills/<skill> (--project: .claude/skills/<skill> here), keeping a copy under
                                       ~/.claude/backups/agentry/removed/<time>/ unless --no-backup (refuses while it is linked)
   backups list [--json]               List the fix backup sets and the removed-skill copies with size and age
   backups restore <id> [--dry-run]    Move a removed skill's copy back where it came from (never overwrites)
@@ -106,7 +106,7 @@ Commands:
   catalog list [--json]               List the catalog's skills, agents, rules, CLAUDE.md files and MCP servers (kind/name),
                                       with where each is installed and "outdated" when the installed copy differs
   catalog add <item>... [--group G] [--project] [--dry-run] [--yes]
-                                      Install from the catalog; never overwrites. A skill goes onto the shelf (default group:
+                                      Install from the catalog; never overwrites. A skill goes into the library (default bundle:
                                       its bundle), off; an agent to ~/.claude/agents (--project: .claude/agents); a rule to
                                       ~/.claude/rules; a CLAUDE.md file to this project as CLAUDE.md (refused when it has
                                       one); an MCP server through mcp add (user scope, --project: .mcp.json; --yes skips
@@ -128,7 +128,7 @@ Commands:
                                       under ~/.claude/backups/agentry/removed/ unless --no-backup
   help                                Show this help
 
-A target is a group (video), group/skill (video/ffmpeg-install) or a skill name that is unique across groups.
+A target is a bundle (video), bundle/skill (video/ffmpeg-install) or a skill name that is unique across bundles.
 
 Options:
   -h, --help       Show this help
@@ -138,10 +138,11 @@ Options:
       --only-problems  With scan: list only repos with findings
       --fix        With scan: apply the fixes instead of listing findings (see above)
       --no-cache   With scan: ignore and do not write the scan cache (~/.claude/cache/agentry)
-      --all        With shelf off: every shelf link instead of named targets. With catalog update: every outdated item
+      --all        With shelf off: every library link instead of named targets. With catalog update: every outdated item
       --dry-run    With shelf: print the links and exclude lines (or the move) a write would change. With fix: show the
                    preview only. Either way nothing is written
       --no-backup  With shelf remove, rules remove or scan --remove-skill --global: keep no copy of the deleted file
+      --group G    With catalog add: the library bundle for a skill (default: its own bundle)
       --project    With shelf remove: the project's skill folder. With catalog add: agents and MCP servers go to this project
       --older-than N  With backups prune: backups at least N days old
       --kind K        With backups prune: only fix, removed or updated backups

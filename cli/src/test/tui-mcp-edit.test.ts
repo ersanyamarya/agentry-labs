@@ -65,7 +65,7 @@ describe("MCP tab: a adds a server, s edits env/args", () => {
       "typed secrets are hidden"
     );
     await ui.press(KEYS.enter);
-    await ui.until(/user \(claude mcp add-json/);
+    await ui.until(/all projects \(claude mcp add-json/);
     await ui.press(KEYS.enter);
     await ui.until(/Add files \(preview\)/);
     assert.match(ui.frame()!, /env FILES_TOKEN=<masked>/);

@@ -70,13 +70,15 @@ export const startMcpAdd = ({ api, dir, flow }: Ctx) => {
       | { command: string | undefined; args: string[]; env: string[] }
       | { url: string; headers: string[] };
   }
+  const SCOPES = ["user", "project"];
   const finish =
     (config: AddConfig) =>
     (scope: string): Promise<Step> => {
       const args = {
         dir,
         name: config.name,
-        scope: scope.split(" ")[0],
+        // The options read in the glossary words (all projects, this project); they are in the order of the scope values.
+        scope: SCOPES[add.scopeOptions.indexOf(scope)],
         ...config.rest,
       };
       return api.previewMcpAdd(args).then((preview) => ({

@@ -36,6 +36,8 @@ export interface ShelfItem {
 
 /** A link in a .claude folder that points into the shelf. */
 export interface ShelfLink {
+  /** The same value as group, under the name the UI uses. */
+  bundle: string;
   group: string;
   kind: ShelfKind;
   link: string;
@@ -459,8 +461,10 @@ export const createShelf = (
           continue;
         }
         if (existsSync(target)) {
+          const [group] = relative(shelfDir, target).split(sep);
           links.push({
-            group: relative(shelfDir, target).split(sep)[0],
+            bundle: group,
+            group,
             kind,
             name,
             link,

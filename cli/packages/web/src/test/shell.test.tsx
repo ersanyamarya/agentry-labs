@@ -47,7 +47,7 @@ const mount = async (path = "/skills") => {
       <RouterProvider router={router} />
     </QueryClientProvider>
   );
-  await screen.findByText("Library");
+  await screen.findByText("Setup");
 };
 
 beforeEach(() => vi.clearAllMocks());
@@ -58,7 +58,7 @@ describe("the sidebar", () => {
     const nav = screen.getByLabelText("Sections");
     const text = nav.textContent ?? "";
     const order = [
-      "Library",
+      "Setup",
       "Skills",
       "MCP",
       "Hooks",
@@ -102,13 +102,15 @@ describe("the sidebar", () => {
     expect(await screen.findByText("Keyboard shortcuts")).toBeTruthy();
   });
 
-  test("the scope switcher starts on This project and switches to Global", async () => {
+  test("the scope switcher starts on This project and switches to All projects", async () => {
     await mount();
     const project = await screen.findByRole("radio", { name: "This project" });
     expect(project.getAttribute("aria-checked")).toBe("true");
-    await userEvent.click(screen.getByRole("radio", { name: "Global" }));
+    await userEvent.click(screen.getByRole("radio", { name: "All projects" }));
     expect(
-      screen.getByRole("radio", { name: "Global" }).getAttribute("aria-checked")
+      screen
+        .getByRole("radio", { name: "All projects" })
+        .getAttribute("aria-checked")
     ).toBe("true");
   });
 

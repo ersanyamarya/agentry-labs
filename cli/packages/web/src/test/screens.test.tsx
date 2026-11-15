@@ -163,7 +163,7 @@ describe("Agents", () => {
     await userEvent.click(screen.getByRole("radio", { name: /This project/ }));
     expect(inTable().queryByText("reviewer")).toBeNull();
     expect(inTable().getByText("helper")).toBeTruthy();
-    await userEvent.click(screen.getByRole("radio", { name: /All/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /All projects/ }));
     await userEvent.click(inTable().getByText("reviewer"));
     expect(await screen.findByText("Read, Grep")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /remove/i })).toBeNull();
@@ -176,7 +176,7 @@ describe("Rules", () => {
     await inTable().findByText("commit-attribution");
     await userEvent.click(screen.getByRole("radio", { name: /This project/ }));
     expect(inTable().queryByText("commit-attribution")).toBeNull();
-    await userEvent.click(screen.getByRole("radio", { name: /All/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /All projects/ }));
     await userEvent.click(inTable().getByText("commit-attribution"));
     await userEvent.keyboard("x");
     const box = await dialog();
@@ -263,16 +263,17 @@ describe("Doctor", () => {
 });
 
 describe("Catalog", () => {
-  test("filters by bundle; Install previews with a dry run; Installed is disabled", async () => {
+  test("filters by bundle; Install previews with a dry run; Added is disabled", async () => {
     mount(<CatalogScreen />);
     await screen.findByText("write-linkedin-post");
     await userEvent.click(screen.getByRole("radio", { name: "web" }));
     expect(screen.queryByText("write-linkedin-post")).toBeNull();
+    expect(screen.getByText(/Added in shelf/)).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Installed" }).hasAttribute("disabled")
+      screen.getByRole("button", { name: "Added" }).hasAttribute("disabled")
     ).toBe(true);
     await userEvent.click(screen.getByRole("radio", { name: "All" }));
-    await userEvent.click(screen.getByRole("button", { name: "Install" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
     await dialog();
     expect(mockClient.catalog.addFromCatalog).toHaveBeenCalledWith({
       dir: "/work/app",

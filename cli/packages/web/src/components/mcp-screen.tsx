@@ -47,7 +47,10 @@ export const mcpRows = (load: LoadData): McpRow[] => [
   ...load.status.mcp.servers.map((server) => ({
     id: `${server.scope}:${server.name}`,
     name: server.name,
-    scope: server.scope === "user" ? m.web.common.scopeGlobal : server.scope,
+    scope:
+      server.scope === "user"
+        ? m.web.common.scopeGlobal
+        : m.web.common.scopeProject,
     state: server.state,
     transport: server.transport,
     detail:

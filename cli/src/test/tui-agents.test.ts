@@ -37,7 +37,7 @@ describe("Agents tab", () => {
     await ui.press("6");
     await ui.until(/reviewer\s+~\d+\s+sonnet/);
     const frame = stripAnsi(ui.frame()!);
-    assert.match(frame, /User/);
+    assert.match(frame, /All projects/);
     assert.match(frame, /This project/);
     assert.match(frame, /helper\s+~\d+\s+-/);
     await ui.moveTo(/^>.*reviewer/);

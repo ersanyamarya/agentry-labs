@@ -166,6 +166,9 @@ export const CatalogScreen = () => {
                 <p className="text-muted-foreground text-xs">
                   {entry.kind}
                   {entry.tokens === null ? "" : t.tokens(entry.tokens)}
+                  {entry.installed
+                    ? ` · ${t.addedIn(m.catalog.item.where(entry.installed))}`
+                    : ""}
                 </p>
                 <div className="flex gap-2">
                   <Button

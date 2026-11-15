@@ -49,10 +49,10 @@ const m = messages();
 const t = m.web.skills;
 
 const SCOPE_BADGE: Record<string, string> = {
-  [m.skills.headers.global]: "bg-on-bg text-on",
-  [m.core.scopeTitle.project]: "bg-project-bg text-project",
+  [t.scope.global]: "bg-on-bg text-on",
+  [t.scope.project]: "bg-project-bg text-project",
   [t.scope.globalAndProject]: "bg-on-bg text-on",
-  [m.skills.headers.shelf]: "bg-muted text-muted-text",
+  [t.scope.library]: "bg-muted text-muted-text",
   [t.scope.plugin]: "bg-muted text-muted-text",
 };
 
@@ -377,7 +377,7 @@ export const SkillsScreen = () => {
           },
           {
             header: t.columns.scope,
-            className: "w-36",
+            className: "w-56",
             cell: (row) => <ScopeBadge row={row} />,
           },
         ]}

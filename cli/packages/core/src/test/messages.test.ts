@@ -35,6 +35,8 @@ describe("messages", () => {
       "notLoaded",
       "added",
       "notAdded",
+      "on",
+      "off",
     ]);
   });
 });

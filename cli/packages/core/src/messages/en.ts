@@ -2,19 +2,26 @@
 // (the glossary), so renaming a word is one edit here. A message with a value is a function. Sections are filled in as
 // each area moves over from its component.
 const terms = {
-  // Today's words; the words phase renames them.
-  library: "shelf",
-  bundle: "group",
-  thisProject: "project",
-  allProjects: "global",
-  loaded: "on",
-  notLoaded: "off",
-  added: "installed",
-  notAdded: "not installed",
+  library: "library",
+  bundle: "bundle",
+  thisProject: "this project",
+  allProjects: "all projects",
+  // Skills only: a skill is loaded or not loaded.
+  loaded: "loaded",
+  notLoaded: "not loaded",
+  // Catalog items: added or not added.
+  added: "added",
+  notAdded: "not added",
+  // MCP servers, hooks and plugins are really on or off.
+  on: "on",
+  off: "off",
 };
+// Claude Code plugins are really installed, unlike catalog items.
+const installed = "installed";
+const notInstalled = "not installed";
 // Said after most changes; the preview already told the user what is written.
 const appliesUndo = "Applies to new sessions; undo with agentry fix --undo";
-// "group" as a sentence-start plural ("Groups:"), so the glossary word still drives it.
+// A glossary word with a capital ("Bundles:"), so the glossary word still drives it.
 const capital = (word: string): string =>
   `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
 const appliesNewSessions = "Applies to sessions started after this.";
@@ -27,7 +34,11 @@ const {
   notLoaded,
   added,
   notAdded,
+  on,
+  off,
 } = terms;
+const skillsForAll = `Skills for ${allProjects}`;
+const skillsForProject = `Skills for ${thisProject} only`;
 
 // Text only the web UI shows; what it shares with the terminal UI is read from the sections above in the components.
 const web = {
@@ -45,66 +56,74 @@ const web = {
     on: "On",
     off: "Off",
     state: "State",
-    turnOn: `Turn ${loaded}`,
-    turnOff: `Turn ${notLoaded}`,
-    scopeGlobal: allProjects,
-    scopeProject: thisProject,
+    turnOn: `Turn ${on}`,
+    turnOff: `Turn ${off}`,
+    scopeGlobal: capital(allProjects),
+    scopeProject: capital(thisProject),
     noSelection: (what: string) => `Select ${what} to see its details.`,
   },
   skills: {
     scope: {
       plugin: "Plugin",
-      globalAndProject: "Global + project",
+      globalAndProject: `${capital(loaded)} in ${allProjects} and ${thisProject}`,
+      global: `${capital(loaded)} in ${allProjects}`,
+      project: `${capital(loaded)} in ${thisProject}`,
+      library: capital(notLoaded),
     },
     tokensNotMeasured: "tokens not measured",
     tokens: (n: number) => `~${n} tokens`,
     installedAlwaysOn: (name: string) =>
-      `${name} is installed, so it is always on. Shelve it to turn it off.`,
+      `${name} is ${added}, so it is always ${loaded}. Move it to the ${library} to unload it.`,
     bulkFailed: (label: string, ok: number, failed: number, names: string) =>
       `${label}: ${ok} done, ${failed} failed (${names})`,
     bulkDone: (label: string, ok: number) => `${label}: ${ok} done`,
-    turnOn: `Turn ${loaded}`,
-    turnOff: `Turn ${notLoaded}`,
-    turnedOn: `Turned ${loaded}`,
-    turnedOff: `Turned ${notLoaded}`,
-    shelved: "Shelved",
+    turnOn: "Load",
+    turnOff: "Unload",
+    turnedOn: "Loaded",
+    turnedOff: "Unloaded",
+    shelved: `Moved to the ${library}`,
     removed: "Removed",
     path: "Path",
     cost: "Cost",
-    group: "Group",
+    group: capital(bundle),
     state: "State",
     brokenLink: "broken link",
-    shelve: "Shelve",
-    unshelve: "Unshelve",
-    onlyThisProject: `Only this ${thisProject}`,
-    allProjects: "All projects",
+    shelve: `Move to the ${library}`,
+    unshelve: `Move out of the ${library}`,
+    onlyThisProject: `Only ${thisProject}`,
+    allProjects: capital(allProjects),
     note: (configDir: string | undefined, backupsDir: string | undefined) =>
-      `Changes apply to ${configDir ?? "~/.claude"} or this ${thisProject}. Every removal keeps a copy under ${backupsDir ?? "the backups folder"} that Backups can restore.`,
+      `Changes apply to ${configDir ?? "~/.claude"} or ${thisProject}. Every removal keeps a copy under ${backupsDir ?? "the backups folder"} that Backups can restore.`,
     addFromCatalog: "Add from catalog",
-    columns: { on: "On", name: "Name", group: "Group", scope: "Scope" },
+    columns: {
+      on: capital(loaded),
+      name: "Name",
+      group: capital(bundle),
+      scope: "Status",
+    },
     turnAria: (name: string, currentlyOn: boolean) =>
-      `Turn ${name} ${currentlyOn ? notLoaded : loaded}`,
+      `${currentlyOn ? "Unload" : "Load"} ${name}`,
     turnGroupAria: (name: string, currentlyOn: boolean) =>
-      `Turn group ${name} ${currentlyOn ? notLoaded : loaded}`,
+      `${currentlyOn ? "Unload" : "Load"} ${bundle} ${name}`,
     detailsLabel: "Skill details",
     selectOne: "a skill",
     emptyNone: "No skills yet. Add one from the catalog.",
     emptyNoMatch: "No skills match.",
-    filters: { all: "All", on: "On" },
-    hint: "↑↓ move · space toggle · m mark · a mark all · s shelve · x remove · / search",
+    filters: { all: "All", on: capital(loaded) },
+    hint: "↑↓ move · space toggle · m mark · a mark all · s move to the library · x remove · / search",
     searchPlaceholder: "Search skills",
-    summary: (all: number, on: number, shelf: number) =>
-      `${all} skills · ${on} on · ${shelf} on the shelf`,
+    summary: (all: number, loadedCount: number, inLibrary: number) =>
+      `${all} skills · ${loadedCount} ${loaded} · ${inLibrary} in the ${library}`,
     title: "Skills",
-    groupsAria: "Shelf groups",
-    groups: "Groups",
+    groupsAria: `${capital(library)} ${bundle}s`,
+    groups: `${capital(bundle)}s`,
     bulkAria: "Bulk actions",
     selected: (n: number) => `${n} selected`,
     count: (n: number) => `${n} skills`,
-    shelveTitle: (what: string) => `Shelve ${what}`,
+    shelveTitle: (what: string) => `Move ${what} to the ${library}`,
     shelveDescription: `The skill moves to the ${library}, ${notLoaded}. Pick an existing ${bundle} or type a new name.`,
-    shelveGroupAria: "Shelf group",
-    groupPlaceholder: "Group name",
+    shelveGroupAria: `${capital(library)} ${bundle}`,
+    groupPlaceholder: `${capital(bundle)} name`,
     removeTitle: (what: string) => `Remove ${what}?`,
     removeDescription: (
       what: string,
@@ -118,14 +137,15 @@ const web = {
     all: "All",
     update: "Update",
     add: "Add",
-    install: "Install",
-    installed: "Installed",
+    install: "Add",
+    installed: capital(added),
+    addedIn: (where: string) => `${capital(added)} in ${where}`,
     title: (action: string, name: string) => `${action} ${name}`,
     note: `Skills go to the ${library}, ${notLoaded}. An update keeps a copy of the old one in the backups.`,
     removeAgentTitle: (name: string) => `Remove agent ${name}`,
     heading: "Catalog",
     summary: (n: number) =>
-      `${n} items from agentry-labs, ready to install into this ${thisProject} or globally`,
+      `${n} items from agentry-labs, ready to add to ${thisProject} or ${allProjects}`,
     notFetched: "Not fetched yet.",
     refresh: "Refresh",
     fetch: "Fetch the catalog",
@@ -143,7 +163,7 @@ const web = {
     note: "Cost is the name and description Claude lists; the body loads when the agent runs. Add or remove agents from Catalog.",
     selectOne: "an agent",
     detailsLabel: "Agent details",
-    empty: "No agents installed.",
+    empty: "No agents.",
     hint: "↑↓ move · / search",
     searchPlaceholder: "Search agents",
     summary: (n: number) => `${n} agents`,
@@ -174,7 +194,7 @@ const web = {
       `${action} hook ${id}: ${event}`,
     note: "A backup of the settings file is made first, and agentry fix --undo restores it.",
     turnAria: (event: string, currentlyOn: boolean) =>
-      `Turn hook ${event} ${currentlyOn ? notLoaded : loaded}`,
+      `Turn hook ${event} ${currentlyOn ? off : on}`,
     hook: "Hook",
     event: "Event",
     matcher: "Matcher",
@@ -186,9 +206,9 @@ const web = {
     selectOne: "a hook",
     detailsLabel: "Hook details",
     empty: "No hooks.",
-    hint: `↑↓ move · space ${notLoaded}/${loaded} · x remove · / search`,
+    hint: `↑↓ move · space ${off}/${on} · x remove · / search`,
     searchPlaceholder: "Search hooks",
-    summary: (n: number, on: number) => `${n} hooks · ${on} on`,
+    summary: (n: number, onCount: number) => `${n} hooks · ${onCount} ${on}`,
     pageTitle: "Hooks",
   },
   plugins: {
@@ -199,7 +219,7 @@ const web = {
     turnTitle: (action: string, id: string) => `${action} ${id}`,
     installPlugin: "Install plugin",
     turnAria: (id: string, currentlyOn: boolean) =>
-      `Turn ${id} ${currentlyOn ? notLoaded : loaded}`,
+      `Turn ${id} ${currentlyOn ? off : on}`,
     plugin: "Plugin",
     version: (version: string) => ` · ${version}`,
     cellTokens: (n: number) => ` · ~${n} tokens`,
@@ -207,13 +227,13 @@ const web = {
     versionLabel: "Version",
     skills: "Skills",
     skillTokens: (n: number) => `~${n} tokens`,
-    turnedOnBy: `Turned ${loaded} by`,
+    turnedOnBy: `Turned ${on} by`,
     selectOne: "a plugin",
     detailsLabel: "Plugin details",
     empty: "No plugins.",
-    hint: `↑↓ move · space ${notLoaded}/${loaded} · i install · x uninstall · / search`,
+    hint: `↑↓ move · space ${off}/${on} · i install · x uninstall · / search`,
     searchPlaceholder: "Search plugins",
-    summary: (n: number, on: number) => `${n} plugins · ${on} on`,
+    summary: (n: number, onCount: number) => `${n} plugins · ${onCount} ${on}`,
     title: "Plugins",
     dialogTitle: "Install a plugin",
     dialogDescription: "Use name@marketplace. You will see a preview first.",
@@ -254,8 +274,7 @@ const web = {
     undoTitle: "Undo the last fix set",
     heading: "Doctor",
     noProblems: "No problems found.",
-    findings: (n: number) =>
-      `${n} findings in ~/.claude and this ${thisProject}`,
+    findings: (n: number) => `${n} findings in ~/.claude and ${thisProject}`,
     undo: "Undo last fix",
     noFix: "No automatic fix. Change it by hand.",
     fixIt: "Fix it",
@@ -263,7 +282,7 @@ const web = {
   mcp: {
     parkedSource: "parked in agentry's config",
     managedElsewhere: (name: string, source: string) =>
-      `${name} is managed in ${source}. Only user-scope servers can be turned off here.`,
+      `${name} is managed in ${source}. Only servers for ${allProjects} can be turned off here.`,
     turnTitle: (enable: boolean, name: string) =>
       `${enable ? "Add back" : "Turn off"} ${name}`,
     removeTitle: (name: string) => `Remove ${name}`,
@@ -272,7 +291,7 @@ const web = {
     editTitle: (name: string) => `Edit ${name}`,
     addServer: "Add server",
     turnAria: (name: string, currentlyOn: boolean) =>
-      `Turn ${name} ${currentlyOn ? notLoaded : loaded}`,
+      `Turn ${name} ${currentlyOn ? off : on}`,
     server: "Server",
     addBack: "Add back",
     edit: "Edit",
@@ -284,9 +303,9 @@ const web = {
     selectOne: "a server",
     detailsLabel: "Server details",
     empty: "No MCP servers.",
-    hint: `↑↓ move · space ${notLoaded}/${loaded} · a add · x remove · / search`,
+    hint: `↑↓ move · space ${off}/${on} · a add · x remove · / search`,
     searchPlaceholder: "Search servers",
-    summary: (n: number, on: number) => `${n} servers · ${on} on`,
+    summary: (n: number, onCount: number) => `${n} servers · ${onCount} ${on}`,
     title: "MCP",
     dialogAddTitle: "Add an MCP server",
     dialogAddDescription:
@@ -308,7 +327,7 @@ const web = {
   },
   sidebar: {
     label: "Sections",
-    groups: { library: "Library", discover: "Discover", health: "Health" },
+    groups: { library: "Setup", discover: "Discover", health: "Health" },
     sections: {
       skills: "Skills",
       mcp: "MCP",
@@ -322,8 +341,8 @@ const web = {
     },
     scope: "Scope",
     scopeAria: "Scope for toggles",
-    scopeGlobal: "Global",
-    scopeProject: `This ${thisProject}`,
+    scopeGlobal: capital(allProjects),
+    scopeProject: capital(thisProject),
     shortcutsAria: "Keyboard shortcuts",
   },
   list: {
@@ -338,7 +357,7 @@ const web = {
         "space",
         "turn the selected row on or off, in the scope chosen in the sidebar",
       ],
-      ["s", `move a skill onto the ${library}`],
+      ["s", `move a skill to the ${library}`],
       ["x", "remove the selected row (a copy is kept in the backups)"],
       ["/", "search the rows"],
       ["?", "this help"],
@@ -377,22 +396,22 @@ export const en = {
       globalToggle: `${allProjects} ${loaded}/${notLoaded}`,
       globalToggleShort: allProjects,
       expand: "expand",
-      unshelve: "unshelve",
+      unshelve: `move out of the ${library}`,
       pluginToggle: "enable/disable plugin",
-      pluginToggleShort: `${loaded}/${notLoaded}`,
-      shelve: "shelve",
+      pluginToggleShort: `${on}/${off}`,
+      shelve: `move to the ${library}`,
       moveToAll: "move to all projects",
       moveToAllShort: "all projects",
-      moveToProject: `move to this ${thisProject} only`,
-      moveToProjectShort: `this ${thisProject}`,
+      moveToProject: `move to ${thisProject} only`,
+      moveToProjectShort: `${thisProject}`,
     },
     catalog: {
       fetch: "fetch catalog",
       fetchShort: "fetch",
-      addToLibrary: `add to ${library}`,
+      addToLibrary: `add to the ${library}`,
       addAllProjects: "add (all projects)",
       add: "add",
-      addToProject: `add to this ${thisProject}`,
+      addToProject: `add to ${thisProject}`,
       addToProjectShort: thisProject,
       updateCatalog: "update catalog",
     },
@@ -410,18 +429,18 @@ export const en = {
       addBack: "add back",
       turnOffHere: "turn off here",
       turnOffSaved: "turn off (saved)",
-      on: loaded,
-      off: notLoaded,
+      on,
+      off,
     },
     hooks: {
       turnOn: "turn on",
       turnOffSaved: "turn off (saved)",
-      on: loaded,
-      off: notLoaded,
+      on,
+      off,
     },
     plugins: {
       toggle: "enable/disable",
-      toggleShort: `${loaded}/${notLoaded}`,
+      toggleShort: `${on}/${off}`,
       install: "install a plugin",
       installShort: "install",
       uninstall: "uninstall",
@@ -440,14 +459,13 @@ export const en = {
       "switch section (1-9 follow the sidebar: Skills, MCP, Hooks, Plugins, Rules, Agents, Catalog, Doctor, Backups)",
     rows: "move between rows",
     enter: "details, expand a group, preview a fix",
-    space: `Skills: ${library} row ${loaded}/${notLoaded} for this ${thisProject}; plugin rows: ${loaded}/${notLoaded}; MCP, Hooks: turn ${notLoaded} (saved) / add back`,
-    addServer: "MCP: add a server (user or project scope)",
-    globalToggle: `Skills: ${library} row ${loaded}/${notLoaded} globally`,
-    shelve: `Skills: move a ${allProjects} skill onto the ${library}; MCP: edit env/args of a user server`,
-    moveToAll: `Skills: move a ${thisProject}-only skill to ~/.claude/skills (all projects)`,
-    moveToProject: `Skills: move a ${allProjects} skill into this ${thisProject} only; Catalog: add an agent or MCP server to this ${thisProject} only`,
-    unshelve:
-      "Skills: unshelve a skill; Doctor: undo the last fix set; Backups: restore a removed skill or updated copy; Catalog: update an outdated item (skill, agent, rule, CLAUDE.md, MCP server)",
+    space: `Skills: ${library} ${bundle} row ${loaded}/${notLoaded} for ${thisProject}; plugin rows: ${on}/${off}; MCP, Hooks: turn ${off} (saved) / add back`,
+    addServer: `MCP: add a server (${allProjects} or ${thisProject})`,
+    globalToggle: `Skills: ${library} ${bundle} row ${loaded}/${notLoaded} for ${allProjects}`,
+    shelve: `Skills: move a skill for ${allProjects} to the ${library}; MCP: edit env/args of a server for ${allProjects}`,
+    moveToAll: `Skills: move a skill for ${thisProject} only to ~/.claude/skills (${allProjects})`,
+    moveToProject: `Skills: move a skill for ${allProjects} into ${thisProject} only; Catalog: add an agent or MCP server to ${thisProject} only`,
+    unshelve: `Skills: move a skill out of the ${library}; Doctor: undo the last fix set; Backups: restore a removed skill or updated copy; Catalog: update an outdated item (skill, agent, rule, CLAUDE.md, MCP server)`,
     remove: `Skills: remove a skill; Catalog: remove an ${added} skill, agent or rule (a copy is kept in the backups); Rules: remove a file; Backups: delete a backup; MCP, Hooks: remove; Plugins: uninstall`,
     removeNoCopy: "Skills, Catalog, Rules: remove and keep no copy",
     prune: "Backups: delete the backups 30+ days old",
@@ -459,75 +477,76 @@ export const en = {
     open: "open the selected row's file in $EDITOR",
     confirm: "confirm or cancel a previewed change; c copies the preview",
     refresh: "refresh",
-    switchProject: `switch ${thisProject}`,
+    switchProject: "switch project",
     help: "this help",
     quit: "quit",
     legendStates: `● ${loaded} / active green, ○ ${notLoaded} / disabled gray, ◐ partial yellow. Cost: dim < 100, yellow < 500, red 500+.`,
-    legendNotes: `* marks a row. Skills > Token total: description tokens per ${allProjects}, this ${thisProject}, plugins. No colour: set NO_COLOR. Plugin changes apply to new sessions (undo: agentry fix --undo).`,
+    legendNotes: `* marks a row. Skills > Token total: description tokens per scope: ${allProjects}, ${thisProject}, plugins. No colour: set NO_COLOR. Plugin changes apply to new sessions (undo: agentry fix --undo).`,
   },
   skills: {
     notices: {
       badGroupName: (name: string) =>
         `Not a usable ${bundle} name: "${name}" (no slash, no leading dot, not "agents")`,
-      shelvePreviewTitle: "Shelve preview (dry run)",
+      shelvePreviewTitle: `Move to the ${library}: preview (dry run)`,
       shelved: (skill: string, name: string) =>
-        `Shelved ${skill} into ${name}; it is ${notLoaded}, toggle it with space.`,
-      newGroupTitle: (skill: string) => `Shelve ${skill}: new ${bundle}`,
-      newGroupLabel: "Group name",
+        `Moved ${skill} into the ${library} ${bundle} ${name}; it is ${notLoaded}, toggle it with space.`,
+      newGroupTitle: (skill: string) =>
+        `Move ${skill} to the ${library}: new ${bundle}`,
+      newGroupLabel: `${capital(bundle)} name`,
       newGroupIntro: `Type the name of the new ${library} ${bundle}.`,
-      chooseTitle: (skill: string) => `Shelve ${skill}: choose a ${bundle}`,
+      chooseTitle: (skill: string) =>
+        `Move ${skill} to the ${library}: choose a ${bundle}`,
       chooseIntro: (skill: string) =>
-        `Move ${skill} onto the ${library} in which ${bundle}?`,
-      unshelvePreviewTitle: "Unshelve preview (dry run)",
+        `Move ${skill} to the ${library}, in which ${bundle}?`,
+      unshelvePreviewTitle: `Move out of the ${library}: preview (dry run)`,
       unshelved: (target: string) =>
-        `Unshelved ${target} into ~/.claude/skills.`,
+        `Moved ${target} out of the ${library} into ~/.claude/skills.`,
       agentsSwitch: `Agents switch with their ${bundle}: toggle the ${bundle} row.`,
       markedNotSwitchable: `Marked rows are not ${library} ${bundle}s or skills: nothing to switch.`,
-      whereGlobal: "globally",
-      whereProject: `for this ${thisProject}`,
-      turnTitle: (on: boolean, where: string) =>
-        `Turn ${on ? loaded : notLoaded} ${where}`,
-      link: (on: boolean, target: string | undefined, where: string) =>
-        `${on ? "Link" : "Unlink"} ${target} ${where}.`,
-      turned: (on: boolean, where: string) =>
-        `Turned ${on ? loaded : notLoaded} ${where}`,
-      markedNotRemovable: `Marked rows cannot be removed here (shelved, ${allProjects} or ${thisProject}-only skills only).`,
-      alreadyShelved: `Already on the ${library}; press u to move it back to ~/.claude/skills.`,
-      shelveHint: `s shelves a ${allProjects} or ${thisProject}-only skill: select one under Global skills or This ${thisProject} only.`,
-      unshelveHint: `u unshelves a shelved skill: expand a ${bundle} and select one.`,
-      removeHint: `x removes a shelved, ${allProjects} or ${thisProject}-only skill folder (X keeps no copy): select one.`,
-      moveToAllHint: `a moves a ${thisProject}-only skill to ~/.claude/skills (all projects): select one under This ${thisProject} only.`,
-      moveToProjectHint: `o moves a ${allProjects} skill into this ${thisProject} only: select one under Global skills.`,
+      whereGlobal: `for ${allProjects}`,
+      whereProject: `for ${thisProject}`,
+      turnTitle: (isOn: boolean, where: string) =>
+        `${isOn ? "Load" : "Unload"} ${where}`,
+      link: (isOn: boolean, target: string | undefined, where: string) =>
+        `${isOn ? "Link" : "Unlink"} ${target} ${where}.`,
+      turned: (isOn: boolean, where: string) =>
+        `${isOn ? "Loaded" : "Unloaded"} ${where}`,
+      markedNotRemovable: `Marked rows cannot be removed here (only skills in the ${library}, for ${allProjects} or for ${thisProject} only).`,
+      alreadyShelved: `Already in the ${library}; press u to move it back to ~/.claude/skills.`,
+      shelveHint: `s moves a skill for ${allProjects} or for ${thisProject} only to the ${library}: select one under ${skillsForAll} or ${skillsForProject}.`,
+      unshelveHint: `u moves a skill out of the ${library}: expand a ${bundle} and select one.`,
+      removeHint: `x removes a skill folder from the ${library}, ${allProjects} or ${thisProject} only (X keeps no copy): select one.`,
+      moveToAllHint: `a moves a skill for ${thisProject} only to ~/.claude/skills (${allProjects}): select one under ${skillsForProject}.`,
+      moveToProjectHint: `o moves a skill for ${allProjects} into ${thisProject} only: select one under ${skillsForAll}.`,
       projectLabel: (skill: string | undefined) => `${skill} (${thisProject})`,
       globalLabel: (skill: string | undefined) => `${skill} (${allProjects})`,
     },
     headers: {
-      shelf: "Shelf",
+      shelf: capital(library),
       skills: "Skills",
       cost: "Cost",
-      project: "Project",
-      global: "Global",
+      project: capital(thisProject),
+      global: capital(allProjects),
     },
     noGroups: `  (no ${library} ${bundle}s)`,
-    noGroupsDetail:
-      "Shelved skills live in <config dir>/skill-shelf/<group>/<skill>.",
+    noGroupsDetail: `${capital(library)} skills live in <config dir>/skill-shelf/<${bundle}>/<skill>.`,
     count: (n: number) => `${n} skills`,
     agentWord: "agent",
     agentSuffix: " (agent)",
     group: {
       title: (name: string) => `${library} ${bundle}: ${name} (opt-in)`,
-      thisProject: (state: string) => `this ${thisProject}: ${state}`,
+      thisProject: (state: string) => `${thisProject}: ${state}`,
       allProjects: (state: string) => `${allProjects}: ${state}`,
       contains: (skills: number, agents: number) =>
         `contains: ${skills} skills${agents > 0 ? `, ${agents} agent${agents > 1 ? "s" : ""}` : ""}`,
       cost: (tokens: string) => `cost when ${loaded}: ${tokens} tokens`,
-      toggle: `space = this ${thisProject}, g = ${allProjects}; enter expands`,
+      toggle: `space = ${thisProject}, g = ${allProjects}; enter expands`,
     },
     item: {
       title: (isSkill: boolean, name: string) =>
         `${isSkill ? "skill" : "agent"}: ${name}`,
       bundle: (name: string) => `${bundle}: ${name}`,
-      toggleSkill: `${library} skill (opt-in): space = this ${thisProject}, g = ${allProjects}; u unshelves`,
+      toggleSkill: `${library} skill (opt-in): space = ${thisProject}, g = ${allProjects}; u moves it out of the ${library}`,
       toggleAgent: `agents switch with their ${bundle}`,
     },
     detail: {
@@ -538,15 +557,14 @@ export const en = {
       linksTo: (target: string) => `links to: ${target}`,
     },
     whyFixed: {
-      project: `${thisProject} skill (this repo's .claude/skills): e opens it, s moves it to the ${library}, a moves it to ~/.claude/skills (all projects)`,
-      global: `${allProjects} skill (~/.claude/skills, every project): s moves it to the ${library} (${loaded} per ${thisProject}), o moves it into this ${thisProject} only`,
+      project: `skill for ${thisProject} (this repo's .claude/skills): e opens it, s moves it to the ${library}, a moves it to ~/.claude/skills (${allProjects})`,
+      global: `skill for ${allProjects} (~/.claude/skills): s moves it to the ${library} (${loaded} per project), o moves it into ${thisProject} only`,
       broken: "broken skill: see the Doctor tab",
-      symlink:
-        "global skill is a symlink, not a folder: shelve moves folders only",
+      symlink: `skill for ${allProjects} is a symlink, not a folder: only folders move to the ${library}`,
     },
     sections: {
-      global: "Global skills",
-      project: `This ${thisProject} only`,
+      global: skillsForAll,
+      project: skillsForProject,
       plugins: "Plugin skills",
     },
     plugin: {
@@ -558,7 +576,7 @@ export const en = {
       total: (n: number) =>
         `total: ~${n} tokens of skill descriptions loaded in every session`,
       global: (n: number) => `in ${allProjects}: ~${n}`,
-      project: (n: number) => `in this ${thisProject}: ~${n}`,
+      project: (n: number) => `in ${thisProject}: ~${n}`,
       plugins: (n: number) => `from plugins: ~${n}`,
       note: `counts skills that are ${loaded} (${library} skills under the scope they are linked in); ${notLoaded} skills, MCP, hooks and rule files cost 0 here (rule files: Rules tab).`,
     },
@@ -566,10 +584,10 @@ export const en = {
   catalog: {
     notices: {
       added: {
-        skill: `to the ${library}, ${notLoaded}. Turn it ${loaded} from the Skills tab`,
+        skill: `to the ${library}, ${notLoaded}. Load it from the Skills tab`,
         agent: "as an agent",
         rule: "to ~/.claude/rules",
-        claudeMd: `as this ${thisProject}'s CLAUDE.md`,
+        claudeMd: `as ${thisProject}'s CLAUDE.md`,
         mcp: "as an MCP server. It applies to sessions started after this",
       },
       outdatedCount: (n: number) => `${n} outdated (u updates)`,
@@ -577,7 +595,7 @@ export const en = {
       addSkillTitle: (name: string) =>
         `Add ${name} to the ${library} (preview)`,
       addTitle: (item: string | undefined, project: boolean) =>
-        `Add ${item}${project ? ` to this ${thisProject}` : ""} (preview)`,
+        `Add ${item}${project ? ` to ${thisProject}` : ""} (preview)`,
       addDone: (name: string, where: string | undefined) =>
         `Added ${name} ${where}.`,
       updateTitle: (item: string | undefined) => `Update ${item} (preview)`,
@@ -595,21 +613,20 @@ export const en = {
       notInstalled: (item: string | undefined) => `${item} is ${notAdded}.`,
       alreadyInstalled: (item: string | undefined, where: string) =>
         `${item} is already ${added} (${where}).`,
-      projectOnlyHint: `o adds an agent or an MCP server to this ${thisProject} only; use i for this item.`,
+      projectOnlyHint: `o adds an agent or an MCP server to ${thisProject} only; use i for this item.`,
       upToDate: (item: string | undefined) => `${item} is up to date.`,
     },
     toggle: {
       skillInstalled: "x removes it (a copy is kept in the backups)",
-      skill: `i copies it onto the ${library}, ${notLoaded}; turn it ${loaded} from the Skills tab`,
-      agent: `i copies it to ~/.claude/agents (every project), o to this ${thisProject}'s .claude/agents; never overwrites`,
+      skill: `i copies it into the ${library}, ${notLoaded}; load it from the Skills tab`,
+      agent: `i copies it to ~/.claude/agents (every project), o to ${thisProject}'s .claude/agents; never overwrites`,
       rule: "i copies it to ~/.claude/rules; never overwrites",
-      claudeMd: `i copies it to this ${thisProject} as CLAUDE.md, only when the ${thisProject} has none`,
-      mcp: `i adds it to your user config (claude mcp add-json), o to this ${thisProject}'s .mcp.json; the preview masks secrets`,
+      claudeMd: `i copies it to ${thisProject} as CLAUDE.md, only when the ${thisProject} has none`,
+      mcp: `i adds it to your config for ${allProjects} (claude mcp add-json), o to ${thisProject}'s .mcp.json; the preview masks secrets`,
       removeSuffix: "; x removes it (a copy is kept in the backups)",
       outdatedMcp:
         "; u sets the catalog's args and any env key you lack (masked preview, backed up, undoable)",
-      outdated:
-        "; u overwrites the installed copy with the catalog's (previewed, the old copy is saved first)",
+      outdated: `; u overwrites the ${added} copy with the catalog's (previewed, the old copy is saved first)`,
     },
     sections: {
       agent: "Agents",
@@ -621,9 +638,23 @@ export const en = {
     notInstalledPlain: `○ ${notAdded}`,
     item: {
       bundle: (name: string) => `bundle: ${name}`,
+      // Where an added item lives: the catalog's install labels (shelf/<bundle>, project, global) in the glossary words.
+      where: (label: string) =>
+        label
+          .split(", ")
+          .map((one) =>
+            one.startsWith("shelf/")
+              ? `${library}/${one.slice(6)}`
+              : one === "project"
+                ? thisProject
+                : one === "global"
+                  ? allProjects
+                  : one
+          )
+          .join(", "),
       installed: (outdated: boolean, where: string) =>
-        `installed: ${outdated ? "◐" : "●"} ${where}${outdated ? ", outdated" : ""}`,
-      notInstalled: `installed: ○ ${notAdded}`,
+        `${added}: ${outdated ? "◐" : "●"} ${where}${outdated ? ", outdated" : ""}`,
+      notInstalled: `${added}: ○ ${notAdded}`,
       outdated: "status: outdated (a file differs from the catalog copy)",
       tokens: (count: string, description: boolean) =>
         `${count} (${description ? "description" : "whole file"})`,
@@ -640,7 +671,7 @@ export const en = {
       plugin: "plugin server: managed by the plugin, switch the plugin instead",
       project:
         "project server (.mcp.json): managed by the repo, approval is in Claude Code",
-      local: "local-scope server: this tool only handles user scope",
+      local: `local-scope server: this tool only handles servers for ${allProjects}`,
       desktopConfig: "desktop server: managed by Claude desktop",
       desktopExtension: "desktop extension: managed by Claude desktop",
     },
@@ -653,14 +684,13 @@ export const en = {
       env: (key: string, value: string) => `env ${key}=${value}`,
       header: (key: string, value: string) => `header ${key}: ${value}`,
       tokens: "tokens: not measured (tool lists)",
-      toggleUser: `space turns it ${notLoaded} (removes it from user scope, config saved), s edits env and args; undo with agentry fix --undo`,
-      toggleOther: `space turns it ${notLoaded} for this ${thisProject} only (disabledMcpServers in ~/.claude.json); space again turns it ${loaded}`,
+      toggleUser: `space turns it ${off} (removes it from ${allProjects}, config saved), s edits env and args; undo with agentry fix --undo`,
+      toggleOther: `space turns it ${off} for ${thisProject} only (disabledMcpServers in ~/.claude.json); space again turns it ${on}`,
       notManaged: "not managed here",
       parkedState: (badge: string) => `state: ${badge} (config saved)`,
       config: (summary: string) => `config: ${summary}`,
-      turnedOff: (when: string) => `turned ${notLoaded}: ${when}`,
-      parkedToggle:
-        "space adds it back to user scope (claude mcp add-json from the saved copy)",
+      turnedOff: (when: string) => `turned ${off}: ${when}`,
+      parkedToggle: `space adds it back to ${allProjects} (claude mcp add-json from the saved copy)`,
     },
   },
   hooks: {
@@ -673,9 +703,9 @@ export const en = {
       type: (type: string) => `type: ${type}`,
       command: (command: string) => `command: ${command}`,
       output: "output: not measured",
-      toggle: `space turns it ${notLoaded} (moved to ~/.claude/agentry/parked-hooks.json), x removes it; undo with agentry fix --undo`,
+      toggle: `space turns it ${off} (moved to ~/.claude/agentry/parked-hooks.json), x removes it; undo with agentry fix --undo`,
       parkedState: (badge: string) => `state: ${badge} (saved copy)`,
-      turnedOff: (when: string) => `turned ${notLoaded}: ${when}`,
+      turnedOff: (when: string) => `turned ${off}: ${when}`,
       wasIn: (source: string) => `was in: ${source}`,
       parkedToggle:
         "space puts it back in that settings file, x deletes the saved copy",
@@ -694,9 +724,9 @@ export const en = {
         projectPath: string | undefined,
         here: boolean
       ) =>
-        `install: ${scope}${projectPath ? ` ${projectPath}` : ""}${here ? "" : ` (other ${thisProject})`}`,
+        `install: ${scope}${projectPath ? ` ${projectPath}` : ""}${here ? "" : " (another project)"}`,
       enabledBy: (source: string) => `enabled by: ${source}`,
-      notInstalled: notAdded,
+      notInstalled,
       toggle: (active: boolean) =>
         `space ${active ? "disables" : "enables"} it; x uninstalls it, i installs another`,
     },
@@ -725,8 +755,7 @@ export const en = {
   agents: {
     empty: "  (no agents)",
     emptyDetail: "No ~/.claude/agents/*.md or .claude/agents/*.md was found.",
-    emptyNote:
-      "the Catalog tab can add an agent (~/.claude/agents, or o for this project only).",
+    emptyNote: `the Catalog tab can add an agent (~/.claude/agents, or o for ${thisProject} only).`,
     headers: { agents: "Agents", cost: "Cost", model: "Model" },
     detail: {
       agent: (name: string) => `agent: ${name}`,
@@ -734,7 +763,7 @@ export const en = {
       model: (model: string) => `model: ${model}`,
       tools: (tools: string) => `tools: ${tools}`,
       tokens: "(name and description; the body loads when the agent runs)",
-      note: "install or remove agents from the Catalog tab; e opens the file.",
+      note: "add or remove agents from the Catalog tab; e opens the file.",
     },
   },
   backups: {
@@ -796,7 +825,7 @@ export const en = {
     },
   },
   sidebar: {
-    groups: { library: "LIBRARY", discover: "DISCOVER", health: "HEALTH" },
+    groups: { library: "SETUP", discover: "DISCOVER", health: "HEALTH" },
     tokens: (compact: string) => `${compact} tokens`,
     problems: (n: number) => `${n} problem${n === 1 ? "" : "s"}`,
     noProblems: "no problems",
@@ -838,11 +867,11 @@ export const en = {
     },
     move: {
       title: (promote: boolean, skill: string) =>
-        `${promote ? "Move to all projects" : `Move to this ${thisProject} only`}: ${skill} (preview)`,
+        `${promote ? "Move to all projects" : `Move to ${thisProject} only`}: ${skill} (preview)`,
       done: (promote: boolean, skill: string) =>
         promote
           ? `${skill} now lives in ~/.claude/skills and loads in every project.`
-          : `${skill} now lives in this ${thisProject}'s .claude/skills only.`,
+          : `${skill} now lives in ${thisProject}'s .claude/skills only.`,
     },
     remove: {
       title: (label: string | undefined) => `Remove ${label} (preview)`,
@@ -852,10 +881,10 @@ export const en = {
           : `Removed ${label}; no copy was kept.`,
     },
     hook: {
-      toggleTitle: (off: boolean, hook: string | undefined) =>
-        `${off ? `Turn ${loaded}` : `Turn ${notLoaded}`} hook ${hook}`,
-      toggled: (hook: string | undefined, off: boolean) =>
-        `Hook ${hook} is ${off ? `back ${loaded}` : `${notLoaded} (saved)`}. ${appliesUndo}.`,
+      toggleTitle: (isOff: boolean, hook: string | undefined) =>
+        `Turn ${isOff ? on : off} hook ${hook}`,
+      toggled: (hook: string | undefined, isOff: boolean) =>
+        `Hook ${hook} is ${isOff ? `back ${on}` : `${off} (saved)`}. ${appliesUndo}.`,
       removeTitle: (hook: string | undefined) => `Remove hook ${hook}`,
       removed: (hook: string | undefined) =>
         `Hook ${hook} is removed. ${appliesUndo}.`,
@@ -883,7 +912,7 @@ export const en = {
       toggleTitle: (enable: boolean, name: string) =>
         `${enable ? "Add back" : "Turn off"} ${name} (preview)`,
       toggled: (name: string, enable: boolean) =>
-        `${name} ${enable ? "is back in user scope" : `is turned ${notLoaded}`}. ${appliesUndo}.`,
+        `${name} ${enable ? `is back in ${allProjects}` : `is turned ${off}`}. ${appliesUndo}.`,
       removeTitle: (name: string) => `Remove ${name} (preview)`,
       removed: (name: string) => `${name} is removed. ${appliesUndo}.`,
       add: {
@@ -913,8 +942,8 @@ export const en = {
         scopeTitle: (name: string) => `Add ${name}: scope`,
         scopeIntro: "Where should the server live?",
         scopeOptions: [
-          "user (claude mcp add-json, every project)",
-          "project (this repo's .mcp.json)",
+          `${allProjects} (claude mcp add-json)`,
+          `${thisProject} (this repo's .mcp.json)`,
         ],
         previewTitle: (name: string) => `Add ${name} (preview)`,
         done: (name: string) => `${name} is added. ${appliesUndo}.`,
@@ -934,21 +963,20 @@ export const en = {
     },
     inventory: {
       nothing: "Nothing to switch or remove on this row.",
-      notOneScope:
-        "Not installed at exactly one scope here: uninstall it on its own.",
+      notOneScope: `${capital(notInstalled)} at exactly one scope here: uninstall it on its own.`,
       removeOrUninstall: "Remove or uninstall",
       switch: "Switch",
       removedDone: `Removed. ${appliesUndo}`,
       switchedDone: `Switched. ${appliesUndo}`,
-      notInstalledHere: `Not installed for this ${thisProject}: nothing to uninstall here.`,
+      notInstalledHere: `Not installed for ${thisProject}: nothing to uninstall here.`,
     },
   },
   core: {
     scopeNames: { user: allProjects, desktop: "desktop" },
-    scopeTitle: { user: "User", project: `This ${thisProject}` },
+    scopeTitle: { user: capital(allProjects), project: capital(thisProject) },
     columns: { state: "STATE", scope: "SCOPE" },
     // Detail-line labels whose value is drawn in its state colour.
-    stateLabels: ["state", `this ${thisProject}`, allProjects],
+    stateLabels: ["state", `${thisProject}`, allProjects],
     detail: {
       scope: (scope: string) => `scope: ${scope}`,
       state: (state: string) => `state: ${state}`,
@@ -994,7 +1022,7 @@ export const en = {
       ) =>
         `${label} ${command} in ${base}: ${count} of ${total} ${dryRun ? "would change" : "changed"}.`,
       allOff: (base: string, count: number, total: number, dryRun: boolean) =>
-        `all ${notLoaded} in ${base}: ${count} of ${total} ${dryRun ? "would change" : "changed"}.`,
+        `all unloaded in ${base}: ${count} of ${total} ${dryRun ? "would change" : "changed"}.`,
       statusLine: (name: string, state: string) =>
         `${name.padEnd(16)} ${state}`,
       scopeHeading: (scope: string, base: string) => `\n${scope} (${base})`,
@@ -1004,31 +1032,31 @@ export const en = {
       brokenLine: (kind: string, name: string, target: string) =>
         `  BROKEN ${kind}/${name} -> ${target} (missing)`,
       noProjectScope: (dir: string) =>
-        `This folder's .claude is the ${allProjects} config folder (${dir}), so there is no separate ${thisProject} scope.`,
+        `This folder's .claude is the config folder for ${allProjects} (${dir}), so there is no separate scope for ${thisProject}.`,
       noProjectScopeToMove: (dir: string) =>
-        `This folder's .claude is the ${allProjects} config folder (${dir}), so there is no separate ${thisProject} scope to move between.`,
+        `This folder's .claude is the config folder for ${allProjects} (${dir}), so there is no separate scope for ${thisProject} to move between.`,
       notSkillFolder: (from: string) =>
         `${from} is not a skill folder (symlinks are not moved)`,
       cannotShelve: (skill: string, group: string) =>
-        `Cannot shelve "${skill}" into "${group}"`,
+        `Cannot move "${skill}" into the ${library} ${bundle} "${group}"`,
       alreadyExists: (to: string) => `${to} already exists; not overwriting`,
       linkNamed: (skill: string, links: string) =>
-        `A ${library} link named ${skill} exists: ${links}. Turn it ${notLoaded} first.`,
+        `A ${library} link named ${skill} exists: ${links}. Unload it first.`,
       wouldShelve: (skill: string, group: string, from: string, to: string) =>
-        `would shelve ${skill} into ${group}: ${from} -> ${to}`,
+        `would move ${skill} into the ${library} ${bundle} ${group}: ${from} -> ${to}`,
       shelved: (skill: string, group: string) =>
-        `shelved ${skill} into ${group}`,
+        `moved ${skill} into the ${library} ${bundle} ${group}`,
       unshelveNeedsSkill: (target: string) =>
-        `"${target}" is a ${bundle}; unshelve takes a skill name or ${bundle}/skill`,
+        `"${target}" is a ${bundle}; moving a skill out of the ${library} takes a skill name or ${bundle}/skill`,
       stillLinked: (label: string, links: string) =>
-        `${label} is still linked: ${links}. Turn it ${notLoaded} first.`,
+        `${label} is still linked: ${links}. Unload it first.`,
       wouldUnshelve: (label: string, dir: string, from: string, to: string) =>
-        `would unshelve ${label} into ${dir}: ${from} -> ${to}`,
+        `would move ${label} out of the ${library} into ${dir}: ${from} -> ${to}`,
       unshelved: (label: string, dir: string) =>
-        `unshelved ${label} into ${dir}`,
+        `moved ${label} out of the ${library} into ${dir}`,
       badSkillName: (skill: string) => `Not a usable skill name: "${skill}"`,
       isLink: (from: string, scopeName: string) =>
-        `${from} is a link, not a ${scopeName} skill folder (links belong to the ${library}; turn it ${notLoaded} instead)`,
+        `${from} is a link, not a ${scopeName} skill folder (links belong to the ${library}; unload it instead)`,
       noScopeFolder: (scopeName: string, skill: string, dir: string) =>
         `No ${scopeName} skill folder "${skill}" in ${dir}`,
       wouldMove: (direction: string, skill: string, from: string, to: string) =>
@@ -1042,7 +1070,7 @@ export const en = {
       noSkillFolder: (target: string, dir: string) =>
         `No skill folder "${target}" in ${dir}`,
       isShelfLink: (target: string) =>
-        `${target} is a link into the ${library}, not a ${thisProject} skill folder. Turn it ${notLoaded} instead.`,
+        `${target} is a link into the ${library}, not a skill folder for ${thisProject}. Unload it instead.`,
       removeNeedsSkill: (target: string) =>
         `"${target}" is a ${bundle}; remove takes a skill name or ${bundle}/skill`,
       wouldRemove: (label: string, from: string, backup: boolean, to: string) =>
@@ -1088,11 +1116,11 @@ export const en = {
       ) =>
         `would add ${name} to ${library} ${bundle} ${group}: ${source} -> ${to}`,
       addedSkill: (name: string, group: string) =>
-        `added ${name} to ${library} ${bundle} ${group} (${notLoaded}); turn it ${loaded} with agentry shelf on ${group}/${name}`,
-      whereProjectAgents: `this ${thisProject}'s .claude/agents`,
-      whereClaudeMd: `this ${thisProject} as CLAUDE.md`,
+        `added ${name} to ${library} ${bundle} ${group} (${notLoaded}); load it with agentry shelf on ${group}/${name}`,
+      whereProjectAgents: `${thisProject}'s .claude/agents`,
+      whereClaudeMd: `${thisProject} as CLAUDE.md`,
       refusedClaudeMd: (existing: string, source: string) =>
-        `refused: this ${thisProject} already has ${existing}; not overwriting it. Merge ${source} into it by hand.`,
+        `refused: ${thisProject} already has ${existing}; not overwriting it. Merge ${source} into it by hand.`,
       isNotInstalled: (id: string) =>
         `${id} is ${notAdded}; agentry catalog add ${id}`,
       itemUpToDate: (id: string) => `${id} is up to date`,
@@ -1115,7 +1143,7 @@ export const en = {
       removeAgentsOnly: (id: string, command: string) =>
         `refused: catalog remove takes agents; remove ${id} with ${command}.`,
       agentNotInstalled: (id: string, project: boolean) =>
-        `${id} is ${notAdded} ${project ? `in this ${thisProject}` : "in ~/.claude/agents"}${project ? "" : `; --project removes the ${thisProject} copy`}.`,
+        `${id} is ${notAdded} ${project ? `in ${thisProject}` : "in ~/.claude/agents"}${project ? "" : `; --project removes the copy for ${thisProject}`}.`,
       wouldRemove: (id: string, to: string, backup: boolean, saved: string) =>
         `remove ${id}: ${to} (${backup ? `a copy is kept under ${saved}` : "no copy kept"})`,
       removePrompt: "\nRemove these? [y/N] ",
@@ -1146,7 +1174,7 @@ export const en = {
       describeAdd: (scope: string, name: string, summary: string) =>
         `Add ${scope} MCP server ${name} (${summary})`,
       added: (name: string, scope: string) =>
-        `${name} is added to ${scope} scope.${scope === "project" ? ` Claude Code asks you to approve a ${thisProject} server the first time it loads.` : ""} ${appliesNewSessions}`,
+        `${name} is added to ${scope} scope.${scope === "project" ? " Claude Code asks you to approve a project server the first time it loads." : ""} ${appliesNewSessions}`,
       setUsage:
         "Usage: agentry mcp set <name> [--env K=V]... [--unset-env K]... [--arg A]...",
       notEditable: (name: string, who: string) =>
@@ -1170,7 +1198,7 @@ export const en = {
         "desktop-extension": "managed by Claude desktop",
       } as Record<string, string>,
       alreadyOffHere: (name: string) =>
-        `${name} is already turned ${notLoaded} in this ${thisProject}.`,
+        `${name} is already turned ${off} in ${thisProject}.`,
       managed: (name: string, who: string) => `${name} is ${who}.`,
       doesNotManage: (scope: string) =>
         `a ${scope} server this tool does not manage`,
@@ -1184,7 +1212,7 @@ export const en = {
       describeProject: (enable: boolean, name: string, key: string) =>
         `${enable ? "Turn on" : "Turn off"} MCP server ${name} for ${key} (disabledMcpServers in ~/.claude.json)`,
       projectState: (name: string, enable: boolean, key: string) =>
-        `${name} is ${enable ? loaded : notLoaded} for ${key}. ${appliesNewSessions}`,
+        `${name} is ${enable ? on : off} for ${key}. ${appliesNewSessions}`,
       describePark: (enable: boolean, name: string, summary: string) =>
         `${enable ? "Add back" : "Park"} user MCP server ${name} (${summary})`,
       saveFailed: "could not save the parked copy, so nothing was removed",
@@ -1209,11 +1237,11 @@ export const en = {
       matchesSeveral: (selector: string, ids: string) =>
         `"${selector}" matches several hooks (${ids}); use more characters.`,
       pluginManages: (selector: string, plugin: string) =>
-        `${selector} is a hook of plugin ${plugin}, which manages it; turn the plugin ${notLoaded} with agentry plugin disable ${plugin}.`,
+        `${selector} is a hook of plugin ${plugin}, which manages it; turn the plugin ${off} with agentry plugin disable ${plugin}.`,
       alreadyOff: (selector: string, described: string) =>
-        `${selector} is already ${notLoaded} (${described}).`,
+        `${selector} is already ${off} (${described}).`,
       alreadyOn: (selector: string, scope: string) =>
-        `${selector} is already ${loaded} (${scope} settings).`,
+        `${selector} is already ${on} (${scope} settings).`,
       noHook: (action: string, selector: string, scope: string | undefined) =>
         `No ${action === "enable" ? "turned-off " : ""}hook "${selector}"${scope ? ` in ${scope} settings` : ""}. See agentry hook list.`,
       existsIn: (selector: string, scopes: string) =>
@@ -1236,7 +1264,7 @@ export const en = {
       describe: (verb: string, id: string, label: string, scope: string) =>
         `${verb} hook ${id}: ${label} (${scope} settings)`,
       isOff: (id: string, file: string) =>
-        `hook ${id} is ${notLoaded} (saved in ${file}, mode 0600). Switch it back with agentry hook enable ${id}. ${appliesNewSessions}`,
+        `hook ${id} is ${off} (saved in ${file}, mode 0600). Switch it back with agentry hook enable ${id}. ${appliesNewSessions}`,
       backIn: (id: string, scope: string) =>
         `hook ${id} is back in ${scope} settings; its saved copy is deleted. ${appliesNewSessions}`,
       removedFrom: (id: string, scope: string) =>
@@ -1250,7 +1278,7 @@ export const en = {
       noPlugin: (name: string, ids: string) =>
         `No plugin "${name}". Plugins: ${ids || "none"}`,
       notInstalledHere: (id: string, otherProjects: boolean) =>
-        `${id} is ${otherProjects ? `${added} only for other ${thisProject}s, so it does not load in this folder` : notAdded}; install it with claude plugin install first.`,
+        `${id} is ${otherProjects ? `${installed} only for other projects, so it does not load in this folder` : notInstalled}; install it with claude plugin install first.`,
       mdm: (id: string, domain: string) =>
         `${id} is set by macOS MDM managed settings (${domain}), which this tool cannot change.`,
       managedFile: (id: string, file: string) =>
@@ -1268,15 +1296,15 @@ export const en = {
       usage:
         "Usage: agentry plugin install <name>@<marketplace> [--scope user|project|local]",
       noInstalled: (name: string, ids: string) =>
-        `No ${added} plugin "${name}". ${capital(added)}: ${ids || "none"}`,
+        `No ${installed} plugin "${name}". ${capital(installed)}: ${ids || "none"}`,
       onlyOtherProjects: (id: string) =>
-        `${id} is ${added} only for other ${thisProject}s; run this in one of them.`,
+        `${id} is ${installed} only for other projects; run this in one of them.`,
       severalScopes: (id: string, scopes: string) =>
-        `${id} is ${added} at several scopes here (${scopes}); pick one with --scope.`,
+        `${id} is ${installed} at several scopes here (${scopes}); pick one with --scope.`,
       alreadyInstalled: (id: string, scope: string) =>
-        `refused: ${id} is already ${added} at ${scope} scope.`,
+        `refused: ${id} is already ${installed} at ${scope} scope.`,
       notInstalledAt: (id: string, scope: string) =>
-        `refused: ${id} is ${notAdded} at ${scope} scope.`,
+        `refused: ${id} is ${notInstalled} at ${scope} scope.`,
       noDir: (dir: string, scope: string) =>
         `refused: ${dir} does not exist, so ${scope} scope cannot be used here.`,
       describe: (install: boolean, id: string, scope: string) =>

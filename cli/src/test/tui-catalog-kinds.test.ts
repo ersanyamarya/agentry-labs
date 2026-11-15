@@ -81,7 +81,7 @@ describe("Catalog tab beyond skills", () => {
     assert.match(frame, /Agents/);
     assert.match(ui.rail(), /Catalog\s+6/);
     assert.match(ui.frame()!, /\bi add/);
-    assert.match(ui.frame()!, /\bo (add to this )?project/);
+    assert.match(ui.frame()!, /\bo (add to )?this project/);
     await ui.moveTo(/^>\s+\S\s+style/);
     await ui.moveTo(/^>\s+\S\s+BASIC_CLAUDE/);
     await ui.moveTo(/^>\s+\S\s+docs/);
@@ -105,7 +105,7 @@ describe("Catalog tab beyond skills", () => {
       readFileSync(configFile("agents/helper.agent.md"), "utf8"),
       /body v1/
     );
-    await ui.until(/helper\s+~\d+\s+● global/);
+    await ui.until(/helper\s+~\d+\s+● all projects/);
   });
 
   test("o adds an agent to this project only", async () => {
@@ -119,7 +119,7 @@ describe("Catalog tab beyond skills", () => {
       true
     );
     assert.equal(existsSync(configFile("agents/helper.agent.md")), false);
-    await ui.until(/helper\s+~\d+\s+● project/);
+    await ui.until(/helper\s+~\d+\s+● this project/);
   });
 
   test("a rule goes to ~/.claude/rules; o explains it is for agents and MCP servers", async () => {
@@ -171,7 +171,7 @@ describe("Catalog tab beyond skills", () => {
         .docs.url,
       "https://example.com/mcp"
     );
-    await ui.until(/docs\s+-\s+● project/);
+    await ui.until(/docs\s+-\s+● this project/);
   });
 
   test("an outdated item shows it; u previews the files, y overwrites and saves the old copy", async () => {
@@ -179,7 +179,7 @@ describe("Catalog tab beyond skills", () => {
     await ui.press("i");
     await ui.until(/Add agent/);
     await ui.press("y");
-    await ui.until(/helper\s+~\d+\s+● global\s*$/m);
+    await ui.until(/helper\s+~\d+\s+● all projects\s*$/m);
     assert.doesNotMatch(ui.frame()!, /outdated/);
     await ui.press("u");
     await ui.until(/helper is up to date/);
@@ -191,7 +191,7 @@ describe("Catalog tab beyond skills", () => {
     git("add", "-A");
     git("commit", "-q", "-m", "v2");
     await ui.press("f");
-    await ui.until(/◐ global/);
+    await ui.until(/◐ all projects/);
     await ui.until(/\bu update.*\? help/);
     await ui.press("u");
     await ui.until(/Update agent\/helper \(preview\)/);
@@ -208,7 +208,7 @@ describe("Catalog tab beyond skills", () => {
       /body v2/
     );
     assert.equal(existsSync(configFile("backups/agentry/updated")), true);
-    await ui.until(/helper\s+~\d+\s+● global\s*$/m);
+    await ui.until(/helper\s+~\d+\s+● all projects\s*$/m);
   });
 
   test("an MCP server with other args shows outdated; u previews masked, y sets them and keeps your env", async () => {
@@ -242,11 +242,11 @@ describe("Catalog tab beyond skills", () => {
   test("x on an installed agent previews, y removes it and keeps a copy; on an installed rule it removes the file", async () => {
     await ui.moveTo(/^>\s+\S\s+helper/);
     await ui.press("x");
-    await ui.until(/helper is not installed/);
+    await ui.until(/helper is not added/);
     await ui.press("i");
     await ui.until(/Add agent/);
     await ui.press("y");
-    await ui.until(/helper\s+~\d+\s+● global\s*$/m);
+    await ui.until(/helper\s+~\d+\s+● all projects\s*$/m);
     await ui.until(/\bx remove.*\? help/);
     await ui.press("x");
     await ui.until(/Remove agent\/helper \(preview\)/);
@@ -265,7 +265,7 @@ describe("Catalog tab beyond skills", () => {
     await ui.press("i");
     await ui.until(/Add rule/);
     await ui.press("y");
-    await ui.until(/style\s+~\d+\s+● global/);
+    await ui.until(/style\s+~\d+\s+● all projects/);
     await ui.press("X");
     await ui.until(/Remove rule\/style \(preview\)/);
     await ui.press("y");
@@ -285,7 +285,7 @@ describe("Rules tab", () => {
     await ui.press("r", "5");
     await ui.until(/style\.md\s+~\d+\s+rule/);
     const frame = stripAnsi(ui.frame()!);
-    assert.match(frame, /User/);
+    assert.match(frame, /All projects/);
     assert.match(frame, /This project/);
     assert.match(frame, /^\s*>?\s+CLAUDE\.md\s+~\d+\s+CLAUDE\.md$/m);
     await ui.moveTo(/^>.*rules\/style\.md/);
