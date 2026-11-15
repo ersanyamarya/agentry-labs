@@ -20,8 +20,8 @@ describe("shelve from the Skills tab", () => {
     await gotoNotes();
   });
 
-  test("s picks an existing group, previews with a dry run, and y moves the folder; then space toggles it", async () => {
-    await ui.press("s");
+  test("m then library picks an existing group, previews with a dry run, and y moves the folder; then space toggles it", async () => {
+    await ui.press("m", KEYS.enter);
     await ui.until(/choose a bundle/);
     assert.match(ui.frame()!, /> audit/);
     await ui.press(KEYS.down, KEYS.enter);
@@ -46,7 +46,7 @@ describe("shelve from the Skills tab", () => {
   });
 
   test("n types a new group name; q and other keys are text, not commands", async () => {
-    await ui.press("s", "n");
+    await ui.press("m", KEYS.enter, "n");
     await ui.until(/Bundle name: _/);
     await ui.press("q", "u", "i", "z");
     await ui.until(/Bundle name: quiz_/);
@@ -58,16 +58,16 @@ describe("shelve from the Skills tab", () => {
   });
 
   test("n cancels with nothing written, and bad group names are refused before the shelf is asked", async () => {
-    await ui.press("s", KEYS.enter);
+    await ui.press("m", KEYS.enter, KEYS.enter);
     await ui.until(/Move to the library: preview/);
     await ui.press("n");
     await ui.until(/Cancelled; nothing changed/);
     assert.ok(existsSync(personal()));
 
-    await ui.press("s", "n", ".", "x", KEYS.enter);
+    await ui.press("m", KEYS.enter, "n", ".", "x", KEYS.enter);
     await ui.until(/Not a usable bundle name/);
     assert.ok(existsSync(personal()));
-    await ui.press("s", "n", KEYS.enter);
+    await ui.press("m", KEYS.enter, "n", KEYS.enter);
     await ui.until(/Not a usable bundle name: ""/);
   });
 
@@ -79,7 +79,7 @@ describe("shelve from the Skills tab", () => {
     );
     await ui.press("r");
     await ui.until(/Refreshed/);
-    await ui.press("s", KEYS.enter);
+    await ui.press("m", KEYS.enter, KEYS.enter);
     await ui.until(/overwriting/);
     assert.match(ui.frame()!, /Nothing can be applied here/);
     await ui.press("y");
@@ -93,10 +93,17 @@ describe("unshelve and why a row cannot be toggled", () => {
     await ui.ready();
   });
 
-  test("u on a shelved skill previews and y moves it back to ~/.claude/skills", async () => {
+  test("m on a shelved skill offers only moving it out; y moves it back to ~/.claude/skills", async () => {
     await ui.press(KEYS.down, KEYS.enter);
     await ui.moveTo(/^>\s+ffmpeg-install/);
-    await ui.press("u");
+    await ui.press("m");
+    await ui.until(/Where should ffmpeg-install go\?/);
+    assert.match(ui.frame()!, /> Move out of the library \(to all projects\)/);
+    assert.doesNotMatch(
+      ui.frame()!,
+      /Move to this project only|Move to the library$/m
+    );
+    await ui.press(KEYS.enter);
     await ui.until(/Move out of the library: preview \(dry run\)/);
     assert.match(
       ui.frame()!,
@@ -115,7 +122,7 @@ describe("unshelve and why a row cannot be toggled", () => {
     await ui.moveTo(/^>\s+ffmpeg-install/);
     await ui.press(KEYS.space);
     await ui.until(/video\/ffmpeg-install on in/);
-    await ui.press("u");
+    await ui.press("m", KEYS.enter);
     await ui.until(/still linked/);
     assert.match(ui.frame()!, /Nothing can be applied here/);
   });
@@ -124,15 +131,20 @@ describe("unshelve and why a row cannot be toggled", () => {
     await gotoNotes();
     await ui.press(KEYS.space);
     await ui.until(
-      /skill for all projects \(~\/\.claude\/skills\): s moves it to the library/
+      /skill for all projects \(~\/\.claude\/skills\): m moves it to the library/
     );
     await ui.press(KEYS.down, KEYS.space);
     await ui.until(/skill for this project \(this repo.s \.claude\/skills\)/);
   });
 
-  test("s elsewhere says what it does", async () => {
-    await ui.press("s");
-    await ui.until(/s moves a skill for all projects or for this projec/);
+  test("s and u on a library skill show the notice naming m", async () => {
+    await ui.press(KEYS.down, KEYS.enter);
+    await ui.moveTo(/^>\s+ffmpeg-install/);
+    await ui.press("u");
+    await ui.until(/Moves now live under m/);
+    assert.ok(
+      existsSync(join(ui.fx.configDir, "skill-shelf/video/ffmpeg-install"))
+    );
   });
 });
 

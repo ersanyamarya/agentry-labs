@@ -51,7 +51,7 @@ describe("c copies a preview or a result", () => {
     });
     await ui.ready();
     await ui.moveTo(/^>\s+notes/);
-    await ui.press("s", KEYS.enter);
+    await ui.press("m", KEYS.enter, KEYS.enter);
     await ui.until(/Move to the library: preview/);
     assert.match(ui.frame()!, /Apply\?\s+y yes\s+n no\s+c copy/);
     await ui.press("c");

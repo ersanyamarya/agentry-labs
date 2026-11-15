@@ -4,12 +4,12 @@ import { messages } from "@agentry/core/messages";
 import { Box, useInput } from "ink";
 import React from "react";
 import { startBulk } from "../bulk-flow.js";
-import { startScopeMove } from "../move-flow.js";
+import { scopeMoveStep } from "../move-flow.js";
 import { startPluginToggle } from "../plugin-flow.js";
 import { startRemove } from "../remove-flow.js";
 import { skillKeys, skillRows } from "../rows.js";
 import type { Row, TabProps } from "../types.js";
-import { useFlow } from "../use-flow.js";
+import { type Step, useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
 
@@ -75,7 +75,7 @@ export const SkillsTab = ({
       done: text.shelved(skill, group),
     };
   };
-  const startShelve = (project: boolean) => {
+  const shelveStep = (project: boolean): Step => {
     const skill = row?.skill ?? "";
     const groups = data.groups.map((group) => group.name);
     const typeName = () => ({
@@ -88,29 +88,59 @@ export const SkillsTab = ({
           ? { kind: "result" as const, ok: false, text: badName(name) ?? "" }
           : previewShelve(skill, name, project),
     });
-    flow.begin(
-      groups.length === 0
-        ? typeName()
-        : {
-            kind: "pick",
-            title: text.chooseTitle(skill),
-            intro: [text.chooseIntro(skill)],
-            options: groups,
-            onPick: (group: string) => previewShelve(skill, group, project),
-            onNew: typeName,
-          }
-    );
+    return groups.length === 0
+      ? typeName()
+      : {
+          kind: "pick",
+          title: text.chooseTitle(skill),
+          intro: [text.chooseIntro(skill)],
+          options: groups,
+          onPick: (group: string) => previewShelve(skill, group, project),
+          onNew: typeName,
+        };
   };
-  const startUnshelve = async () => {
+  const unshelveStep = async (): Promise<Step> => {
     const target = `${row?.group}/${row?.skill}`;
     const preview = await api.unshelveSkill({ dir, target, dryRun: true });
-    flow.begin({
+    return {
       kind: "confirm",
       title: text.unshelvePreviewTitle,
       text: preview.text,
       appliable: preview.ok,
       apply: () => api.unshelveSkill({ dir, target }),
       done: text.unshelved(target),
+    };
+  };
+
+  // m: a short menu of only the moves that apply to the selected row; each runs the existing preview.
+  const startMove = () => {
+    const skill = row?.skill ?? "";
+    const scope = (promote: boolean) =>
+      scopeMoveStep({ api, dir, skill, promote });
+    const moves: [string, () => Step | Promise<Step>][] =
+      row?.kind === "skill"
+        ? [[text.moveOutOfLibrary, unshelveStep]]
+        : row?.projectOnly
+          ? [
+              [text.moveToLibrary, () => shelveStep(true)],
+              [text.moveToAll, () => scope(true)],
+            ]
+          : row?.shelvable
+            ? [
+                [text.moveToLibrary, () => shelveStep(false)],
+                [text.moveToProject, () => scope(false)],
+              ]
+            : [];
+    if (moves.length === 0) {
+      notify(row?.kind === "global" ? (row.why ?? "") : text.moveHint);
+      return;
+    }
+    flow.begin({
+      kind: "pick",
+      title: text.moveTitle(row?.skill ?? row?.label ?? ""),
+      intro: [text.moveIntro(row?.skill ?? row?.label ?? "")],
+      options: moves.map(([label]) => label),
+      onPick: (label: string) => moves.find(([one]) => one === label)?.[1](),
     });
   };
 
@@ -142,7 +172,7 @@ export const SkillsTab = ({
     await reload();
   };
 
-  // Marked rows (m): one combined preview and one y for the whole set, through the same lib calls as a single row.
+  // Marked rows (*): one combined preview and one y for the whole set, through the same lib calls as a single row.
   const bulkToggle = (global: boolean) => {
     const items = list.marked.filter(
       (one) => one.kind === "group" || one.kind === "skill"
@@ -214,21 +244,15 @@ export const SkillsTab = ({
       if (key.upArrow || key.downArrow) {
         flow.clear();
         move(key.upArrow ? -1 : 1);
-      } else if (input === "s") {
-        if (row?.shelvable || row?.projectOnly) {
-          startShelve(Boolean(row.projectOnly));
-        } else {
-          notify(
-            row?.kind === "global"
-              ? (row.why ?? "")
-              : row?.kind === "skill"
-                ? text.alreadyShelved
-                : text.shelveHint
-          );
-        }
-      } else if (input === "u") {
-        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
-        row?.kind === "skill" ? startUnshelve() : notify(text.unshelveHint);
+      } else if (input === "m") {
+        startMove();
+      } else if (
+        input === "s" ||
+        input === "a" ||
+        input === "o" ||
+        (input === "u" && row?.kind === "skill")
+      ) {
+        notify(text.nowPressM);
       } else if (key.return && row?.kind === "group") {
         setExpanded((open) => {
           const next = new Set(open);
@@ -277,12 +301,6 @@ export const SkillsTab = ({
                   label: text.globalLabel(row.skill),
                 })
               : notify(text.removeHint);
-      } else if (input === "a" || input === "o") {
-        const promote = input === "a";
-        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
-        (promote ? row?.projectOnly : row?.shelvable)
-          ? startScopeMove({ api, dir, flow, skill: row?.skill ?? "", promote })
-          : notify(promote ? text.moveToAllHint : text.moveToProjectHint);
       } else if (input === "e") {
         openFile(row?.file);
       }

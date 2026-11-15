@@ -107,7 +107,7 @@ export const skillKeys = (row: Row | undefined): KeyHint[] => {
   if (row?.kind === "skill") {
     return [
       ...both,
-      ["u", K.skills.unshelve],
+      ["m", K.skills.move],
       ["x", K.removeCopyKept, K.removeCopyKeptShort],
       ["X", K.removeNoCopy, K.removeNoCopyShort],
       ["e", K.openFile, K.openFileShort],
@@ -118,8 +118,7 @@ export const skillKeys = (row: Row | undefined): KeyHint[] => {
   }
   if (row?.projectOnly) {
     return [
-      ["s", K.skills.shelve],
-      ["a", K.skills.moveToAll, K.skills.moveToAllShort],
+      ["m", K.skills.move],
       ["x", K.removeCopyKept, K.removeCopyKeptShort],
       ["X", K.removeNoCopy, K.removeNoCopyShort],
       ["e", K.openFile, K.openFileShort],
@@ -127,8 +126,7 @@ export const skillKeys = (row: Row | undefined): KeyHint[] => {
   }
   if (row?.shelvable) {
     return [
-      ["s", K.skills.shelve],
-      ["o", K.skills.moveToProject, K.skills.moveToProjectShort],
+      ["m", K.skills.move],
       ["x", K.removeCopyKept, K.removeCopyKeptShort],
       ["X", K.removeNoCopy, K.removeNoCopyShort],
       ["e", K.openFile, K.openFileShort],

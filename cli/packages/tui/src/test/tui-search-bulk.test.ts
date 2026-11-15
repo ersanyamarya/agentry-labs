@@ -73,24 +73,49 @@ describe("/ search", () => {
   });
 });
 
-describe("m marks and bulk actions", () => {
-  test("m marks, M clears, and the status line counts", async () => {
+describe("* marks and bulk actions", () => {
+  test("* marks, esc clears, and the status line counts", async () => {
     ui = createUi({ personal: ["notes", "todo"] });
     await ui.ready();
     await ui.moveTo(/^>\s+notes/);
-    await ui.press("m", KEYS.down, "m");
+    await ui.press("*", KEYS.down, "*");
     await ui.until(/2 marked/);
     assert.match(stripAnsi(ui.frame()!), /^ ?\*\s+notes/m);
-    await ui.press("M");
+    assert.match(stripAnsi(ui.frame()!), /esc clears/);
+    await ui.press(KEYS.esc);
     await ui.until(/^(?![\s\S]*2 marked)/);
     assert.doesNotMatch(stripAnsi(ui.frame()!), /marked/);
+  });
+
+  test("m no longer marks and M does not clear", async () => {
+    ui = createUi({ personal: ["notes", "todo"] });
+    await ui.ready();
+    await ui.moveTo(/^>\s+notes/);
+    await ui.press("*", "M");
+    await ui.until(/1 marked/);
+    await ui.press("m");
+    await ui.until(/Where should notes go\?/);
+    assert.match(stripAnsi(ui.frame()!), /Where should notes go/);
+  });
+
+  test("esc clears a filter first and the marks on the next press", async () => {
+    ui = createUi({ personal: ["notes", "todo"] });
+    await ui.ready();
+    await ui.moveTo(/^>\s+notes/);
+    await ui.press("*", "/", "n", "o", "t", KEYS.enter);
+    await ui.until(/filter "not"/);
+    await ui.press(KEYS.esc);
+    await ui.until(/^(?![\s\S]*filter "not")/);
+    assert.match(stripAnsi(ui.frame()!), /1 marked/);
+    await ui.press(KEYS.esc);
+    await ui.until(/^(?![\s\S]*1 marked)/);
   });
 
   test("x on marked skills previews all of them in one confirm and one y removes them", async () => {
     ui = createUi({ personal: ["notes", "todo"] });
     await ui.ready();
     await ui.moveTo(/^>\s+notes/);
-    await ui.press("m", KEYS.down, "m");
+    await ui.press("*", KEYS.down, "*");
     await ui.press("x");
     await ui.until(/Remove skills: 2 of 2 \(preview\)/);
     assert.match(stripAnsi(ui.frame()!), /[=]= notes ==/);
@@ -109,7 +134,7 @@ describe("m marks and bulk actions", () => {
     ui = createUi({ personal: ["notes", "todo"] });
     await ui.ready();
     await ui.moveTo(/^>\s+notes/);
-    await ui.press("m", KEYS.down, "m", "x");
+    await ui.press("*", KEYS.down, "*", "x");
     await ui.until(/Remove skills: 2 of 2/);
     await ui.press("n");
     await ui.until(/Cancelled; nothing changed/);
@@ -121,7 +146,7 @@ describe("m marks and bulk actions", () => {
     ui = createUi();
     await ui.ready();
     await ui.moveTo(/^>.* audit/);
-    await ui.press("m", KEYS.down, "m", KEYS.space);
+    await ui.press("*", KEYS.down, "*", KEYS.space);
     await ui.until(/Load for this project: 2 of 2 \(preview\)/);
     await ui.press("y");
     await ui.until(/Loaded for this project \(2 items\)/);
@@ -147,7 +172,7 @@ describe("m marks and bulk actions", () => {
     assert.equal(readdirSync(backups).length, 3);
     await ui.press("9");
     await ui.until(/d (delete 30\+ days old|prune)/);
-    await ui.press("m", KEYS.down, "m", "x");
+    await ui.press("*", KEYS.down, "*", "x");
     await ui.until(/Delete 2 backups \(preview\)/);
     await ui.press("y");
     await ui.until(/Deleted those backups/);

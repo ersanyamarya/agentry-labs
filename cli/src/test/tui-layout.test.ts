@@ -87,11 +87,8 @@ test("a long path in the details is cut in the middle with an ellipsis, keeping 
 test("the help overlay lists the new keys and the colour legend", async () => {
   await ui.press("?");
   await ui.until(/Keys \(\? or esc to close\)/);
-  assert.match(
-    ui.frame()!,
-    /s {12}Skills: move a skill for all projects to the library/
-  );
-  assert.match(ui.frame()!, /u {12}Skills: move a skill out of the library/);
+  assert.match(ui.frame()!, /m {12}Skills: a menu of the moves that apply/);
+  assert.match(ui.frame()!, /s {12}MCP: edit env\/args/);
   assert.match(
     ui.frame()!,
     /● loaded \/ active green, ○ not loaded \/ disabled gray, ◐ partial yellow/
@@ -103,7 +100,7 @@ test("the footer follows the selected row: a skill for all projects offers move 
   await ui.moveTo(/^>\s+notes/);
   assert.match(
     ui.frame()!,
-    /s move to the library {3}o (move to this project only|this project) {3}x remove {3}X (remove, no copy|no copy) {3}e (open file|edit)/
+    /m move {3}x remove {3}X (remove, no copy|no copy) {3}e (open file|edit)/
   );
   assert.doesNotMatch(ui.frame()!, /space project/);
 });

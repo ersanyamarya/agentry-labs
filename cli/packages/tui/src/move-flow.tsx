@@ -14,24 +14,29 @@ interface Ctx {
   flow: Flow;
 }
 
-export const startScopeMove = async ({
+export const scopeMoveStep = async ({
   api,
   dir,
-  flow,
   skill,
   promote,
-}: Ctx & { skill: string; promote: boolean }) => {
+}: Omit<Ctx, "flow"> & { skill: string; promote: boolean }) => {
   const preview = await (promote ? api.promoteSkill : api.demoteSkill)({
     dir,
     skill,
     dryRun: true,
   });
-  flow.begin({
-    kind: "confirm",
+  return {
+    kind: "confirm" as const,
     title: text.title(promote, skill),
     text: preview.text,
     appliable: preview.ok,
     apply: () => (promote ? api.promoteSkill : api.demoteSkill)({ dir, skill }),
     done: text.done(promote, skill),
-  });
+  };
 };
+
+export const startScopeMove = async ({
+  flow,
+  ...rest
+}: Ctx & { skill: string; promote: boolean }) =>
+  flow.begin(await scopeMoveStep(rest));

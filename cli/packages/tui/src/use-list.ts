@@ -1,7 +1,7 @@
-// What every list tab shares: the row cursor (use-cursor.ts), a `/` filter and `m` marks.
+// What every list tab shares: the row cursor (use-cursor.ts), a `/` filter and `*` marks.
 // `/` types a filter (substring of the label and details, any case): enter keeps it, esc clears it. While typing the hook
-// holds the "typing" lock (see use-flow.ts), so q and the tab keys reach nobody. `m` marks or unmarks the selected row
-// and `M` clears the marks; a tab applies a bulk action to `marked` (see bulk-flow.ts).
+// holds the "typing" lock (see use-flow.ts), so q and the tab keys reach nobody. `*` marks or unmarks the selected row
+// and esc (when no filter is active) clears the marks; a tab applies a bulk action to `marked` (see bulk-flow.ts).
 
 import type { Key } from "ink";
 import React from "react";
@@ -70,14 +70,14 @@ export const useList = ({
       type(true);
     } else if (key.escape && query) {
       setQuery("");
-    } else if (marks && input === "m" && row && !row.header) {
+    } else if (marks && input === "*" && row && !row.header) {
       setIds((old) => {
         const next = new Set(old);
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         next.has(row.id) ? next.delete(row.id) : next.add(row.id);
         return next;
       });
-    } else if (marks && input === "M") {
+    } else if (marks && key.escape && markedIds.size > 0) {
       setIds(new Set());
     } else {
       return false;
@@ -92,7 +92,7 @@ export const useList = ({
         ? `filter "${query}": ${rows.length} of ${all.filter((one) => !one.header).length} (/ edit, esc clear)`
         : "",
     markedIds.size > 0
-      ? `${markedIds.size} marked (space/x apply to all, M clears)`
+      ? `${markedIds.size} marked (space/x apply to all, esc clears)`
       : "",
   ]
     .filter(Boolean)
