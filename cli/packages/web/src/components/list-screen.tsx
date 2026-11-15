@@ -2,6 +2,7 @@
 // search and a segmented filter, the table, a key hint line, and a details column on the right. Below 1100px the details
 // open in a Sheet instead. Content sits flat on the page and uses the whole width: no cards, no max width.
 
+import { messages } from "@agentry/core/messages";
 import { SearchIcon } from "lucide-react";
 import type { ReactNode, RefObject } from "react";
 import { useMediaQuery } from "../hooks/use-media-query.js";
@@ -25,6 +26,8 @@ import {
   TableRow,
 } from "./ui/table.js";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group.js";
+
+const t = messages().web.list;
 
 export interface Column<T> {
   cell: (row: T) => ReactNode;
@@ -123,7 +126,7 @@ export const ListScreen = <T,>({
           <Kbd>/</Kbd>
         </label>
         <ToggleGroup
-          aria-label="Filter"
+          aria-label={t.filterAria}
           className="flex-wrap"
           onValueChange={(value) => value && filter.onChange(value)}
           type="single"
@@ -150,7 +153,7 @@ export const ListScreen = <T,>({
                 {selection ? (
                   <TableHead className="w-10">
                     <input
-                      aria-label="Select all shown"
+                      aria-label={t.selectAllAria}
                       checked={selection.allChecked}
                       className="accent-primary size-4"
                       onChange={selection.onToggleAll}
@@ -195,7 +198,7 @@ export const ListScreen = <T,>({
                       {selection ? (
                         <TableCell className="w-10">
                           <input
-                            aria-label={`Select ${selection.label(id)}`}
+                            aria-label={t.selectAria(selection.label(id))}
                             checked={selection.checked.has(id)}
                             className="accent-primary size-4"
                             onChange={() => selection.onToggle(id)}

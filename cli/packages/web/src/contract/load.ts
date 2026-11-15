@@ -95,6 +95,7 @@ export const pluginItemSchema = z.object({
 });
 
 const statusSchema = z.object({
+  copilot: z.unknown().nullable().optional(),
   errors: z.array(readError),
   hooks: z.object({
     items: z.array(hookItemSchema),

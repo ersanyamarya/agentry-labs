@@ -1,6 +1,7 @@
 // MCP servers: turn a user-scope server off and back on, remove, add and edit. Every write is core's preview/apply pair.
 // Env values, headers, args and URLs arrive masked from the server; the add and edit forms send what you type to core only.
 
+import { messages } from "@agentry/core/messages";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { LoadData } from "../contract/index.js";
@@ -26,6 +27,9 @@ import { Label } from "./ui/label.js";
 import { Switch } from "./ui/switch.js";
 import { Textarea } from "./ui/textarea.js";
 
+const m = messages();
+const t = m.web.mcp;
+
 interface McpRow {
   detail: string;
   env: [string, string][];
@@ -43,7 +47,7 @@ export const mcpRows = (load: LoadData): McpRow[] => [
   ...load.status.mcp.servers.map((server) => ({
     id: `${server.scope}:${server.name}`,
     name: server.name,
-    scope: server.scope === "user" ? "global" : server.scope,
+    scope: server.scope === "user" ? m.web.common.scopeGlobal : server.scope,
     state: server.state,
     transport: server.transport,
     detail:
@@ -57,12 +61,12 @@ export const mcpRows = (load: LoadData): McpRow[] => [
   ...load.parked.items.map((item) => ({
     id: `parked:${item.name}`,
     name: item.name,
-    scope: "global",
+    scope: m.web.common.scopeGlobal,
     state: "off",
     transport: "parked",
     detail: item.summary,
     env: [],
-    source: "parked in agentry's config",
+    source: t.parkedSource,
     parked: true,
     userScope: true,
   })),
@@ -104,15 +108,15 @@ export const McpScreen = () => {
         title: target.name,
         preview: async () => ({
           appliable: false,
-          text: `${target.name} is managed in ${target.source}. Only user-scope servers can be turned off here.`,
+          text: t.managedElsewhere(target.name, target.source),
         }),
-        apply: async () => ({ ok: false, text: "Nothing to apply." }),
+        apply: async () => ({ ok: false, text: m.web.hooks.nothingToApply }),
       });
       return;
     }
     const enable = target.parked;
     flow.start({
-      title: `${enable ? "Add back" : "Turn off"} ${target.name}`,
+      title: t.turnTitle(enable, target.name),
       preview: () => client.mcp.previewMcp({ dir, name: target.name, enable }),
       apply: () => client.mcp.applyMcp({ dir, name: target.name, enable }),
     });
@@ -120,10 +124,10 @@ export const McpScreen = () => {
   const remove = (target: McpRow | undefined) => {
     if (target && !target.parked && target.userScope) {
       flow.start({
-        title: `Remove ${target.name}`,
+        title: t.removeTitle(target.name),
         preview: () => client.mcp.previewMcpRemove({ dir, name: target.name }),
         apply: () => client.mcp.applyMcpRemove({ dir, name: target.name }),
-        note: "A backup of ~/.claude.json is made first.",
+        note: t.removeNote,
       });
     }
   };
@@ -160,7 +164,7 @@ export const McpScreen = () => {
     if (form === "add") {
       const input = addInput();
       flow.start({
-        title: `Add ${input.name}`,
+        title: t.addTitle(input.name),
         preview: () => client.mcp.previewMcpAdd(input),
         apply: () => client.mcp.applyMcpAdd(input),
       });
@@ -172,7 +176,7 @@ export const McpScreen = () => {
         env: lines(fields.env),
       };
       flow.start({
-        title: `Edit ${row.name}`,
+        title: t.editTitle(row.name),
         preview: () => client.mcp.previewMcpSet(input),
         apply: () => client.mcp.applyMcpSet(input),
       });
@@ -229,16 +233,16 @@ export const McpScreen = () => {
               setForm("add");
             }}
           >
-            <PlusIcon aria-hidden="true" className="size-4" /> Add server
+            <PlusIcon aria-hidden="true" className="size-4" /> {t.addServer}
           </Button>
         }
         columns={[
           {
-            header: "On",
+            header: m.web.common.on,
             className: "w-14",
             cell: (item) => (
               <Switch
-                aria-label={`Turn ${item.name} ${item.state === "active" ? "off" : "on"}`}
+                aria-label={t.turnAria(item.name, item.state === "active")}
                 checked={item.state === "active"}
                 disabled={!item.userScope}
                 onCheckedChange={() => turn(item)}
@@ -247,7 +251,7 @@ export const McpScreen = () => {
             ),
           },
           {
-            header: "Server",
+            header: t.server,
             cell: (item) => (
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate font-mono text-sm font-medium">
@@ -260,12 +264,12 @@ export const McpScreen = () => {
             ),
           },
           {
-            header: "Scope",
+            header: m.web.common.scope,
             className: "w-28",
             cell: (item) => <Pill tone="muted">{item.scope}</Pill>,
           },
           {
-            header: "State",
+            header: m.web.common.state,
             className: "w-40",
             cell: (item) => (
               <Pill tone={stateTone(item.state)}>{item.state}</Pill>
@@ -279,7 +283,7 @@ export const McpScreen = () => {
                 <>
                   {row.userScope ? (
                     <ActionButton keyHint="space" onClick={() => turn(row)}>
-                      {row.parked ? "Add back" : "Turn off"}
+                      {row.parked ? t.addBack : m.web.common.turnOff}
                     </ActionButton>
                   ) : null}
                   {row.userScope && !row.parked ? (
@@ -289,7 +293,7 @@ export const McpScreen = () => {
                         setForm("edit");
                       }}
                     >
-                      Edit
+                      {t.edit}
                     </ActionButton>
                   ) : null}
                   {row.userScope && !row.parked ? (
@@ -298,22 +302,22 @@ export const McpScreen = () => {
                       keyHint="x"
                       onClick={() => remove(row)}
                     >
-                      Remove
+                      {m.web.common.remove}
                     </ActionButton>
                   ) : null}
                 </>
               }
               badge={<Pill tone={stateTone(row.state)}>{row.state}</Pill>}
               fields={[
-                ["Transport", row.transport],
+                [t.transport, row.transport],
                 [
-                  "Command",
+                  t.command,
                   <span className="font-mono text-xs" key="d">
                     {row.detail || "-"}
                   </span>,
                 ],
                 [
-                  "Env",
+                  t.env,
                   row.env.length === 0 ? (
                     "-"
                   ) : (
@@ -325,31 +329,39 @@ export const McpScreen = () => {
                   ),
                 ],
                 [
-                  "Source",
+                  t.source,
                   <span className="font-mono text-xs" key="s">
                     {row.source}
                   </span>,
                 ],
               ]}
-              note="Secrets stay masked here. Turning a server off keeps its config under agentry's folder, so it can be added back."
+              note={t.note}
               title={row.name}
             />
           ) : (
-            <NoSelection what="a server" />
+            <NoSelection what={t.selectOne} />
           )
         }
-        detailsLabel="Server details"
-        empty="No MCP servers."
+        detailsLabel={t.detailsLabel}
+        empty={t.empty}
         filter={{
           value: list.filter,
           onChange: list.setFilter,
           options: [
-            { value: "all", label: "All", count: list.counts.all ?? 0 },
-            { value: "on", label: "On", count: list.counts.on ?? 0 },
-            { value: "off", label: "Off", count: list.counts.off ?? 0 },
+            {
+              value: "all",
+              label: m.web.common.all,
+              count: list.counts.all ?? 0,
+            },
+            { value: "on", label: m.web.common.on, count: list.counts.on ?? 0 },
+            {
+              value: "off",
+              label: m.web.common.off,
+              count: list.counts.off ?? 0,
+            },
           ],
         }}
-        hint="↑↓ move · space off/on · a add · x remove · / search"
+        hint={t.hint}
         onSelect={list.setSelectedId}
         rowId={(item) => item.id}
         rows={list.shown}
@@ -357,13 +369,13 @@ export const McpScreen = () => {
           inputRef: list.searchRef,
           value: list.query,
           onChange: list.setQuery,
-          placeholder: "Search servers",
+          placeholder: t.searchPlaceholder,
         }}
         selectedId={list.selectedId}
         setSheetOpen={list.setSheetOpen}
         sheetOpen={list.sheetOpen}
-        summary={`${rows.length} servers · ${list.counts.on ?? 0} on`}
-        title="MCP"
+        summary={t.summary(rows.length, list.counts.on ?? 0)}
+        title={t.title}
       />
       <Dialog
         onOpenChange={(open) => !open && setForm(null)}
@@ -372,37 +384,31 @@ export const McpScreen = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {form === "add" ? "Add an MCP server" : `Edit ${row?.name}`}
+              {form === "add" ? t.dialogAddTitle : t.editTitle(row?.name ?? "")}
             </DialogTitle>
             <DialogDescription>
               {form === "add"
-                ? "A command server (command, args, env) or a URL server. You will see a preview with secrets masked."
-                : "Env lines are K=V pairs to add or change. Args replace the current ones when filled in."}
+                ? t.dialogAddDescription
+                : t.dialogEditDescription}
             </DialogDescription>
           </DialogHeader>
           {form === "add" ? (
             <>
-              {field("name", "Name", false, "my-server")}
-              {field("command", "Command", false, "npx")}
-              {field("url", "or URL", false, "https://…")}
+              {field("name", t.fieldName, false, t.placeholderName)}
+              {field("command", t.fieldCommand, false, t.placeholderCommand)}
+              {field("url", t.fieldUrl, false, t.placeholderUrl)}
             </>
           ) : null}
-          {field("args", "Args", false, "-y my-package")}
-          {field("env", "Env (one K=V per line)", true, "API_KEY=…")}
-          {form === "add"
-            ? field(
-                "headers",
-                "Headers (one K: V per line, for a URL server)",
-                true
-              )
-            : null}
+          {field("args", t.fieldArgs, false, t.placeholderArgs)}
+          {field("env", t.fieldEnv, true, t.placeholderEnv)}
+          {form === "add" ? field("headers", t.fieldHeaders, true) : null}
           <DialogFooter>
             <Button
               className="h-11"
               disabled={form === "add" && fields.name.trim() === ""}
               onClick={submit}
             >
-              Preview
+              {t.preview}
             </Button>
           </DialogFooter>
         </DialogContent>

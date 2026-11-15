@@ -1,6 +1,7 @@
 // The Skills screen's rows, built from `load`: one row per shelved skill (from the shelf groups), per skill installed in
 // ~/.claude or this project, and per plugin skill. Pure, so it is tested without a server.
 
+import { messages } from "@agentry/core/messages";
 import type { LoadData } from "../contract/index.js";
 import type { Scope } from "./scope.js";
 
@@ -70,17 +71,19 @@ export const skillRows = (load: LoadData): SkillRow[] => {
 export const isOn = (row: SkillRow, scope: Scope) =>
   row.kind === "shelf" ? (scope === "global" ? row.global : row.project) : true;
 
+const m = messages();
+
 export const scopeLabel = (row: SkillRow) => {
   if (row.kind === "plugin") {
-    return "Plugin";
+    return m.web.skills.scope.plugin;
   }
   if (row.global && row.project) {
-    return "Global + project";
+    return m.web.skills.scope.globalAndProject;
   }
   if (row.global) {
-    return "Global";
+    return m.skills.headers.global;
   }
-  return row.project ? "This project" : "Shelf";
+  return row.project ? m.core.scopeTitle.project : m.skills.headers.shelf;
 };
 
 // "group:<name>" shows one shelf group.

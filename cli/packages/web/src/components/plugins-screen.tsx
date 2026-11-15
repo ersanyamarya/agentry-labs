@@ -1,6 +1,7 @@
 // Plugins: turn one on or off (enabledPlugins in settings) and install or uninstall through `claude plugin`. Each write is
 // core's preview/apply pair, and a change reaches new sessions only.
 
+import { messages } from "@agentry/core/messages";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { LoadData } from "../contract/index.js";
@@ -25,8 +26,10 @@ import { Input } from "./ui/input.js";
 import { Label } from "./ui/label.js";
 import { Switch } from "./ui/switch.js";
 
-export const PLUGIN_NOTE =
-  "Plugin changes apply to new sessions (undo: agentry fix --undo).";
+const m = messages();
+const t = m.web.plugins;
+
+export const PLUGIN_NOTE = t.note;
 
 type PluginRow = LoadData["status"]["plugins"]["items"][number];
 
@@ -49,7 +52,10 @@ export const PluginsScreen = () => {
     }
     const input = { dir, id: target.id, enable: target.state !== "active" };
     flow.start({
-      title: `${input.enable ? "Turn on" : "Turn off"} ${target.id}`,
+      title: t.turnTitle(
+        input.enable ? m.web.common.turnOn : m.web.common.turnOff,
+        target.id
+      ),
       preview: () => client.plugins.previewPlugin(input),
       apply: () => client.plugins.applyPlugin(input),
       note: PLUGIN_NOTE,
@@ -61,7 +67,7 @@ export const PluginsScreen = () => {
     }
     const input = { dir, action: "uninstall" as const, name: target.id };
     flow.start({
-      title: `Uninstall ${target.id}`,
+      title: t.uninstallTitle(target.id),
       preview: () => client.plugins.previewPluginInstall(input),
       apply: () => client.plugins.applyPluginInstall(input),
       note: PLUGIN_NOTE,
@@ -70,7 +76,7 @@ export const PluginsScreen = () => {
   const install = () => {
     const input = { dir, action: "install" as const, name: name.trim() };
     flow.start({
-      title: `Install ${input.name}`,
+      title: t.installTitle(input.name),
       preview: () => client.plugins.previewPluginInstall(input),
       apply: () => client.plugins.applyPluginInstall(input),
       note: PLUGIN_NOTE,
@@ -105,16 +111,16 @@ export const PluginsScreen = () => {
               setInstalling(true);
             }}
           >
-            <PlusIcon aria-hidden="true" className="size-4" /> Install plugin
+            <PlusIcon aria-hidden="true" className="size-4" /> {t.installPlugin}
           </Button>
         }
         columns={[
           {
-            header: "On",
+            header: m.web.common.on,
             className: "w-14",
             cell: (item) => (
               <Switch
-                aria-label={`Turn ${item.id} ${item.state === "active" ? "off" : "on"}`}
+                aria-label={t.turnAria(item.id, item.state === "active")}
                 checked={item.state === "active"}
                 onCheckedChange={() => turn(item)}
                 onClick={(event) => event.stopPropagation()}
@@ -122,7 +128,7 @@ export const PluginsScreen = () => {
             ),
           },
           {
-            header: "Plugin",
+            header: t.plugin,
             cell: (item) => (
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate font-mono text-sm font-medium">
@@ -130,14 +136,14 @@ export const PluginsScreen = () => {
                 </span>
                 <span className="text-muted-text truncate text-xs">
                   {item.marketplace}
-                  {item.version ? ` · ${item.version}` : ""} · ~
-                  {item.skillTokens} tokens
+                  {item.version ? t.version(item.version) : ""}
+                  {t.cellTokens(item.skillTokens)}
                 </span>
               </div>
             ),
           },
           {
-            header: "State",
+            header: m.web.common.state,
             className: "w-40",
             cell: (item) => (
               <Pill tone={stateTone(item.state)}>{item.state}</Pill>
@@ -150,14 +156,16 @@ export const PluginsScreen = () => {
               actions={
                 <>
                   <ActionButton keyHint="space" onClick={() => turn(current)}>
-                    {current.state === "active" ? "Turn off" : "Turn on"}
+                    {current.state === "active"
+                      ? m.web.common.turnOff
+                      : m.web.common.turnOn}
                   </ActionButton>
                   <ActionButton
                     danger
                     keyHint="x"
                     onClick={() => uninstall(current)}
                   >
-                    Uninstall
+                    {t.uninstall}
                   </ActionButton>
                 </>
               }
@@ -166,15 +174,15 @@ export const PluginsScreen = () => {
               }
               fields={[
                 [
-                  "Id",
+                  t.id,
                   <span className="font-mono text-xs" key="i">
                     {current.id}
                   </span>,
                 ],
-                ["Version", current.version ?? "-"],
-                ["Skills", `~${current.skillTokens} tokens`],
+                [t.versionLabel, current.version ?? "-"],
+                [t.skills, t.skillTokens(current.skillTokens)],
                 [
-                  "Turned on by",
+                  t.turnedOnBy,
                   `${current.enabledBy.scope}: ${String(current.enabledBy.value)}`,
                 ],
               ]}
@@ -182,21 +190,29 @@ export const PluginsScreen = () => {
               title={current.name}
             />
           ) : (
-            <NoSelection what="a plugin" />
+            <NoSelection what={t.selectOne} />
           )
         }
-        detailsLabel="Plugin details"
-        empty="No plugins."
+        detailsLabel={t.detailsLabel}
+        empty={t.empty}
         filter={{
           value: list.filter,
           onChange: list.setFilter,
           options: [
-            { value: "all", label: "All", count: list.counts.all ?? 0 },
-            { value: "on", label: "On", count: list.counts.on ?? 0 },
-            { value: "off", label: "Off", count: list.counts.off ?? 0 },
+            {
+              value: "all",
+              label: m.web.common.all,
+              count: list.counts.all ?? 0,
+            },
+            { value: "on", label: m.web.common.on, count: list.counts.on ?? 0 },
+            {
+              value: "off",
+              label: m.web.common.off,
+              count: list.counts.off ?? 0,
+            },
           ],
         }}
-        hint="↑↓ move · space off/on · i install · x uninstall · / search"
+        hint={t.hint}
         onSelect={list.setSelectedId}
         rowId={(item) => item.id}
         rows={list.shown}
@@ -204,28 +220,26 @@ export const PluginsScreen = () => {
           inputRef: list.searchRef,
           value: list.query,
           onChange: list.setQuery,
-          placeholder: "Search plugins",
+          placeholder: t.searchPlaceholder,
         }}
         selectedId={list.selectedId}
         setSheetOpen={list.setSheetOpen}
         sheetOpen={list.sheetOpen}
-        summary={`${rows.length} plugins · ${list.counts.on ?? 0} on`}
-        title="Plugins"
+        summary={t.summary(rows.length, list.counts.on ?? 0)}
+        title={t.title}
       />
       <Dialog onOpenChange={setInstalling} open={installing}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Install a plugin</DialogTitle>
-            <DialogDescription>
-              Use name@marketplace. You will see a preview first.
-            </DialogDescription>
+            <DialogTitle>{t.dialogTitle}</DialogTitle>
+            <DialogDescription>{t.dialogDescription}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="plugin-name">Plugin</Label>
+            <Label htmlFor="plugin-name">{t.plugin}</Label>
             <Input
               id="plugin-name"
               onChange={(event) => setName(event.target.value)}
-              placeholder="name@marketplace"
+              placeholder={t.namePlaceholder}
               value={name}
             />
           </div>
@@ -235,7 +249,7 @@ export const PluginsScreen = () => {
               disabled={!/^[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+$/.test(name.trim())}
               onClick={install}
             >
-              Preview
+              {t.preview}
             </Button>
           </DialogFooter>
         </DialogContent>

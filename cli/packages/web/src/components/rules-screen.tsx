@@ -1,5 +1,6 @@
 // CLAUDE.md and rule files, user and project. The only write is removing one, after a copy to the backups.
 
+import { messages } from "@agentry/core/messages";
 import { useMemo } from "react";
 import type { LoadData } from "../contract/index.js";
 import { useListState } from "../hooks/use-list-state.js";
@@ -11,6 +12,9 @@ import { DetailsPanel, NoSelection } from "./details-panel.js";
 import { ListScreen } from "./list-screen.js";
 import { Pill } from "./pill.js";
 import { usePreviewFlow } from "./preview-flow.js";
+
+const m = messages();
+const t = m.web.rules;
 
 type RuleRow = LoadData["rules"]["items"][number];
 
@@ -31,7 +35,7 @@ export const RulesScreen = () => {
     }
     const input = { dir, target: target.id, backup: true };
     flow.start({
-      title: `Remove ${target.label}`,
+      title: t.removeTitle(target.label),
       // core's dry run is the preview: the same call without dryRun applies.
       preview: async () => {
         const result = await client.rules.removeRule({
@@ -41,7 +45,7 @@ export const RulesScreen = () => {
         return { appliable: result.ok, text: result.text };
       },
       apply: () => client.rules.removeRule(input),
-      note: `A copy is kept under ${data?.paths.backupsDir ?? "the backups folder"}, and Backups can restore it.`,
+      note: t.copyKept(data?.paths.backupsDir),
     });
   };
 
@@ -58,7 +62,7 @@ export const RulesScreen = () => {
       <ListScreen<RuleRow>
         columns={[
           {
-            header: "File",
+            header: t.file,
             cell: (item) => (
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate font-mono text-sm font-medium">
@@ -71,25 +75,27 @@ export const RulesScreen = () => {
             ),
           },
           {
-            header: "Kind",
+            header: t.kind,
             className: "w-28",
             cell: (item) => (
               <Pill tone="muted">
-                {item.kind === "rule" ? "rule" : "CLAUDE.md"}
+                {item.kind === "rule" ? m.rules.kindRule : m.rules.kindClaudeMd}
               </Pill>
             ),
           },
           {
-            header: "Scope",
+            header: m.web.common.scope,
             className: "w-28",
             cell: (item) => (
               <Pill tone={item.scope === "user" ? "on" : "project"}>
-                {item.scope === "user" ? "global" : "project"}
+                {item.scope === "user"
+                  ? m.web.common.scopeGlobal
+                  : m.web.common.scopeProject}
               </Pill>
             ),
           },
           {
-            header: "Size",
+            header: t.size,
             className: "w-24",
             cell: (item) => (
               <span className="text-muted-text font-mono text-xs">
@@ -107,51 +113,57 @@ export const RulesScreen = () => {
                   keyHint="x"
                   onClick={() => remove(current)}
                 >
-                  Remove
+                  {m.web.common.remove}
                 </ActionButton>
               }
               badge={
                 <Pill tone={current.scope === "user" ? "on" : "project"}>
-                  {current.scope === "user" ? "global" : "project"}
+                  {current.scope === "user"
+                    ? m.web.common.scopeGlobal
+                    : m.web.common.scopeProject}
                 </Pill>
               }
               fields={[
-                ["Title", current.title],
+                [t.title, current.title],
                 [
-                  "Path",
+                  m.web.common.path,
                   <span className="font-mono text-xs" key="p">
                     {current.path}
                   </span>,
                 ],
-                ["Size", formatBytes(current.bytes)],
+                [t.size, formatBytes(current.bytes)],
               ]}
-              note="Removing keeps a copy in the backups."
+              note={t.note}
               title={current.label}
             />
           ) : (
-            <NoSelection what="a file" />
+            <NoSelection what={t.selectOne} />
           )
         }
-        detailsLabel="Rule details"
-        empty="No CLAUDE.md or rule files."
+        detailsLabel={t.detailsLabel}
+        empty={t.empty}
         filter={{
           value: list.filter,
           onChange: list.setFilter,
           options: [
-            { value: "all", label: "All", count: list.counts.all ?? 0 },
+            {
+              value: "all",
+              label: m.web.common.all,
+              count: list.counts.all ?? 0,
+            },
             {
               value: "global",
-              label: "Global",
+              label: m.skills.headers.global,
               count: list.counts.global ?? 0,
             },
             {
               value: "project",
-              label: "This project",
+              label: m.core.scopeTitle.project,
               count: list.counts.project ?? 0,
             },
           ],
         }}
-        hint="↑↓ move · x remove · / search"
+        hint={t.hint}
         onSelect={list.setSelectedId}
         rowId={(item) => item.id}
         rows={list.shown}
@@ -159,13 +171,13 @@ export const RulesScreen = () => {
           inputRef: list.searchRef,
           value: list.query,
           onChange: list.setQuery,
-          placeholder: "Search rules",
+          placeholder: t.searchPlaceholder,
         }}
         selectedId={list.selectedId}
         setSheetOpen={list.setSheetOpen}
         sheetOpen={list.sheetOpen}
-        summary={`${rows.length} files`}
-        title="Rules"
+        summary={t.summary(rows.length)}
+        title={t.heading}
       />
       {flow.dialog}
     </>

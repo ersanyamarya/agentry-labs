@@ -1,6 +1,7 @@
 // Preview, then apply: every write that has a preview in core shows its text here and waits for a yes, like the terminal
 // UI's `Apply?  y yes   n no`. Nothing is written until Apply. `y` and `n` work as keys while the dialog is open.
 
+import { messages } from "@agentry/core/messages";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useShortcuts } from "../hooks/use-shortcuts.js";
@@ -15,6 +16,9 @@ import {
   DialogTitle,
 } from "./ui/dialog.js";
 import { Kbd } from "./ui/kbd.js";
+
+const m = messages();
+const t = m.web.preview;
 
 export interface Flow {
   apply: () => Promise<{ ok: boolean; text: string }>;
@@ -57,7 +61,10 @@ export const usePreviewFlow = () => {
     try {
       const result = await flow.apply();
       (result.ok ? toast.success : toast.error)(
-        firstLine(result.text, result.ok ? "Done." : "Failed.")
+        firstLine(
+          result.text,
+          result.ok ? m.web.common.done : m.web.common.failed
+        )
       );
       await reload();
       close();
@@ -73,16 +80,14 @@ export const usePreviewFlow = () => {
     <Dialog onOpenChange={(open) => !open && close()} open={flow !== null}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{flow?.title} (preview)</DialogTitle>
-          <DialogDescription>
-            Nothing is written until you apply.
-          </DialogDescription>
+          <DialogTitle>{t.title(flow?.title)}</DialogTitle>
+          <DialogDescription>{t.description}</DialogDescription>
         </DialogHeader>
         {error ? (
           <p className="text-error text-sm">{error}</p>
         ) : (
           <pre className="bg-muted text-body max-h-[50vh] overflow-auto rounded-md p-3 font-mono text-xs break-words whitespace-pre-wrap">
-            {shown ? shown.text : "Loading the preview..."}
+            {shown ? shown.text : t.loading}
           </pre>
         )}
         {flow?.note ? (
@@ -90,14 +95,14 @@ export const usePreviewFlow = () => {
         ) : null}
         <DialogFooter>
           <Button className="h-11" onClick={close} variant="outline">
-            Cancel <Kbd>n</Kbd>
+            {t.cancel} <Kbd>n</Kbd>
           </Button>
           <Button
             className="h-11"
             disabled={!shown?.appliable || applying}
             onClick={apply}
           >
-            {flow?.applyLabel ?? "Apply"}{" "}
+            {flow?.applyLabel ?? t.apply}{" "}
             <Kbd className="text-foreground">y</Kbd>
           </Button>
         </DialogFooter>

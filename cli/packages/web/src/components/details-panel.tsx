@@ -1,4 +1,5 @@
 // The details column of a list screen: a mono title with a badge, label/value pairs, the actions, and a closing note.
+import { messages } from "@agentry/core/messages";
 import type { ReactNode } from "react";
 
 export const DetailsPanel = ({
@@ -37,5 +38,7 @@ export const DetailsPanel = ({
 );
 
 export const NoSelection = ({ what }: { what: string }) => (
-  <p className="text-muted-text text-sm">Select {what} to see its details.</p>
+  <p className="text-muted-text text-sm">
+    {messages().web.common.noSelection(what)}
+  </p>
 );

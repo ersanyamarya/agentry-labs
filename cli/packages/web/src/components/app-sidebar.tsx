@@ -1,6 +1,7 @@
 // The left sidebar (docs/web-ui-design.md "Layout"): brand and version, the scope switcher, three labelled groups with
 // counts, a red count on Doctor, and the problems line. The active item has aria-current="page".
 
+import { messages } from "@agentry/core/messages";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ActivityIcon,
@@ -32,6 +33,9 @@ import {
 } from "./ui/sidebar.js";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group.js";
 
+const m = messages();
+const t = m.web.sidebar;
+
 interface Section {
   icon: ComponentType<{ className?: string }>;
   key: string;
@@ -41,27 +45,57 @@ interface Section {
 
 export const SIDEBAR_GROUPS: { label: string; items: Section[] }[] = [
   {
-    label: "Library",
+    label: t.groups.library,
     items: [
-      { key: "skills", name: "Skills", to: "/skills", icon: LayersIcon },
-      { key: "mcp", name: "MCP", to: "/mcp", icon: PlugIcon },
-      { key: "hooks", name: "Hooks", to: "/hooks", icon: GitBranchIcon },
-      { key: "plugins", name: "Plugins", to: "/plugins", icon: BoxIcon },
-      { key: "rules", name: "Rules", to: "/rules", icon: ListIcon },
-      { key: "agents", name: "Agents", to: "/agents", icon: BotIcon },
+      {
+        key: "skills",
+        name: t.sections.skills,
+        to: "/skills",
+        icon: LayersIcon,
+      },
+      { key: "mcp", name: t.sections.mcp, to: "/mcp", icon: PlugIcon },
+      {
+        key: "hooks",
+        name: t.sections.hooks,
+        to: "/hooks",
+        icon: GitBranchIcon,
+      },
+      {
+        key: "plugins",
+        name: t.sections.plugins,
+        to: "/plugins",
+        icon: BoxIcon,
+      },
+      { key: "rules", name: t.sections.rules, to: "/rules", icon: ListIcon },
+      { key: "agents", name: t.sections.agents, to: "/agents", icon: BotIcon },
     ],
   },
   {
-    label: "Discover",
+    label: t.groups.discover,
     items: [
-      { key: "catalog", name: "Catalog", to: "/catalog", icon: SearchIcon },
+      {
+        key: "catalog",
+        name: t.sections.catalog,
+        to: "/catalog",
+        icon: SearchIcon,
+      },
     ],
   },
   {
-    label: "Health",
+    label: t.groups.health,
     items: [
-      { key: "doctor", name: "Doctor", to: "/doctor", icon: ActivityIcon },
-      { key: "backups", name: "Backups", to: "/backups", icon: ArchiveIcon },
+      {
+        key: "doctor",
+        name: t.sections.doctor,
+        to: "/doctor",
+        icon: ActivityIcon,
+      },
+      {
+        key: "backups",
+        name: t.sections.backups,
+        to: "/backups",
+        icon: ArchiveIcon,
+      },
     ],
   },
 ];
@@ -99,7 +133,7 @@ export const AppSidebar = ({
   const problems = errors + (data?.doctor.summary.warning ?? 0);
 
   return (
-    <Sidebar aria-label="Sections">
+    <Sidebar aria-label={t.label}>
       <SidebarHeader className="gap-4 px-3 pt-5">
         <div className="flex items-center gap-2.5 px-2">
           <span aria-hidden="true" className="bg-on size-3 rounded-[3px]" />
@@ -109,9 +143,9 @@ export const AppSidebar = ({
           </span>
         </div>
         <div className="flex flex-col gap-1.5 px-2">
-          <span className="text-muted-foreground text-xs">Scope</span>
+          <span className="text-muted-foreground text-xs">{t.scope}</span>
           <ToggleGroup
-            aria-label="Scope for toggles"
+            aria-label={t.scopeAria}
             className="w-full"
             onValueChange={(value) => value && setScope(value as Scope)}
             type="single"
@@ -119,10 +153,10 @@ export const AppSidebar = ({
             variant="outline"
           >
             <ToggleGroupItem className="h-10 flex-1" value="global">
-              Global
+              {t.scopeGlobal}
             </ToggleGroupItem>
             <ToggleGroupItem className="h-10 flex-1" value="project">
-              This project
+              {t.scopeProject}
             </ToggleGroupItem>
           </ToggleGroup>
           <span className="text-muted-foreground truncate font-mono text-xs">
@@ -185,12 +219,10 @@ export const AppSidebar = ({
             className={`size-2 rounded-full ${problems > 0 ? (errors > 0 ? "bg-error" : "bg-project") : "bg-on"}`}
           />
           <span className="flex-1">
-            {problems > 0
-              ? `${problems} problem${problems === 1 ? "" : "s"}`
-              : "no problems"}
+            {problems > 0 ? m.sidebar.problems(problems) : m.sidebar.noProblems}
           </span>
           <button
-            aria-label="Keyboard shortcuts"
+            aria-label={t.shortcutsAria}
             className="flex size-11 items-center justify-center rounded-md"
             onClick={onHelp}
             type="button"

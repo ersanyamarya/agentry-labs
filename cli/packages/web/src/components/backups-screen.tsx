@@ -1,6 +1,7 @@
 // Backups core made before a change: restore a removed skill or an updated copy, delete one, or delete the old ones.
 // Every write is previewed first. Fixes are undone from Doctor, not here.
 
+import { messages } from "@agentry/core/messages";
 import { useMemo } from "react";
 import type { LoadData } from "../contract/index.js";
 import { useListState } from "../hooks/use-list-state.js";
@@ -14,6 +15,9 @@ import { Pill } from "./pill.js";
 import { usePreviewFlow } from "./preview-flow.js";
 import { Button } from "./ui/button.js";
 import { Kbd } from "./ui/kbd.js";
+
+const m = messages();
+const t = m.web.backups;
 
 type BackupRow = LoadData["backups"]["items"][number];
 
@@ -40,15 +44,15 @@ export const BackupsScreen = () => {
         title: target.name,
         preview: async () => ({
           appliable: false,
-          text: "Fix backups are undone from Doctor (Undo last fix), not restored here.",
+          text: t.fixBackup,
         }),
-        apply: async () => ({ ok: false, text: "Nothing to apply." }),
+        apply: async () => ({ ok: false, text: m.web.hooks.nothingToApply }),
       });
       return;
     }
     const input = { dir, id: target.id };
     flow.start({
-      title: `Restore ${target.name}`,
+      title: m.backups.notices.restoreTitle(target.name),
       preview: async () => {
         const result = await client.backups.restoreBackup({
           ...input,
@@ -74,12 +78,12 @@ export const BackupsScreen = () => {
         return { appliable: result.ok, text: result.text };
       },
       apply: () => client.backups.pruneBackups({ dir, ...input }),
-      note: "Deleted backups cannot be restored.",
+      note: t.note,
     });
   const pruneOld = () =>
-    prune({ olderThan: PRUNE_DAYS }, `Delete backups ${PRUNE_DAYS}+ days old`);
+    prune({ olderThan: PRUNE_DAYS }, m.backups.notices.pruneTitle(PRUNE_DAYS));
   const removeOne = (target: BackupRow | undefined) =>
-    target && prune({ ids: [target.id] }, `Delete backup ${target.name}`);
+    target && prune({ ids: [target.id] }, t.deleteTitle(target.name));
 
   const list = useListState(rows, {
     id: (item) => item.id,
@@ -94,12 +98,12 @@ export const BackupsScreen = () => {
       <ListScreen<BackupRow>
         action={
           <Button className="h-11 px-4" onClick={pruneOld} variant="outline">
-            Delete {PRUNE_DAYS}+ days old <Kbd>d</Kbd>
+            {t.pruneLabel(PRUNE_DAYS)} <Kbd>d</Kbd>
           </Button>
         }
         columns={[
           {
-            header: "Backup",
+            header: t.backup,
             cell: (item) => (
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate font-mono text-sm font-medium">
@@ -112,7 +116,7 @@ export const BackupsScreen = () => {
             ),
           },
           {
-            header: "Kind",
+            header: t.kind,
             className: "w-28",
             cell: (item) => (
               <Pill
@@ -129,7 +133,7 @@ export const BackupsScreen = () => {
             ),
           },
           {
-            header: "Size",
+            header: t.size,
             className: "w-24",
             cell: (item) => (
               <span className="text-muted-text font-mono text-xs">
@@ -138,7 +142,7 @@ export const BackupsScreen = () => {
             ),
           },
           {
-            header: "Age",
+            header: t.age,
             className: "w-24",
             cell: (item) => (
               <span className="text-muted-text text-xs">
@@ -153,30 +157,30 @@ export const BackupsScreen = () => {
               actions={
                 <>
                   <ActionButton keyHint="u" onClick={() => restore(current)}>
-                    Restore
+                    {m.backups.notices.restore}
                   </ActionButton>
                   <ActionButton
                     danger
                     keyHint="x"
                     onClick={() => removeOne(current)}
                   >
-                    Delete
+                    {t.delete}
                   </ActionButton>
                 </>
               }
               badge={<Pill tone="muted">{current.kind}</Pill>}
               fields={[
-                ["Item", current.name],
-                ["Taken", `${current.date} (${formatAge(current.days)})`],
-                ["Size", formatBytes(current.bytes)],
+                [t.item, current.name],
+                [t.taken, t.takenValue(current.date, formatAge(current.days))],
+                [t.size, formatBytes(current.bytes)],
                 [
-                  "From",
+                  t.from,
                   <span className="font-mono text-xs" key="f">
                     {current.from ?? "-"}
                   </span>,
                 ],
                 [
-                  "Copy",
+                  t.copy,
                   <span className="font-mono text-xs" key="p">
                     {current.path}
                   </span>,
@@ -186,30 +190,38 @@ export const BackupsScreen = () => {
               title={current.name}
             />
           ) : (
-            <NoSelection what="a backup" />
+            <NoSelection what={t.selectOne} />
           )
         }
-        detailsLabel="Backup details"
-        empty={`Nothing is kept under ${data?.paths.backupsDir ?? "the backups folder"} yet.`}
+        detailsLabel={t.detailsLabel}
+        empty={t.empty(data?.paths.backupsDir)}
         filter={{
           value: list.filter,
           onChange: list.setFilter,
           options: [
-            { value: "all", label: "All", count: list.counts.all ?? 0 },
+            {
+              value: "all",
+              label: m.web.common.all,
+              count: list.counts.all ?? 0,
+            },
             {
               value: "removed",
-              label: "Removed",
+              label: t.filters.removed,
               count: list.counts.removed ?? 0,
             },
             {
               value: "updated",
-              label: "Updated",
+              label: t.filters.updated,
               count: list.counts.updated ?? 0,
             },
-            { value: "fix", label: "Fixes", count: list.counts.fix ?? 0 },
+            {
+              value: "fix",
+              label: t.filters.fix,
+              count: list.counts.fix ?? 0,
+            },
           ],
         }}
-        hint="↑↓ move · u restore · x delete · d delete 30+ days old · / search"
+        hint={t.hint}
         onSelect={list.setSelectedId}
         rowId={(item) => item.id}
         rows={list.shown}
@@ -217,13 +229,13 @@ export const BackupsScreen = () => {
           inputRef: list.searchRef,
           value: list.query,
           onChange: list.setQuery,
-          placeholder: "Search backups",
+          placeholder: t.searchPlaceholder,
         }}
         selectedId={list.selectedId}
         setSheetOpen={list.setSheetOpen}
         sheetOpen={list.sheetOpen}
-        summary={`${rows.length} backups`}
-        title="Backups"
+        summary={t.summary(rows.length)}
+        title={t.title}
       />
       {flow.dialog}
     </>

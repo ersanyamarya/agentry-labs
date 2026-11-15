@@ -1,6 +1,7 @@
 // The subagents Claude Code can start, user and project, with their model and listing cost. Read-only: add or remove an
 // agent from Catalog.
 
+import { messages } from "@agentry/core/messages";
 import { useMemo } from "react";
 import type { LoadData } from "../contract/index.js";
 import { useListState } from "../hooks/use-list-state.js";
@@ -8,6 +9,9 @@ import { useAppData } from "../lib/app-data.js";
 import { DetailsPanel, NoSelection } from "./details-panel.js";
 import { ListScreen } from "./list-screen.js";
 import { Pill } from "./pill.js";
+
+const m = messages();
+const t = m.web.agents;
 
 type AgentRow = LoadData["agents"]["items"][number];
 
@@ -33,7 +37,7 @@ export const AgentsScreen = () => {
     <ListScreen<AgentRow>
       columns={[
         {
-          header: "Agent",
+          header: t.agent,
           cell: (item) => (
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="truncate font-mono text-sm font-medium">
@@ -46,7 +50,7 @@ export const AgentsScreen = () => {
           ),
         },
         {
-          header: "Model",
+          header: m.web.common.model,
           className: "w-28",
           cell: (item) => (
             <span className="text-muted-text font-mono text-xs">
@@ -55,16 +59,18 @@ export const AgentsScreen = () => {
           ),
         },
         {
-          header: "Scope",
+          header: m.web.common.scope,
           className: "w-28",
           cell: (item) => (
             <Pill tone={item.scope === "user" ? "on" : "project"}>
-              {item.scope === "user" ? "global" : "project"}
+              {item.scope === "user"
+                ? m.web.common.scopeGlobal
+                : m.web.common.scopeProject}
             </Pill>
           ),
         },
         {
-          header: "Cost",
+          header: m.web.common.cost,
           className: "w-24",
           cell: (item) => (
             <span className="text-muted-text font-mono text-xs">
@@ -78,50 +84,60 @@ export const AgentsScreen = () => {
           <DetailsPanel
             badge={
               <Pill tone={current.scope === "user" ? "on" : "project"}>
-                {current.scope === "user" ? "global" : "project"}
+                {current.scope === "user"
+                  ? m.web.common.scopeGlobal
+                  : m.web.common.scopeProject}
               </Pill>
             }
             fields={[
               ...(current.description
-                ? ([["Description", current.description]] as [string, string][])
+                ? ([[t.description, current.description]] as [string, string][])
                 : []),
               ...(current.model
-                ? ([["Model", current.model]] as [string, string][])
+                ? ([[m.web.common.model, current.model]] as [string, string][])
                 : []),
               ...(current.tools
-                ? ([["Tools", current.tools]] as [string, string][])
+                ? ([[t.tools, current.tools]] as [string, string][])
                 : []),
-              ["Listing cost", `~${current.tokens} tokens`],
+              [t.listingCost, t.tokens(current.tokens)],
               [
-                "Path",
+                m.web.common.path,
                 <span className="font-mono text-xs" key="p">
                   {current.path}
                 </span>,
               ],
             ]}
-            note="Cost is the name and description Claude lists; the body loads when the agent runs. Add or remove agents from Catalog."
+            note={t.note}
             title={current.name}
           />
         ) : (
-          <NoSelection what="an agent" />
+          <NoSelection what={t.selectOne} />
         )
       }
-      detailsLabel="Agent details"
-      empty="No agents installed."
+      detailsLabel={t.detailsLabel}
+      empty={t.empty}
       filter={{
         value: list.filter,
         onChange: list.setFilter,
         options: [
-          { value: "all", label: "All", count: list.counts.all ?? 0 },
-          { value: "global", label: "Global", count: list.counts.global ?? 0 },
+          {
+            value: "all",
+            label: m.web.common.all,
+            count: list.counts.all ?? 0,
+          },
+          {
+            value: "global",
+            label: m.skills.headers.global,
+            count: list.counts.global ?? 0,
+          },
           {
             value: "project",
-            label: "This project",
+            label: m.core.scopeTitle.project,
             count: list.counts.project ?? 0,
           },
         ],
       }}
-      hint="↑↓ move · / search"
+      hint={t.hint}
       onSelect={list.setSelectedId}
       rowId={(item) => item.id}
       rows={list.shown}
@@ -129,13 +145,13 @@ export const AgentsScreen = () => {
         inputRef: list.searchRef,
         value: list.query,
         onChange: list.setQuery,
-        placeholder: "Search agents",
+        placeholder: t.searchPlaceholder,
       }}
       selectedId={list.selectedId}
       setSheetOpen={list.setSheetOpen}
       sheetOpen={list.sheetOpen}
-      summary={`${rows.length} agents`}
-      title="Agents"
+      summary={t.summary(rows.length)}
+      title={t.title}
     />
   );
 };

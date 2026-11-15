@@ -1,6 +1,7 @@
 // The agentry-labs catalog: browse by bundle, install, update, and remove an installed agent. Installs and updates are
 // previewed first (core's dry run). Fetching the catalog is a network call the page makes on request, never on its own.
 
+import { messages } from "@agentry/core/messages";
 import { DownloadIcon } from "lucide-react";
 import { useMemo } from "react";
 import { toast } from "sonner";
@@ -17,7 +18,10 @@ import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group.js";
 
 type Entry = LoadData["catalog"]["entries"][number];
 
-const BUNDLE_LABELS: Record<string, string> = { all: "All" };
+const m = messages();
+const t = m.web.catalog;
+
+const BUNDLE_LABELS: Record<string, string> = { all: t.all };
 
 const asPreview = async (call: Promise<{ ok: boolean; text: string }>) => {
   const result = await call;
@@ -50,7 +54,7 @@ export const CatalogScreen = () => {
     try {
       const result = await client.catalog.refreshCatalog({ dir });
       (result.ok ? toast.success : toast.error)(
-        result.text.split("\n").find(Boolean) ?? "Done."
+        result.text.split("\n").find(Boolean) ?? m.web.common.done
       );
       await reload();
     } catch (cause) {
@@ -64,7 +68,7 @@ export const CatalogScreen = () => {
     }
     const names = [entry.id];
     flow.start({
-      title: `${entry.outdated ? "Update" : "Add"} ${entry.name}`,
+      title: t.title(entry.outdated ? t.update : t.add, entry.name),
       preview: () =>
         asPreview(
           entry.outdated
@@ -75,7 +79,7 @@ export const CatalogScreen = () => {
         entry.outdated
           ? client.catalog.updateFromCatalog({ dir, names })
           : client.catalog.addFromCatalog({ dir, names }),
-      note: "Skills go to the shelf, off. An update keeps a copy of the old one in the backups.",
+      note: t.note,
     });
   };
   const removeAgent = (entry: Entry | undefined) => {
@@ -84,7 +88,7 @@ export const CatalogScreen = () => {
     }
     const input = { dir, target: `agent/${entry.name}`, backup: true };
     flow.start({
-      title: `Remove agent ${entry.name}`,
+      title: t.removeAgentTitle(entry.name),
       preview: () =>
         asPreview(client.catalog.removeAgent({ ...input, dryRun: true })),
       apply: () => client.catalog.removeAgent(input),
@@ -104,31 +108,29 @@ export const CatalogScreen = () => {
     <section className="flex flex-col gap-5 px-8 py-7">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Catalog</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.heading}</h1>
           <p className="text-muted-text text-sm">
-            {fetched
-              ? `${entries.length} items from agentry-labs, ready to install into this project or globally`
-              : "Not fetched yet."}
+            {fetched ? t.summary(entries.length) : t.notFetched}
           </p>
         </div>
         <Button className="h-11 px-4" onClick={fetchCatalog} variant="outline">
           <DownloadIcon aria-hidden="true" className="size-4" />{" "}
-          {fetched ? "Refresh" : "Fetch the catalog"} <Kbd>f</Kbd>
+          {fetched ? t.refresh : t.fetch} <Kbd>f</Kbd>
         </Button>
       </div>
       {fetched ? (
         <>
           <div className="flex flex-wrap items-center gap-3">
             <Input
-              aria-label="Search the catalog"
+              aria-label={t.search}
               className="h-11 max-w-sm flex-1 basis-64"
               onChange={(event) => list.setQuery(event.target.value)}
-              placeholder="Search the catalog"
+              placeholder={t.search}
               ref={list.searchRef}
               value={list.query}
             />
             <ToggleGroup
-              aria-label="Bundle"
+              aria-label={t.bundleAria}
               className="flex-wrap"
               onValueChange={(value) => value && list.setFilter(value)}
               type="single"
@@ -163,7 +165,7 @@ export const CatalogScreen = () => {
                 </p>
                 <p className="text-muted-foreground text-xs">
                   {entry.kind}
-                  {entry.tokens === null ? "" : ` · ~${entry.tokens} tokens`}
+                  {entry.tokens === null ? "" : t.tokens(entry.tokens)}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -175,10 +177,10 @@ export const CatalogScreen = () => {
                     }
                   >
                     {entry.outdated
-                      ? "Update"
+                      ? t.update
                       : entry.installed
-                        ? "Installed"
-                        : "Install"}
+                        ? t.installed
+                        : t.install}
                   </Button>
                   {entry.kind === "agent" && entry.installed !== undefined ? (
                     <Button
@@ -186,7 +188,7 @@ export const CatalogScreen = () => {
                       onClick={() => removeAgent(entry)}
                       variant="outline"
                     >
-                      Remove
+                      {m.web.common.remove}
                     </Button>
                   ) : null}
                 </div>
@@ -194,7 +196,7 @@ export const CatalogScreen = () => {
             ))}
           </ul>
           {list.shown.length === 0 ? (
-            <p className="text-muted-text text-sm">Nothing matches.</p>
+            <p className="text-muted-text text-sm">{t.nothing}</p>
           ) : null}
         </>
       ) : null}

@@ -1,6 +1,7 @@
 // Hooks from the settings files: turn one off (parked, so it can come back), turn it back on, or remove it. Plugin hooks
 // belong to their plugin and are listed read-only. Each write is core's previewHook/applyHook pair.
 
+import { messages } from "@agentry/core/messages";
 import { useMemo } from "react";
 import type { LoadData } from "../contract/index.js";
 import { useListState } from "../hooks/use-list-state.js";
@@ -12,6 +13,9 @@ import { ListScreen } from "./list-screen.js";
 import { Pill, stateTone } from "./pill.js";
 import { usePreviewFlow } from "./preview-flow.js";
 import { Switch } from "./ui/switch.js";
+
+const m = messages();
+const t = m.web.hooks;
 
 type Scope = "user" | "project" | "local";
 
@@ -75,9 +79,9 @@ export const HooksScreen = () => {
         title: target.event,
         preview: async () => ({
           appliable: false,
-          text: `This hook comes from ${target.source}. It belongs to its plugin: change it there.`,
+          text: t.pluginHook(target.source),
         }),
-        apply: async () => ({ ok: false, text: "Nothing to apply." }),
+        apply: async () => ({ ok: false, text: t.nothingToApply }),
       });
       return;
     }
@@ -88,10 +92,18 @@ export const HooksScreen = () => {
       scope: target.scope as Scope,
     };
     flow.start({
-      title: `${action === "disable" ? "Turn off" : action === "enable" ? "Turn on" : "Remove"} hook ${target.id.slice(0, 8)}: ${target.event}`,
+      title: t.title(
+        action === "disable"
+          ? m.web.common.turnOff
+          : action === "enable"
+            ? m.web.common.turnOn
+            : m.web.common.remove,
+        target.id.slice(0, 8),
+        target.event
+      ),
       preview: () => client.hooks.previewHook(input),
       apply: () => client.hooks.applyHook(input),
-      note: "A backup of the settings file is made first, and agentry fix --undo restores it.",
+      note: t.note,
     });
   };
   const toggle = (target: HookRow | undefined) =>
@@ -117,11 +129,11 @@ export const HooksScreen = () => {
       <ListScreen<HookRow>
         columns={[
           {
-            header: "On",
+            header: m.web.common.on,
             className: "w-14",
             cell: (item) => (
               <Switch
-                aria-label={`Turn hook ${item.event} ${item.state === "active" ? "off" : "on"}`}
+                aria-label={t.turnAria(item.event, item.state === "active")}
                 checked={!item.parked && item.state === "active"}
                 disabled={!editable(item)}
                 onCheckedChange={() => toggle(item)}
@@ -130,7 +142,7 @@ export const HooksScreen = () => {
             ),
           },
           {
-            header: "Hook",
+            header: t.hook,
             cell: (item) => (
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate font-mono text-sm font-medium">
@@ -144,12 +156,12 @@ export const HooksScreen = () => {
             ),
           },
           {
-            header: "Scope",
+            header: m.web.common.scope,
             className: "w-28",
             cell: (item) => <Pill tone="muted">{item.scope}</Pill>,
           },
           {
-            header: "State",
+            header: m.web.common.state,
             className: "w-36",
             cell: (item) => (
               <Pill tone={stateTone(item.state)}>{item.state}</Pill>
@@ -166,14 +178,16 @@ export const HooksScreen = () => {
                       keyHint="space"
                       onClick={() => toggle(current)}
                     >
-                      {current.parked ? "Turn on" : "Turn off"}
+                      {current.parked
+                        ? m.web.common.turnOn
+                        : m.web.common.turnOff}
                     </ActionButton>
                     <ActionButton
                       danger
                       keyHint="x"
                       onClick={() => run(current, "remove")}
                     >
-                      Remove
+                      {m.web.common.remove}
                     </ActionButton>
                   </>
                 ) : null
@@ -182,40 +196,48 @@ export const HooksScreen = () => {
                 <Pill tone={stateTone(current.state)}>{current.state}</Pill>
               }
               fields={[
-                ["Event", current.event],
-                ["Matcher", current.matcher || "(all)"],
+                [t.event, current.event],
+                [t.matcher, current.matcher || t.allMatchers],
                 [
-                  "Command",
+                  t.command,
                   <span className="font-mono text-xs" key="c">
                     {current.command}
                   </span>,
                 ],
                 [
-                  "Source",
+                  t.source,
                   <span className="font-mono text-xs" key="s">
                     {current.source}
                   </span>,
                 ],
               ]}
-              note="Tokens and keys in commands are masked."
-              title={`hook ${current.id.slice(0, 8)}`}
+              note={t.detailsNote}
+              title={t.heading(current.id.slice(0, 8))}
             />
           ) : (
-            <NoSelection what="a hook" />
+            <NoSelection what={t.selectOne} />
           )
         }
-        detailsLabel="Hook details"
-        empty="No hooks."
+        detailsLabel={t.detailsLabel}
+        empty={t.empty}
         filter={{
           value: list.filter,
           onChange: list.setFilter,
           options: [
-            { value: "all", label: "All", count: list.counts.all ?? 0 },
-            { value: "on", label: "On", count: list.counts.on ?? 0 },
-            { value: "off", label: "Off", count: list.counts.off ?? 0 },
+            {
+              value: "all",
+              label: m.web.common.all,
+              count: list.counts.all ?? 0,
+            },
+            { value: "on", label: m.web.common.on, count: list.counts.on ?? 0 },
+            {
+              value: "off",
+              label: m.web.common.off,
+              count: list.counts.off ?? 0,
+            },
           ],
         }}
-        hint="↑↓ move · space off/on · x remove · / search"
+        hint={t.hint}
         onSelect={list.setSelectedId}
         rowId={(item) => item.id}
         rows={list.shown}
@@ -223,13 +245,13 @@ export const HooksScreen = () => {
           inputRef: list.searchRef,
           value: list.query,
           onChange: list.setQuery,
-          placeholder: "Search hooks",
+          placeholder: t.searchPlaceholder,
         }}
         selectedId={list.selectedId}
         setSheetOpen={list.setSheetOpen}
         sheetOpen={list.sheetOpen}
-        summary={`${rows.length} hooks · ${list.counts.on ?? 0} on`}
-        title="Hooks"
+        summary={t.summary(rows.length, list.counts.on ?? 0)}
+        title={t.pageTitle}
       />
       {flow.dialog}
     </>

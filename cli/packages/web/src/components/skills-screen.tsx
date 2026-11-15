@@ -1,6 +1,7 @@
 // Skills: shelved skills (from the shelf groups), skills installed in ~/.claude or this project, and plugin skills.
 // Every write calls the same core function the terminal UI calls, so the same backups are made.
 
+import { messages } from "@agentry/core/messages";
 import { useMutation } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -44,12 +45,15 @@ import { Input } from "./ui/input.js";
 import { Kbd } from "./ui/kbd.js";
 import { Switch } from "./ui/switch.js";
 
+const m = messages();
+const t = m.web.skills;
+
 const SCOPE_BADGE: Record<string, string> = {
-  Global: "bg-on-bg text-on",
-  "This project": "bg-project-bg text-project",
-  "Global + project": "bg-on-bg text-on",
-  Shelf: "bg-muted text-muted-text",
-  Plugin: "bg-muted text-muted-text",
+  [m.skills.headers.global]: "bg-on-bg text-on",
+  [m.core.scopeTitle.project]: "bg-project-bg text-project",
+  [t.scope.globalAndProject]: "bg-on-bg text-on",
+  [m.skills.headers.shelf]: "bg-muted text-muted-text",
+  [t.scope.plugin]: "bg-muted text-muted-text",
 };
 
 const ScopeBadge = ({ row }: { row: SkillRow }) => {
@@ -72,7 +76,7 @@ function canRemove(row?: SkillRow) {
 }
 
 const tokensText = (tokens: number | null) =>
-  tokens === null ? "tokens not measured" : `~${tokens} tokens`;
+  tokens === null ? t.tokensNotMeasured : t.tokens(tokens);
 
 export const SkillsScreen = () => {
   const { data, dir } = useAppData();
@@ -120,7 +124,7 @@ export const SkillsScreen = () => {
   const done = (result: { ok: boolean; text: string }) => {
     const first =
       result.text.split("\n").find(Boolean) ??
-      (result.ok ? "Done." : "Failed.");
+      (result.ok ? m.web.common.done : m.web.common.failed);
     (result.ok ? toast.success : toast.error)(first);
     reload();
   };
@@ -141,9 +145,7 @@ export const SkillsScreen = () => {
 
   const flip = (row: SkillRow) => {
     if (row.kind !== "shelf") {
-      toast.message(
-        `${row.name} is installed, so it is always on. Shelve it to turn it off.`
-      );
+      toast.message(t.installedAlwaysOn(row.name));
       return;
     }
     toggle.mutate({
@@ -173,16 +175,21 @@ export const SkillsScreen = () => {
     const okCount = items.length - failed.length;
     if (failed.length > 0) {
       toast.error(
-        `${label}: ${okCount} done, ${failed.length} failed (${failed.slice(0, 3).join(", ")})`
+        t.bulkFailed(
+          label,
+          okCount,
+          failed.length,
+          failed.slice(0, 3).join(", ")
+        )
       );
     } else {
-      toast.success(`${label}: ${okCount} done`);
+      toast.success(t.bulkDone(label, okCount));
     }
     setChecked(new Set());
     reload();
   };
   const bulkFlip = (on: boolean) =>
-    runBulk(on ? "Turned on" : "Turned off", flippable, (row) =>
+    runBulk(on ? t.turnedOn : t.turnedOff, flippable, (row) =>
       client.skills.toggleShelf({
         dir,
         target: row.target,
@@ -242,22 +249,22 @@ export const SkillsScreen = () => {
         <ScopeBadge row={selected} />
       </div>
       <dl className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-        <dt className="text-muted-foreground">Path</dt>
+        <dt className="text-muted-foreground">{t.path}</dt>
         <dd className="text-body font-mono text-xs break-all">
           {selected.source}
         </dd>
-        <dt className="text-muted-foreground">Cost</dt>
+        <dt className="text-muted-foreground">{t.cost}</dt>
         <dd className="text-body">{tokensText(selected.tokens)}</dd>
         {selected.group ? (
           <>
-            <dt className="text-muted-foreground">Group</dt>
+            <dt className="text-muted-foreground">{t.group}</dt>
             <dd className="text-body font-mono text-xs">{selected.group}</dd>
           </>
         ) : null}
         {selected.broken ? (
           <>
-            <dt className="text-muted-foreground">State</dt>
-            <dd className="text-error">broken link</dd>
+            <dt className="text-muted-foreground">{t.state}</dt>
+            <dd className="text-error">{t.brokenLink}</dd>
           </>
         ) : null}
       </dl>
@@ -268,7 +275,7 @@ export const SkillsScreen = () => {
             onClick={() => setShelving(true)}
             variant="outline"
           >
-            Shelve <Kbd>s</Kbd>
+            {t.shelve} <Kbd>s</Kbd>
           </Button>
         ) : null}
         {selected.kind === "shelf" ? (
@@ -277,7 +284,7 @@ export const SkillsScreen = () => {
             onClick={() => unshelve.mutate({ dir, target: selected.target })}
             variant="outline"
           >
-            Unshelve
+            {t.unshelve}
           </Button>
         ) : null}
         {selected.kind === "global" ? (
@@ -286,7 +293,7 @@ export const SkillsScreen = () => {
             onClick={() => demote.mutate({ dir, skill: selected.name })}
             variant="outline"
           >
-            Only this project
+            {t.onlyThisProject}
           </Button>
         ) : null}
         {selected.kind === "project" ? (
@@ -295,7 +302,7 @@ export const SkillsScreen = () => {
             onClick={() => promote.mutate({ dir, skill: selected.name })}
             variant="outline"
           >
-            All projects
+            {t.allProjects}
           </Button>
         ) : null}
         {canRemove(selected) ? (
@@ -304,20 +311,17 @@ export const SkillsScreen = () => {
             onClick={() => setRemoving(true)}
             variant="outline"
           >
-            Remove <Kbd className="text-error">x</Kbd>
+            {m.web.common.remove} <Kbd className="text-error">x</Kbd>
           </Button>
         ) : null}
       </div>
       <p className="text-muted-foreground text-xs leading-relaxed">
-        Changes apply to {data?.paths.configDir ?? "~/.claude"} or this project.
-        Every removal keeps a copy under{" "}
-        {data?.paths.backupsDir ?? "the backups folder"} that Backups can
-        restore.
+        {t.note(data?.paths.configDir, data?.paths.backupsDir)}
       </p>
     </div>
   ) : (
     <p className="text-muted-text text-sm">
-      Select a skill to see its details.
+      {m.web.common.noSelection(t.selectOne)}
     </p>
   );
 
@@ -328,17 +332,17 @@ export const SkillsScreen = () => {
           <Button asChild className="h-11 px-4">
             <a href="/catalog">
               <PlusIcon aria-hidden="true" className="size-4" />
-              Add from catalog
+              {t.addFromCatalog}
             </a>
           </Button>
         }
         columns={[
           {
-            header: "On",
+            header: t.columns.on,
             className: "w-14",
             cell: (row) => (
               <Switch
-                aria-label={`Turn ${row.name} ${isOn(row, scope) ? "off" : "on"}`}
+                aria-label={t.turnAria(row.name, isOn(row, scope))}
                 checked={isOn(row, scope)}
                 disabled={row.kind !== "shelf"}
                 onCheckedChange={() => flip(row)}
@@ -347,7 +351,7 @@ export const SkillsScreen = () => {
             ),
           },
           {
-            header: "Name",
+            header: t.columns.name,
             cell: (row) => (
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate font-mono text-sm font-medium">
@@ -360,7 +364,7 @@ export const SkillsScreen = () => {
             ),
           },
           {
-            header: "Group",
+            header: t.columns.group,
             className: "w-40",
             cell: (row) =>
               row.group ? (
@@ -372,29 +376,33 @@ export const SkillsScreen = () => {
               ),
           },
           {
-            header: "Scope",
+            header: t.columns.scope,
             className: "w-36",
             cell: (row) => <ScopeBadge row={row} />,
           },
         ]}
         details={details}
-        detailsLabel="Skill details"
-        empty={
-          all.length === 0
-            ? "No skills yet. Add one from the catalog."
-            : "No skills match."
-        }
+        detailsLabel={t.detailsLabel}
+        empty={all.length === 0 ? t.emptyNone : t.emptyNoMatch}
         filter={{
           value: filter,
           onChange: (value) => setFilter(value as Filter),
           options: [
-            { value: "all", label: "All", count: counts.all },
-            { value: "on", label: "On", count: counts.on },
-            { value: "project", label: "This project", count: counts.project },
-            { value: "shelf", label: "Shelf", count: counts.shelf },
+            { value: "all", label: t.filters.all, count: counts.all },
+            { value: "on", label: t.filters.on, count: counts.on },
+            {
+              value: "project",
+              label: m.core.scopeTitle.project,
+              count: counts.project,
+            },
+            {
+              value: "shelf",
+              label: m.skills.headers.shelf,
+              count: counts.shelf,
+            },
           ],
         }}
-        hint="↑↓ move · space toggle · m mark · a mark all · s shelve · x remove · / search"
+        hint={t.hint}
         onSelect={setSelectedId}
         rowId={(row) => row.id}
         rows={rows}
@@ -402,7 +410,7 @@ export const SkillsScreen = () => {
           inputRef: searchRef,
           value: query,
           onChange: setQuery,
-          placeholder: "Search skills",
+          placeholder: t.searchPlaceholder,
         }}
         selectedId={selected?.id}
         selection={{
@@ -414,17 +422,17 @@ export const SkillsScreen = () => {
         }}
         setSheetOpen={setSheetOpen}
         sheetOpen={sheetOpen}
-        summary={`${all.length} skills · ${counts.on} on · ${counts.shelf} on the shelf`}
-        title="Skills"
+        summary={t.summary(all.length, counts.on, counts.shelf)}
+        title={t.title}
         toolbar={
           <>
             {groups.length > 0 ? (
               <fieldset
-                aria-label="Shelf groups"
+                aria-label={t.groupsAria}
                 className="flex flex-wrap items-center gap-2"
               >
                 <span className="text-muted-foreground text-xs tracking-[0.06em] uppercase">
-                  Groups
+                  {t.groups}
                 </span>
                 {groups.map((item) => (
                   <span
@@ -446,7 +454,7 @@ export const SkillsScreen = () => {
                       <span className="text-muted-text">{item.count}</span>
                     </button>
                     <Switch
-                      aria-label={`Turn group ${item.name} ${item.on ? "off" : "on"}`}
+                      aria-label={t.turnGroupAria(item.name, item.on)}
                       checked={item.on}
                       onCheckedChange={(on) => groupFlip(item.name, on)}
                     />
@@ -456,12 +464,12 @@ export const SkillsScreen = () => {
             ) : null}
             {checkedRows.length > 0 ? (
               <div
-                aria-label="Bulk actions"
+                aria-label={t.bulkAria}
                 className="bg-selected flex flex-wrap items-center gap-2 rounded-lg px-3 py-2"
                 role="toolbar"
               >
                 <span className="mr-2 text-sm">
-                  {checkedRows.length} selected
+                  {t.selected(checkedRows.length)}
                 </span>
                 <Button
                   className="h-11"
@@ -469,7 +477,7 @@ export const SkillsScreen = () => {
                   onClick={() => bulkFlip(true)}
                   variant="outline"
                 >
-                  Turn on
+                  {t.turnOn}
                 </Button>
                 <Button
                   className="h-11"
@@ -477,7 +485,7 @@ export const SkillsScreen = () => {
                   onClick={() => bulkFlip(false)}
                   variant="outline"
                 >
-                  Turn off
+                  {t.turnOff}
                 </Button>
                 <Button
                   className="h-11"
@@ -485,7 +493,7 @@ export const SkillsScreen = () => {
                   onClick={() => setShelving(true)}
                   variant="outline"
                 >
-                  Shelve
+                  {t.shelve}
                 </Button>
                 <Button
                   className="border-error-border text-error hover:text-error h-11"
@@ -493,14 +501,14 @@ export const SkillsScreen = () => {
                   onClick={() => setRemoving(true)}
                   variant="outline"
                 >
-                  Remove
+                  {m.web.common.remove}
                 </Button>
                 <Button
                   className="h-11"
                   onClick={() => setChecked(new Set())}
                   variant="ghost"
                 >
-                  Clear
+                  {m.web.common.clear}
                 </Button>
               </div>
             ) : null}
@@ -511,21 +519,19 @@ export const SkillsScreen = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Shelve{" "}
-              {shelvable.length === 1
-                ? shelvable[0]?.name
-                : `${shelvable.length} skills`}
+              {t.shelveTitle(
+                shelvable.length === 1
+                  ? (shelvable[0]?.name ?? "")
+                  : t.count(shelvable.length)
+              )}
             </DialogTitle>
-            <DialogDescription>
-              The skill moves to the shelf, off. Pick an existing group or type
-              a new name.
-            </DialogDescription>
+            <DialogDescription>{t.shelveDescription}</DialogDescription>
           </DialogHeader>
           <Input
-            aria-label="Shelf group"
+            aria-label={t.shelveGroupAria}
             list="shelf-groups"
             onChange={(event) => setGroup(event.target.value)}
-            placeholder="Group name"
+            placeholder={t.groupPlaceholder}
             value={group}
           />
           <datalist id="shelf-groups">
@@ -552,7 +558,7 @@ export const SkillsScreen = () => {
                     project: only.kind === "project",
                   });
                 } else {
-                  runBulk("Shelved", shelvable, (row) =>
+                  runBulk(t.shelved, shelvable, (row) =>
                     client.skills.shelveSkill({
                       dir,
                       skill: row.name,
@@ -564,7 +570,7 @@ export const SkillsScreen = () => {
                 setShelving(false);
               }}
             >
-              Shelve
+              {t.shelve}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -573,23 +579,26 @@ export const SkillsScreen = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Remove{" "}
-              {removable.length === 1
-                ? removable[0]?.name
-                : `${removable.length} skills`}
-              ?
+              {t.removeTitle(
+                removable.length === 1
+                  ? (removable[0]?.name ?? "")
+                  : t.count(removable.length)
+              )}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This deletes{" "}
-              {removable.length === 1
-                ? removable[0]?.source
-                : `${removable.length} skill folders`}
-              . A copy{removable.length === 1 ? "" : " of each"} is kept under{" "}
-              {data?.paths.backupsDir}, and Backups can restore it.
+              {t.removeDescription(
+                removable.length === 1
+                  ? (removable[0]?.source ?? "")
+                  : t.folders(removable.length),
+                removable.length === 1,
+                data?.paths.backupsDir
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="h-11">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="h-11">
+              {m.web.common.cancel}
+            </AlertDialogCancel>
             <AlertDialogAction
               className="h-11"
               onClick={() => {
@@ -607,13 +616,13 @@ export const SkillsScreen = () => {
                 ) {
                   remove.mutate(input(only));
                 } else {
-                  runBulk("Removed", removable, (row) =>
+                  runBulk(t.removed, removable, (row) =>
                     client.skills.removeSkill(input(row))
                   );
                 }
               }}
             >
-              Remove
+              {m.web.common.remove}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
