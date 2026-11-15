@@ -2,6 +2,11 @@
 	"env": {
 		"TRAIL_INVOKED_AS": "trail"
 	},
+	"attribution": {
+		"commit": "",
+		"pr": "",
+		"sessionUrl": false
+	},
 	"hooks": {
 		"SessionStart": [
 			{
