@@ -5,6 +5,7 @@
 
 import { formatAge, formatBytes } from "@agentry/core/backups";
 import type { CatalogEntry } from "@agentry/core/catalog";
+import { messages } from "@agentry/core/messages";
 import type { SkillItem } from "@agentry/core/types";
 import { type Icons, iconsFor } from "./icons.js";
 import {
@@ -20,6 +21,7 @@ import {
 import type { Cell, Data, KeyHint, Row, Seg, Style } from "./types.js";
 
 type Skill = SkillItem;
+const { keys: K } = messages();
 
 const tokens = (count: number | null | undefined) =>
   count === null || count === undefined ? "-" : `~${count}`;
@@ -80,43 +82,43 @@ const skillCells = (
 // The footer keys of the selected Skills row: only what works on it. [key, text, short text].
 export const skillKeys = (row: Row | undefined): KeyHint[] => {
   const both: KeyHint[] = [
-    ["space", "project on/off", "project"],
-    ["g", "global on/off", "global"],
+    ["space", K.skills.projectToggle, K.skills.projectToggleShort],
+    ["g", K.skills.globalToggle, K.skills.globalToggleShort],
   ];
   if (row?.kind === "group") {
-    return [...both, ["enter", "expand"]];
+    return [...both, ["enter", K.skills.expand]];
   }
   if (row?.kind === "skill") {
     return [
       ...both,
-      ["u", "unshelve"],
-      ["x", "remove (copy kept)", "remove"],
-      ["X", "remove (no copy)", "no copy"],
-      ["e", "open file", "edit"],
+      ["u", K.skills.unshelve],
+      ["x", K.removeCopyKept, K.removeCopyKeptShort],
+      ["X", K.removeNoCopy, K.removeNoCopyShort],
+      ["e", K.openFile, K.openFileShort],
     ];
   }
   if (row?.plugin) {
-    return [["space", "enable/disable plugin", "on/off"]];
+    return [["space", K.skills.pluginToggle, K.skills.pluginToggleShort]];
   }
   if (row?.projectOnly) {
     return [
-      ["s", "shelve"],
-      ["a", "move to all projects", "all projects"],
-      ["x", "remove (copy kept)", "remove"],
-      ["X", "remove (no copy)", "no copy"],
-      ["e", "open file", "edit"],
+      ["s", K.skills.shelve],
+      ["a", K.skills.moveToAll, K.skills.moveToAllShort],
+      ["x", K.removeCopyKept, K.removeCopyKeptShort],
+      ["X", K.removeNoCopy, K.removeNoCopyShort],
+      ["e", K.openFile, K.openFileShort],
     ];
   }
   if (row?.shelvable) {
     return [
-      ["s", "shelve"],
-      ["o", "move to this project only", "this project"],
-      ["x", "remove (copy kept)", "remove"],
-      ["X", "remove (no copy)", "no copy"],
-      ["e", "open file", "edit"],
+      ["s", K.skills.shelve],
+      ["o", K.skills.moveToProject, K.skills.moveToProjectShort],
+      ["x", K.removeCopyKept, K.removeCopyKeptShort],
+      ["X", K.removeNoCopy, K.removeNoCopyShort],
+      ["e", K.openFile, K.openFileShort],
     ];
   }
-  return row?.file ? [["e", "open file", "edit"]] : [];
+  return row?.file ? [["e", K.openFile, K.openFileShort]] : [];
 };
 
 const itemState = (item: Record<string, unknown>, field: string) =>
@@ -352,31 +354,33 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
 // Agents and MCP servers also install to this project (o); an outdated skill, agent or rule can be updated (u).
 export const catalogKeys = (row: Row | undefined): KeyHint[] => {
   if (row?.kind !== "catalog") {
-    return [["f", "fetch catalog", "fetch"]];
+    return [["f", K.catalog.fetch, K.catalog.fetchShort]];
   }
   const where = row.itemKind === "agent" || row.itemKind === "mcp";
   return [
     [
       "i",
       row.itemKind === "skill"
-        ? "add to shelf"
+        ? K.catalog.addToLibrary
         : where
-          ? "add (all projects)"
-          : "add",
-      "add",
+          ? K.catalog.addAllProjects
+          : K.catalog.add,
+      K.catalog.add,
     ],
-    ...(where ? [["o", "add to this project", "project"] as KeyHint] : []),
-    ...(row.outdated ? [["u", "update"] as KeyHint] : []),
+    ...(where
+      ? [["o", K.catalog.addToProject, K.catalog.addToProjectShort] as KeyHint]
+      : []),
+    ...(row.outdated ? [["u", K.update] as KeyHint] : []),
     ...((row.itemKind === "skill" ||
       row.itemKind === "agent" ||
       row.itemKind === "rule") &&
     row.installed
       ? ([
-          ["x", "remove (copy kept)", "remove"],
-          ["X", "remove (no copy)", "no copy"],
+          ["x", K.removeCopyKept, K.removeCopyKeptShort],
+          ["X", K.removeNoCopy, K.removeNoCopyShort],
         ] as KeyHint[])
       : []),
-    ["f", "update catalog", "fetch"],
+    ["f", K.catalog.updateCatalog, K.catalog.fetchShort],
   ];
 };
 
@@ -505,9 +509,9 @@ export const catalogRows = (data: Data, icons: Icons = iconsFor({})): Row[] => {
 export const ruleKeys = (row: Row | undefined): KeyHint[] =>
   row?.ruleFile
     ? [
-        ["x", "remove (copy kept)", "remove"],
-        ["X", "remove (no copy)", "no copy"],
-        ["e", "open file", "edit"],
+        ["x", K.removeCopyKept, K.removeCopyKeptShort],
+        ["X", K.removeNoCopy, K.removeNoCopyShort],
+        ["e", K.openFile, K.openFileShort],
       ]
     : [];
 
@@ -567,7 +571,7 @@ export const ruleRows = (data: Data): Row[] => {
 };
 
 export const agentKeys = (row: Row | undefined): KeyHint[] =>
-  row?.file ? [["e", "open file", "edit"]] : [];
+  row?.file ? [["e", K.openFile, K.openFileShort]] : [];
 
 // The subagents Claude Code can start (core/agents.ts), user then project. Cost is the name and description Claude lists.
 export const agentRows = (data: Data): Row[] => {
@@ -626,13 +630,15 @@ export const agentRows = (data: Data): Row[] => {
   return rows;
 };
 
-export const BACKUPS_KEYS: KeyHint[] = [["d", "delete 30+ days old", "prune"]];
+export const BACKUPS_KEYS: KeyHint[] = [
+  ["d", K.backups.prune, K.backups.pruneShort],
+];
 
 export const backupKeys = (row: Row | undefined): KeyHint[] => [
   ...(row?.backup
     ? [
-        ...(row.restorable ? [["u", "restore"] as KeyHint] : []),
-        ["x", "delete"] as KeyHint,
+        ...(row.restorable ? [["u", K.backups.restore] as KeyHint] : []),
+        ["x", K.backups.delete] as KeyHint,
       ]
     : []),
   ...BACKUPS_KEYS,
@@ -692,25 +698,25 @@ export const backupRows = (data: Data): Row[] =>
 export const PLUGIN_NOTE = "applies to new sessions";
 
 export const mcpKeys = (row: Row | undefined): KeyHint[] => [
-  ["a", "add server", "add"],
+  ["a", K.mcp.add, K.mcp.addShort],
   ...(row?.mcp
     ? [
-        ...(row.mcpUser ? [["s", "edit env/args", "edit"] as KeyHint] : []),
-        ["x", "remove"] as KeyHint,
+        ...(row.mcpUser ? [["s", K.mcp.edit, K.openFileShort] as KeyHint] : []),
+        ["x", K.remove] as KeyHint,
         [
           "space",
           row.mcpEnable
             ? row.mcpProject
-              ? "turn on here"
-              : "add back"
+              ? K.mcp.turnOnHere
+              : K.mcp.addBack
             : row.mcpProject
-              ? "turn off here"
-              : "turn off (saved)",
-          row.mcpEnable ? "on" : "off",
+              ? K.mcp.turnOffHere
+              : K.mcp.turnOffSaved,
+          row.mcpEnable ? K.mcp.on : K.mcp.off,
         ] as KeyHint,
       ]
     : []),
-  ...(row?.file ? [["e", "open file", "edit"] as KeyHint] : []),
+  ...(row?.file ? [["e", K.openFile, K.openFileShort] as KeyHint] : []),
 ];
 
 // Hooks: settings hooks switch off/on and can be removed; plugin hooks only open their file.
@@ -719,13 +725,13 @@ export const hookKeys = (row: Row | undefined): KeyHint[] => [
     ? ([
         [
           "space",
-          row.hookOff ? "turn on" : "turn off (saved)",
-          row.hookOff ? "on" : "off",
+          row.hookOff ? K.hooks.turnOn : K.hooks.turnOffSaved,
+          row.hookOff ? K.hooks.on : K.hooks.off,
         ],
-        ["x", "remove"],
+        ["x", K.remove],
       ] as KeyHint[])
     : []),
-  ...(row?.file ? [["e", "open file", "edit"] as KeyHint] : []),
+  ...(row?.file ? [["e", K.openFile, K.openFileShort] as KeyHint] : []),
 ];
 
 const MCP_WHY: Record<string, string> = {
@@ -877,12 +883,12 @@ export const hookRows = (data: Data): Row[] => [
 ];
 
 export const pluginKeys = (row: Row | undefined): KeyHint[] => [
-  ["space", "enable/disable", "on/off"],
-  ["i", "install a plugin", "install"],
+  ["space", K.plugins.toggle, K.plugins.toggleShort],
+  ["i", K.plugins.install, K.plugins.installShort],
   ...((row?.pluginScopes?.length ?? 0) > 0
-    ? [["x", "uninstall"] as KeyHint]
+    ? [["x", K.plugins.uninstall] as KeyHint]
     : []),
-  ["e", "open file", "edit"],
+  ["e", K.openFile, K.openFileShort],
 ];
 
 export const pluginRows = (data: Data): Row[] => [
@@ -930,9 +936,9 @@ export const pluginRows = (data: Data): Row[] => [
 ];
 
 export const DOCTOR_KEYS: KeyHint[] = [
-  ["enter", "preview fix", "fix"],
-  ["u", "undo last fix set", "undo"],
-  ["e", "open file", "edit"],
+  ["enter", K.doctor.previewFix, K.doctor.previewFixShort],
+  ["u", K.doctor.undo, K.doctor.undoShort],
+  ["e", K.openFile, K.openFileShort],
 ];
 
 // Which kind of thing a doctor finding is about, from its rule id (a finding has no kind field). Rules that are about

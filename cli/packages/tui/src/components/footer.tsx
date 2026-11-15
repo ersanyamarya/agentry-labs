@@ -2,13 +2,14 @@
 // the right; every other global key is in the help screen (?). Each row key is [key, text, short?]: the short form is
 // used, so the footer is one line at every width.
 
+import { messages } from "@agentry/core/messages";
 import { Box } from "ink";
 import type { KeyHint } from "../types.js";
 import { Text } from "./text.js";
 
 const GAP = 3;
-const TABS: KeyHint = ["tab", "sidebar"];
-const HELP: KeyHint = ["?", "help"];
+const TABS: KeyHint = ["tab", messages().keys.footer.sidebar];
+const HELP: KeyHint = ["?", messages().keys.footer.help];
 
 const width = (pairs: KeyHint[]) =>
   pairs.reduce(
