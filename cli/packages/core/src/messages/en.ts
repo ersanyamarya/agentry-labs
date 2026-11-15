@@ -14,6 +14,10 @@ const terms = {
 };
 // Said after most changes; the preview already told the user what is written.
 const appliesUndo = "Applies to new sessions; undo with agentry fix --undo";
+// "group" as a sentence-start plural ("Groups:"), so the glossary word still drives it.
+const capital = (word: string): string =>
+  `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+const appliesNewSessions = "Applies to sessions started after this.";
 const {
   library,
   bundle,
@@ -951,6 +955,368 @@ export const en = {
       path: (path: string) => `path: ${path}`,
       note: (text: string) => `note: ${text}`,
       toggle: (text: string) => `toggle: ${text}`,
+    },
+    refused: (reason: string) => `refused: ${reason}`,
+    scopeOneOf: (scopes: string) => `--scope must be one of ${scopes}`,
+    pluginMatchesSeveral: (name: string, ids: string) =>
+      `"${name}" matches several plugins: ${ids}. Use name@marketplace.`,
+    appliesNote: appliesNewSessions,
+    shelf: {
+      skipTaken: (name: string, link: string) =>
+        `skip ${name}: ${link} already exists and is not a ${library} link`,
+      noGroup: (target: string, dir: string, groups: string) =>
+        `No ${bundle} "${target}" in ${dir}. ${capital(bundle)}s: ${groups || "none"}`,
+      noSkillInGroup: (skill: string, group: string, dir: string) =>
+        `No skill "${skill}" in ${bundle} "${group}" of ${dir}`,
+      severalGroups: (skill: string, groups: string) =>
+        `"${skill}" is in several ${bundle}s: ${groups}. Use ${bundle}/skill.`,
+      agentCount: (count: number) => `, ${count} agent${count > 1 ? "s" : ""}`,
+      listLine: (
+        name: string,
+        skills: number,
+        agentNote: string,
+        tokens: number,
+        state: string
+      ) =>
+        `${name.padEnd(16)} ${String(skills).padStart(3)} skills${agentNote}  ~${tokens} tokens  ${state}`,
+      linkLine: (link: string, source: string) => `link ${link} -> ${source}`,
+      unlinkLine: (link: string) => `unlink ${link}`,
+      excludeLine: (sign: string, entry: string) => `exclude ${sign} ${entry}`,
+      changed: (
+        label: string,
+        command: string,
+        base: string,
+        count: number,
+        total: number,
+        dryRun: boolean
+      ) =>
+        `${label} ${command} in ${base}: ${count} of ${total} ${dryRun ? "would change" : "changed"}.`,
+      allOff: (base: string, count: number, total: number, dryRun: boolean) =>
+        `all ${notLoaded} in ${base}: ${count} of ${total} ${dryRun ? "would change" : "changed"}.`,
+      statusLine: (name: string, state: string) =>
+        `${name.padEnd(16)} ${state}`,
+      scopeHeading: (scope: string, base: string) => `\n${scope} (${base})`,
+      nothingFromShelf: `  nothing from the ${library}`,
+      itemLine: (group: string, name: string, agent: boolean) =>
+        `  ${group}/${name}${agent ? " (agent)" : ""}`,
+      brokenLine: (kind: string, name: string, target: string) =>
+        `  BROKEN ${kind}/${name} -> ${target} (missing)`,
+      noProjectScope: (dir: string) =>
+        `This folder's .claude is the ${allProjects} config folder (${dir}), so there is no separate ${thisProject} scope.`,
+      noProjectScopeToMove: (dir: string) =>
+        `This folder's .claude is the ${allProjects} config folder (${dir}), so there is no separate ${thisProject} scope to move between.`,
+      notSkillFolder: (from: string) =>
+        `${from} is not a skill folder (symlinks are not moved)`,
+      cannotShelve: (skill: string, group: string) =>
+        `Cannot shelve "${skill}" into "${group}"`,
+      alreadyExists: (to: string) => `${to} already exists; not overwriting`,
+      linkNamed: (skill: string, links: string) =>
+        `A ${library} link named ${skill} exists: ${links}. Turn it ${notLoaded} first.`,
+      wouldShelve: (skill: string, group: string, from: string, to: string) =>
+        `would shelve ${skill} into ${group}: ${from} -> ${to}`,
+      shelved: (skill: string, group: string) =>
+        `shelved ${skill} into ${group}`,
+      unshelveNeedsSkill: (target: string) =>
+        `"${target}" is a ${bundle}; unshelve takes a skill name or ${bundle}/skill`,
+      stillLinked: (label: string, links: string) =>
+        `${label} is still linked: ${links}. Turn it ${notLoaded} first.`,
+      wouldUnshelve: (label: string, dir: string, from: string, to: string) =>
+        `would unshelve ${label} into ${dir}: ${from} -> ${to}`,
+      unshelved: (label: string, dir: string) =>
+        `unshelved ${label} into ${dir}`,
+      badSkillName: (skill: string) => `Not a usable skill name: "${skill}"`,
+      isLink: (from: string, scopeName: string) =>
+        `${from} is a link, not a ${scopeName} skill folder (links belong to the ${library}; turn it ${notLoaded} instead)`,
+      noScopeFolder: (scopeName: string, skill: string, dir: string) =>
+        `No ${scopeName} skill folder "${skill}" in ${dir}`,
+      wouldMove: (direction: string, skill: string, from: string, to: string) =>
+        `would ${direction} ${skill}: ${from} -> ${to} (a move, no copy kept)`,
+      moved: (
+        direction: string,
+        skill: string,
+        scopeName: string,
+        to: string
+      ) => `${direction}d ${skill} to ${scopeName} scope: ${to}`,
+      noSkillFolder: (target: string, dir: string) =>
+        `No skill folder "${target}" in ${dir}`,
+      isShelfLink: (target: string) =>
+        `${target} is a link into the ${library}, not a ${thisProject} skill folder. Turn it ${notLoaded} instead.`,
+      removeNeedsSkill: (target: string) =>
+        `"${target}" is a ${bundle}; remove takes a skill name or ${bundle}/skill`,
+      wouldRemove: (label: string, from: string, backup: boolean, to: string) =>
+        `would remove ${label}: ${from} (${backup ? `copy kept in ${to}` : "no copy kept"})`,
+      removed: (label: string, backup: boolean, to: string) =>
+        `removed ${label}; ${backup ? `a copy is in ${to}` : "no copy kept"}`,
+    },
+    catalog: {
+      fetchFailed: (repo: string, detail: string) =>
+        `Could not fetch the catalog from ${repo}: ${detail}`,
+      upToDate: (count: number) => `catalog up to date (${count} items)`,
+      notFetched: "The catalog is not fetched yet: run agentry catalog refresh",
+      notInstalled: notAdded,
+      listLine: (
+        bundleName: string,
+        label: string,
+        tokens: string,
+        where: string,
+        outdated: boolean
+      ) =>
+        `${bundleName.padEnd(8)} ${String(label).padEnd(30)} ${tokens}  ${where}${outdated ? "  outdated" : ""}`,
+      noKindItem: (kind: string, name: string) =>
+        `No ${kind} "${name}" in the catalog. See agentry catalog list`,
+      noItem: (ref: string) =>
+        `No item "${ref}" in the catalog. See agentry catalog list`,
+      ambiguous: (ref: string, ids: string) =>
+        `"${ref}" matches ${ids}; name one as kind/name`,
+      refusedExists: (path: string, updateId: string | undefined) =>
+        `refused: ${path} already exists; not overwriting it${updateId === undefined ? "" : ` (agentry catalog update ${updateId} refreshes an ${added} copy)`}.`,
+      wouldAdd: (id: string, where: string, source: string, to: string) =>
+        `would add ${id} to ${where}: ${source} -> ${to}`,
+      added: (id: string, where: string, to: string) =>
+        `added ${id} to ${where}: ${to}`,
+      badGroupName: (group: string) =>
+        `Not a usable ${bundle} name: "${group}"`,
+      alreadyInstalled: (name: string, where: string) =>
+        `${name} is already ${added} (${where}); not overwriting`,
+      wouldAddSkill: (
+        name: string,
+        group: string,
+        source: string,
+        to: string
+      ) =>
+        `would add ${name} to ${library} ${bundle} ${group}: ${source} -> ${to}`,
+      addedSkill: (name: string, group: string) =>
+        `added ${name} to ${library} ${bundle} ${group} (${notLoaded}); turn it ${loaded} with agentry shelf on ${group}/${name}`,
+      whereProjectAgents: `this ${thisProject}'s .claude/agents`,
+      whereClaudeMd: `this ${thisProject} as CLAUDE.md`,
+      refusedClaudeMd: (existing: string, source: string) =>
+        `refused: this ${thisProject} already has ${existing}; not overwriting it. Merge ${source} into it by hand.`,
+      isNotInstalled: (id: string) =>
+        `${id} is ${notAdded}; agentry catalog add ${id}`,
+      itemUpToDate: (id: string) => `${id} is up to date`,
+      allUpToDate: `Everything ${added} is up to date.`,
+      updateHeader: (id: string, path: string) => `update ${id} at ${path}:`,
+      overwriteFile: (name: string) =>
+        `  overwrite ${name}  (differs from the catalog copy: a local edit in it is replaced)`,
+      addFile: (name: string) => `  add ${name}`,
+      keepFile: (name: string) =>
+        `  keep ${name}  (only in your copy; not touched)`,
+      savedUnder: (path: string) =>
+        `The current copy of each is saved under ${path} first.`,
+      updateServer: (id: string) =>
+        `update ${id} in your user config (args replaced, missing env keys added; existing env values stay):`,
+      dryRun: "Dry run: nothing changed.",
+      needYes: "Nothing changed; run again with --yes to apply.",
+      overwritePrompt: "\nOverwrite these? [y/N] ",
+      cancelled: "Cancelled; nothing changed.",
+      updated: (id: string, label: string) => `updated ${id} (${label})`,
+      removeAgentsOnly: (id: string, command: string) =>
+        `refused: catalog remove takes agents; remove ${id} with ${command}.`,
+      agentNotInstalled: (id: string, project: boolean) =>
+        `${id} is ${notAdded} ${project ? `in this ${thisProject}` : "in ~/.claude/agents"}${project ? "" : `; --project removes the ${thisProject} copy`}.`,
+      wouldRemove: (id: string, to: string, backup: boolean, saved: string) =>
+        `remove ${id}: ${to} (${backup ? `a copy is kept under ${saved}` : "no copy kept"})`,
+      removePrompt: "\nRemove these? [y/N] ",
+      removed: (id: string) => `removed ${id}`,
+    },
+    mcpEdit: {
+      pairNeeds: (what: string, format: string, got: string) =>
+        `${what} needs ${format}, got "${got}"`,
+      managedBy: {
+        plugin: "managed by its plugin",
+        project: "a project server (.mcp.json)",
+        local: "a local-scope server",
+        "desktop-config": "managed by Claude desktop",
+        "desktop-extension": "managed by Claude desktop",
+      } as Record<string, string>,
+      aServer: (scope: string) => `a ${scope} server`,
+      exactlyOne: "Give exactly one of --command and --url.",
+      headerWithUrl: "--header goes with --url.",
+      commandEmpty: "--command is empty.",
+      argEnvWithCommand: "--arg and --env go with --command.",
+      urlInvalid: "--url must be an http(s) URL.",
+      addUsage:
+        "Usage: agentry mcp add <name> (--command <cmd> [--arg A]... [--env K=V]... | --url <url> [--header K:V]...) [--scope user|project]",
+      scopeInvalid: "--scope must be user or project",
+      refusedExists: (scope: string, name: string) =>
+        `refused: a ${scope}-scope server named ${name} already exists; not overwriting it (agentry mcp remove ${name} first, or agentry mcp set to change env and args).`,
+      refusedNoDir: (dir: string) => `refused: ${dir} does not exist.`,
+      describeAdd: (scope: string, name: string, summary: string) =>
+        `Add ${scope} MCP server ${name} (${summary})`,
+      added: (name: string, scope: string) =>
+        `${name} is added to ${scope} scope.${scope === "project" ? ` Claude Code asks you to approve a ${thisProject} server the first time it loads.` : ""} ${appliesNewSessions}`,
+      setUsage:
+        "Usage: agentry mcp set <name> [--env K=V]... [--unset-env K]... [--arg A]...",
+      notEditable: (name: string, who: string) =>
+        `refused: ${name} is ${who}, which this tool does not edit.`,
+      noUserServer: (name: string) =>
+        `refused: No user-scope MCP server "${name}".`,
+      urlServer: (name: string) =>
+        `refused: ${name} is a url server; env and args only exist on command servers.`,
+      nothingToChange: (name: string) =>
+        `${name} already has that env and args; nothing to change.`,
+      setEnv: (keys: string) => `set env ${keys}`,
+      unsetEnv: (keys: string) => `unset env ${keys}`,
+      replaceArgs: (count: number) => `replace args (${count})`,
+      describeSet: (name: string, parts: string) =>
+        `Edit user MCP server ${name}: ${parts}`,
+      updated: (name: string) => `${name} is updated. ${appliesNewSessions}`,
+    },
+    mcpToggle: {
+      managedBy: {
+        "desktop-config": "managed by Claude desktop",
+        "desktop-extension": "managed by Claude desktop",
+      } as Record<string, string>,
+      alreadyOffHere: (name: string) =>
+        `${name} is already turned ${notLoaded} in this ${thisProject}.`,
+      managed: (name: string, who: string) => `${name} is ${who}.`,
+      doesNotManage: (scope: string) =>
+        `a ${scope} server this tool does not manage`,
+      noUserServer: (name: string) => `No user-scope MCP server "${name}".`,
+      alreadyParked: (name: string, file: string) =>
+        `${name} is already parked with a different config; enable it first or remove the parked entry by hand (${file}).`,
+      notParked: (name: string, parked: string) =>
+        `${name} is not parked. Parked: ${parked || "none"}`,
+      alreadyExists: (name: string) =>
+        `A user-scope server named ${name} already exists; not overwriting it.`,
+      describeProject: (enable: boolean, name: string, key: string) =>
+        `${enable ? "Turn on" : "Turn off"} MCP server ${name} for ${key} (disabledMcpServers in ~/.claude.json)`,
+      projectState: (name: string, enable: boolean, key: string) =>
+        `${name} is ${enable ? loaded : notLoaded} for ${key}. ${appliesNewSessions}`,
+      describePark: (enable: boolean, name: string, summary: string) =>
+        `${enable ? "Add back" : "Park"} user MCP server ${name} (${summary})`,
+      saveFailed: "could not save the parked copy, so nothing was removed",
+      backInUserScope: (name: string) =>
+        `${name} is back in user scope; its parked copy is deleted. ${appliesNewSessions}`,
+      parked: (name: string, file: string) =>
+        `${name} is parked (saved in ${file}, mode 0600, secrets included). Switch it back with agentry mcp enable ${name}. ${appliesNewSessions}`,
+      wouldDeleteParked: (name: string, summary: string, file: string) =>
+        `would delete the parked copy of ${name} (${summary}) from ${file}`,
+      addYes: "Add --yes to delete the parked copy.",
+      parkedDeleted: (name: string) => `${name}: parked copy deleted.`,
+      noServer: (name: string) => `refused: No MCP server "${name}".`,
+      refusedManaged: (name: string, who: string, plugin: boolean) =>
+        `refused: ${name} is ${who}${plugin ? " (remove the plugin, or turn the server off with agentry mcp disable)" : ""}.`,
+      describeRemove: (what: string) => `Remove ${what}`,
+      removed: (name: string, scope: string) =>
+        `${name} is removed from ${scope} scope. ${appliesNewSessions}`,
+    },
+    hookToggle: {
+      selectorHelp:
+        "The selector is the id column of agentry hook list (4 to 8 hex characters).",
+      matchesSeveral: (selector: string, ids: string) =>
+        `"${selector}" matches several hooks (${ids}); use more characters.`,
+      pluginManages: (selector: string, plugin: string) =>
+        `${selector} is a hook of plugin ${plugin}, which manages it; turn the plugin ${notLoaded} with agentry plugin disable ${plugin}.`,
+      alreadyOff: (selector: string, described: string) =>
+        `${selector} is already ${notLoaded} (${described}).`,
+      alreadyOn: (selector: string, scope: string) =>
+        `${selector} is already ${loaded} (${scope} settings).`,
+      noHook: (action: string, selector: string, scope: string | undefined) =>
+        `No ${action === "enable" ? "turned-off " : ""}hook "${selector}"${scope ? ` in ${scope} settings` : ""}. See agentry hook list.`,
+      existsIn: (selector: string, scopes: string) =>
+        `${selector} exists in ${scopes} settings; pick one with --scope.`,
+      wouldDeleteParked: (described: string, file: string) =>
+        `would delete the parked copy of ${described} from ${file}`,
+      addYes: "Add --yes to delete the parked copy.",
+      parkedDeleted: (selector: string) => `${selector}: parked copy deleted.`,
+      notInFile: (selector: string, file: string) =>
+        `refused: ${selector} is not in ${file} any more; run agentry hook list.`,
+      alreadyInFile: (selector: string, file: string, scope: string) =>
+        `${selector} is already in ${file}; the saved copy stays (agentry hook remove ${selector} --scope ${scope} deletes it).`,
+      noDirToPutBack: (dir: string) =>
+        `refused: ${dir} does not exist, so the hook cannot be put back there.`,
+      verbs: {
+        disable: "Turn off",
+        enable: "Turn on",
+        remove: "Remove",
+      } as Record<string, string>,
+      describe: (verb: string, id: string, label: string, scope: string) =>
+        `${verb} hook ${id}: ${label} (${scope} settings)`,
+      isOff: (id: string, file: string) =>
+        `hook ${id} is ${notLoaded} (saved in ${file}, mode 0600). Switch it back with agentry hook enable ${id}. ${appliesNewSessions}`,
+      backIn: (id: string, scope: string) =>
+        `hook ${id} is back in ${scope} settings; its saved copy is deleted. ${appliesNewSessions}`,
+      removedFrom: (id: string, scope: string) =>
+        `hook ${id} is removed from ${scope} settings. ${appliesNewSessions}`,
+      saveFailed:
+        "The settings file changed, but the saved copy could not be updated; agentry fix --undo restores the file.",
+    },
+    pluginToggle: {
+      appliesNote:
+        "Applies to sessions started after this; a running session keeps its plugins until restarted.",
+      noPlugin: (name: string, ids: string) =>
+        `No plugin "${name}". Plugins: ${ids || "none"}`,
+      notInstalledHere: (id: string, otherProjects: boolean) =>
+        `${id} is ${otherProjects ? `${added} only for other ${thisProject}s, so it does not load in this folder` : notAdded}; install it with claude plugin install first.`,
+      mdm: (id: string, domain: string) =>
+        `${id} is set by macOS MDM managed settings (${domain}), which this tool cannot change.`,
+      managedFile: (id: string, file: string) =>
+        `${id} is set by managed settings (${file}), which this tool cannot change.`,
+      overridden: (top: string, source: string, id: string, chosen: string) =>
+        `${top} settings (${source}) also set ${id} and win over ${chosen}; use --scope ${top}.`,
+      noDir: (dir: string, scope: string) =>
+        `${dir} does not exist, so ${scope} settings cannot be created there.`,
+      already: (id: string, enable: boolean, by: string) =>
+        `${id} is already ${enable ? "enabled" : "disabled"}${by === "default" ? " (by default)" : ` (${by} settings)`}.`,
+      describe: (enable: boolean, id: string, scope: string) =>
+        `${enable ? "Enable" : "Disable"} ${id} in ${scope} settings`,
+    },
+    pluginInstall: {
+      usage:
+        "Usage: agentry plugin install <name>@<marketplace> [--scope user|project|local]",
+      noInstalled: (name: string, ids: string) =>
+        `No ${added} plugin "${name}". ${capital(added)}: ${ids || "none"}`,
+      onlyOtherProjects: (id: string) =>
+        `${id} is ${added} only for other ${thisProject}s; run this in one of them.`,
+      severalScopes: (id: string, scopes: string) =>
+        `${id} is ${added} at several scopes here (${scopes}); pick one with --scope.`,
+      alreadyInstalled: (id: string, scope: string) =>
+        `refused: ${id} is already ${added} at ${scope} scope.`,
+      notInstalledAt: (id: string, scope: string) =>
+        `refused: ${id} is ${notAdded} at ${scope} scope.`,
+      noDir: (dir: string, scope: string) =>
+        `refused: ${dir} does not exist, so ${scope} scope cannot be used here.`,
+      describe: (install: boolean, id: string, scope: string) =>
+        `${install ? "Install" : "Uninstall"} plugin ${id} at ${scope} scope`,
+      done: (install: boolean, id: string, scope: string, note: string) =>
+        `${id} is ${install ? "installed" : "uninstalled"} at ${scope} scope. ${note}`,
+    },
+    backups: {
+      fixSet: (files: number, state: string) =>
+        `fix set, ${files} file${files === 1 ? "" : "s"}, ${state}`,
+      fixSetUnreadable: "fix set (manifest unreadable)",
+      itemDetail: (kind: string, what: string, from: string | undefined) =>
+        `${kind} ${what}${from ? `, from ${from}` : ", original folder unknown (copy it back by hand)"}`,
+      none: (dir: string) => `No backups in ${dir}.`,
+      heading: (dir: string) => `Backups in ${dir} (newest first):`,
+      total: (count: number, size: string) =>
+        `${count} backup${count === 1 ? "" : "s"}, ${size}.`,
+      noBackup: (id: string) =>
+        `No backup "${id}". Run agentry backups list to see the ids.`,
+      isFixSet: (id: string, name: string) =>
+        `${id} is a fix set; restore it with agentry fix --undo ${name}.`,
+      noOrigin: (id: string, path: string) =>
+        `${id} has no recorded original folder (made by an older agentry). Copy ${path} back by hand.`,
+      exists: (from: string) => `${from} already exists; not overwriting.`,
+      wouldRestore: (name: string, from: string, to: string) =>
+        `would restore ${name}: ${from} -> ${to}`,
+      keptCurrent: (path: string) => `kept the current copy as ${path}`,
+      restored: (name: string, to: string) => `restored ${name} to ${to}`,
+      kindWithIds: "--kind goes with --older-than or --all, not with ids.",
+      kindOneOf: (kinds: string) => `--kind must be one of ${kinds}.`,
+      sayWhat: "Say what to delete: --older-than <days> or --all.",
+      nothingToDelete: "Nothing to delete.",
+      wouldDelete: (count: number, size: string) =>
+        `Would delete ${count} backup${count === 1 ? "" : "s"} (${size}) for good:`,
+      liveFixSets: (count: number) =>
+        `${count} fix set${count === 1 ? "" : "s"} not undone yet: agentry fix --undo can no longer restore ${count === 1 ? "it" : "them"}.`,
+      dryRun: "Dry run: nothing deleted.",
+      needYes: "Nothing deleted; run again with --yes to apply.",
+      deletePrompt: "\nDelete these? [y/N] ",
+      cancelled: "Cancelled; nothing deleted.",
+      deleted: (count: number) =>
+        `deleted ${count} backup${count === 1 ? "" : "s"}`,
     },
   },
 };

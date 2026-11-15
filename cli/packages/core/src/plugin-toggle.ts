@@ -16,6 +16,7 @@ import { createFix } from "./fix.js";
 import { isObject, readJson, settingsLayers } from "./inventory/common.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import { createJsonEdit } from "./json-edit.js";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import type {
   DoctorLike,
@@ -31,8 +32,8 @@ export const SCOPES: Scope[] = ["user", "project", "local"];
 
 const isScope = (value: unknown): value is Scope =>
   SCOPES.includes(value as Scope);
-export const APPLIES_NOTE =
-  "Applies to sessions started after this; a running session keeps its plugins until restarted.";
+const words = messages().core.pluginToggle;
+export const APPLIES_NOTE = words.appliesNote;
 
 const RULE = "plugin-toggle";
 export const MDM_DOMAIN = "com.anthropic.claudecode";
@@ -147,7 +148,7 @@ export const createPluginToggle = (
       code = 1
     ): { refusal: string; code: number } => ({ refusal, code });
     if (scope !== undefined && !isScope(scope)) {
-      return refuse(`--scope must be one of ${SCOPES.join(", ")}`, 2);
+      return refuse(messages().core.scopeOneOf(SCOPES.join(", ")), 2);
     }
     const errors: ReadError[] = [];
     const { plugins } = reader.read({ cwd });
@@ -158,28 +159,31 @@ export const createPluginToggle = (
     );
     if (matches.length === 0) {
       return refuse(
-        // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
-        `No plugin "${name}". Plugins: ${plugins.map((plugin) => plugin.id).join(", ") || "none"}`
+        words.noPlugin(
+          name,
+          // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
+          plugins.map((plugin) => plugin.id).join(", ")
+        )
       );
     }
     if (matches.length > 1) {
       return refuse(
-        // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
-        `"${name}" matches several plugins: ${matches.map((plugin) => plugin.id).join(", ")}. Use name@marketplace.`,
+        messages().core.pluginMatchesSeveral(
+          name,
+          // biome-ignore lint/suspicious/noShadow: the inner name is local to this callback
+          matches.map((plugin) => plugin.id).join(", ")
+        ),
         2
       );
     }
     const [plugin] = matches;
-    const verb = enable ? "enabled" : "disabled";
     if (plugin.state === "not-here" || plugin.state === "not-installed") {
       return refuse(
-        `${plugin.id} is ${plugin.state === "not-here" ? "installed only for other projects, so it does not load in this folder" : "not installed"}; install it with claude plugin install first.`
+        words.notInstalledHere(plugin.id, plugin.state === "not-here")
       );
     }
     if (mdmNames(plugin.id)) {
-      return refuse(
-        `${plugin.id} is set by macOS MDM managed settings (${MDM_DOMAIN}), which this tool cannot change.`
-      );
+      return refuse(words.mdm(plugin.id, MDM_DOMAIN));
     }
     for (const file of managedFiles()) {
       const enabledPlugins = readJson<SettingsJson>(
@@ -187,9 +191,7 @@ export const createPluginToggle = (
         errors
       )?.enabledPlugins;
       if (isObject(enabledPlugins) && enabledPlugins[plugin.id] !== undefined) {
-        return refuse(
-          `${plugin.id} is set by managed settings (${tilde(file)}), which this tool cannot change.`
-        );
+        return refuse(words.managedFile(plugin.id, tilde(file)));
       }
     }
     const named = settingsLayers(paths, cwd, errors)
@@ -213,22 +215,20 @@ export const createPluginToggle = (
     const top = higher.at(-1);
     if (top) {
       return refuse(
-        `${top.scope} settings (${tilde(top.source)}) also set ${plugin.id} and win over ${chosen}; use --scope ${top.scope}.`
+        words.overridden(top.scope, tilde(top.source), plugin.id, chosen)
       );
     }
     const file =
       named.findLast((layer) => layer.scope === chosen)?.source ??
       settingsFile(chosen, cwd);
     if (!existsSync(dirname(file))) {
-      return refuse(
-        `${tilde(dirname(file))} does not exist, so ${chosen} settings cannot be created there.`
-      );
+      return refuse(words.noDir(tilde(dirname(file)), chosen));
     }
     const base = { id: plugin.id, enable, scope: chosen, file, cwd };
     if ((plugin.state === "active") === enable) {
       return {
         ...base,
-        already: `${plugin.id} is already ${verb}${plugin.enabledBy.scope === "default" ? " (by default)" : ` (${plugin.enabledBy.scope} settings)`}.`,
+        already: words.already(plugin.id, enable, plugin.enabledBy.scope),
       };
     }
     return base;
@@ -262,7 +262,7 @@ export const createPluginToggle = (
   }: ToggleArgs): Promise<number> => {
     const found = inspect({ name, enable, scope, path });
     if ("refusal" in found) {
-      err(`refused: ${found.refusal}`);
+      err(messages().core.refused(found.refusal));
       return found.code;
     }
     if (found.already) {
@@ -287,8 +287,7 @@ export const createPluginToggle = (
       [RULE]: () => ({
         ruleId: RULE,
         file,
-        describe: () =>
-          `${enable ? "Enable" : "Disable"} ${id} in ${found.scope} settings`,
+        describe: () => words.describe(enable, id, found.scope),
         apply: (text: string | undefined) => editText(text, id, enable),
       }),
     };

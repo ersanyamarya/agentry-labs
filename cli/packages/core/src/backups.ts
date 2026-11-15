@@ -20,8 +20,10 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 
+const words = messages().core.backups;
 const DAY = 86_400_000;
 const META = "meta.json";
 
@@ -265,8 +267,11 @@ export const createBackups = (
         ...ageOf(manifest?.createdAt, dir),
         undone: Boolean(manifest?.undoneAt),
         detail: manifest
-          ? `fix set, ${files} file${files === 1 ? "" : "s"}, ${manifest.undoneAt ? "undone" : manifest.status}`
-          : "fix set (manifest unreadable)",
+          ? words.fixSet(
+              files,
+              manifest.undoneAt ? "undone" : String(manifest.status)
+            )
+          : words.fixSetUnreadable,
       });
     }
     for (const kind of ["removed", "updated"] as const) {
@@ -289,7 +294,11 @@ export const createBackups = (
             ),
             from,
             what: note?.what ?? "skill",
-            detail: `${kind} ${note?.what ?? "skill"}${from ? `, from ${tilde(from)}` : ", original folder unknown (copy it back by hand)"}`,
+            detail: words.itemDetail(
+              kind,
+              note?.what ?? "skill",
+              from ? tilde(from) : undefined
+            ),
           });
         }
       }
@@ -319,15 +328,18 @@ export const createBackups = (
       return 0;
     }
     if (all.length === 0) {
-      out(`No backups in ${tilde(backupsDir)}.`);
+      out(words.none(tilde(backupsDir)));
       return 0;
     }
-    out(`Backups in ${tilde(backupsDir)} (newest first):`);
+    out(words.heading(tilde(backupsDir)));
     // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
     // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
     all.forEach((entry) => out(`  ${line(entry)}`));
     out(
-      `${all.length} backup${all.length === 1 ? "" : "s"}, ${formatBytes(all.reduce((sum, entry) => sum + entry.bytes, 0))}.`
+      words.total(
+        all.length,
+        formatBytes(all.reduce((sum, entry) => sum + entry.bytes, 0))
+      )
     );
     return 0;
   };
@@ -356,21 +368,18 @@ export const createBackups = (
   ): Failure | { entry: BackupEntry & { from: string } } => {
     const entry = entries().find((one) => one.id === id);
     if (!entry) {
-      return {
-        error: `No backup "${id}". Run agentry backups list to see the ids.`,
-        code: 2,
-      };
+      return { error: words.noBackup(id), code: 2 };
     }
     if (entry.kind === "fix") {
       return {
-        error: `${id} is a fix set; restore it with agentry fix --undo ${entry.name}.`,
+        error: words.isFixSet(id, entry.name),
         code: 1,
       };
     }
     const { from } = entry;
     if (!from) {
       return {
-        error: `${id} has no recorded original folder (made by an older agentry). Copy ${entry.path} back by hand.`,
+        error: words.noOrigin(id, entry.path),
         code: 1,
       };
     }
@@ -378,7 +387,7 @@ export const createBackups = (
       entry.kind === "removed" &&
       (existsSync(from) || lstatSync(from, { throwIfNoEntry: false }))
     ) {
-      return { error: `${from} already exists; not overwriting.`, code: 1 };
+      return { error: words.exists(from), code: 1 };
     }
     return { entry: { ...entry, from } };
   };
@@ -394,7 +403,7 @@ export const createBackups = (
     }
     const { entry } = planned;
     if (dryRun) {
-      out(`would restore ${entry.name}: ${entry.path} -> ${entry.from}`);
+      out(words.wouldRestore(entry.name, entry.path, entry.from));
       return 0;
     }
     if (
@@ -415,11 +424,11 @@ export const createBackups = (
         ...(entry.what !== undefined && { what: entry.what }),
       });
       rmSync(entry.from, { recursive: true });
-      out(`kept the current copy as ${tilde(kept)}`);
+      out(words.keptCurrent(tilde(kept)));
     }
     movePath(entry.path, entry.from);
     dropEmptyStamp(entry);
-    out(`restored ${entry.name} to ${entry.from}`);
+    out(words.restored(entry.name, entry.from));
     return 0;
   };
 
@@ -442,7 +451,7 @@ export const createBackups = (
       );
       return missing.length > 0
         ? {
-            error: `No backup "${missing[0]}". Run agentry backups list to see the ids.`,
+            error: words.noBackup(missing[0]),
             code: 2,
           }
         : { chosen: every.filter((entry) => ids.includes(entry.id)) };
@@ -475,11 +484,7 @@ export const createBackups = (
       kind !== undefined &&
       (!(KINDS as readonly string[]).includes(kind) || ids)
     ) {
-      err(
-        ids
-          ? "--kind goes with --older-than or --all, not with ids."
-          : `--kind must be one of ${KINDS.join(", ")}.`
-      );
+      err(ids ? words.kindWithIds : words.kindOneOf(KINDS.join(", ")));
       return 2;
     }
     if (
@@ -489,7 +494,7 @@ export const createBackups = (
         (Number.isFinite(olderThan) && (olderThan as number) >= 0)
       )
     ) {
-      err("Say what to delete: --older-than <days> or --all.");
+      err(words.sayWhat);
       return 2;
     }
     const selected = select({ ids, olderThan, all, kind });
@@ -499,11 +504,14 @@ export const createBackups = (
     }
     const { chosen } = selected;
     if (chosen.length === 0) {
-      out("Nothing to delete.");
+      out(words.nothingToDelete);
       return 0;
     }
     out(
-      `Would delete ${chosen.length} backup${chosen.length === 1 ? "" : "s"} (${formatBytes(chosen.reduce((sum, entry) => sum + entry.bytes, 0))}) for good:`
+      words.wouldDelete(
+        chosen.length,
+        formatBytes(chosen.reduce((sum, entry) => sum + entry.bytes, 0))
+      )
     );
     // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
     // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
@@ -512,27 +520,21 @@ export const createBackups = (
       (entry) => entry.kind === "fix" && !entry.undone
     );
     if (live.length > 0) {
-      out(
-        `${live.length} fix set${live.length === 1 ? "" : "s"} not undone yet: agentry fix --undo can no longer restore ${live.length === 1 ? "it" : "them"}.`
-      );
+      out(words.liveFixSets(live.length));
     }
     if (dryRun || !(yes || isTTY())) {
-      out(
-        dryRun
-          ? "Dry run: nothing deleted."
-          : "Nothing deleted; run again with --yes to apply."
-      );
+      out(dryRun ? words.dryRun : words.needYes);
       return 0;
     }
-    if (!(yes || (await confirm("\nDelete these? [y/N] ")))) {
-      out("Cancelled; nothing deleted.");
+    if (!(yes || (await confirm(words.deletePrompt)))) {
+      out(words.cancelled);
       return 0;
     }
     for (const entry of chosen) {
       rmSync(entry.path, { recursive: true, force: true });
       dropEmptyStamp(entry);
     }
-    out(`deleted ${chosen.length} backup${chosen.length === 1 ? "" : "s"}`);
+    out(words.deleted(chosen.length));
     return 0;
   };
 

@@ -20,6 +20,7 @@ import { isObject, readJson } from "./inventory/common.js";
 import { createMcpReader } from "./inventory/mcp.js";
 import { createJsonEdit } from "./json-edit.js";
 import { summarize } from "./mcp-toggle.js";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import type {
   DoctorLike,
@@ -33,7 +34,8 @@ import type {
 
 const RULE = "mcp-edit";
 const PLACEHOLDER = "<new config>";
-export const APPLIES_NOTE = "Applies to sessions started after this.";
+const words = messages().core.mcpEdit;
+export const APPLIES_NOTE = messages().core.appliesNote;
 const NAME = /^[A-Za-z0-9_.:-]+$/;
 
 // "K=V" (env) or "K:V" (header) items → { map } or { error }. The first separator splits; the value may contain more.
@@ -50,7 +52,11 @@ export const parsePairs = (
     const key = at > 0 ? String(item).slice(0, at).trim() : "";
     if (!key) {
       return {
-        error: `${what} needs ${separator === "=" ? "KEY=VALUE" : "KEY:VALUE"}, got "${String(item).split(separator)[0]}"`,
+        error: words.pairNeeds(
+          what,
+          separator === "=" ? "KEY=VALUE" : "KEY:VALUE",
+          String(item).split(separator)[0]
+        ),
       };
     }
     map[key] = String(item)
@@ -60,13 +66,7 @@ export const parsePairs = (
   return { map };
 };
 
-const MANAGED_BY: Record<string, string> = {
-  plugin: "managed by its plugin",
-  project: "a project server (.mcp.json)",
-  local: "a local-scope server",
-  "desktop-config": "managed by Claude desktop",
-  "desktop-extension": "managed by Claude desktop",
-};
+const MANAGED_BY: Record<string, string> = words.managedBy;
 
 export interface McpEditOptions extends FixOptions {
   platform?: NodeJS.Platform;
@@ -138,7 +138,7 @@ export const createMcpEdit = (
     | { raw: McpServerRaw; error?: undefined }
     | { error: string; raw?: undefined } => {
     if ((command === undefined) === (url === undefined)) {
-      return { error: "Give exactly one of --command and --url." };
+      return { error: words.exactlyOne };
     }
     const [envPairs, headerPairs] = [
       parsePairs(env, "=", "--env"),
@@ -153,10 +153,7 @@ export const createMcpEdit = (
     if (command !== undefined) {
       if (!command.trim() || headers.length > 0) {
         return {
-          error:
-            headers.length > 0
-              ? "--header goes with --url."
-              : "--command is empty.",
+          error: headers.length > 0 ? words.headerWithUrl : words.commandEmpty,
         };
       }
       return {
@@ -176,8 +173,8 @@ export const createMcpEdit = (
       return {
         error:
           args.length > 0 || env.length > 0
-            ? "--arg and --env go with --command."
-            : "--url must be an http(s) URL.",
+            ? words.argEnvWithCommand
+            : words.urlInvalid,
       };
     }
     return {
@@ -201,13 +198,11 @@ export const createMcpEdit = (
   }: AddArgs): Promise<number> => {
     const cwd = resolve(path ?? process.cwd());
     if (!(name && NAME.test(name))) {
-      err(
-        "Usage: agentry mcp add <name> (--command <cmd> [--arg A]... [--env K=V]... | --url <url> [--header K:V]...) [--scope user|project]"
-      );
+      err(words.addUsage);
       return 2;
     }
     if (scope !== "user" && scope !== "project") {
-      err("--scope must be user or project");
+      err(words.scopeInvalid);
       return 2;
     }
     const built = build(config);
@@ -225,13 +220,11 @@ export const createMcpEdit = (
         ? Boolean(userRaw(name))
         : isObject(readJson<McpJson>(file, [])?.mcpServers?.[name]);
     if (exists()) {
-      err(
-        `refused: a ${scope}-scope server named ${name} already exists; not overwriting it (agentry mcp remove ${name} first, or agentry mcp set to change env and args).`
-      );
+      err(words.refusedExists(scope, name));
       return 1;
     }
     if (scope === "project" && !existsSync(dirname(file))) {
-      err(`refused: ${tilde(dirname(file))} does not exist.`);
+      err(words.refusedNoDir(tilde(dirname(file))));
       return 1;
     }
     const finding: Finding = {
@@ -262,7 +255,7 @@ export const createMcpEdit = (
       [RULE]: () => ({
         ruleId: RULE,
         file,
-        describe: () => `Add ${scope} MCP server ${name} (${summarize(raw)})`,
+        describe: () => words.describeAdd(scope, name, summarize(raw)),
         apply:
           scope === "user"
             ? () => ({
@@ -297,9 +290,7 @@ export const createMcpEdit = (
       runCommand,
     }).run({ path: cwd, yes, dryRun });
     if (code === 0 && !dryRun && exists()) {
-      out(
-        `${name} is added to ${scope} scope.${scope === "project" ? " Claude Code asks you to approve a project server the first time it loads." : ""} ${APPLIES_NOTE}`
-      );
+      out(words.added(name, scope));
     }
     return code;
   };
@@ -323,10 +314,7 @@ export const createMcpEdit = (
       error ||
       (env.length === 0 && unsetEnv.length === 0 && args === undefined)
     ) {
-      err(
-        error ??
-          "Usage: agentry mcp set <name> [--env K=V]... [--unset-env K]... [--arg A]..."
-      );
+      err(error ?? words.setUsage);
       return 2;
     }
     const current = userRaw(name);
@@ -335,7 +323,12 @@ export const createMcpEdit = (
         .read({ cwd })
         .servers.find((server) => server.name === name);
       err(
-        `refused: ${other ? `${name} is ${MANAGED_BY[other.scope] ?? `a ${other.scope} server`}, which this tool does not edit` : `No user-scope MCP server "${name}"`}.`
+        other
+          ? words.notEditable(
+              name,
+              MANAGED_BY[other.scope] ?? words.aServer(other.scope)
+            )
+          : words.noUserServer(name)
       );
       return 1;
     }
@@ -344,9 +337,7 @@ export const createMcpEdit = (
       !stdio &&
       (env.length > 0 || unsetEnv.length > 0 || args !== undefined)
     ) {
-      err(
-        `refused: ${name} is a url server; env and args only exist on command servers.`
-      );
+      err(words.urlServer(name));
       return 1;
     }
     const nextEnv = (from: unknown): Record<string, unknown> => {
@@ -362,7 +353,7 @@ export const createMcpEdit = (
       (args === undefined ||
         JSON.stringify(args) === JSON.stringify(raw.args ?? []));
     if (wanted(current)) {
-      out(`${name} already has that env and args; nothing to change.`);
+      out(words.nothingToChange(name));
       return 0;
     }
     const file = paths.claudeJson;
@@ -380,15 +371,15 @@ export const createMcpEdit = (
       }),
     });
     const parts = [
-      ...(env.length > 0 ? [`set env ${Object.keys(setEnv).join(", ")}`] : []),
-      ...(unsetEnv.length > 0 ? [`unset env ${unsetEnv.join(", ")}`] : []),
-      ...(args === undefined ? [] : [`replace args (${args.length})`]),
+      ...(env.length > 0 ? [words.setEnv(Object.keys(setEnv).join(", "))] : []),
+      ...(unsetEnv.length > 0 ? [words.unsetEnv(unsetEnv.join(", "))] : []),
+      ...(args === undefined ? [] : [words.replaceArgs(args.length)]),
     ];
     const fixes: FixRegistry = {
       [RULE]: () => ({
         ruleId: RULE,
         file,
-        describe: () => `Edit user MCP server ${name}: ${parts.join("; ")}`,
+        describe: () => words.describeSet(name, parts.join("; ")),
         apply: (text: string | undefined) => {
           const doc = createJsonEdit(text as string);
           const now = doc.get(["mcpServers", name]);
@@ -421,7 +412,7 @@ export const createMcpEdit = (
       ...fixOptions,
     }).run({ path: cwd, yes, dryRun });
     if (code === 0 && !dryRun) {
-      out(`${name} is updated. ${APPLIES_NOTE}`);
+      out(words.updated(name));
     }
     return code;
   };

@@ -25,6 +25,7 @@ import { isObject, list, readJson } from "./inventory/common.js";
 import { createHooksReader, hookId } from "./inventory/hooks.js";
 import { createJsonEdit } from "./json-edit.js";
 import { maskShell } from "./mask.js";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import type {
   DoctorLike,
@@ -41,7 +42,8 @@ import type {
 
 const RULE = "hook-toggle";
 export const SCOPES: Scope[] = ["user", "project", "local"];
-export const APPLIES_NOTE = "Applies to sessions started after this.";
+const words = messages().core.hookToggle;
+export const APPLIES_NOTE = messages().core.appliesNote;
 
 // [group index, hook index, group, hook] of the hook with this id under settings.hooks[event]; undefined when absent.
 interface Located {
@@ -253,14 +255,11 @@ export const createHookToggle = (
       code,
     });
     if (scope !== undefined && !SCOPES.includes(scope as Scope)) {
-      return refuse(`--scope must be one of ${SCOPES.join(", ")}`, 2);
+      return refuse(messages().core.scopeOneOf(SCOPES.join(", ")), 2);
     }
     // biome-ignore lint/suspicious/noUnnecessaryConditions: the value comes from user files and may be missing at runtime
     if (!/^[0-9a-f]{4,8}$/.test(selector ?? "")) {
-      return refuse(
-        "The selector is the id column of agentry hook list (4 to 8 hex characters).",
-        2
-      );
+      return refuse(words.selectorHelp, 2);
     }
     const wanted = (item: { id: string; scope: string }): boolean =>
       item.id.startsWith(selector) &&
@@ -276,30 +275,32 @@ export const createHookToggle = (
     const poolParked: ParkedHook[] = action === "disable" ? [] : parked;
     const ids = new Set([...pool, ...poolParked].map((item) => item.id));
     if (ids.size > 1) {
-      return refuse(
-        `"${selector}" matches several hooks (${[...ids].join(", ")}); use more characters.`,
-        2
-      );
+      return refuse(words.matchesSeveral(selector, [...ids].join(", ")), 2);
     }
     if (pool.length + poolParked.length === 0) {
       if (plugin.length > 0 && action !== "enable") {
         return refuse(
-          `${selector} is a hook of plugin ${plugin[0].plugin}, which manages it; turn the plugin off with agentry plugin disable ${plugin[0].plugin}.`
+          words.pluginManages(selector, plugin[0].plugin as string)
         );
       }
       if (action === "disable" && parked.length > 0) {
         return {
-          already: `${selector} is already off (${describeHook({ event: parked[0].event, matcher: parked[0].matcher, hook: parked[0].hook })}).`,
+          already: words.alreadyOff(
+            selector,
+            describeHook({
+              event: parked[0].event,
+              matcher: parked[0].matcher,
+              hook: parked[0].hook,
+            })
+          ),
         };
       }
       if (action === "enable" && own.length > 0) {
         return {
-          already: `${selector} is already on (${own[0].scope} settings).`,
+          already: words.alreadyOn(selector, own[0].scope),
         };
       }
-      return refuse(
-        `No ${action === "enable" ? "turned-off " : ""}hook "${selector}"${scope ? ` in ${scope} settings` : ""}. See agentry hook list.`
-      );
+      return refuse(words.noHook(action, selector, scope));
     }
     const scopesFound = [
       ...new Set([
@@ -308,10 +309,7 @@ export const createHookToggle = (
       ]),
     ];
     if (scopesFound.length > 1) {
-      return refuse(
-        `${selector} exists in ${scopesFound.join(" and ")} settings; pick one with --scope.`,
-        2
-      );
+      return refuse(words.existsIn(selector, scopesFound.join(" and ")), 2);
     }
     return { cwd, active: pool[0], parked: poolParked[0] };
   };
@@ -326,7 +324,7 @@ export const createHookToggle = (
   }: HookArgs & { yes?: boolean; dryRun?: boolean }): Promise<number> => {
     const found = inspect({ selector, action, scope, path });
     if (found.refusal !== undefined) {
-      err(`refused: ${found.refusal}`);
+      err(messages().core.refused(found.refusal));
       return found.code;
     }
     if (found.already !== undefined) {
@@ -339,19 +337,19 @@ export const createHookToggle = (
     // remove of a hook that is only parked: delete the saved copy, no file involved
     if (action === "remove" && !active) {
       out(
-        `would delete the parked copy of ${describeHook(parked)} from ${tilde(paths.parkedHooks)}`
+        words.wouldDeleteParked(describeHook(parked), tilde(paths.parkedHooks))
       );
       if (dryRun) {
         return 0;
       }
       if (!yes) {
-        err("Add --yes to delete the parked copy.");
+        err(words.addYes);
         return 1;
       }
       const store = readParked();
       delete store.hooks[keyOf(parked.scope, parked.id)];
       writeParked(store);
-      out(`${selector}: parked copy deleted.`);
+      out(words.parkedDeleted(selector));
       return 0;
     }
 
@@ -363,9 +361,7 @@ export const createHookToggle = (
       ? locate(readJson<SettingsJson>(file, []), event, id)
       : { group: { matcher: parked.matcher || undefined }, hook: parked.hook };
     if (!raw) {
-      err(
-        `refused: ${selector} is not in ${tilde(file)} any more; run agentry hook list.`
-      );
+      err(words.notInFile(selector, tilde(file)));
       return 1;
     }
     const matcherRaw =
@@ -375,15 +371,11 @@ export const createHookToggle = (
     const present = () =>
       locate(readJson<SettingsJson>(file, []), event, id) !== undefined;
     if (wantPresent && present()) {
-      out(
-        `${selector} is already in ${tilde(file)}; the saved copy stays (agentry hook remove ${selector} --scope ${hookScope} deletes it).`
-      );
+      out(words.alreadyInFile(selector, tilde(file), hookScope));
       return 0;
     }
     if (wantPresent && !existsSync(dirname(file))) {
-      err(
-        `refused: ${tilde(dirname(file))} does not exist, so the hook cannot be put back there.`
-      );
+      err(words.noDirToPutBack(tilde(dirname(file))));
       return 1;
     }
 
@@ -423,9 +415,7 @@ export const createHookToggle = (
       return doc.text;
     };
 
-    const verb = { disable: "Turn off", enable: "Turn on", remove: "Remove" }[
-      action
-    ];
+    const verb = words.verbs[action];
     const finding: Finding = {
       id: RULE,
       severity: "info",
@@ -443,7 +433,7 @@ export const createHookToggle = (
       [RULE]: () => ({
         ruleId: RULE,
         file,
-        describe: () => `${verb} hook ${id}: ${label} (${hookScope} settings)`,
+        describe: () => words.describe(verb, id, label, hookScope),
         apply: wantPresent ? insertText : removeText,
       }),
     };
@@ -471,24 +461,16 @@ export const createHookToggle = (
           parkedAt: now,
         };
         writeParked(store);
-        out(
-          `hook ${id} is off (saved in ${tilde(paths.parkedHooks)}, mode 0600). Switch it back with agentry hook enable ${id}. ${APPLIES_NOTE}`
-        );
+        out(words.isOff(id, tilde(paths.parkedHooks)));
       } else if (action === "enable") {
         delete store.hooks[keyOf(hookScope, id)];
         writeParked(store);
-        out(
-          `hook ${id} is back in ${hookScope} settings; its saved copy is deleted. ${APPLIES_NOTE}`
-        );
+        out(words.backIn(id, hookScope));
       } else {
-        out(
-          `hook ${id} is removed from ${hookScope} settings. ${APPLIES_NOTE}`
-        );
+        out(words.removedFrom(id, hookScope));
       }
     } catch {
-      err(
-        "The settings file changed, but the saved copy could not be updated; agentry fix --undo restores the file."
-      );
+      err(words.saveFailed);
       return 1;
     }
     return 0;

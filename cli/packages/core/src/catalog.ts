@@ -37,6 +37,7 @@ import { createMcpReader } from "./inventory/mcp.js";
 import type { BuildArgs, McpEditOptions } from "./mcp-edit.js";
 import { createMcpEdit } from "./mcp-edit.js";
 import { summarize } from "./mcp-toggle.js";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import { createShelf } from "./shelf.js";
 import {
@@ -266,6 +267,7 @@ export const createCatalog = (
   }: CatalogOptions = {}
 ) => {
   const dir = join(paths.cacheDir, "catalog");
+  const words = messages().core.catalog;
   const fetched = () => existsSync(join(dir, "skills"));
   const tilde = (text: unknown): string =>
     paths.home ? String(text).replaceAll(`${paths.home}/`, "~/") : String(text);
@@ -282,17 +284,20 @@ export const createCatalog = (
       }
     } catch (error) {
       err(
-        `Could not fetch the catalog from ${repo}: ${String(
-          (error as { stderr?: unknown; message: string }).stderr ??
-            (error as Error).message
+        words.fetchFailed(
+          repo,
+          String(
+            (error as { stderr?: unknown; message: string }).stderr ??
+              (error as Error).message
+          )
+            .trim()
+            .split("\n")
+            .at(-1) as string
         )
-          .trim()
-          .split("\n")
-          .at(-1)}`
       );
       return 1;
     }
-    out(`catalog up to date (${entries().length} items)`);
+    out(words.upToDate(entries().length));
     return 0;
   };
 
@@ -545,7 +550,7 @@ export const createCatalog = (
 
   const needFetched = (): boolean => {
     if (!fetched()) {
-      err("The catalog is not fetched yet: run agentry catalog refresh");
+      err(words.notFetched);
       return false;
     }
     return true;
@@ -570,9 +575,17 @@ export const createCatalog = (
                 ? ".claude/agents"
                 : one.label
           )
-          .join(", ") || "not installed";
+          .join(", ") || words.notInstalled;
       out(
-        `${entry.bundle.padEnd(8)} ${(entry.kind === "skill" ? entry.name : entry.id).padEnd(30)} ${entry.tokens === null ? "     -" : `~${String(entry.tokens).padStart(4)}`}  ${where}${entry.outdated ? "  outdated" : ""}`
+        words.listLine(
+          entry.bundle,
+          entry.kind === "skill" ? entry.name : entry.id,
+          entry.tokens === null
+            ? "     -"
+            : `~${String(entry.tokens).padStart(4)}`,
+          where,
+          entry.outdated
+        )
       );
     }
     return 0;
@@ -586,7 +599,7 @@ export const createCatalog = (
       return entry
         ? { entry }
         : {
-            error: `No ${ref.slice(0, slash)} "${ref.slice(slash + 1)}" in the catalog. See agentry catalog list`,
+            error: words.noKindItem(ref.slice(0, slash), ref.slice(slash + 1)),
           };
     }
     const hits = all.filter((one) => one.name === ref);
@@ -596,8 +609,8 @@ export const createCatalog = (
     return {
       error:
         hits.length === 0
-          ? `No item "${ref}" in the catalog. See agentry catalog list`
-          : `"${ref}" matches ${hits.map((one) => one.id).join(" and ")}; name one as kind/name`,
+          ? words.noItem(ref)
+          : words.ambiguous(ref, hits.map((one) => one.id).join(" and ")),
     };
   };
 
@@ -610,17 +623,20 @@ export const createCatalog = (
   ): number => {
     if (existsSync(to) || lstatSync(to, { throwIfNoEntry: false })) {
       err(
-        `refused: ${tilde(to)} already exists; not overwriting it${UPDATABLE.has(entry.kind) ? ` (agentry catalog update ${entry.id} refreshes an installed copy)` : ""}.`
+        words.refusedExists(
+          tilde(to),
+          UPDATABLE.has(entry.kind) ? entry.id : undefined
+        )
       );
       return 1;
     }
     if (dryRun) {
-      out(`would add ${entry.id} to ${where}: ${entry.source} -> ${to}`);
+      out(words.wouldAdd(entry.id, where, entry.source, to));
       return 0;
     }
     mkdirSync(dirname(to), { recursive: true });
     cpSync(entry.source, to, { recursive: true });
-    out(`added ${entry.id} to ${where}: ${tilde(to)}`);
+    out(words.added(entry.id, where, tilde(to)));
     return 0;
   };
 
@@ -650,7 +666,7 @@ export const createCatalog = (
         group.includes("/") ||
         group.startsWith("."))
     ) {
-      err(`Not a usable group name: "${group}"`);
+      err(words.badGroupName(group));
       return 1;
     }
     const all = items();
@@ -664,27 +680,33 @@ export const createCatalog = (
       if (entry.kind === "skill") {
         if (entry.installed) {
           err(
-            `${entry.name} is already installed (${entry.shelf ? `shelf/${entry.shelf}` : "~/.claude/skills"}); not overwriting`
+            words.alreadyInstalled(
+              entry.name,
+              entry.shelf ? `shelf/${entry.shelf}` : "~/.claude/skills"
+            )
           );
           return 1;
         }
         const to = join(paths.shelfDir, group ?? entry.bundle, entry.name);
         if (dryRun) {
           out(
-            `would add ${entry.name} to shelf group ${group ?? entry.bundle}: ${entry.source} -> ${to}`
+            words.wouldAddSkill(
+              entry.name,
+              group ?? entry.bundle,
+              entry.source,
+              to
+            )
           );
           continue;
         }
         mkdirSync(dirname(to), { recursive: true });
         cpSync(entry.source, to, { recursive: true });
-        out(
-          `added ${entry.name} to shelf group ${group ?? entry.bundle} (off); turn it on with agentry shelf on ${group ?? entry.bundle}/${entry.name}`
-        );
+        out(words.addedSkill(entry.name, group ?? entry.bundle));
       } else if (entry.kind === "agent") {
         code = place(
           entry,
           agentPath(project, entry.file),
-          project ? "this project's .claude/agents" : "~/.claude/agents",
+          project ? words.whereProjectAgents : "~/.claude/agents",
           { dryRun }
         );
       } else if (entry.kind === "rule") {
@@ -697,12 +719,10 @@ export const createCatalog = (
       } else if (entry.kind === "claude-md") {
         const existing = claudeMdPaths().find((file) => existsSync(file));
         if (existing) {
-          err(
-            `refused: this project already has ${tilde(existing)}; not overwriting it. Merge ${entry.source} into it by hand.`
-          );
+          err(words.refusedClaudeMd(tilde(existing), entry.source));
           return 1;
         }
-        code = place(entry, claudeMdPaths()[0], "this project as CLAUDE.md", {
+        code = place(entry, claudeMdPaths()[0], words.whereClaudeMd, {
           dryRun,
         });
       } else {
@@ -741,10 +761,7 @@ export const createCatalog = (
     for (const ref of all ? [] : refs) {
       const { entry, error } = pick(every, ref);
       if (error !== undefined || !entry.installed) {
-        err(
-          error ??
-            `${entry.id} is not installed; agentry catalog add ${entry.id}`
-        );
+        err(error ?? words.isNotInstalled(entry.id));
         return 1;
       }
       chosen.push(entry);
@@ -756,7 +773,7 @@ export const createCatalog = (
     chosen
       .filter((entry) => !entry.outdated)
       // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
-      .forEach((entry) => out(`${entry.id} is up to date`));
+      .forEach((entry) => out(words.itemUpToDate(entry.id)));
     const jobs = todo
       .filter((entry) => entry.kind !== "mcp")
       .flatMap((entry) =>
@@ -780,7 +797,7 @@ export const createCatalog = (
       .filter((one): one is McpServerJob => one.change !== null);
     if (jobs.length + servers.length === 0) {
       // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
-      all && out("Everything installed is up to date.");
+      all && out(words.allUpToDate);
       return 0;
     }
     const stamp = now().toISOString().replace(/[:.]/g, "-");
@@ -796,27 +813,20 @@ export const createCatalog = (
       n ? `${stamp}-${n}` : stamp
     );
     for (const { entry, install, diff } of jobs) {
-      out(`update ${entry.id} at ${tilde(install.path)}:`);
+      out(words.updateHeader(entry.id, tilde(install.path)));
       const name = (one: string): string => one || basename(install.path);
       // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
       // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
-      diff.changed.forEach((one) =>
-        out(
-          `  overwrite ${name(one)}  (differs from the catalog copy: a local edit in it is replaced)`
-        )
-      );
+      diff.changed.forEach((one) => out(words.overwriteFile(name(one))));
       // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
       // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
-      diff.added.forEach((one) => out(`  add ${name(one)}`));
+      diff.added.forEach((one) => out(words.addFile(name(one))));
       // biome-ignore lint/complexity/noForEach: forEach with a simple side-effect callback; same behaviour as for-of
       // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback is a side effect and its return value is unused by forEach
-      diff.extra.forEach((one) =>
-        out(`  keep ${name(one)}  (only in your copy; not touched)`)
-      );
+      diff.extra.forEach((one) => out(words.keepFile(name(one))));
     }
     // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
-    jobs.length > 0 &&
-      out(`The current copy of each is saved under ${tilde(saveIn)} first.`);
+    jobs.length > 0 && out(words.savedUnder(tilde(saveIn)));
     const edit = createMcpEdit(paths, { out, err, ...mcp });
     const setServer = (
       { entry, change }: McpServerJob,
@@ -830,23 +840,17 @@ export const createCatalog = (
         ...options,
       });
     for (const one of servers) {
-      out(
-        `update ${one.entry.id} in your user config (args replaced, missing env keys added; existing env values stay):`
-      );
+      out(words.updateServer(one.entry.id));
       if ((await setServer(one, { dryRun: true })) !== 0) {
         return 1;
       }
     }
     if (dryRun || !(yes || isTTY())) {
-      out(
-        dryRun
-          ? "Dry run: nothing changed."
-          : "Nothing changed; run again with --yes to apply."
-      );
+      out(dryRun ? words.dryRun : words.needYes);
       return 0;
     }
-    if (!(yes || (await confirm("\nOverwrite these? [y/N] ")))) {
-      out("Cancelled; nothing changed.");
+    if (!(yes || (await confirm(words.overwritePrompt)))) {
+      out(words.cancelled);
       return 0;
     }
     for (const { entry, install, diff } of jobs) {
@@ -870,7 +874,7 @@ export const createCatalog = (
         mkdirSync(dirname(to), { recursive: true });
         copyFileSync(from, to);
       }
-      out(`updated ${entry.id} (${install.label})`);
+      out(words.updated(entry.id, install.label));
     }
     for (const one of servers) {
       const code = await setServer(one, { yes: true });
@@ -907,34 +911,42 @@ export const createCatalog = (
       if (error !== undefined || entry.kind !== "agent") {
         err(
           error ??
-            `refused: catalog remove takes agents; remove ${entry.id} with ${entry.kind === "skill" ? "agentry shelf remove" : entry.kind === "rule" ? "agentry rules remove" : entry.kind === "mcp" ? "agentry mcp remove" : "agentry rules remove"}.`
+            words.removeAgentsOnly(
+              entry.id,
+              entry.kind === "skill"
+                ? "agentry shelf remove"
+                : entry.kind === "rule"
+                  ? "agentry rules remove"
+                  : entry.kind === "mcp"
+                    ? "agentry mcp remove"
+                    : "agentry rules remove"
+            )
         );
         return 1;
       }
       const to = agentPath(project, entry.file);
       if (!lstatSync(to, { throwIfNoEntry: false })) {
-        err(
-          `${entry.id} is not installed ${project ? "in this project" : "in ~/.claude/agents"}${project ? "" : "; --project removes the project copy"}.`
-        );
+        err(words.agentNotInstalled(entry.id, project));
         return 1;
       }
       chosen.push({ entry, to });
     }
     for (const { entry, to } of chosen) {
       out(
-        `remove ${entry.id}: ${tilde(to)} (${backup ? `a copy is kept under ${tilde(join(paths.backupsDir, "removed"))}` : "no copy kept"})`
+        words.wouldRemove(
+          entry.id,
+          tilde(to),
+          backup,
+          tilde(join(paths.backupsDir, "removed"))
+        )
       );
     }
     if (dryRun || !(yes || isTTY())) {
-      out(
-        dryRun
-          ? "Dry run: nothing changed."
-          : "Nothing changed; run again with --yes to apply."
-      );
+      out(dryRun ? words.dryRun : words.needYes);
       return 0;
     }
-    if (!(yes || (await confirm("\nRemove these? [y/N] ")))) {
-      out("Cancelled; nothing changed.");
+    if (!(yes || (await confirm(words.removePrompt)))) {
+      out(words.cancelled);
       return 0;
     }
     for (const { entry, to } of chosen) {
@@ -952,7 +964,7 @@ export const createCatalog = (
           what: "agent",
         });
       rmSync(to);
-      out(`removed ${entry.id}`);
+      out(words.removed(entry.id));
     }
     return 0;
   };

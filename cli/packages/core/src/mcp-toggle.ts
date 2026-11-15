@@ -27,6 +27,7 @@ import { isObject, readJson } from "./inventory/common.js";
 import { createMcpReader } from "./inventory/mcp.js";
 import { createJsonEdit } from "./json-edit.js";
 import { maskArgs, maskCommand, maskHeader, maskMap, maskUrl } from "./mask.js";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import type {
   ClaudeJson,
@@ -41,16 +42,14 @@ import type {
 
 const RULE = "mcp-toggle";
 const PLACEHOLDER = "<parked config>";
-export const APPLIES_NOTE = "Applies to sessions started after this.";
+const words = messages().core.mcpToggle;
+export const APPLIES_NOTE = messages().core.appliesNote;
 
 // Plugin, project (.mcp.json) and local servers cannot be removed from here, but Claude Code skips the names listed in
 // ~/.claude.json projects.<project>.disabledMcpServers (the same switch /mcp writes), so those are turned off per project.
 const PER_PROJECT = new Set(["plugin", "project", "local"]);
 
-const MANAGED_BY: Record<string, string> = {
-  "desktop-config": "managed by Claude desktop",
-  "desktop-extension": "managed by Claude desktop",
-};
+const MANAGED_BY: Record<string, string> = words.managedBy;
 
 // A masked one-line description of a raw config (never the secret values).
 export const summarize = (raw: McpServerRaw): string => {
@@ -190,19 +189,20 @@ export const createMcpToggle = (
           .servers.find((server) => server.name === name);
         if (other && PER_PROJECT.has(other.scope)) {
           return projectOffList(cwd).includes(name)
-            ? refuse(`${name} is already turned off in this project.`, 0)
+            ? refuse(words.alreadyOffHere(name), 0)
             : { name, enable, cwd, projectOff: true };
         }
         return refuse(
           other
-            ? `${name} is ${MANAGED_BY[other.scope] ?? `a ${other.scope} server this tool does not manage`}.`
-            : `No user-scope MCP server "${name}".`
+            ? words.managed(
+                name,
+                MANAGED_BY[other.scope] ?? words.doesNotManage(other.scope)
+              )
+            : words.noUserServer(name)
         );
       }
       if (parked && JSON.stringify(parked.config) !== JSON.stringify(current)) {
-        return refuse(
-          `${name} is already parked with a different config; enable it first or remove the parked entry by hand (${tilde(paths.parkedMcp)}).`
-        );
+        return refuse(words.alreadyParked(name, tilde(paths.parkedMcp)));
       }
       return { name, enable, raw: current, cwd };
     }
@@ -211,13 +211,11 @@ export const createMcpToggle = (
     }
     if (!(parked && isObject(parked.config))) {
       return refuse(
-        `${name} is not parked. Parked: ${Object.keys(readParked().servers).join(", ") || "none"}`
+        words.notParked(name, Object.keys(readParked().servers).join(", "))
       );
     }
     if (current) {
-      return refuse(
-        `A user-scope server named ${name} already exists; not overwriting it.`
-      );
+      return refuse(words.alreadyExists(name));
     }
     return { name, enable, raw: parked.config, cwd };
   };
@@ -255,8 +253,7 @@ export const createMcpToggle = (
       [RULE]: () => ({
         ruleId: RULE,
         file: paths.claudeJson,
-        describe: () =>
-          `${enable ? "Turn on" : "Turn off"} MCP server ${name} for ${tilde(key)} (disabledMcpServers in ~/.claude.json)`,
+        describe: () => words.describeProject(enable, name, tilde(key)),
         apply: (text: string | undefined) => {
           const doc = createJsonEdit(text as string);
           const list = (doc.get(["projects", key, "disabledMcpServers"]) ??
@@ -286,9 +283,7 @@ export const createMcpToggle = (
       ...fixOptions,
     }).run({ path: cwd, yes, dryRun });
     if (code === 0 && !dryRun) {
-      out(
-        `${name} is ${enable ? "on" : "off"} for ${tilde(key)}. ${APPLIES_NOTE}`
-      );
+      out(words.projectState(name, enable, tilde(key)));
     }
     return code;
   };
@@ -308,7 +303,7 @@ export const createMcpToggle = (
   }): Promise<number> => {
     const found = inspect({ name, enable, path });
     if ("refusal" in found) {
-      err(`refused: ${found.refusal}`);
+      err(messages().core.refused(found.refusal));
       return found.code;
     }
     const { cwd } = found;
@@ -336,8 +331,7 @@ export const createMcpToggle = (
       [RULE]: () => ({
         ruleId: RULE,
         file: paths.claudeJson,
-        describe: () =>
-          `${enable ? "Add back" : "Park"} user MCP server ${name} (${summarize(raw)})`,
+        describe: () => words.describePark(enable, name, summarize(raw)),
         apply: () => ({ command: argv, cwd: paths.home ?? cwd }),
       }),
     };
@@ -382,7 +376,7 @@ export const createMcpToggle = (
         return {
           status: 1,
           stdout: "",
-          stderr: "could not save the parked copy, so nothing was removed",
+          stderr: words.saveFailed,
           error: undefined,
         };
       }
@@ -401,13 +395,9 @@ export const createMcpToggle = (
         const store = readParked();
         delete store.servers[name];
         writeParked(store);
-        out(
-          `${name} is back in user scope; its parked copy is deleted. ${APPLIES_NOTE}`
-        );
+        out(words.backInUserScope(name));
       } else if (!(enable || userRaw(name)) && readParked().servers[name]) {
-        out(
-          `${name} is parked (saved in ${tilde(paths.parkedMcp)}, mode 0600, secrets included). Switch it back with agentry mcp enable ${name}. ${APPLIES_NOTE}`
-        );
+        out(words.parked(name, tilde(paths.parkedMcp)));
       }
     }
     return code;
@@ -439,26 +429,34 @@ export const createMcpToggle = (
     };
     if (!found && parked) {
       out(
-        `would delete the parked copy of ${name} (${summarize(isObject(parked.config) ? parked.config : {})}) from ${tilde(paths.parkedMcp)}`
+        words.wouldDeleteParked(
+          name,
+          summarize(isObject(parked.config) ? parked.config : {}),
+          tilde(paths.parkedMcp)
+        )
       );
       if (dryRun) {
         return 0;
       }
       if (!yes) {
-        err("Add --yes to delete the parked copy.");
+        err(words.addYes);
         return 1;
       }
       dropParked();
-      out(`${name}: parked copy deleted.`);
+      out(words.parkedDeleted(name));
       return 0;
     }
     if (!found) {
-      err(`refused: No MCP server "${name}".`);
+      err(words.noServer(name));
       return 1;
     }
     if (!["user", "local", "project"].includes(found.scope)) {
       err(
-        `refused: ${name} is ${MANAGED_BY[found.scope] ?? `a ${found.scope} server this tool does not manage`}${found.scope === "plugin" ? " (remove the plugin, or turn the server off with agentry mcp disable)" : ""}.`
+        words.refusedManaged(
+          name,
+          MANAGED_BY[found.scope] ?? words.doesNotManage(found.scope),
+          found.scope === "plugin"
+        )
       );
       return 1;
     }
@@ -487,7 +485,7 @@ export const createMcpToggle = (
       [RULE]: () => ({
         ruleId: RULE,
         file: target,
-        describe: () => `Remove ${what}`,
+        describe: () => words.describeRemove(what),
         apply:
           found.scope === "project"
             ? (text: string | undefined) => {
@@ -522,7 +520,7 @@ export const createMcpToggle = (
       if (parked) {
         dropParked();
       }
-      out(`${name} is removed from ${found.scope} scope. ${APPLIES_NOTE}`);
+      out(words.removed(name, found.scope));
     }
     return code;
   };

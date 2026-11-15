@@ -22,6 +22,7 @@ import {
 } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { removedCopyPath, saveRemovedCopy } from "./backups.js";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import { descriptionTokens } from "./tokens.js";
 
@@ -168,6 +169,7 @@ export const createShelf = (
   }: ShelfOptions = {}
 ) => {
   const { shelfDir, configDir } = paths;
+  const words = messages().core.shelf;
 
   // A group's skills are its folders (except agents/); its agents are the .md files in agents/.
   const groupItems = (name: string): ShelfItem[] => [
@@ -218,11 +220,15 @@ export const createShelf = (
       const skills = items.filter(({ kind }) => kind === "skills");
       const agents = items.filter(({ kind }) => kind === "agents");
       const agentNote =
-        agents.length > 0
-          ? `, ${agents.length} agent${agents.length > 1 ? "s" : ""}`
-          : "";
+        agents.length > 0 ? words.agentCount(agents.length) : "";
       out(
-        `${name.padEnd(16)} ${String(skills.length).padStart(3)} skills${agentNote}  ~${groupCost(name)} tokens  ${groupState(name, projectBase)}`
+        words.listLine(
+          name,
+          skills.length,
+          agentNote,
+          groupCost(name),
+          groupState(name, projectBase)
+        )
       );
       out(`  ${items.map(({ name: item }) => item).join(", ")}`);
     }
@@ -257,7 +263,7 @@ export const createShelf = (
   // Returns { items, label } or { error, code }.
   const resolveTarget = (target: string): Resolved => {
     const noGroup: Failure = {
-      error: `No group "${target}" in ${shelfDir}. Groups: ${listDirs(shelfDir).join(", ") || "none"}`,
+      error: words.noGroup(target, shelfDir, listDirs(shelfDir).join(", ")),
       code: 1,
     };
     if (listDirs(shelfDir).includes(target)) {
@@ -278,13 +284,16 @@ export const createShelf = (
       return group === undefined
         ? noGroup
         : {
-            error: `No skill "${skill}" in group "${group}" of ${shelfDir}`,
+            error: words.noSkillInGroup(skill, group, shelfDir),
             code: 1,
           };
     }
     if (groups.length > 1) {
       return {
-        error: `"${skill}" is in several groups: ${groups.map((name) => `${name}/${skill}`).join(", ")}. Use group/skill.`,
+        error: words.severalGroups(
+          skill,
+          groups.map((name) => `${name}/${skill}`).join(", ")
+        ),
         code: 2,
       };
     }
@@ -318,9 +327,7 @@ export const createShelf = (
         return [];
       }
       if (existsSync(link) || current) {
-        warn(
-          `skip ${item.name}: ${link} already exists and is not a shelf link`
-        );
+        warn(words.skipTaken(item.name, link));
         return [];
       }
       return [{ item, link }];
@@ -345,12 +352,14 @@ export const createShelf = (
   ): void => {
     for (const { item, link } of changes) {
       out(
-        `  ${command === "on" ? `link ${link} -> ${item.source}` : `unlink ${link}`}`
+        `  ${command === "on" ? words.linkLine(link, item.source) : words.unlinkLine(link)}`
       );
     }
     if (exclude && changes.length > 0) {
       for (const { item } of changes) {
-        out(`  exclude ${command === "on" ? "+" : "-"} ${excludeEntry(item)}`);
+        out(
+          `  ${words.excludeLine(command === "on" ? "+" : "-", excludeEntry(item))}`
+        );
       }
     }
   };
@@ -399,7 +408,14 @@ export const createShelf = (
     )) {
       const changes = change(command, items, base, { exclude, dryRun });
       out(
-        `${label} ${command} in ${base}: ${changes.length} of ${items.length} ${dryRun ? "would change" : "changed"}.`
+        words.changed(
+          label,
+          command,
+          base,
+          changes.length,
+          items.length,
+          dryRun
+        )
       );
       if (dryRun) {
         describeChanges(command, changes, exclude);
@@ -423,9 +439,7 @@ export const createShelf = (
     })); // both are symlinks, so there is a target
 
     const changes = change("off", items, base, { exclude, dryRun });
-    out(
-      `all off in ${base}: ${changes.length} of ${items.length} ${dryRun ? "would change" : "changed"}.`
-    );
+    out(words.allOff(base, changes.length, items.length, dryRun));
     if (dryRun) {
       describeChanges("off", changes, exclude);
     }
@@ -479,19 +493,19 @@ export const createShelf = (
       return 0;
     }
     for (const { name, state } of result.groups) {
-      out(`${name.padEnd(16)} ${state}`);
+      out(words.statusLine(name, state));
     }
     for (const scope of ["project", "global"] as const) {
       const { base, links, broken } = result[scope];
-      out(`\n${scope} (${base})`);
+      out(words.scopeHeading(scope, base));
       if (links.length === 0 && broken.length === 0) {
-        out("  nothing from the shelf");
+        out(words.nothingFromShelf);
       }
       for (const { group, kind, name } of links) {
-        out(`  ${group}/${name}${kind === "agents" ? " (agent)" : ""}`);
+        out(words.itemLine(group, name, kind === "agents"));
       }
       for (const { kind, name, target } of broken) {
-        out(`  BROKEN ${kind}/${name} -> ${target} (missing)`);
+        out(words.brokenLine(kind, name, target));
       }
     }
     return 0;
@@ -532,21 +546,19 @@ export const createShelf = (
       inProject &&
       resolve(skillsDir) === resolve(join(configDir, "skills"))
     ) {
-      err(
-        `This folder's .claude is the global config folder (${configDir}), so there is no separate project scope.`
-      );
+      err(words.noProjectScope(configDir));
       return 1;
     }
     if (!listDirs(skillsDir).includes(skill)) {
-      err(`${from} is not a skill folder (symlinks are not moved)`);
+      err(words.notSkillFolder(from));
       return 1;
     }
     if (skill === "agents" || group.includes("/") || group.startsWith(".")) {
-      err(`Cannot shelve "${skill}" into "${group}"`);
+      err(words.cannotShelve(skill, group));
       return 1;
     }
     if (existsSync(to)) {
-      err(`${to} already exists; not overwriting`);
+      err(words.alreadyExists(to));
       return 1;
     }
     const { project, global } = getStatus();
@@ -554,18 +566,16 @@ export const createShelf = (
       .flatMap(({ links: ok, broken }) => [...ok, ...broken])
       .filter(({ kind, name }) => kind === "skills" && name === skill);
     if (links.length > 0) {
-      err(
-        `A shelf link named ${skill} exists: ${links.map(({ link }) => link).join(", ")}. Turn it off first.`
-      );
+      err(words.linkNamed(skill, links.map(({ link }) => link).join(", ")));
       return 1;
     }
     if (dryRun) {
-      out(`would shelve ${skill} into ${group}: ${from} -> ${to}`);
+      out(words.wouldShelve(skill, group, from, to));
       return 0;
     }
     mkdirSync(dirname(to), { recursive: true });
     renameSync(from, to);
-    out(`shelved ${skill} into ${group}`);
+    out(words.shelved(skill, group));
     return 0;
   };
 
@@ -579,30 +589,38 @@ export const createShelf = (
       return resolved.code;
     }
     if (!resolved.skill) {
-      err(`"${target}" is a group; unshelve takes a skill name or group/skill`);
+      err(words.unshelveNeedsSkill(target));
       return 2;
     }
     const to = join(configDir, "skills", resolved.skill);
     if (existsSync(to) || linkTarget(to)) {
-      err(`${to} already exists; not overwriting`);
+      err(words.alreadyExists(to));
       return 1;
     }
     const links = linksTo(resolved.group, resolved.skill);
     if (links.length > 0) {
       err(
-        `${resolved.label} is still linked: ${links.map(({ link }) => link).join(", ")}. Turn it off first.`
+        words.stillLinked(
+          resolved.label,
+          links.map(({ link }) => link).join(", ")
+        )
       );
       return 1;
     }
     if (dryRun) {
       out(
-        `would unshelve ${resolved.label} into ${dirname(to)}: ${join(shelfDir, resolved.group, resolved.skill)} -> ${to}`
+        words.wouldUnshelve(
+          resolved.label,
+          dirname(to),
+          join(shelfDir, resolved.group, resolved.skill),
+          to
+        )
       );
       return 0;
     }
     mkdirSync(dirname(to), { recursive: true });
     renameSync(join(shelfDir, resolved.group, resolved.skill), to);
-    out(`unshelved ${resolved.label} into ${dirname(to)}`);
+    out(words.unshelved(resolved.label, dirname(to)));
     return 0;
   };
 
@@ -629,37 +647,31 @@ export const createShelf = (
       skill.startsWith(".") ||
       skill === "agents"
     ) {
-      err(`Not a usable skill name: "${skill}"`);
+      err(words.badSkillName(skill));
       return 2;
     }
     if (resolve(projectDir) === resolve(globalDir)) {
-      err(
-        `This folder's .claude is the global config folder (${dirname(globalDir)}), so there is no separate project scope to move between.`
-      );
+      err(words.noProjectScopeToMove(dirname(globalDir)));
       return 1;
     }
     if (linkTarget(from)) {
-      err(
-        `${from} is a link, not a ${fromName} skill folder (links belong to the shelf; turn it off instead)`
-      );
+      err(words.isLink(from, fromName));
       return 1;
     }
     if (!listDirs(fromDir).includes(skill)) {
-      err(`No ${fromName} skill folder "${skill}" in ${fromDir}`);
+      err(words.noScopeFolder(fromName, skill, fromDir));
       return 1;
     }
     if (existsSync(to) || linkTarget(to)) {
-      err(`${to} already exists; not overwriting`);
+      err(words.alreadyExists(to));
       return 1;
     }
     if (dryRun) {
-      out(
-        `would ${direction} ${skill}: ${from} -> ${to} (a move, no copy kept)`
-      );
+      out(words.wouldMove(direction, skill, from, to));
       return 0;
     }
     moveFolder(from, to);
-    out(`${direction}d ${skill} to ${toName} scope: ${to}`);
+    out(words.moved(direction, skill, toName, to));
     return 0;
   };
 
@@ -689,13 +701,11 @@ export const createShelf = (
     let label: string;
     if (project) {
       if (!existsSync(projectFolder) || target.includes("/")) {
-        err(`No skill folder "${target}" in ${dirname(projectFolder)}`);
+        err(words.noSkillFolder(target, dirname(projectFolder)));
         return 1;
       }
       if (lstatSync(projectFolder).isSymbolicLink()) {
-        err(
-          `${target} is a link into the shelf, not a project skill folder. Turn it off instead.`
-        );
+        err(words.isShelfLink(target));
         return 1;
       }
       from = projectFolder;
@@ -704,14 +714,17 @@ export const createShelf = (
       const links = linksTo(resolved.group, resolved.skill);
       if (links.length > 0) {
         err(
-          `${resolved.label} is still linked: ${links.map(({ link }) => link).join(", ")}. Turn it off first.`
+          words.stillLinked(
+            resolved.label,
+            links.map(({ link }) => link).join(", ")
+          )
         );
         return 1;
       }
       from = join(shelfDir, resolved.group, resolved.skill);
       ({ label } = resolved);
     } else if (!resolved.error) {
-      err(`"${target}" is a group; remove takes a skill name or group/skill`);
+      err(words.removeNeedsSkill(target));
       return 2;
     } else if (
       target !== "agents" &&
@@ -725,9 +738,7 @@ export const createShelf = (
     }
     const to = removedCopyPath(paths, now, label);
     if (dryRun) {
-      out(
-        `would remove ${label}: ${from} (${backup ? `copy kept in ${to}` : "no copy kept"})`
-      );
+      out(words.wouldRemove(label, from, backup, to));
       return 0;
     }
     if (backup) {
@@ -738,7 +749,7 @@ export const createShelf = (
     if (dirname(groupDir) === shelfDir && readdirSync(groupDir).length === 0) {
       rmSync(groupDir, { recursive: true });
     }
-    out(`removed ${label}; ${backup ? `a copy is in ${to}` : "no copy kept"}`);
+    out(words.removed(label, backup, to));
     return 0;
   };
 

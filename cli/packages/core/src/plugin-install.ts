@@ -14,6 +14,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { createFix } from "./fix.js";
 import { createPluginsReader } from "./inventory/plugins.js";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import { APPLIES_NOTE, SCOPES, scopeSettingsFile } from "./plugin-toggle.js";
 import type {
@@ -25,6 +26,7 @@ import type {
   Scope,
 } from "./types.js";
 
+const words = messages().core.pluginInstall;
 const RULE = "plugin-install";
 const ID = /^[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+$/;
 
@@ -79,16 +81,14 @@ export const createPluginInstall = (
     const install = action === "install";
     const cwd = resolve(path ?? process.cwd());
     if (scope !== undefined && !SCOPES.includes(scope as Scope)) {
-      err(`--scope must be one of ${SCOPES.join(", ")}`);
+      err(messages().core.scopeOneOf(SCOPES.join(", ")));
       return 2;
     }
     let id = name as string;
     let chosen = scope ?? "user";
     if (install) {
       if (!ID.test(name ?? "")) {
-        err(
-          "Usage: agentry plugin install <name>@<marketplace> [--scope user|project|local]"
-        );
+        err(words.usage);
         return 2;
       }
     } else {
@@ -102,13 +102,17 @@ export const createPluginInstall = (
       if (matches.length !== 1) {
         err(
           matches.length === 0
-            ? `No installed plugin "${name}". Installed: ${
+            ? words.noInstalled(
+                String(name),
                 plugins
                   .filter((plugin) => plugin.installs.length > 0)
                   .map((plugin) => plugin.id)
-                  .join(", ") || "none"
-              }`
-            : `"${name}" matches several plugins: ${matches.map((plugin) => plugin.id).join(", ")}. Use name@marketplace.`
+                  .join(", ")
+              )
+            : messages().core.pluginMatchesSeveral(
+                String(name),
+                matches.map((plugin) => plugin.id).join(", ")
+              )
         );
         return matches.length === 0 ? 1 : 2;
       }
@@ -120,8 +124,8 @@ export const createPluginInstall = (
         if (here.length !== 1) {
           err(
             here.length === 0
-              ? `${id} is installed only for other projects; run this in one of them.`
-              : `${id} is installed at several scopes here (${here.join(", ")}); pick one with --scope.`
+              ? words.onlyOtherProjects(id)
+              : words.severalScopes(id, here.join(", "))
           );
           return here.length === 0 ? 1 : 2;
         }
@@ -130,17 +134,15 @@ export const createPluginInstall = (
     }
     if (installedAt(id, chosen, cwd) === install) {
       if (install) {
-        err(`refused: ${id} is already installed at ${chosen} scope.`);
+        err(words.alreadyInstalled(id, chosen));
         return 1;
       }
-      err(`refused: ${id} is not installed at ${chosen} scope.`);
+      err(words.notInstalledAt(id, chosen));
       return 1;
     }
     const file = scopeSettingsFile(paths, chosen as Scope, cwd);
     if (!existsSync(dirname(file))) {
-      err(
-        `refused: ${tilde(dirname(file))} does not exist, so ${chosen} scope cannot be used here.`
-      );
+      err(words.noDir(tilde(dirname(file)), chosen));
       return 1;
     }
     const finding: Finding = {
@@ -161,8 +163,7 @@ export const createPluginInstall = (
       [RULE]: () => ({
         ruleId: RULE,
         file,
-        describe: () =>
-          `${install ? "Install" : "Uninstall"} plugin ${id} at ${chosen} scope`,
+        describe: () => words.describe(install, id, chosen),
         apply: () => ({ command, cwd: paths.projectRoot(cwd) }),
       }),
     };
@@ -175,9 +176,7 @@ export const createPluginInstall = (
       runCommand,
     }).run({ path: cwd, yes, dryRun });
     if (code === 0 && !dryRun && installedAt(id, chosen, cwd) === install) {
-      out(
-        `${id} is ${install ? "installed" : "uninstalled"} at ${chosen} scope. ${APPLIES_NOTE}`
-      );
+      out(words.done(install, id, chosen, APPLIES_NOTE));
     }
     return code;
   };
