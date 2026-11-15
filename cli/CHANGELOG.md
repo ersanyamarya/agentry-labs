@@ -7,9 +7,6 @@
 - Help: `?` shows only the current tab's keys, in the terminal UI and the web UI. A row that cannot be toggled says why in the status line and the details before any key is pressed.
 - Messages: all user-facing text of both UIs and the core previews lives in `@agentry/core/messages` (a `terms` glossary and typed messages, English only), and a guard test fails when new hard-coded text appears in the UI packages. This also makes a second language a new file, not a rewrite.
 - Compatibility: no command, flag, folder (`~/.claude/skill-shelf`) or JSON change except one added field: `agentry shelf status --json` links carry `bundle` next to `group`. `agentry --help` describes the shelf as a library of bundles.
-
-## 0.5.0
-
 - Status: `agentry status` (and `--json`) gains a Copilot block with what GitHub Copilot loads for the folder: skills, instructions, hooks, MCP servers (secrets masked), agents, whether the folder is trusted, and `includeCoAuthoredBy`. `copilot` is `null` when `~/.copilot` is missing; the rest of the output is unchanged.
 - Doctor: Copilot rules, silent without `~/.copilot`: `copilot-broken-skill-link`, `copilot-coauthor` (the Co-authored-by trailer is still on), `copilot-context7-local` (the old `bunx` context7 entry) and `copilot-dup-hook` (a hook the user and a `.github/hooks` file both run) are fixed by `agentry fix`, with a backup. `copilot-mcp-secret`, `copilot-untrusted-hooks` and `copilot-cannot-see` are advice only. No fix ever removes a hook from a `.claude` settings file.
 - Doctor: `trail-old-index` (info, advice only) notes an untracked `graft/INDEX.md` that the trail autobuild hook migrates.
