@@ -183,3 +183,20 @@ describe("scan", () => {
     scan(ws, "--no-cache");
   });
 });
+
+describe("scan with a Copilot home", () => {
+  test("a user-level Copilot finding is reported once in the global block, not per repo", () => {
+    mkdirSync(join(fx.home, ".copilot"), { recursive: true });
+    newRepo("a");
+    newRepo("b");
+    const { status, stdout } = fx.run(["scan", ws, "--json"]);
+    assert.equal(status, 0);
+    const data = JSON.parse(stdout);
+    const count = (list: { id: string }[]) =>
+      list.filter((item) => item.id === "copilot-coauthor").length;
+    assert.equal(count(data.global.findings), 1);
+    for (const repo of data.repos) {
+      assert.equal(count(repo.findings), 0);
+    }
+  });
+});

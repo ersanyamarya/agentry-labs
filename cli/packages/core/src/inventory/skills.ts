@@ -23,7 +23,7 @@ import type {
 import { list, projectDirs, readJson, uniqueErrors } from "./common.js";
 import { createPluginsReader } from "./plugins.js";
 
-const subdirs = (dir: string): string[] => {
+export const subdirs = (dir: string): string[] => {
   try {
     return readdirSync(dir, { withFileTypes: true })
       .filter((entry) => !entry.name.startsWith("."))
@@ -40,11 +40,44 @@ export interface SkillsResult {
   skipped: SkippedSkills[];
 }
 
-interface SkillFolder {
+export interface SkillFolder {
   kind: SkillKind;
   shelfGroup?: string;
   target?: string;
 }
+
+// One skill folder entry: kind says what is on disk; a link whose target is gone, or a folder without SKILL.md, is broken.
+export const inspectSkillFolder = (
+  path: string,
+  shelfDir: string
+): SkillFolder | undefined => {
+  let stat: ReturnType<typeof lstatSync>;
+  try {
+    stat = lstatSync(path);
+  } catch {
+    return undefined;
+  }
+  const symlink = stat.isSymbolicLink();
+  if (!(symlink || stat.isDirectory())) {
+    return undefined;
+  }
+  const info: SkillFolder = { kind: symlink ? "symlink" : "file" };
+  if (symlink) {
+    info.target = resolve(dirname(path), readlinkSync(path));
+    const underShelf =
+      info.target === shelfDir || info.target.startsWith(shelfDir + sep);
+    if (underShelf) {
+      info.shelfGroup = relative(shelfDir, info.target).split(sep)[0];
+    }
+  }
+  const valid =
+    existsSync(join(path, "SKILL.md")) &&
+    (!symlink || statSync(path, { throwIfNoEntry: false })?.isDirectory());
+  if (!valid) {
+    info.kind = "broken";
+  }
+  return info;
+};
 
 export const createSkillsReader = (
   paths: Pick<
@@ -53,37 +86,6 @@ export const createSkillsReader = (
   >
 ) => {
   const pluginsReader = createPluginsReader(paths);
-
-  // One skill folder entry: kind says what is on disk; a link whose target is gone, or a folder without SKILL.md, is broken.
-  const inspect = (path: string): SkillFolder | undefined => {
-    let stat: ReturnType<typeof lstatSync>;
-    try {
-      stat = lstatSync(path);
-    } catch {
-      return undefined;
-    }
-    const symlink = stat.isSymbolicLink();
-    if (!(symlink || stat.isDirectory())) {
-      return undefined;
-    }
-    const info: SkillFolder = { kind: symlink ? "symlink" : "file" };
-    if (symlink) {
-      info.target = resolve(dirname(path), readlinkSync(path));
-      const underShelf =
-        info.target === paths.shelfDir ||
-        info.target.startsWith(paths.shelfDir + sep);
-      if (underShelf) {
-        info.shelfGroup = relative(paths.shelfDir, info.target).split(sep)[0];
-      }
-    }
-    const valid =
-      existsSync(join(path, "SKILL.md")) &&
-      (!symlink || statSync(path, { throwIfNoEntry: false })?.isDirectory());
-    if (!valid) {
-      info.kind = "broken";
-    }
-    return info;
-  };
 
   const read = ({
     cwd = process.cwd(),
@@ -108,7 +110,7 @@ export const createSkillsReader = (
           });
           continue;
         }
-        const info = inspect(join(dir, name));
+        const info = inspectSkillFolder(join(dir, name), paths.shelfDir);
         if (!info) {
           continue;
         }

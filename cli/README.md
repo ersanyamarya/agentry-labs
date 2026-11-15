@@ -132,7 +132,8 @@ agentry mcp set files --env FILES_TOKEN=new   # change env/args of a user server
 agentry hook list              # every hook with an 8-hex id; then: hook disable|enable|remove <id> [--scope S] [--dry-run] [--yes]
 agentry plugin install demo@market --scope project   # claude plugin install through the preview/backup path; also: uninstall demo
 agentry plugin disable demo    # also: enable; --scope user|project|local, --dry-run, --yes; backed up, undo with agentry fix --undo; refuses a plugin set by macOS MDM (names the source)
-agentry doctor                  # findings with file, line and fix; duplicates (dup-hook-scope: a project hook a user hook also runs), retired trail MCP permissions (stale-mcp-permission), trail-hooks-missing (advice only)
+agentry doctor                  # findings with file, line and fix; duplicates (dup-hook-scope: a project hook a user hook also runs), retired trail MCP permissions (stale-mcp-permission), trail-hooks-missing (advice only); Copilot (when `~/.copilot` exists): copilot-broken-skill-link, copilot-coauthor, copilot-context7-local and copilot-dup-hook (a `.github/hooks` copy) are fixed by `agentry fix`; copilot-mcp-secret, copilot-untrusted-hooks, copilot-cannot-see and trail-old-index are advice only
+agentry status                  # what loads in this folder, now including a Copilot block (skills, instructions, hooks, MCP, agents, trusted folder, includeCoAuthoredBy; secrets masked); `copilot` is null when `~/.copilot` is missing
 agentry fix --dry-run           # preview the automatic fixes as diffs; --yes applies them with a backup, agentry fix --undo restores; agentry scan ~/ws --fix does it across repos
 agentry tui                    # terminal UI (Ink); a bare `agentry` in a terminal opens it too
 agentry ui                     # web UI on 127.0.0.1 (see agentry ui below)

@@ -18,6 +18,9 @@ import {
 import { App, type AppProps } from "../../app.js";
 import { createRecents } from "../../recents.js";
 
+// How long a test waits for a frame to show text. A loaded machine (many spawned processes) needs more than the default.
+const FRAME_WAIT_MS = Number(process.env.AGENTRY_TEST_FRAME_WAIT_MS) || 30_000;
+
 export const KEYS = {
   up: "\u001B[A",
   down: "\u001B[B",
@@ -163,15 +166,24 @@ export const createUi = ({
     launchctlGetenv: () => "",
   };
 
-  const makePaths = (dir: string) =>
-    createPaths({
-      env: {
-        AGENTRY_HOME: fx.home,
-        CLAUDE_CONFIG_DIR: fx.configDir,
-        AGENTRY_MANAGED_DIR: fx.managedDir,
-      },
-      cwd: dir,
-    });
+  // One memoizing Paths per folder: every data call asks git the same questions, and each answer is a process spawn.
+  const pathsByDir = new Map<string, ReturnType<typeof createPaths>>();
+  const makePaths = (dir: string) => {
+    let paths = pathsByDir.get(dir);
+    if (!paths) {
+      paths = createPaths({
+        env: {
+          AGENTRY_HOME: fx.home,
+          CLAUDE_CONFIG_DIR: fx.configDir,
+          AGENTRY_MANAGED_DIR: fx.managedDir,
+        },
+        cwd: dir,
+        memoize: true,
+      });
+      pathsByDir.set(dir, paths);
+    }
+    return paths;
+  };
   const finder = createDiscover();
   const props = {
     api: createData({
@@ -197,7 +209,7 @@ export const createUi = ({
   const view = () => withoutRail(app.lastFrame() ?? "");
 
   const until = async (pattern: RegExp, what = String(pattern)) => {
-    const deadline = Date.now() + 10_000;
+    const deadline = Date.now() + FRAME_WAIT_MS;
     while (Date.now() < deadline) {
       if (
         pattern.test(view()) ||
@@ -211,7 +223,7 @@ export const createUi = ({
     assert.fail(`never saw ${what}; last frame:\n${app.lastFrame()}`);
   };
   const untilRail = async (pattern: RegExp) => {
-    const deadline = Date.now() + 10_000;
+    const deadline = Date.now() + FRAME_WAIT_MS;
     while (Date.now() < deadline) {
       if (pattern.test(railOf(stripAnsi(app.lastFrame() ?? "")))) {
         return;

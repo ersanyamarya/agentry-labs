@@ -1,10 +1,23 @@
 import assert from "node:assert/strict";
-import { describe, test } from "vitest";
+import { execFileSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { afterEach, beforeEach, describe, test } from "vitest";
 import type { DoctorContext } from "../doctor-rules.js";
 import { hookRunKey, rules } from "../doctor-rules.js";
+import { createCopilotReader } from "../inventory/copilot.js";
 import { hookId } from "../inventory/hooks.js";
 import { createPaths } from "../paths.js";
 import type {
+  CopilotInventory,
   HookEntry,
   HookGroup,
   HookItem,
@@ -81,10 +94,24 @@ const layersOf = (items: HookItem[]): SettingsLayer[] =>
     return [{ scope, source: sources[scope], json: { hooks } }];
   });
 
+// No Copilot home: every Copilot rule must stay quiet.
+const noCopilot: CopilotInventory = {
+  agents: [],
+  errors: [],
+  hooks: [],
+  includeCoAuthoredBy: true,
+  instructions: [],
+  mcp: [],
+  present: false,
+  skills: [],
+  trusted: false,
+};
+
 // What the rule asked `line` to find, newest last.
 const needles: string[] = [];
 
 const context = (items: HookItem[]): DoctorContext => ({
+  copilot: noCopilot,
   cwd: root,
   hooks: { items },
   launchctlGetenv: () => "",
@@ -95,6 +122,7 @@ const context = (items: HookItem[]): DoctorContext => ({
   },
   mcp: { servers: [] },
   paths: createPaths({
+    memoize: true,
     env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: `${home}/.claude` },
   }),
   platform: "linux",
@@ -413,5 +441,412 @@ describe("trail-hooks-missing", () => {
   test("trail not on PATH gives none, and an unrelated hook does not count", () => {
     assert.deepEqual(run({ onPath: false }), []);
     assert.equal(run({ command: "~/bin/lint.sh" }).length, 1);
+  });
+});
+
+// ---- GitHub Copilot and trail rules: real temp folders, the real reader. Never the real home. ----
+
+const SECRET = "sk-live-0123456789abcdefSECRET";
+
+describe("copilot rules", () => {
+  let tmp: string;
+  let h: string;
+  let ch: string;
+  let repo: string;
+  beforeEach(() => {
+    tmp = realpathSync(mkdtempSync(join(tmpdir(), "agentry-copilot-rules-")));
+    assert.ok(
+      !tmp.startsWith(realpathSync(homedir())),
+      "TMPDIR must be outside the home directory"
+    );
+    h = join(tmp, "home");
+    ch = join(h, ".copilot");
+    repo = join(h, "ws", "repo");
+    mkdirSync(repo, { recursive: true });
+    mkdirSync(join(h, ".claude"), { recursive: true });
+    execFileSync("git", ["init", "-q"], { cwd: repo });
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  const write = (file: string, text: string) => {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, text);
+  };
+  const writeJson = (file: string, value: unknown) =>
+    write(file, JSON.stringify(value));
+  const run = (id: string, env: NodeJS.ProcessEnv = {}) => {
+    const rule = rules.find((one) => one.id === id);
+    assert.ok(rule, `${id} is registered`);
+    const paths = createPaths({
+      memoize: true,
+      env: {
+        AGENTRY_HOME: h,
+        CLAUDE_CONFIG_DIR: join(h, ".claude"),
+        COPILOT_HOME: "",
+        ...env,
+      },
+    });
+    return rule.run({
+      ...context([]),
+      copilot: createCopilotReader(paths).read({ cwd: repo }),
+      cwd: repo,
+      line: () => 3,
+      paths,
+      project: { cwd: repo, root: repo },
+    });
+  };
+  const withCopilot = () => mkdirSync(ch, { recursive: true });
+
+  test("without a Copilot home no Copilot rule fires, whatever the repo holds", () => {
+    writeJson(join(repo, ".mcp.json"), {
+      mcpServers: {
+        x: { type: "http", url: "https://h/mcp", headers: { A: SECRET } },
+      },
+    });
+    writeJson(join(repo, ".github", "hooks", "h.json"), {
+      SessionStart: [{ type: "command", command: "echo hi" }],
+    });
+    write(join(h, ".claude", "CLAUDE.md"), "x\n");
+    write(join(h, ".claude", "rules", "r.md"), "x\n");
+    for (const rule of rules.filter((one) => one.id.startsWith("copilot-"))) {
+      assert.deepEqual(run(rule.id), [], rule.id);
+    }
+  });
+
+  describe("copilot-broken-skill-link", () => {
+    test("fires for a dead link in the Copilot skill folders with the Claude rule's wording; .claude/skills is left to it", () => {
+      withCopilot();
+      mkdirSync(join(ch, "skills"), { recursive: true });
+      symlinkSync(join(tmp, "nowhere"), join(ch, "skills", "ghost"));
+      mkdirSync(join(h, ".agents", "skills"), { recursive: true });
+      symlinkSync(join(tmp, "gone"), join(h, ".agents", "skills", "old"));
+      mkdirSync(join(repo, ".github", "skills"), { recursive: true });
+      symlinkSync(join(tmp, "away"), join(repo, ".github", "skills", "far"));
+      mkdirSync(join(repo, ".claude", "skills"), { recursive: true });
+      symlinkSync(join(tmp, "x"), join(repo, ".claude", "skills", "mine"));
+      const found = run("copilot-broken-skill-link");
+      assert.deepEqual(found.map((item) => item.message).sort(), [
+        `Skill link "far" points at ${tmp}/away, which does not exist`,
+        `Skill link "ghost" points at ${tmp}/nowhere, which does not exist`,
+        `Skill link "old" points at ${tmp}/gone, which does not exist`,
+      ]);
+      assert.ok(found.every((item) => item.severity === "warning"));
+      assert.equal(
+        found.find((item) => item.message.includes('"ghost"'))?.fix,
+        `Remove the link: rm "${join(ch, "skills", "ghost")}"`
+      );
+    });
+
+    test("a good link and a normal skill give none", () => {
+      withCopilot();
+      write(join(tmp, "real", "SKILL.md"), "---\nname: real\n---\n");
+      mkdirSync(join(ch, "skills"), { recursive: true });
+      symlinkSync(join(tmp, "real"), join(ch, "skills", "real"));
+      assert.deepEqual(run("copilot-broken-skill-link"), []);
+    });
+  });
+
+  describe("copilot-mcp-secret", () => {
+    test("fires as an error per place, naming server and file and showing only the mask", () => {
+      withCopilot();
+      writeJson(join(ch, "mcp-config.json"), {
+        mcpServers: {
+          remote: {
+            type: "http",
+            url: `https://host/mcp?key=${SECRET}`,
+            headers: { Authorization: `Bearer ${SECRET}` },
+          },
+          local: {
+            type: "local",
+            command: "npx",
+            args: ["-y", "pkg", `--token=${SECRET}`],
+            env: { KEY: SECRET },
+          },
+        },
+      });
+      writeJson(join(repo, ".mcp.json"), {
+        mcpServers: {
+          ws: { type: "http", url: "https://h/m", headers: { X: SECRET } },
+        },
+      });
+      const found = run("copilot-mcp-secret");
+      assert.equal(found.length, 5);
+      assert.ok(found.every((item) => item.severity === "error"));
+      assert.deepEqual(
+        found.map(
+          (item) =>
+            item.file === join(ch, "mcp-config.json") ||
+            item.file === join(repo, ".mcp.json")
+        ),
+        found.map(() => true)
+      );
+      assert.match(
+        found.map((item) => item.message).join("\n"),
+        /MCP server "ws" has a literal secret in headers\.X \(<masked>\)/
+      );
+      const text = JSON.stringify(found);
+      assert.ok(!text.includes(SECRET), "no raw secret in any finding");
+      assert.ok(!text.includes("0123456789"));
+      assert.match(found[0]?.fix ?? "", /\$\{VAR\}/);
+    });
+
+    test("a ${VAR} reference, a disabled server and a short literal are not secrets", () => {
+      withCopilot();
+      writeJson(join(ch, "settings.json"), { disabledMcpServers: ["off"] });
+      writeJson(join(ch, "mcp-config.json"), {
+        mcpServers: {
+          context7: {
+            type: "http",
+            url: "https://mcp.context7.com/mcp",
+            headers: {
+              CONTEXT7_API_KEY: "${CONTEXT7_API_KEY}",
+              Authorization: "Bearer ${TOKEN}",
+            },
+            tools: ["*"],
+          },
+          local: {
+            type: "local",
+            command: "npx",
+            args: ["-y", "pkg", "${HOME}/some_long_directory_name1"],
+            env: { A: "${A}", MODE: "debug" },
+          },
+          off: { type: "http", url: "https://h/m", headers: { X: SECRET } },
+        },
+      });
+      assert.deepEqual(run("copilot-mcp-secret"), []);
+    });
+  });
+
+  describe("copilot-coauthor", () => {
+    test("fires when the user setting is absent or true", () => {
+      withCopilot();
+      const [absent] = run("copilot-coauthor");
+      assert.equal(absent?.severity, "warning");
+      assert.equal(absent?.file, join(ch, "settings.json"));
+      assert.match(absent?.message ?? "", /includeCoAuthoredBy is not set/);
+      writeJson(join(ch, "settings.json"), { includeCoAuthoredBy: true });
+      const [explicit] = run("copilot-coauthor");
+      assert.match(explicit?.message ?? "", /includeCoAuthoredBy is true$/);
+    });
+
+    test("a trusted repo's file that sets true is the one reported; an untrusted repo file is ignored", () => {
+      withCopilot();
+      writeJson(join(ch, "settings.json"), { includeCoAuthoredBy: false });
+      const repoSettings = join(repo, ".github", "copilot", "settings.json");
+      writeJson(repoSettings, { includeCoAuthoredBy: true });
+      assert.deepEqual(run("copilot-coauthor"), []);
+      writeJson(join(ch, "config.json"), { trustedFolders: [repo] });
+      const [found] = run("copilot-coauthor");
+      assert.equal(found?.file, repoSettings);
+    });
+
+    test("false in the user settings gives none", () => {
+      withCopilot();
+      writeJson(join(ch, "settings.json"), { includeCoAuthoredBy: false });
+      assert.deepEqual(run("copilot-coauthor"), []);
+    });
+  });
+
+  describe("copilot-context7-local", () => {
+    const oldEntry = {
+      type: "local",
+      command: "bunx",
+      args: ["--bun", "@upstash/context7-mcp"],
+      tools: ["*"],
+    };
+    test("fires for the old local entry and for an edited local one", () => {
+      withCopilot();
+      writeJson(join(ch, "mcp-config.json"), {
+        mcpServers: { context7: oldEntry },
+      });
+      const [found] = run("copilot-context7-local");
+      assert.equal(found?.severity, "warning");
+      assert.equal(found?.file, join(ch, "mcp-config.json"));
+      writeJson(join(ch, "mcp-config.json"), {
+        mcpServers: {
+          context7: { ...oldEntry, env: { DEFAULT_MINIMUM_TOKENS: "1000" } },
+        },
+      });
+      assert.equal(run("copilot-context7-local").length, 1);
+    });
+
+    test("the http entry, no entry, or no Copilot home give none", () => {
+      withCopilot();
+      assert.deepEqual(run("copilot-context7-local"), []);
+      writeJson(join(ch, "mcp-config.json"), {
+        mcpServers: {
+          context7: {
+            type: "http",
+            url: "https://mcp.context7.com/mcp",
+            headers: { CONTEXT7_API_KEY: "${CONTEXT7_API_KEY}" },
+            tools: ["*"],
+          },
+        },
+      });
+      assert.deepEqual(run("copilot-context7-local"), []);
+    });
+  });
+
+  describe("copilot-untrusted-hooks", () => {
+    const hookFile = () => join(repo, ".github", "hooks", "h.json");
+    test("repo hooks in an untrusted repo fire with the setup command and no COPILOT_ALLOW_ALL", () => {
+      withCopilot();
+      writeJson(hookFile(), {
+        SessionStart: [{ type: "command", command: "echo hi" }],
+      });
+      const [found, ...rest] = run("copilot-untrusted-hooks");
+      assert.equal(rest.length, 0);
+      assert.equal(found?.severity, "warning");
+      assert.equal(found?.file, hookFile());
+      assert.equal(
+        found?.fix,
+        `bash scripts/setup.sh install --only copilot --trust "${repo}"`
+      );
+      assert.ok(!JSON.stringify(found).includes("COPILOT_ALLOW_ALL"));
+    });
+
+    test("a trusted repo (or parent), or no repo hooks, give none; a user hook does not count", () => {
+      withCopilot();
+      writeJson(join(ch, "hooks", "u.json"), {
+        SessionStart: [{ type: "command", command: "echo u" }],
+      });
+      assert.deepEqual(run("copilot-untrusted-hooks"), []);
+      writeJson(hookFile(), {
+        SessionStart: [{ type: "command", command: "echo hi" }],
+      });
+      writeJson(join(ch, "config.json"), { trustedFolders: [join(h, "ws")] });
+      assert.deepEqual(run("copilot-untrusted-hooks"), []);
+    });
+  });
+
+  describe("copilot-dup-hook", () => {
+    const userCmd = "bash ~/.copilot/helpers/x.sh go";
+    const repoCmd = 'bash "./.github/helpers/x.sh" go || true';
+    test("a repo hook a user hook of the same event also runs fires once, naming the command, event and both files", () => {
+      withCopilot();
+      const userHooks = join(ch, "hooks", "u.json");
+      writeJson(userHooks, {
+        SessionStart: [{ type: "command", command: userCmd }],
+      });
+      const repoFile = join(repo, ".github", "hooks", "r.json");
+      writeJson(repoFile, {
+        version: 1,
+        hooks: {
+          SessionStart: [{ hooks: [{ type: "command", bash: repoCmd }] }],
+        },
+      });
+      const [found, ...rest] = run("copilot-dup-hook");
+      assert.equal(rest.length, 0);
+      assert.equal(found?.severity, "warning");
+      assert.equal(found?.file, repoFile);
+      assert.match(
+        found?.message ?? "",
+        new RegExp(
+          `^SessionStart hook \\([0-9a-f]{8}\\) runs twice in Copilot: ${repoFile} \\(repo\\) and ${userHooks} \\(user\\) both run bash "\\./\\.github/helpers/x\\.sh" go`
+        )
+      );
+      assert.match(found?.fix ?? "", /^agentry fix removes the repo copy/);
+    });
+
+    test("a duplicate in .claude/settings.json is advice only and never says to edit that file", () => {
+      withCopilot();
+      writeJson(join(ch, "settings.json"), {
+        hooks: { Stop: [{ hooks: [{ type: "command", command: userCmd }] }] },
+      });
+      const claudeFile = join(repo, ".claude", "settings.json");
+      writeJson(claudeFile, {
+        hooks: { Stop: [{ hooks: [{ type: "command", command: repoCmd }] }] },
+      });
+      const [found, ...rest] = run("copilot-dup-hook");
+      assert.equal(rest.length, 0);
+      assert.equal(found?.file, claudeFile);
+      assert.match(found?.fix ?? "", /^Claude Code also runs the hooks in /);
+      assert.match(found?.fix ?? "", /leave it as is/);
+      assert.doesNotMatch(found?.fix ?? "", /agentry fix/);
+    });
+
+    test("another event, another script, or one level only gives none", () => {
+      withCopilot();
+      writeJson(join(ch, "hooks", "u.json"), {
+        SessionStart: [{ type: "command", command: userCmd }],
+      });
+      const repoFile = join(repo, ".github", "hooks", "r.json");
+      writeJson(repoFile, {
+        Stop: [{ type: "command", command: repoCmd }],
+        SessionStart: [
+          { type: "command", command: "bash ./.github/helpers/x.sh other" },
+          { type: "command", command: "echo hi" },
+        ],
+      });
+      assert.deepEqual(run("copilot-dup-hook"), []);
+      rmSync(join(ch, "hooks"), { recursive: true });
+      writeJson(repoFile, {
+        SessionStart: [{ type: "command", command: repoCmd }],
+      });
+      assert.deepEqual(run("copilot-dup-hook"), []);
+    });
+  });
+
+  describe("copilot-cannot-see", () => {
+    test("one finding per kind lists the names; rules point at setup, skills are advice", () => {
+      withCopilot();
+      write(join(h, ".claude", "rules", "a.md"), "x\n");
+      write(join(h, ".claude", "rules", "b.md"), "x\n");
+      write(
+        join(h, ".claude", "skills", "one", "SKILL.md"),
+        "---\nname: one\n---\n"
+      );
+      write(join(h, ".claude", "CLAUDE.md"), "x\n");
+      const found = run("copilot-cannot-see");
+      assert.equal(found.length, 3);
+      assert.ok(found.every((item) => item.severity === "info"));
+      const [rulesFinding] = found;
+      assert.match(rulesFinding?.message ?? "", /2 Claude user rules: a, b$/);
+      assert.match(
+        rulesFinding?.fix ?? "",
+        /scripts\/setup\.sh install --only copilot/
+      );
+      assert.match(found[1]?.message ?? "", /1 Claude user skill: one$/);
+      assert.doesNotMatch(found[1]?.fix ?? "", /setup\.sh/);
+      assert.match(found[2]?.message ?? "", /user CLAUDE\.md/);
+    });
+
+    test("twins in the Copilot home (or ~/.agents/skills) make it quiet", () => {
+      withCopilot();
+      write(join(h, ".claude", "rules", "a.md"), "x\n");
+      write(join(ch, "instructions", "a.instructions.md"), "x\n");
+      write(join(h, ".claude", "skills", "one", "SKILL.md"), "x");
+      write(join(h, ".claude", "skills", "two", "SKILL.md"), "x");
+      write(join(ch, "skills", "one", "SKILL.md"), "x");
+      write(join(h, ".agents", "skills", "two", "SKILL.md"), "x");
+      write(join(h, ".claude", "CLAUDE.md"), "x\n");
+      write(join(ch, "copilot-instructions.md"), "x\n");
+      assert.deepEqual(run("copilot-cannot-see"), []);
+    });
+  });
+
+  describe("trail-old-index", () => {
+    const index = () => join(repo, "graft", "INDEX.md");
+    test("fires without a Copilot home for an untracked graft/INDEX.md and no .trail/cache", () => {
+      write(index(), "# index\n");
+      const [found, ...rest] = run("trail-old-index");
+      assert.equal(rest.length, 0);
+      assert.equal(found?.severity, "info");
+      assert.equal(found?.file, index());
+      assert.match(
+        found?.message ?? "",
+        /autobuild hook migrates it at the next session start/
+      );
+    });
+
+    test("a .trail/cache, a tracked graft/ or no graft/INDEX.md give none", () => {
+      assert.deepEqual(run("trail-old-index"), []);
+      write(index(), "# index\n");
+      mkdirSync(join(repo, ".trail", "cache"), { recursive: true });
+      assert.deepEqual(run("trail-old-index"), []);
+      rmSync(join(repo, ".trail"), { recursive: true });
+      execFileSync("git", ["add", "-f", "graft/INDEX.md"], { cwd: repo });
+      assert.deepEqual(run("trail-old-index"), []);
+    });
   });
 });

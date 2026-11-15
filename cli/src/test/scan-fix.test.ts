@@ -35,6 +35,7 @@ beforeEach(() => {
   configDir = join(home, ".claude");
   ws = join(home, "ws");
   paths = createPaths({
+    memoize: true,
     env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir },
   });
   put(join(configDir, "settings.json"), settingsWith("Bash(graft user:*)"));

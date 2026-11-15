@@ -99,6 +99,7 @@ export const createFixture = ({
     ...process.env,
     CLAUDE_CONFIG_DIR: configDir,
     AGENTRY_HOME: home,
+    COPILOT_HOME: "",
     PATH: pathWithoutTrail(),
     AGENTRY_MANAGED_DIR: managedDir,
     AGENTRY_RENAMES: '{"graft":"trail"}',

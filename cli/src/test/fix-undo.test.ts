@@ -49,6 +49,7 @@ beforeEach(() => {
   execFileSync("git", ["init", "-q"], { cwd: repo });
   writeFileSync(target, original());
   paths = createPaths({
+    memoize: true,
     env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir },
   });
 });

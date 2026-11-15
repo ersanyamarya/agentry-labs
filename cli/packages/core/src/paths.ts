@@ -48,6 +48,8 @@ export const createPaths = ({
   };
   const home = env.AGENTRY_HOME || homedir();
   const configDir = env.CLAUDE_CONFIG_DIR || join(home, ".claude");
+  // GitHub Copilot's home; COPILOT_HOME moves it. Facts: cli/docs/copilot-config-sources.md.
+  const copilotDir = env.COPILOT_HOME || join(home, ".copilot");
 
   const projectRoot = (dir: string = cwd): string => {
     try {
@@ -85,6 +87,11 @@ export const createPaths = ({
   return {
     home,
     configDir,
+    copilotDir,
+    // Copilot also reads personal skills here, unless COPILOT_HOME is not the default.
+    agentsSkillsDir: join(home, ".agents", "skills"),
+    // False when COPILOT_HOME points away from <home>/.copilot (then ~/.agents/skills is not loaded).
+    copilotDefaultHome: copilotDir === join(home, ".copilot"),
     shelfDir: join(configDir, "skill-shelf"),
     cacheDir: join(configDir, "cache", "agentry"),
     // Parked user-scope MCP servers (agentry mcp disable): full configs, secrets included, mode 0600. See src/lib/mcp-toggle.ts.

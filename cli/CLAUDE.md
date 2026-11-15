@@ -29,14 +29,14 @@ their `exports` point at TypeScript source. They reach the tarball only by being
 
 - `src/bin/agentry.ts`: command router; imports `@agentry/core/*` and lazily `@agentry/tui`
 - `packages/core/` (`@agentry/core`, imported per file as `@agentry/core/<file>`): command modules; `types.ts` holds config shapes; `version.ts` finds the CLI's `package.json` by walking up; `renames.json` is imported as JSON (inlined by the bundle); `data.ts` (`createData`) is the facade both UIs call
-- `packages/core/src/inventory/`: readers for skills, MCP servers, hooks and plugins
+- `packages/core/src/inventory/`: readers for skills, MCP servers, hooks and plugins, and `copilot.ts` for what GitHub Copilot loads (spec: `docs/copilot-config-sources.md`)
 - `packages/tui/` (`@agentry/tui`, exports `run` from `src/index.tsx`): Ink UI in TSX (`app.tsx`, `components/`, pure helpers such as `rows.ts`, `icons.ts`, `theme.ts`)
 - `packages/web/` (`@agentry/web`): TanStack Start app and its local server. `src/serve.ts` + `src/serve/` are the token/cookie/Host/Origin server the CLI imports as `@agentry/web/serve`; `src/contract/` is the oRPC contract, `src/server/router.ts` implements it over `createData`; `src/components/` the screens (shared `list-screen`, `details-panel`, `preview-flow`); `src/components/ui/` is shadcn output, kept as shipped. Design: `docs/web-ui-design.md`
 - Boundaries (Biome `noRestrictedImports` overrides plus `noUndeclaredDependencies` per `package.json`): core imports no `react`, `ink*` or `@tanstack/*`; tui and web import `@agentry/core/*` only, never each other
 - Tests sit with the package whose code they import: `packages/core/src/test/` (in-process lib tests), `packages/tui/src/test/` (`tui-*.test.ts`, helper `helpers/tui.tsx`), `src/test/` (tests that spawn the CLI: router, scan, shelf and the other command tests, `tui-pty`, `tui-loader`)
 - `src/test/helpers/`: shared by every package's tests: `fixture.ts` and `fake-claude.ts` build temp HOME and project dirs, `paths.ts` locates the CLI root and bin, `build.ts` is the vitest globalSetup, `pty-run.py` drives the TUI in a pty
 - `vitest.config.ts` (projects `cli`, `core`, `tui`), `tsconfig.base.json` (shared options, `noEmit`) extended by each `tsconfig.json`, `biome.jsonc` covers all packages
-- `docs/`: design docs; `claude-config-sources.md` is the spec for the inventory readers; `web-ui-design.md` is the web UI spec
+- `docs/`: design docs; `claude-config-sources.md` and `copilot-config-sources.md` are the specs for the inventory readers; `web-ui-design.md` is the web UI spec
 - `dist/`, `node_modules/`: generated, git-ignored
 
 ## Conventions
@@ -45,7 +45,7 @@ their `exports` point at TypeScript source. They reach the tarball only by being
 - **ESM `.js` specifiers.** Relative imports end in `.js` (`import { x } from "./paths.js"`), even though the source is `.ts`. Cross-package imports use the package name without an extension (`@agentry/core/paths`), never a relative path into another package.
 - **Bundle externals match `dependencies`.** Every `--external:` in the `build` script is in the root `dependencies` and the reverse also holds; workspace packages are root devDependencies and get inlined. A package's shared dependency ranges match the root's exactly.
 - **Injectable dependencies.** Anything that touches the outside world (`run`, `out`, `confirm`, `now`, `readDefaults`) is a parameter with an explicit function type, so tests pass a fake.
-- **Tests never touch the real home.** Use `src/test/helpers/` to set `AGENTRY_HOME` and `CLAUDE_CONFIG_DIR` to temp dirs. Never read the real `~/.claude`.
+- **Tests never touch the real home.** Use `src/test/helpers/` to set `AGENTRY_HOME` and `CLAUDE_CONFIG_DIR` to temp dirs. Never read the real `~/.claude` or `~/.copilot` (tests also clear `COPILOT_HOME`).
 - **Behaviour first.** Refactors and type work do not change control flow. Changes to what a command does are a separate, reviewed change.
 - **User files are backed up.** Writes to settings, `.mcp.json`, skills or `~/.claude.json` go through the fix or backup path; backups under `~/.claude/backups/agentry` are user data. Never print secrets; `mask.ts` masks them.
 - **Lint and format with Biome.** `biome.jsonc` extends Ultracite (`ultracite/biome/core` and `ultracite/biome/react`). Run `npm run check` before committing. Rule exceptions in `biome.jsonc` have a comment saying why; add one for any new exception.

@@ -2,7 +2,7 @@
 // An entry is `(finding, ctx) => fix | fix[] | undefined`; the fix shape and `ctx` are documented at the top of src/lib/fix.ts.
 // A fix that cannot be made safe returns `{ ruleId, unfixable: "why" }` (or nothing), and the finding stays advice only.
 // Rules without an entry here (missing-hook-file, plugin-not-installed, unset-placeholder, dup-skill-name,
-// trail-hooks-missing)
+// trail-hooks-missing, copilot-mcp-secret, copilot-untrusted-hooks, trail-old-index, copilot-cannot-see)
 // have no safe automatic edit.
 //
 // JSON files are edited as text through src/lib/json-edit.ts, so untouched bytes stay identical. Findings carry little
@@ -18,8 +18,14 @@ import {
 } from "node:fs";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { extraPluginInstalls, renamePattern } from "./doctor-rules.js";
+import {
+  extraPluginInstalls,
+  isOldContext7Entry,
+  renamePattern,
+} from "./doctor-rules.js";
 import { removeHookText } from "./hook-toggle.js";
+import { isObject } from "./inventory/common.js";
+import { copilotHookEntries } from "./inventory/copilot.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import type { JsonPath } from "./json-edit.js";
 import { createJsonEdit } from "./json-edit.js";
@@ -36,6 +42,7 @@ import type {
   TextFix,
   UnfixableFix,
 } from "./types.js";
+import { packageRoot } from "./version.js";
 
 type OnPath = (command: string, ctx: FixContext) => boolean;
 
@@ -589,6 +596,186 @@ const staleMcpPermission: FixMaker = (finding) => {
   };
 };
 
+// ---- GitHub Copilot ----
+
+// copilot-coauthor: the finding's file is the one that decides the value (or the user settings file when nothing does), so
+// the key is set to false there; a missing file is created as `{}` first (the engine backs up "missing" as such).
+const copilotCoauthor: FixMaker = (finding) => {
+  if (
+    !/^Copilot adds a Co-authored-by trailer to commits: includeCoAuthoredBy is (true|not set)/.test(
+      finding.message
+    )
+  ) {
+    return;
+  }
+  return {
+    ruleId: finding.id,
+    file: finding.file,
+    describe: () => `Set includeCoAuthoredBy to false in ${finding.file}`,
+    apply: (text: string | undefined) => {
+      if (text === undefined) {
+        return text;
+      }
+      const doc = createJsonEdit(text === "" ? "{}\n" : text);
+      if (doc.get(["includeCoAuthoredBy"]) === false) {
+        return text;
+      }
+      doc.set(["includeCoAuthoredBy"], false);
+      return doc.text;
+    },
+  };
+};
+
+// copilot-dup-hook: removes the repo copy (by the id in the message) only from `.github/hooks/*.json`, a file Claude Code
+// never reads, then its now-empty group, event and `hooks` key. A file left with nothing else (an empty object, or only
+// `version`) is removed with `rm`, backed up first like broken-skill-link. Every other file is advice only: Claude Code also
+// runs the hooks in `.claude/settings*.json`, so no fix ever touches them. The user-level hook stays.
+const COPILOT_DUP_HOOK =
+  /^(\S+) hook \(([0-9a-f]{8})\) runs twice in Copilot: (.+) \(repo\) and .+ \(user\) both run /;
+
+const copilotDupHook: FixMaker = (finding, ctx) => {
+  const match = COPILOT_DUP_HOOK.exec(finding.message);
+  if (!match || match[3] !== finding.file) {
+    return;
+  }
+  const [, event, id] = match;
+  if (
+    !finding.file.startsWith(`${join(ctx.project.root, ".github", "hooks")}/`)
+  ) {
+    return unfixable(
+      finding,
+      dirname(finding.file) === join(ctx.project.root, ".claude")
+        ? "Claude Code also runs the hooks in this file, so agentry leaves it alone: keep the user-level Copilot hook (it runs twice here), or remove it from your Copilot home and rely on this repo copy"
+        : "the repo copy is not in .github/hooks; remove it there or from your Copilot home by hand"
+    );
+  }
+  return {
+    ruleId: finding.id,
+    file: finding.file,
+    describe: () =>
+      `Remove the repo copy of ${event} hook ${id} from ${finding.file}`,
+    apply: (text: string | undefined) => {
+      if (!text) {
+        return text;
+      }
+      const doc = createJsonEdit(text);
+      const entry = copilotHookEntries(doc.get([]), false).find(
+        (one) => one.event === event && one.id === id
+      );
+      if (!entry) {
+        return text;
+      }
+      // The last hook of a `{ matcher, hooks: [...] }` group takes the group with it.
+      let { path } = entry;
+      if (
+        path.at(-2) === "hooks" &&
+        typeof path.at(-3) === "number" &&
+        (doc.get(path.slice(0, -1)) as unknown[]).length === 1
+      ) {
+        path = path.slice(0, -2);
+      }
+      doc.deleteElement(path);
+      // Then the event and the `hooks` key, when the removal left them empty.
+      for (
+        path = path.slice(0, -1);
+        path.length > 0;
+        path = path.slice(0, -1)
+      ) {
+        const value = doc.get(path);
+        const size = Array.isArray(value)
+          ? value.length
+          : Object.keys(isObject(value) ? value : { value }).length;
+        if (size > 0) {
+          break;
+        }
+        doc.deleteKey(path);
+      }
+      const rest = doc.get([]);
+      if (
+        rest !== null &&
+        typeof rest === "object" &&
+        Object.keys(rest).every((key) => key === "version")
+      ) {
+        return {
+          command: ["rm", "--", finding.file],
+          cwd: dirname(finding.file),
+        };
+      }
+      return doc.text;
+    },
+  };
+};
+
+// The http entry agentry installs: read from the repo checkout's global/copilot/mcp-config.json when the CLI runs from one
+// (and only if it is that shape, with the key as a ${VAR} reference), else this constant.
+const CONTEXT7_HTTP = {
+  type: "http",
+  url: "https://mcp.context7.com/mcp",
+  headers: { CONTEXT7_API_KEY: "${CONTEXT7_API_KEY}" },
+  tools: ["*"],
+};
+const context7Http = (): unknown => {
+  try {
+    const shipped = readJson(
+      join(packageRoot(), "..", "global", "copilot", "mcp-config.json")
+    ) as { mcpServers?: { context7?: Record<string, unknown> } };
+    const entry = shipped.mcpServers?.context7;
+    const headers = Object.values(
+      (entry?.headers ?? {}) as Record<string, unknown>
+    );
+    return entry?.type === "http" &&
+      typeof entry.url === "string" &&
+      entry.url.startsWith("https://") &&
+      headers.length > 0 &&
+      headers.every(
+        (value) =>
+          typeof value === "string" && /^\$\{[A-Za-z_]\w*\}$/.test(value)
+      )
+      ? entry
+      : CONTEXT7_HTTP;
+  } catch {
+    return CONTEXT7_HTTP;
+  }
+};
+
+// copilot-context7-local: replaces only the exact old local entry; an edited one is advice only. No key is read or written.
+const copilotContext7Local: FixMaker = (finding) => {
+  if (
+    !/^Copilot MCP server "context7" runs the local @upstash\/context7-mcp package/.test(
+      finding.message
+    )
+  ) {
+    return;
+  }
+  let entry: unknown;
+  try {
+    entry = (readJson(finding.file) as { mcpServers?: Record<string, unknown> })
+      .mcpServers?.context7;
+  } catch {
+    return unfixable(finding, "could not read the file");
+  }
+  if (!isOldContext7Entry(entry)) {
+    return unfixable(
+      finding,
+      "the entry differs from the one agentry installed, so replacing it could drop your settings"
+    );
+  }
+  return {
+    ruleId: finding.id,
+    file: finding.file,
+    describe: () =>
+      "Replace the local context7 server with the http entry (the key stays a ${CONTEXT7_API_KEY} reference)",
+    apply: (text: string | undefined) => {
+      const doc = createJsonEdit(text as string);
+      if (!isOldContext7Entry(doc.get(["mcpServers", "context7"]))) {
+        return text;
+      }
+      doc.set(["mcpServers", "context7"], context7Http());
+      return doc.text;
+    },
+  };
+};
+
 export const createFixes = ({
   renames,
   env = process.env,
@@ -615,6 +802,10 @@ export const createFixes = ({
     "dup-plugin-scope": dupPluginScope,
     "dup-hook-scope": dupHookScope,
     "stale-mcp-permission": staleMcpPermission,
+    "copilot-broken-skill-link": brokenSkillLink,
+    "copilot-coauthor": copilotCoauthor,
+    "copilot-context7-local": copilotContext7Local,
+    "copilot-dup-hook": copilotDupHook,
   };
 };
 

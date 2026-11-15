@@ -66,7 +66,10 @@ const install = (installed: Record<string, unknown>) =>
   });
 const doctor = ({ launchctl = "" } = {}) =>
   createDoctor(
-    createPaths({ env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir } }),
+    createPaths({
+      memoize: true,
+      env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir },
+    }),
     {
       out: () => {},
       platform: "darwin",
@@ -267,6 +270,7 @@ describe("placeholders", () => {
     header();
     const linux = createDoctor(
       createPaths({
+        memoize: true,
         env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir },
       }),
       {
@@ -525,5 +529,43 @@ describe("agentry doctor (CLI)", () => {
     assert.equal(clean.stdout, "No problems found.\n");
     assert.equal(fx.run(["doctor", join(fx.root, "missing")]).status, 2);
     assert.equal(fx.run(["doctor", "a", "b"]).status, 2);
+  });
+});
+
+describe("copilot-mcp-secret end to end", () => {
+  test("a literal key in Copilot's MCP file is an error, and the raw value is in neither the text nor the JSON output", () => {
+    const fx = createFixture();
+    try {
+      const secret = "sk-live-0123456789abcdefSECRET";
+      mkdirSync(join(fx.home, ".copilot"), { recursive: true });
+      writeJson(join(fx.home, ".copilot", "mcp-config.json"), {
+        mcpServers: {
+          remote: {
+            type: "http",
+            url: `https://host/mcp?key=${secret}`,
+            headers: { Authorization: `Bearer ${secret}` },
+          },
+        },
+      });
+      const text = fx.run(["doctor"]);
+      assert.equal(text.status, 1, text.stderr);
+      assert.match(text.stdout, /error {2}\[copilot-mcp-secret\]/);
+      assert.match(
+        text.stdout,
+        /MCP server "remote" has a literal secret in headers\.Authorization \(Bearer <masked>\)/
+      );
+      const json = fx.run(["doctor", "--json"]);
+      for (const output of [text, json]) {
+        assert.ok(!(output.stdout + output.stderr).includes(secret));
+        assert.ok(!(output.stdout + output.stderr).includes("0123456789"));
+      }
+      assert.ok(
+        JSON.parse(json.stdout).findings.some(
+          (item: { id: string }) => item.id === "copilot-mcp-secret"
+        )
+      );
+    } finally {
+      fx.cleanup();
+    }
   });
 });

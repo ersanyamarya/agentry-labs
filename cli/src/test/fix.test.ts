@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   rmSync,
   statSync,
@@ -50,6 +51,7 @@ beforeEach(() => {
     '{\n\t"name": "demo",\n\t"value": "BAD",\n\t"keep": true\n}\n'
   );
   paths = createPaths({
+    memoize: true,
     env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir },
   });
 });
@@ -515,6 +517,124 @@ describe("CLI", () => {
       assert.equal(fixture.run(["fix", "--json"]).status, 2);
     } finally {
       fixture.cleanup();
+    }
+  });
+});
+
+describe("copilot fixes through the CLI", () => {
+  test("copilot-coauthor and copilot-broken-skill-link apply with a backup and undo byte for byte", () => {
+    const fx = createFixture();
+    try {
+      const ch = join(fx.home, ".copilot");
+      const settings = join(ch, "settings.json");
+      const before =
+        '{\n\t"theme": "dark",\n\t"includeCoAuthoredBy": true\n}\n';
+      mkdirSync(join(ch, "skills"), { recursive: true });
+      writeFileSync(settings, before);
+      const link = join(ch, "skills", "ghost");
+      symlinkSync(join(fx.root, "nowhere"), link);
+
+      const preview = fx.run(["fix", "--dry-run"]);
+      assert.equal(preview.status, 0, preview.stderr);
+      assert.match(preview.stdout, /copilot-coauthor/);
+      assert.match(preview.stdout, /copilot-broken-skill-link/);
+      assert.equal(readFileSync(settings, "utf8"), before);
+
+      const applied = fx.run(["fix", "--yes"]);
+      assert.equal(applied.status, 0, applied.stdout + applied.stderr);
+      assert.equal(
+        readFileSync(settings, "utf8"),
+        before.replace(
+          '"includeCoAuthoredBy": true',
+          '"includeCoAuthoredBy": false'
+        )
+      );
+      assert.throws(() => lstatSync(link));
+
+      const undone = fx.run(["fix", "--undo", "--yes"]);
+      assert.equal(undone.status, 0, undone.stdout + undone.stderr);
+      assert.equal(readFileSync(settings, "utf8"), before);
+      assert.equal(readlinkSync(link), join(fx.root, "nowhere"));
+    } finally {
+      fx.cleanup();
+    }
+  });
+
+  test("copilot-coauthor with no settings file creates it, and undo removes it again", () => {
+    const fx = createFixture();
+    try {
+      const ch = join(fx.home, ".copilot");
+      const settings = join(ch, "settings.json");
+      mkdirSync(ch, { recursive: true });
+      const applied = fx.run(["fix", "--yes"]);
+      assert.equal(applied.status, 0, applied.stdout + applied.stderr);
+      assert.deepEqual(JSON.parse(readFileSync(settings, "utf8")), {
+        includeCoAuthoredBy: false,
+      });
+      assert.equal(fx.run(["fix", "--undo", "--yes"]).status, 0);
+      assert.ok(!existsSync(settings));
+    } finally {
+      fx.cleanup();
+    }
+  });
+  test("copilot-dup-hook removes the .github/hooks copy (and an emptied file), with a backup, and undo restores byte for byte", () => {
+    const fx = createFixture();
+    try {
+      const ch = join(fx.home, ".copilot");
+      mkdirSync(join(ch, "hooks"), { recursive: true });
+      writeFileSync(
+        join(ch, "settings.json"),
+        '{ "includeCoAuthoredBy": false }\n'
+      );
+      writeFileSync(
+        join(ch, "hooks", "u.json"),
+        '{ "SessionStart": [{ "type": "command", "command": "bash ~/.copilot/helpers/x.sh go" }] }\n'
+      );
+      const hooks = join(fx.repo, ".github", "hooks");
+      mkdirSync(hooks, { recursive: true });
+      const shared = join(hooks, "shared.json");
+      const sharedBefore = [
+        "{",
+        '\t"version": 1,',
+        '\t"hooks": {',
+        '\t\t"SessionStart": [{ "type": "command", "bash": "bash ./.github/helpers/x.sh go" }],',
+        '\t\t"Stop": [{ "type": "command", "bash": "bash ./.github/helpers/x.sh go" }]',
+        "\t}",
+        "}",
+        "",
+      ].join("\n");
+      writeFileSync(shared, sharedBefore);
+      const only = join(hooks, "only.json");
+      const onlyBefore =
+        '{\n  "version": 1,\n  "hooks": { "SessionStart": [{ "hooks": [{ "type": "command", "command": "bash ./.github/helpers/x.sh go" }] }] }\n}\n';
+      writeFileSync(only, onlyBefore);
+
+      const preview = fx.run(["fix", "--dry-run"]);
+      assert.equal(preview.status, 0, preview.stderr);
+      assert.match(preview.stdout, /copilot-dup-hook/);
+      assert.equal(readFileSync(shared, "utf8"), sharedBefore);
+
+      const applied = fx.run(["fix", "--yes"]);
+      assert.equal(applied.status, 0, applied.stdout + applied.stderr);
+      assert.equal(
+        readFileSync(shared, "utf8"),
+        sharedBefore
+          .split("\n")
+          .filter((_, index) => index !== 3)
+          .join("\n")
+      );
+      assert.ok(!existsSync(only));
+      assert.doesNotMatch(
+        fx.run(["doctor", "--json"]).stdout,
+        /copilot-dup-hook/
+      );
+
+      const undone = fx.run(["fix", "--undo", "--yes"]);
+      assert.equal(undone.status, 0, undone.stdout + undone.stderr);
+      assert.equal(readFileSync(shared, "utf8"), sharedBefore);
+      assert.equal(readFileSync(only, "utf8"), onlyBefore);
+    } finally {
+      fx.cleanup();
     }
   });
 });

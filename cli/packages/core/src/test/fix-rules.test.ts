@@ -50,6 +50,7 @@ beforeEach(() => {
     chmodSync(join(bin, name), 0o755);
   }
   paths = createPaths({
+    memoize: true,
     env: { AGENTRY_HOME: home, CLAUDE_CONFIG_DIR: configDir },
   });
 });
@@ -649,5 +650,268 @@ describe("stale-mcp-permission", () => {
     assert.match(output(), /verify \[stale-mcp-permission\].*gone/);
     assert.equal((await undo()).code, 0);
     assert.equal(readFileSync(localSettings(), "utf8"), local);
+  });
+});
+
+describe("copilot rules", () => {
+  const ctx = () => ({
+    paths,
+    cwd: repo,
+    project: { cwd: repo, root: repo },
+    findings: [],
+  });
+  const make = (finding: Finding) =>
+    createFixes()[finding.id]?.(finding, ctx());
+  const copilotJson = () => join(home, ".copilot", "mcp-config.json");
+
+  test("copilot-broken-skill-link: the same message as broken-skill-link makes the same fix", () => {
+    const link = join(home, ".copilot", "skills", "ghost");
+    mkdirSync(dirname(link), { recursive: true });
+    symlinkSync(join(root, "nowhere"), link);
+    const made = make({
+      id: "copilot-broken-skill-link",
+      severity: "warning",
+      file: link,
+      message: `Skill link "ghost" points at ${join(root, "nowhere")}, which does not exist`,
+    }) as TextFix;
+    assert.match(
+      made.describe?.() ?? "",
+      /Remove the broken skill link "ghost"/
+    );
+    assert.deepEqual(made.apply(undefined), {
+      command: ["rm", "--", link],
+      cwd: dirname(link),
+    });
+  });
+
+  test("copilot-coauthor: sets the key to false, keeps every other byte, creates a missing file", () => {
+    const file = join(home, ".copilot", "settings.json");
+    const message =
+      "Copilot adds a Co-authored-by trailer to commits: includeCoAuthoredBy is true";
+    const made = make({
+      id: "copilot-coauthor",
+      severity: "warning",
+      file,
+      message,
+    }) as TextFix;
+    const original =
+      '{\n  "theme": "dark",\n  "includeCoAuthoredBy": true\n}\n';
+    assert.equal(
+      made.apply(original),
+      original.replace(
+        '"includeCoAuthoredBy": true',
+        '"includeCoAuthoredBy": false'
+      )
+    );
+    assert.equal(
+      made.apply('{ "includeCoAuthoredBy": false }'),
+      '{ "includeCoAuthoredBy": false }'
+    );
+    assert.deepEqual(JSON.parse(made.apply("") as string), {
+      includeCoAuthoredBy: false,
+    });
+    assert.match(
+      JSON.stringify(
+        (made.apply('{\n  "theme": "dark"\n}\n') as string).split("\n")
+      ),
+      /includeCoAuthoredBy/
+    );
+    assert.equal(
+      make({
+        id: "copilot-coauthor",
+        severity: "warning",
+        file,
+        message: "something else",
+      }),
+      undefined
+    );
+  });
+
+  const context7Message =
+    'Copilot MCP server "context7" runs the local @upstash/context7-mcp package; agentry installs it as the http server';
+  const finding7 = (): Finding => ({
+    id: "copilot-context7-local",
+    severity: "warning",
+    file: copilotJson(),
+    message: context7Message,
+  });
+
+  test("copilot-context7-local: the old local entry becomes the http entry with a ${VAR} header, siblings untouched", () => {
+    const original = `{\n\t"mcpServers": {\n\t\t"keep": { "type": "http", "url": "https://h/m" },\n\t\t"context7": { "type": "local", "command": "npx", "args": ["-y", "@upstash/context7-mcp"], "tools": ["*"] }\n\t}\n}\n`;
+    put(copilotJson(), original);
+    const made = make(finding7()) as TextFix;
+    const next = made.apply(original) as string;
+    const parsed = JSON.parse(next);
+    assert.deepEqual(parsed.mcpServers.context7, {
+      type: "http",
+      url: "https://mcp.context7.com/mcp",
+      headers: { CONTEXT7_API_KEY: "${CONTEXT7_API_KEY}" },
+      tools: ["*"],
+    });
+    assert.deepEqual(parsed.mcpServers.keep, {
+      type: "http",
+      url: "https://h/m",
+    });
+    assert.ok(
+      next.includes('"keep": { "type": "http", "url": "https://h/m" }')
+    );
+    assert.ok(!next.includes("@upstash"));
+  });
+
+  test("copilot-context7-local: an edited entry is advice only and nothing is written", () => {
+    put(
+      copilotJson(),
+      json({
+        mcpServers: {
+          context7: {
+            type: "local",
+            command: "bunx",
+            args: ["@upstash/context7-mcp"],
+            env: { DEFAULT_MINIMUM_TOKENS: "1000" },
+          },
+        },
+      })
+    );
+    const made = make(finding7()) as UnfixableFix;
+    assert.match(made.unfixable, /differs/);
+    assert.ok(!JSON.stringify(made).includes("1000"));
+  });
+});
+
+describe("copilot-dup-hook", () => {
+  const ch = () => join(home, ".copilot");
+  const userHook = () => join(ch(), "hooks", "u.json");
+  const repoHook = () => join(repo, ".github", "hooks", "r.json");
+  const claudeSettings = () => join(repo, ".claude", "settings.json");
+  const userCmd = "bash ~/.copilot/helpers/x.sh go";
+  const repoCmd = "bash ./.github/helpers/x.sh go";
+  // The doctor's own finding, so the message wording and the fix's regex are tested together.
+  const found = () =>
+    createDoctor(paths, {
+      out: () => {},
+      err: () => {},
+      platform: "linux",
+      env: { PATH: bin },
+      launchctlGetenv: () => "",
+      renames: {},
+    })
+      .collect(repo)
+      .findings.filter((one) => one.id === "copilot-dup-hook");
+  const make = (finding: Finding) =>
+    createFixes()["copilot-dup-hook"](finding, {
+      paths,
+      cwd: repo,
+      project: { cwd: repo, root: repo },
+      findings: [],
+    });
+
+  test("a .github/hooks copy: only that entry, then its empty group and event, go; other bytes stay", () => {
+    put(
+      userHook(),
+      json({ SessionStart: [{ type: "command", command: userCmd }] })
+    );
+    const original = [
+      "{",
+      '\t"version": 1,',
+      '\t"hooks": {',
+      '\t\t"SessionStart": [{ "hooks": [{ "type": "command", "bash": "bash ./.github/helpers/x.sh go" }] }],',
+      '\t\t"Stop": [{ "type": "command", "bash": "bash ./.github/helpers/x.sh go" }]',
+      "\t}",
+      "}",
+      "",
+    ].join("\n");
+    put(repoHook(), original);
+    const [finding, ...rest] = found();
+    assert.equal(rest.length, 0);
+    const made = make(finding as Finding) as TextFix;
+    assert.match(
+      made.describe?.() ?? "",
+      /Remove the repo copy of SessionStart hook [0-9a-f]{8} from /
+    );
+    assert.equal(
+      made.apply(original),
+      original
+        .split("\n")
+        .filter((_, index) => index !== 3)
+        .join("\n")
+    );
+  });
+
+  test("a file left with only version is removed with rm (backed up by the engine)", () => {
+    put(
+      userHook(),
+      json({ SessionStart: [{ type: "command", command: userCmd }] })
+    );
+    const original = json({
+      version: 1,
+      hooks: { SessionStart: [{ type: "command", bash: repoCmd }] },
+    });
+    put(repoHook(), original);
+    const [finding] = found();
+    const made = make(finding as Finding) as TextFix;
+    assert.deepEqual(made.apply(original), {
+      command: ["rm", "--", repoHook()],
+      cwd: dirname(repoHook()),
+    });
+  });
+
+  test("a .claude/settings.json copy is advice only: no apply, and agentry fix leaves the file byte-identical", async () => {
+    put(
+      join(ch(), "settings.json"),
+      json({
+        hooks: { Stop: [{ hooks: [{ type: "command", command: userCmd }] }] },
+      })
+    );
+    const original = json({
+      hooks: { Stop: [{ hooks: [{ type: "command", command: repoCmd }] }] },
+    });
+    put(claudeSettings(), original);
+    const [finding, ...rest] = found();
+    assert.equal(rest.length, 0);
+    assert.equal(finding?.file, claudeSettings());
+    const made = make(finding as Finding) as UnfixableFix;
+    assert.match(
+      made.unfixable,
+      /Claude Code also runs the hooks in this file/
+    );
+    assert.ok(!("apply" in made));
+    const { fix, output } = setup({ renames: {} });
+    await fix.run({ path: repo, yes: true });
+    assert.equal(readFileSync(claudeSettings(), "utf8"), original, output());
+  });
+
+  test("a .claude/settings.local.json copy is advice only too", () => {
+    const local = join(repo, ".claude", "settings.local.json");
+    const made = make({
+      id: "copilot-dup-hook",
+      severity: "warning",
+      file: local,
+      message: `Stop hook (0123abcd) runs twice in Copilot: ${local} (repo) and ${userHook()} (user) both run ${repoCmd}`,
+    }) as UnfixableFix;
+    assert.match(
+      made.unfixable,
+      /Claude Code also runs the hooks in this file/
+    );
+    assert.ok(!("apply" in made));
+  });
+
+  test("a message that names another file, or reworded, makes no fix", () => {
+    put(
+      userHook(),
+      json({ SessionStart: [{ type: "command", command: userCmd }] })
+    );
+    put(
+      repoHook(),
+      json({ SessionStart: [{ type: "command", bash: repoCmd }] })
+    );
+    const [finding] = found() as Finding[];
+    assert.equal(make({ ...finding, file: claudeSettings() }), undefined);
+    assert.equal(
+      make({
+        ...finding,
+        message: finding.message.replace("twice", "two times"),
+      }),
+      undefined
+    );
   });
 });

@@ -181,7 +181,13 @@ export const createScan = (
   // A finding is global when it lives in a user-level file. A local-scope server entry also lives in ~/.claude.json
   // but belongs to one repo, so `dup-mcp-scope` (which points at the winning, narrower entry) stays with the repo.
   const isGlobal = (item: Finding): boolean => {
-    const userDirs = [paths.configDir, paths.desktopDir, paths.pluginsDir];
+    const userDirs = [
+      paths.configDir,
+      paths.desktopDir,
+      paths.pluginsDir,
+      paths.copilotDir,
+      paths.agentsSkillsDir,
+    ];
     return (
       userDirs.some((dir) => under(item.file, dir)) ||
       (item.file === paths.claudeJson && item.id !== "dup-mcp-scope")
@@ -205,6 +211,18 @@ export const createScan = (
       join(paths.desktopDir, "claude_desktop_config.json"),
       join(paths.desktopDir, "Claude Extensions"),
       join(paths.desktopDir, "Claude Extensions Settings"),
+      join(paths.configDir, "CLAUDE.md"),
+      join(paths.configDir, "rules"),
+      ...[
+        "settings.json",
+        "config.json",
+        "mcp-config.json",
+        "skills",
+        "instructions",
+        "copilot-instructions.md",
+        "hooks",
+      ].map((name) => join(paths.copilotDir, name)),
+      paths.agentsSkillsDir,
       join(repo, ".git"),
     ];
     for (const dir of new Set([repo, data.project.root])) {
@@ -212,7 +230,14 @@ export const createScan = (
         join(dir, ".claude", "settings.json"),
         join(dir, ".claude", "settings.local.json"),
         join(dir, ".claude", "skills"),
-        join(dir, "bundles.tsv")
+        join(dir, "bundles.tsv"),
+        join(dir, ".github", "skills"),
+        join(dir, ".github", "hooks"),
+        join(dir, ".github", "mcp.json"),
+        join(dir, ".github", "copilot", "settings.json"),
+        join(dir, ".github", "copilot", "settings.local.json"),
+        join(dir, "graft", "INDEX.md"),
+        join(dir, ".trail", "cache")
       );
     }
     for (let dir = repo; ; dir = dirname(dir)) {

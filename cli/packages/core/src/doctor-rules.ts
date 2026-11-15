@@ -3,13 +3,24 @@
 // plus `layers` (settings files), `which(command)`, `launchctlGetenv(name)`, `line(file, needle)` and `renames`.
 // Rules only describe fixes (text or a suggested command); nothing here writes. Values are never printed: only names.
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
-import { isObject, list } from "./inventory/common.js";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { isObject, list, readJson } from "./inventory/common.js";
+import { copilotHookEntries, copilotHookFiles } from "./inventory/copilot.js";
 import { hookId } from "./inventory/hooks.js";
-import { maskArgs, maskShell } from "./mask.js";
+import {
+  looksSecret,
+  MASK,
+  maskArgs,
+  maskHeader,
+  maskShell,
+  maskUrl,
+  maskValue,
+} from "./mask.js";
 import type { Paths } from "./paths.js";
 import type {
+  CopilotInventory,
   Finding,
   HookGroup,
   HookItem,
@@ -23,6 +34,8 @@ import type {
 
 /** What every rule gets: the masked inventory, the settings files and a few helpers. Built by lib/doctor.ts. */
 export interface DoctorContext {
+  /** What GitHub Copilot loads here; every Copilot rule returns nothing when `copilot.present` is false. */
+  copilot: CopilotInventory;
   cwd: string;
   hooks: { items: HookItem[] };
   launchctlGetenv: (name: string) => string;
@@ -352,6 +365,10 @@ export const hookRunKey = (
   return { script: basename(file.path), args };
 };
 
+// Two hooks run the same thing when this is equal (dup-hook-scope, copilot-dup-hook).
+const keyOf = ({ run }: { run: { script: string; args: string[] } }): string =>
+  JSON.stringify([run.script, ...run.args]);
+
 /**
  * dup-hook-scope: a project or local settings hook that runs what a user-level hook of the same event runs, so both run.
  * Checks every non-plugin, non-disabled hook with a command in project or local scope against the user-scope hooks of the
@@ -390,8 +407,6 @@ const dupHookScope: Rule = {
           )
       )
     );
-    const keyOf = ({ run }: { run: { script: string; args: string[] } }) =>
-      JSON.stringify([run.script, ...run.args]);
     const user = handlers.filter((handler) => handler.scope === "user");
     return handlers
       .filter(
@@ -432,25 +447,33 @@ const dupHookScope: Rule = {
   },
 };
 
+// The message and fix are shared by broken-skill-link and copilot-broken-skill-link: the fix parses the message.
+const brokenLinkFinding = (
+  id: string,
+  skill: { name: string; source: string; target: string }
+): Finding =>
+  finding(
+    id,
+    "warning",
+    existsSync(skill.target)
+      ? `Skill link "${skill.name}" points at ${skill.target}, which has no SKILL.md`
+      : `Skill link "${skill.name}" points at ${skill.target}, which does not exist`,
+    skill.source,
+    { fix: `Remove the link: rm "${skill.source}"` }
+  );
+
 const brokenSkillLink: Rule = {
   id: "broken-skill-link",
   run: ({ skills }) =>
     skills.items
       .filter((skill) => skill.kind === "broken" && skill.target !== undefined)
-      .map((skill) => {
-        const missing = !existsSync(skill.target as string);
-        return finding(
-          "broken-skill-link",
-          "warning",
-          missing
-            ? `Skill link "${skill.name}" points at ${skill.target}, which does not exist`
-            : `Skill link "${skill.name}" points at ${skill.target}, which has no SKILL.md`,
-          skill.source,
-          {
-            fix: `Remove the link: rm "${skill.source}"`,
-          }
-        );
-      }),
+      .map((skill) =>
+        brokenLinkFinding("broken-skill-link", {
+          name: skill.name,
+          source: skill.source,
+          target: skill.target as string,
+        })
+      ),
 };
 
 const pluginNotInstalled: Rule = {
@@ -780,6 +803,439 @@ const trailHooksMissing: Rule = {
   },
 };
 
+// ---- GitHub Copilot ----
+
+// Every rule here returns [] when `copilot.present` is false (no Copilot home). Facts: cli/docs/copilot-config-sources.md.
+// The reader's MCP and hook rows are masked, so rules that need a raw value read the file themselves and print only masks.
+
+const jsonObject = (file: string): Record<string, unknown> => {
+  const value = readJson(file, []);
+  return isObject(value) ? value : {};
+};
+
+const copilotBrokenSkillLink: Rule = {
+  id: "copilot-broken-skill-link",
+  run: ({ copilot, paths, project }) => {
+    if (!copilot.present) {
+      return [];
+    }
+    // .claude/skills is the Claude reader's: broken-skill-link already reports it.
+    const dirs = new Set([
+      join(paths.copilotDir, "skills"),
+      paths.agentsSkillsDir,
+      join(project.root, ".github", "skills"),
+    ]);
+    return copilot.skills
+      .filter(
+        (skill) =>
+          skill.state === "broken" &&
+          skill.target !== undefined &&
+          dirs.has(dirname(skill.source))
+      )
+      .map((skill) =>
+        brokenLinkFinding("copilot-broken-skill-link", {
+          name: skill.name,
+          source: skill.source,
+          target: skill.target as string,
+        })
+      );
+  },
+};
+
+// A literal secret in any MCP server Copilot loads. Values are never printed: only the masks, and only when the mask hides
+// everything the detector flagged.
+const SECRET_SPLIT = /[\s=]+/;
+const URL_SPLIT = /[\s=/?&:@#]+/;
+const secretIn = (text: string, split: RegExp = SECRET_SPLIT): boolean =>
+  text
+    .replace(REF, " ")
+    .split(split)
+    .some((piece) => piece !== "" && looksSecret(piece));
+const shown = (masked: string): string =>
+  secretIn(masked, URL_SPLIT) ? MASK : masked;
+
+const secretSpots = (
+  entry: Record<string, unknown>
+): { where: string; masked: string }[] => {
+  const spots: { where: string; masked: string }[] = [];
+  if (typeof entry.url === "string" && secretIn(entry.url, URL_SPLIT)) {
+    spots.push({ where: "url", masked: maskUrl(entry.url) });
+  }
+  for (const [key, value] of Object.entries(
+    isObject(entry.headers) ? entry.headers : {}
+  )) {
+    if (typeof value === "string" && secretIn(value)) {
+      spots.push({ where: `headers.${key}`, masked: maskHeader(value) });
+    }
+  }
+  for (const [key, value] of Object.entries(
+    isObject(entry.env) ? entry.env : {}
+  )) {
+    if (typeof value === "string" && secretIn(value)) {
+      spots.push({ where: `env.${key}`, masked: maskValue(value) });
+    }
+  }
+  const args = list(entry.args);
+  const maskedArgs = maskArgs(args);
+  args.forEach((arg, index) => {
+    if (typeof arg === "string" && secretIn(arg)) {
+      spots.push({
+        where: `args[${index}]`,
+        masked: maskedArgs[index] ?? MASK,
+      });
+    }
+  });
+  return spots;
+};
+
+const copilotMcpSecret: Rule = {
+  id: "copilot-mcp-secret",
+  run: ({ copilot, paths, project, line }) => {
+    if (!copilot.present) {
+      return [];
+    }
+    const disabled = new Set(
+      copilot.mcp.filter((server) => server.disabled).map((s) => s.name)
+    );
+    const workspace = [
+      join(project.root, ".mcp.json"),
+      join(project.root, ".github", "mcp.json"),
+    ].find(existsSync);
+    return [join(paths.copilotDir, "mcp-config.json"), workspace].flatMap(
+      (file) =>
+        file === undefined
+          ? []
+          : Object.entries(jsonObject(file).mcpServers ?? {}).flatMap(
+              ([name, entry]) =>
+                disabled.has(name) || !isObject(entry)
+                  ? []
+                  : secretSpots(entry).map(({ where, masked }) =>
+                      finding(
+                        "copilot-mcp-secret",
+                        "error",
+                        `MCP server "${name}" has a literal secret in ${where} (${shown(masked)})`,
+                        file,
+                        {
+                          line: line(file, `"${name}"`),
+                          fix:
+                            where === "url"
+                              ? 'Move the secret out of the url into headers, args or env as a "${VAR}" reference: Copilot expands ${VAR} in headers, args and env'
+                              : `Move the value into an environment variable and write "\${VAR}" in ${where}: Copilot expands \${VAR} in headers, args and env`,
+                        }
+                      )
+                    )
+            )
+    );
+  },
+};
+
+// The effective value is the reader's; this finds which file decides it, so the fix edits the right one (the user file
+// when nothing sets it). A repo file only counts when the repo is trusted, as in the reader.
+const copilotCoauthor: Rule = {
+  id: "copilot-coauthor",
+  run: ({ copilot, paths, project, line }) => {
+    if (!(copilot.present && copilot.includeCoAuthoredBy)) {
+      return [];
+    }
+    let file = join(paths.copilotDir, "settings.json");
+    let explicit = false;
+    for (const layer of [
+      file,
+      ...(copilot.trusted
+        ? [
+            join(project.root, ".github", "copilot", "settings.json"),
+            join(project.root, ".github", "copilot", "settings.local.json"),
+          ]
+        : []),
+    ]) {
+      if (typeof jsonObject(layer).includeCoAuthoredBy === "boolean") {
+        file = layer;
+        explicit = true;
+      }
+    }
+    return [
+      finding(
+        "copilot-coauthor",
+        "warning",
+        `Copilot adds a Co-authored-by trailer to commits: includeCoAuthoredBy is ${explicit ? "true" : "not set (default true)"}`,
+        file,
+        {
+          line: explicit ? line(file, '"includeCoAuthoredBy"') : undefined,
+          fix: `Set "includeCoAuthoredBy": false in ${file}`,
+        }
+      ),
+    ];
+  },
+};
+
+const CONTEXT7_PACKAGE = "@upstash/context7-mcp";
+
+// The context7 entry agentry used to install: `bunx`/`npx` running the package, nothing else set.
+export const isOldContext7Entry = (entry: unknown): boolean => {
+  if (!isObject(entry)) {
+    return false;
+  }
+  const args = list(entry.args);
+  const extra = args.filter((arg) => !String(arg).startsWith(CONTEXT7_PACKAGE));
+  return (
+    Object.keys(entry).every((key) =>
+      ["type", "command", "args", "tools"].includes(key)
+    ) &&
+    entry.type === "local" &&
+    (entry.command === "bunx" || entry.command === "npx") &&
+    args.length - extra.length === 1 &&
+    extra.every((arg) => ["-y", "--yes", "--bun"].includes(String(arg))) &&
+    (entry.tools === undefined ||
+      (Array.isArray(entry.tools) &&
+        entry.tools.length === 1 &&
+        entry.tools[0] === "*"))
+  );
+};
+
+const copilotContext7Local: Rule = {
+  id: "copilot-context7-local",
+  run: ({ copilot, paths, line }) => {
+    if (!copilot.present) {
+      return [];
+    }
+    const file = join(paths.copilotDir, "mcp-config.json");
+    const entry = jsonObject(file).mcpServers;
+    const context7 = isObject(entry) ? entry.context7 : undefined;
+    return isObject(context7) &&
+      context7.url === undefined &&
+      list(context7.args).some(
+        (arg) => typeof arg === "string" && arg.startsWith(CONTEXT7_PACKAGE)
+      )
+      ? [
+          finding(
+            "copilot-context7-local",
+            "warning",
+            `Copilot MCP server "context7" runs the local ${CONTEXT7_PACKAGE} package; agentry installs it as the http server`,
+            file,
+            {
+              line: line(file, '"context7"'),
+              fix: `Replace the "context7" entry in ${file} with the http entry from global/copilot/mcp-config.json (the key stays a "\${CONTEXT7_API_KEY}" reference)`,
+            }
+          ),
+        ]
+      : [];
+  },
+};
+
+// Advice only: trust is a user decision, and the setup script writes it (never COPILOT_ALLOW_ALL).
+const copilotUntrustedHooks: Rule = {
+  id: "copilot-untrusted-hooks",
+  run: ({ copilot, project }) => {
+    const hooks = copilot.hooks.filter((hook) => hook.scope === "repo");
+    const [first] = hooks;
+    if (!(copilot.present && first) || copilot.trusted) {
+      return [];
+    }
+    const sources = [...new Set(hooks.map((hook) => hook.source))].map((file) =>
+      relative(project.root, file)
+    );
+    return [
+      finding(
+        "copilot-untrusted-hooks",
+        "warning",
+        `Copilot skips ${hooks.length} hook${hooks.length === 1 ? "" : "s"} from this repo (${sources.join(", ")}) because ${project.root} is not in trustedFolders`,
+        first.source,
+        {
+          fix: `bash scripts/setup.sh install --only copilot --trust "${project.root}"`,
+        }
+      ),
+    ];
+  },
+};
+
+/**
+ * copilot-dup-hook: Copilot combines the hooks of every file it reads, so a repo hook that runs what a user-level hook of the
+ * same event runs (keyOf(hookRunKey()), as dup-hook-scope) runs twice. Identical ids still count: Copilot does not dedupe.
+ * The files are re-read raw (the reader's commands are masked, which hookFile() rejects); only maskShell output is printed.
+ * One warning per repo hook, on its file. The fix (fix-rules.ts) parses `(<id>)` and the repo file from the message, and
+ * edits only `.github/hooks/*.json`: Claude Code also runs the hooks in `.claude/settings*.json`, so those stay advice only.
+ */
+const copilotDupHook: Rule = {
+  id: "copilot-dup-hook",
+  run: ({ copilot, paths, project, line }) => {
+    if (!copilot.present) {
+      return [];
+    }
+    const where = { home: paths.home, projectRoot: project.root };
+    const handlers = copilotHookFiles(paths.copilotDir, project.root).flatMap(
+      ([source, scope, nested]) =>
+        copilotHookEntries(readJson(source, []), nested).flatMap((entry) => {
+          const run = entry.raw ? hookRunKey(entry.raw, where) : undefined;
+          return run && entry.raw
+            ? [{ ...entry, raw: entry.raw, run, scope, source }]
+            : [];
+        })
+    );
+    const user = handlers.filter((handler) => handler.scope === "user");
+    const hooksDir = join(project.root, ".github", "hooks");
+    return handlers
+      .filter((handler) => handler.scope === "repo")
+      .flatMap((handler) => {
+        const userFiles = [
+          ...new Set(
+            user
+              .filter(
+                (other) =>
+                  other.event === handler.event &&
+                  keyOf(other) === keyOf(handler)
+              )
+              .map((other) => other.source)
+          ),
+        ];
+        if (userFiles.length === 0) {
+          return [];
+        }
+        const { event, id, raw, source } = handler;
+        const userList = userFiles.join(", ");
+        const fix = source.startsWith(`${hooksDir}/`)
+          ? `agentry fix removes the repo copy from ${source} (Claude Code does not read it); the user-level hook keeps running`
+          : dirname(source) === join(project.root, ".claude")
+            ? `Claude Code also runs the hooks in ${source}, so leave it as is: keep the user-level Copilot hook in ${userList} (it runs twice in this repo), or remove it there and rely on the repo copy`
+            : `Remove it from ${source}, or from ${userList} and rely on the repo copy`;
+        return [
+          finding(
+            "copilot-dup-hook",
+            "warning",
+            `${event} hook (${id}) runs twice in Copilot: ${source} (repo) and ${userList} (user) both run ${maskShell(raw)}`,
+            source,
+            {
+              line: line(source, JSON.stringify(raw).slice(1, -1)),
+              fix,
+            }
+          ),
+        ];
+      });
+  },
+};
+
+// trail <= 0.29 wrote graft/; the autobuild hook (global/helpers/trail-autobuild.sh) replaces an untracked one at the next
+// session start, so there is nothing to run. Not Copilot-specific.
+const trailOldIndex: Rule = {
+  id: "trail-old-index",
+  run: ({ project }) => {
+    const index = join(project.root, "graft", "INDEX.md");
+    if (
+      !existsSync(index) ||
+      existsSync(join(project.root, ".trail", "cache"))
+    ) {
+      return [];
+    }
+    try {
+      const tracked = execFileSync(
+        "git",
+        ["-C", project.root, "ls-files", "--", "graft"],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+      );
+      if (tracked.trim() !== "") {
+        return [];
+      }
+    } catch {
+      return [];
+    }
+    return [
+      finding(
+        "trail-old-index",
+        "info",
+        "trail's old index (graft/INDEX.md) is untracked here and there is no .trail/cache; the trail autobuild hook migrates it at the next session start",
+        index,
+        {
+          fix: "Nothing to run: start a session in this repo (the hook deletes graft/ and builds .trail/cache)",
+        }
+      ),
+    ];
+  },
+};
+
+const MAX_NAMES = 8;
+const names = (all: string[]): string =>
+  all.length <= MAX_NAMES
+    ? all.join(", ")
+    : `${all.slice(0, MAX_NAMES).join(", ")} and ${all.length - MAX_NAMES} more`;
+
+const entries = (dir: string): string[] => {
+  try {
+    return readdirSync(dir).sort();
+  } catch {
+    return [];
+  }
+};
+
+// What a user installed for Claude that Copilot never reads (it ignores ~/.claude). One finding per kind, advice only.
+const copilotCannotSee: Rule = {
+  id: "copilot-cannot-see",
+  run: ({ copilot, paths }) => {
+    if (!copilot.present) {
+      return [];
+    }
+    const ch = paths.copilotDir;
+    const found: Finding[] = [];
+    const rulesDir = join(paths.configDir, "rules");
+    const rulesMissing = entries(rulesDir)
+      .filter((file) => file.endsWith(".md"))
+      .map((file) => file.slice(0, -".md".length))
+      .filter(
+        (name) =>
+          !existsSync(join(ch, "instructions", `${name}.instructions.md`))
+      );
+    if (rulesMissing.length > 0) {
+      found.push(
+        finding(
+          "copilot-cannot-see",
+          "info",
+          `Copilot cannot see ${rulesMissing.length} Claude user rule${rulesMissing.length === 1 ? "" : "s"}: ${names(rulesMissing)}`,
+          join(ch, "instructions"),
+          {
+            fix: "bash scripts/setup.sh install --only copilot (writes each rule as <name>.instructions.md)",
+          }
+        )
+      );
+    }
+    const skillsDir = join(paths.configDir, "skills");
+    const skillsMissing = subdirs(skillsDir).filter(
+      (name) =>
+        existsSync(join(skillsDir, name, "SKILL.md")) &&
+        ![
+          join(ch, "skills", name),
+          ...(paths.copilotDefaultHome
+            ? [join(paths.agentsSkillsDir, name)]
+            : []),
+        ].some((twin) => existsSync(twin))
+    );
+    if (skillsMissing.length > 0) {
+      found.push(
+        finding(
+          "copilot-cannot-see",
+          "info",
+          `Copilot cannot see ${skillsMissing.length} Claude user skill${skillsMissing.length === 1 ? "" : "s"}: ${names(skillsMissing)}`,
+          join(ch, "skills"),
+          {
+            fix: `Copilot ignores ~/.claude/skills; copy or link the ones you want into ${join(ch, "skills")}`,
+          }
+        )
+      );
+    }
+    const claudeMd = join(paths.configDir, "CLAUDE.md");
+    const instructions = join(ch, "copilot-instructions.md");
+    if (existsSync(claudeMd) && !existsSync(instructions)) {
+      found.push(
+        finding(
+          "copilot-cannot-see",
+          "info",
+          "Copilot cannot see your user CLAUDE.md: there is no copilot-instructions.md in its home",
+          instructions,
+          { fix: `Copy ${claudeMd} to ${instructions}` }
+        )
+      );
+    }
+    return found;
+  },
+};
+
 export const rules: Rule[] = [
   dupPluginScope,
   dupSkillName,
@@ -790,9 +1246,17 @@ export const rules: Rule[] = [
   dupHookScope,
   staleMcpPermission,
   trailHooksMissing,
+  trailOldIndex,
   brokenSkillLink,
   pluginNotInstalled,
   unsetPlaceholder,
   staleName,
   shelfDuplicate,
+  copilotBrokenSkillLink,
+  copilotMcpSecret,
+  copilotCoauthor,
+  copilotContext7Local,
+  copilotUntrustedHooks,
+  copilotDupHook,
+  copilotCannotSee,
 ];

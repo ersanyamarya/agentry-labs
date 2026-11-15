@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- Status: `agentry status` (and `--json`) gains a Copilot block with what GitHub Copilot loads for the folder: skills, instructions, hooks, MCP servers (secrets masked), agents, whether the folder is trusted, and `includeCoAuthoredBy`. `copilot` is `null` when `~/.copilot` is missing; the rest of the output is unchanged.
+- Doctor: Copilot rules, silent without `~/.copilot`: `copilot-broken-skill-link`, `copilot-coauthor` (the Co-authored-by trailer is still on), `copilot-context7-local` (the old `bunx` context7 entry) and `copilot-dup-hook` (a hook the user and a `.github/hooks` file both run) are fixed by `agentry fix`, with a backup. `copilot-mcp-secret`, `copilot-untrusted-hooks` and `copilot-cannot-see` are advice only. No fix ever removes a hook from a `.claude` settings file.
+- Doctor: `trail-old-index` (info, advice only) notes an untracked `graft/INDEX.md` that the trail autobuild hook migrates.
+- Internal: the test suite caches git answers in the doctor and fix tests, skips the build when `dist` is current, and waits up to 30 seconds for a TUI frame (`AGENTRY_TEST_FRAME_WAIT_MS`); `npm test` uses 5 workers.
+
 ## 0.4.0
 
 - Agents: a new Agents section in the terminal UI (key `6`) and the web UI lists the agents installed for you (`~/.claude/agents`) and this project (`.claude/agents`) with model, tools and listing cost, and `agentry agents list [--json]` prints the same. Read-only; add or remove agents from the Catalog. The Catalog, Doctor and Backups sections move to keys `7`, `8` and `9`. Agents that plugins ship are not listed yet.

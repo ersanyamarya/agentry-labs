@@ -5,12 +5,15 @@
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { uniqueErrors } from "./inventory/common.js";
+import { createCopilotReader } from "./inventory/copilot.js";
 import { createHooksReader } from "./inventory/hooks.js";
 import { createMcpReader } from "./inventory/mcp.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import { createSkillsReader } from "./inventory/skills.js";
 import type { Paths } from "./paths.js";
 import type {
+  CopilotInventory,
+  CopilotStatus,
   HookItem,
   MarketplaceItem,
   McpServerItem,
@@ -25,10 +28,17 @@ const NOT_MEASURED = ["MCP tool lists", "hook output"];
 const clip = (text: string): string =>
   text.length > 110 ? `${text.slice(0, 107)}...` : text;
 
+const withoutErrors = ({
+  errors: _errors,
+  ...rest
+}: CopilotInventory): Omit<CopilotInventory, "errors"> => rest;
+
 const loads = (skill: SkillItem): boolean => skill.state === "active";
 
 /** The `agentry status --json` document. */
 export interface StatusData {
+  /** What Copilot loads here; null when there is no Copilot home. */
+  copilot: CopilotStatus | null;
   errors: ReadError[];
   hooks: { items: (HookItem & { tokens: null })[]; disableAllHooks: boolean };
   mcp: { servers: (McpServerItem & { tokens: null })[] };
@@ -60,6 +70,7 @@ export const createStatus = (
   const mcpReader = createMcpReader(paths, { platform });
   const hooksReader = createHooksReader(paths);
   const pluginsReader = createPluginsReader(paths);
+  const copilotReader = createCopilotReader(paths);
 
   const collect = (cwd: string = process.cwd()): StatusData => {
     const start = resolve(cwd);
@@ -67,6 +78,7 @@ export const createStatus = (
     const mcpResult = mcpReader.read({ cwd: start });
     const hookResult = hooksReader.read({ cwd: start });
     const pluginResult = pluginsReader.read({ cwd: start });
+    const copilotResult = copilotReader.read({ cwd: start });
 
     const skillTokens = skillResult.skills
       .filter(loads)
@@ -82,6 +94,7 @@ export const createStatus = (
       ...mcpResult.errors,
       ...hookResult.errors,
       ...pluginResult.errors,
+      ...(copilotResult.present ? copilotResult.errors : []),
     ]);
 
     return {
@@ -110,6 +123,9 @@ export const createStatus = (
         notMeasured: NOT_MEASURED,
       },
       errors,
+      copilot: copilotResult.present
+        ? { home: paths.copilotDir, ...withoutErrors(copilotResult) }
+        : null,
     };
   };
 
@@ -188,6 +204,51 @@ export const createStatus = (
     if (plugins.marketplaces.length > 0) {
       out(
         `  Marketplaces: ${plugins.marketplaces.map((market) => `${market.name} (${market.source})`).join(", ")}`
+      );
+    }
+
+    const { copilot } = data;
+    if (copilot) {
+      const names = (items: { name: string }[]): string =>
+        items.map((item) => item.name).join(", ");
+      out(
+        `\nCopilot: ${tilde(copilot.home)}${copilot.trusted ? "" : " (folder not trusted: repo MCP servers and hooks do not load)"}`
+      );
+      out(
+        `  Skills: ${copilot.skills.length}${copilot.skills.length > 0 ? ` (${names(copilot.skills)})` : ""}`
+      );
+      for (const skill of copilot.skills.filter(
+        (item) => item.state === "broken"
+      )) {
+        out(`    BROKEN ${skill.name}: ${tilde(skill.target ?? skill.source)}`);
+      }
+      out(`  Instructions: ${copilot.instructions.length}`);
+      for (const item of copilot.instructions) {
+        out(
+          `    ${tilde(item.file)}${item.applyTo ? `  applyTo ${item.applyTo}` : ""}`
+        );
+      }
+      out(`  Hooks: ${copilot.hooks.length}`);
+      for (const hook of copilot.hooks) {
+        out(
+          `    ${hook.event}  [${hook.scope}]  ${clip(hook.command ?? "(no command)")}`
+        );
+      }
+      out(
+        `  MCP servers: ${copilot.mcp.length}${copilot.mcp.length > 0 ? ` (${names(copilot.mcp)})` : ""}`
+      );
+      for (const server of copilot.mcp) {
+        const target =
+          server.url ?? [server.command, ...(server.args ?? [])].join(" ");
+        out(
+          `    ${server.name}  [${server.scope}${server.disabled ? ", disabled" : ""}]  ${server.transport}  ${target}`
+        );
+      }
+      out(
+        `  Agents: ${copilot.agents.length}${copilot.agents.length > 0 ? ` (${names(copilot.agents)})` : ""}`
+      );
+      out(
+        `  Co-authored-by trailer: ${copilot.includeCoAuthoredBy ? "on" : "off"}`
       );
     }
 

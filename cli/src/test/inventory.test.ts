@@ -374,7 +374,9 @@ describe("status", () => {
       "plugins",
       "tokens",
       "errors",
+      "copilot",
     ]);
+    assert.equal(data.copilot, null);
     assert.deepEqual(Object.keys(data.project), [
       "cwd",
       "root",
@@ -460,6 +462,48 @@ describe("status", () => {
     assert.match(errors[0], /Not a folder/);
   });
 
+  test("--json shows what Copilot loads, with secrets masked", () => {
+    const secret = "sk-live-0123456789abcdefSECRET";
+    const copilot = join(home, ".copilot");
+    skill(join(copilot, "skills"), "cop-skill");
+    writeJson(join(copilot, "mcp-config.json"), {
+      mcpServers: {
+        remote: { type: "http", url: `https://h/mcp?key=${secret}` },
+      },
+    });
+    writeJson(join(repo, ".github", "copilot", "settings.json"), {
+      includeCoAuthoredBy: false,
+    });
+    writeFileSync(
+      join(copilot, "config.json"),
+      `// managed\n{"trustedFolders": ["${repo}"]}\n`
+    );
+    const lines: string[] = [];
+    const status = createStatus(paths(), {
+      out: (line) => lines.push(line),
+      platform: "linux",
+    });
+    assert.equal(status.run({ path: repo, json: true }), 0);
+    const raw = lines.join("\n");
+    assert.ok(!raw.includes(secret));
+    const data = JSON.parse(raw);
+    assert.equal(data.version, 1);
+    assert.equal(data.copilot.home, copilot);
+    assert.equal(data.copilot.trusted, true);
+    assert.equal(data.copilot.includeCoAuthoredBy, false);
+    assert.deepEqual(
+      data.copilot.skills.map((item: { name: string }) => item.name),
+      ["cop-skill"]
+    );
+    assert.equal(data.copilot.mcp[0].url, "https://h/mcp?key=<masked>");
+    lines.length = 0;
+    assert.equal(status.run({ path: repo }), 0);
+    const text = lines.join("\n");
+    assert.match(text, /Copilot: /);
+    assert.match(text, /MCP servers: 1 \(remote\)/);
+    assert.ok(!text.includes(secret));
+  });
+
   test("the CLI runs status on a fixture, changes nothing and accepts a path", () => {
     const fixture = createFixture();
     try {
@@ -471,6 +515,11 @@ describe("status", () => {
           (item: Record<string, any>) => item.name === "local-one"
         )
       );
+      assert.equal(JSON.parse(stdout).copilot, null);
+      mkdirSync(join(fixture.home, ".copilot"), { recursive: true });
+      const withCopilot = JSON.parse(fixture.run(["status", "--json"]).stdout);
+      assert.equal(withCopilot.copilot.present, true);
+      assert.equal(withCopilot.copilot.includeCoAuthoredBy, true);
       assert.equal(
         fixture.run(["status", fixture.repo, "--json"], { cwd: fixture.root })
           .status,

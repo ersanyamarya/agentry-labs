@@ -313,3 +313,75 @@ export interface FixRunArgs {
   path?: string;
   yes?: boolean;
 }
+
+// What GitHub Copilot loads for a folder. Spec: cli/docs/copilot-config-sources.md ("Reader contract").
+export interface CopilotSkill {
+  name: string;
+  scope: "user" | "repo";
+  /** Lost to a same-named skill from a higher-precedence folder. */
+  shadowed: boolean;
+  /** The skill folder. */
+  source: string;
+  state: "ok" | "broken";
+  /** Where a symlink points. */
+  target?: string;
+}
+
+export interface CopilotInstruction {
+  /** The `applyTo` globs (`paths` in .claude/rules), comma-joined; null when the file names none. */
+  applyTo: string | null;
+  file: string;
+  scope: "user" | "repo";
+}
+
+export interface CopilotHook {
+  /** Masked. */
+  command?: string;
+  event: string;
+  id: string;
+  scope: "user" | "repo";
+  source: string;
+}
+
+export interface CopilotMcpServer {
+  args?: string[];
+  command?: string;
+  /** Named in disabledMcpServers of the user or repo settings. */
+  disabled: boolean;
+  env?: Record<string, string>;
+  headers?: Record<string, string>;
+  name: string;
+  /** The user-level source this workspace entry replaced. */
+  overrides?: string;
+  scope: "user" | "workspace";
+  source: string;
+  transport: string;
+  /** Masked. */
+  url?: string;
+}
+
+export interface CopilotAgent {
+  name: string;
+  scope: "user" | "repo";
+  source: string;
+}
+
+export interface CopilotInventory {
+  agents: CopilotAgent[];
+  errors: ReadError[];
+  hooks: CopilotHook[];
+  /** Effective value: default true, the user setting, then a trusted repo's override. */
+  includeCoAuthoredBy: boolean;
+  instructions: CopilotInstruction[];
+  mcp: CopilotMcpServer[];
+  /** The Copilot home exists. */
+  present: boolean;
+  skills: CopilotSkill[];
+  /** The repo root or a parent is in trustedFolders of <copilot home>/config.json. */
+  trusted: boolean;
+}
+
+/** The `copilot` block of `agentry status --json`: the inventory without errors (those join the top-level list). */
+export interface CopilotStatus extends Omit<CopilotInventory, "errors"> {
+  home: string;
+}

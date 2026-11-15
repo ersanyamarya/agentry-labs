@@ -1,6 +1,6 @@
 {
   "name": "@ersanyamarya/agentry-cli",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "agentry: inspect and manage what a Claude Code session loads (skills, MCP servers, hooks, plugins, CLAUDE.md), with a terminal UI",
   "keywords": [
     "claude-code",
@@ -46,7 +46,7 @@
     "lint": "biome lint .",
     "pack:check": "node scripts/pack-check.mjs",
     "prepublishOnly": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" && npm run build && npm test",
-    "test": "VITEST_MAX_WORKERS=10 vitest run --testTimeout=0",
+    "test": "VITEST_MAX_WORKERS=5 vitest run --testTimeout=0",
     "test:watch": "vitest",
     "typecheck": "tsc -p packages/core && tsc -p packages/tui && tsc -p packages/web && tsc -p ."
   },

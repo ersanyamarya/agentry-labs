@@ -16,6 +16,7 @@ import {
   type Rule,
 } from "./doctor-rules.js";
 import { settingsLayers, uniqueErrors } from "./inventory/common.js";
+import { createCopilotReader } from "./inventory/copilot.js";
 import { createHooksReader } from "./inventory/hooks.js";
 import { createMcpReader } from "./inventory/mcp.js";
 import { createPluginsReader } from "./inventory/plugins.js";
@@ -73,6 +74,7 @@ export const createDoctor = (
   const mcpReader = createMcpReader(paths, { platform });
   const hooksReader = createHooksReader(paths);
   const pluginsReader = createPluginsReader(paths);
+  const copilotReader = createCopilotReader(paths);
 
   const executable = (file: string): boolean => {
     try {
@@ -123,9 +125,11 @@ export const createDoctor = (
     const mcp = mcpReader.read({ cwd: start });
     const hookResult = hooksReader.read({ cwd: start });
     const pluginResult = pluginsReader.read({ cwd: start });
+    const copilot = copilotReader.read({ cwd: start });
     const layers = settingsLayers(paths, start, readErrors);
     const project = { cwd: start, root: paths.projectRoot(start) };
     const ctx: DoctorContext = {
+      copilot,
       cwd: start,
       paths,
       platform,
@@ -176,6 +180,8 @@ export const createDoctor = (
         ...mcp.errors,
         ...hookResult.errors,
         ...pluginResult.errors,
+        // Without a Copilot home nothing of Copilot applies, so its (repo file) read errors stay out of the report.
+        ...(copilot.present ? copilot.errors : []),
         ...readErrors,
         ...ruleErrors,
       ]),
