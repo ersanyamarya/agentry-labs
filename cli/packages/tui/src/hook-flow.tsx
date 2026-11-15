@@ -1,8 +1,11 @@
 // Confirm steps for turning a settings hook off or on and for removing one. The preview is src/lib/hook-toggle.ts's dry run
 // (diff with secrets masked, backup location, refusals); nothing changes until y. `agentry fix --undo` restores the file.
 
+import { messages } from "@agentry/core/messages";
 import type { Api, Row } from "./types.js";
 import type { useFlow } from "./use-flow.js";
+
+const text = messages().flows.hook;
 
 type Flow = ReturnType<typeof useFlow>;
 interface Ctx {
@@ -30,7 +33,7 @@ const start = async ({
   const preview = await api.previewHook(args);
   flow.begin({
     kind: "confirm",
-    title: `${title} (preview)`,
+    title: messages().flows.preview(title),
     text: preview.text,
     appliable: preview.appliable,
     apply: () => api.applyHook(args),
@@ -51,8 +54,8 @@ export const startHookToggle = ({
     flow,
     row,
     action,
-    title: `${row.hookOff ? "Turn on" : "Turn off"} hook ${row.hook}`,
-    done: `Hook ${row.hook} is ${row.hookOff ? "back on" : "off (saved)"}. Applies to new sessions; undo with agentry fix --undo.`,
+    title: text.toggleTitle(Boolean(row.hookOff), row.hook),
+    done: text.toggled(row.hook, Boolean(row.hookOff)),
   });
 };
 
@@ -63,6 +66,6 @@ export const startHookRemove = ({ api, dir, flow, row }: Ctx & { row: Row }) =>
     flow,
     row,
     action: "remove",
-    title: `Remove hook ${row.hook}`,
-    done: `Hook ${row.hook} is removed. Applies to new sessions; undo with agentry fix --undo.`,
+    title: text.removeTitle(row.hook),
+    done: text.removed(row.hook),
   });

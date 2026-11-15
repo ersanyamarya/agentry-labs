@@ -8,6 +8,7 @@
 // While a modal step is open `lock` is true (false when closed, "typing" while a name is typed), so the app keeps
 // quit/tab keys away from it. Nothing is written without a y on a confirm step.
 
+import { messages } from "@agentry/core/messages";
 import type { Key } from "ink";
 import React from "react";
 import type { SetLock } from "./types.js";
@@ -51,12 +52,13 @@ export interface FlowOptions {
   reload: () => Promise<void> | void;
 }
 
+const flowText = messages().flows;
+
 // Shown while a preview waits for y: a preview writes nothing.
-export const PREVIEW_NOTE =
-  "Preview only; nothing is written until you press y.";
+export const PREVIEW_NOTE = flowText.previewNote;
 // A failed result starts with what failed (the preview's title without its "(preview)" tag).
-export const failedText = (title: string, text: string) =>
-  `✖ ${title.replace(/\s*\((preview|dry run)\)$/, "")} failed\n\n${text}`;
+export const failedText = (title: string, body: string) =>
+  `${flowText.failed(title.replace(/\s*\((preview|dry run)\)$/, ""))}\n\n${body}`;
 
 export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
   const [step, setStep] = React.useState<Step | null>(null);
@@ -85,7 +87,7 @@ export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
   };
   const cancel = () => {
     setStep(null);
-    notify("Cancelled; nothing changed.");
+    notify(flowText.cancelled);
   };
   const advance = async (next: Next) => {
     const resolved = await next;
@@ -97,18 +99,14 @@ export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
     if (current?.kind !== "confirm") {
       return;
     }
-    setStep({ kind: "result", ok: true, text: "Working..." });
+    setStep({ kind: "result", ok: true, text: flowText.working });
     const result = await current.apply();
     setStep({
       kind: "result",
       ...result,
       text: result.ok ? result.text : failedText(current.title, result.text),
     });
-    notify(
-      result.ok
-        ? current.done
-        : "Finished with errors; see the output on the right."
-    );
+    notify(result.ok ? current.done : flowText.finishedWithErrors);
     await reload();
   };
 
@@ -164,9 +162,7 @@ export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
         (option, index) => `${index === at ? ">" : " "} ${option}`
       ),
       "",
-      step.onNew
-        ? "↑/↓ choose, enter select, n new group, esc cancel"
-        : "↑/↓ choose, enter select, esc cancel",
+      step.onNew ? flowText.pickKeysNew : flowText.pickKeys,
     ];
   } else if (step?.kind === "name") {
     lines = [
@@ -174,15 +170,13 @@ export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
       "",
       `${step.label}: ${step.display ? step.display(text) : text}_`,
       "",
-      "enter confirm, esc cancel",
+      flowText.nameKeys,
     ];
   } else if (step?.kind === "confirm") {
     lines = [
       ...step.text.split("\n"),
       "",
-      step.appliable
-        ? "Apply?  y yes   n no   c copy"
-        : "Nothing can be applied here. n = close, c = copy",
+      step.appliable ? flowText.applyPrompt : flowText.nothingToApply,
     ];
   } else if (step?.kind === "result") {
     lines = step.text.split("\n");
@@ -190,8 +184,8 @@ export const useFlow = ({ lock, notify, reload, copy }: FlowOptions) => {
   const title = step
     ? step.kind === "result"
       ? step.ok
-        ? "Result (c = copy)"
-        : "Result (errors, c = copy)"
+        ? flowText.resultTitle
+        : flowText.resultErrorsTitle
       : step.title
     : undefined;
   return {

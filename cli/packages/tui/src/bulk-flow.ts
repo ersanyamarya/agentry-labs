@@ -2,7 +2,10 @@
 // into one text, and one y applies the items one by one through the same lib call the single-row action uses.
 // preview(item) → { appliable, text }; apply(item) → { ok, text }. Items whose preview is not appliable are skipped.
 
+import { messages } from "@agentry/core/messages";
 import type { Step } from "./use-flow.js";
+
+const text = messages().flows.bulk;
 
 interface Bulk<T> {
   apply: (
@@ -34,11 +37,11 @@ export const startBulk = async <T extends { label: string }>({
   const todo = items.filter((_item, index) => previews[index].appliable);
   flow.begin({
     kind: "confirm",
-    title: `${title}: ${todo.length} of ${items.length} (preview)`,
+    title: text.title(title, todo.length, items.length),
     text: items
       .map(
         (item, index) =>
-          `== ${item.label.trim()} ==\n${previews[index].text || "(nothing to do)"}${previews[index].appliable ? "" : "\n(skipped: cannot be applied)"}`
+          `== ${item.label.trim()} ==\n${previews[index].text || text.nothing}${previews[index].appliable ? "" : text.skipped}`
       )
       .join("\n\n"),
     appliable: todo.length > 0,
@@ -54,6 +57,6 @@ export const startBulk = async <T extends { label: string }>({
           .join("\n\n"),
       };
     },
-    done: `${done} (${todo.length} item${todo.length === 1 ? "" : "s"}).`,
+    done: text.done(done, todo.length),
   });
 };

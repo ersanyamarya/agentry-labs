@@ -1,8 +1,12 @@
 // Confirm step for turning off a user-scope MCP server or adding a parked one back. The preview is src/lib/mcp-toggle.ts's dry
 // run (secrets masked); nothing changes until y. `agentry fix --undo` restores ~/.claude.json afterwards.
 
+import { messages } from "@agentry/core/messages";
 import type { Api, Row } from "./types.js";
 import type { Step, useFlow } from "./use-flow.js";
+
+const msg = messages().flows.mcp;
+const { add, set } = msg;
 
 type Flow = ReturnType<typeof useFlow>;
 interface Ctx {
@@ -24,11 +28,11 @@ export const startMcpToggle = async ({
   const preview = await api.previewMcp({ dir, name, enable });
   flow.begin({
     kind: "confirm",
-    title: `${enable ? "Add back" : "Turn off"} ${name} (preview)`,
+    title: msg.toggleTitle(enable, name),
     text: preview.text,
     appliable: preview.appliable,
     apply: () => api.applyMcp({ dir, name, enable }),
-    done: `${name} ${enable ? "is back in user scope" : "is turned off"}. Applies to new sessions; undo with agentry fix --undo.`,
+    done: msg.toggled(name, enable),
   });
 };
 
@@ -44,11 +48,11 @@ export const startMcpRemove = async ({
   const preview = await api.previewMcpRemove({ dir, name });
   flow.begin({
     kind: "confirm",
-    title: `Remove ${name} (preview)`,
+    title: msg.removeTitle(name),
     text: preview.text,
     appliable: preview.appliable,
     apply: () => api.applyMcpRemove({ dir, name }),
-    done: `${name} is removed. Applies to new sessions; undo with agentry fix --undo.`,
+    done: msg.removed(name),
   });
 };
 
@@ -77,55 +81,48 @@ export const startMcpAdd = ({ api, dir, flow }: Ctx) => {
       };
       return api.previewMcpAdd(args).then((preview) => ({
         kind: "confirm",
-        title: `Add ${config.name} (preview)`,
+        title: add.previewTitle(config.name),
         text: preview.text,
         appliable: preview.appliable,
         apply: () => api.applyMcpAdd(args),
-        done: `${config.name} is added. Applies to new sessions; undo with agentry fix --undo.`,
+        done: add.done(config.name),
       }));
     };
   const scopeStep = (config: AddConfig): Step => ({
     kind: "pick",
-    title: `Add ${config.name}: scope`,
-    intro: ["Where should the server live?"],
-    options: [
-      "user (claude mcp add-json, every project)",
-      "project (this repo's .mcp.json)",
-    ],
+    title: add.scopeTitle(config.name),
+    intro: [add.scopeIntro],
+    options: add.scopeOptions,
     onPick: finish(config),
   });
   flow.begin({
     kind: "name",
-    title: "Add MCP server",
-    label: "Server name",
-    intro: ["Letters, digits, . _ : - only."],
+    title: add.nameTitle,
+    label: add.nameLabel,
+    intro: [add.nameIntro],
     onSubmit: (name) => {
       if (!/^[A-Za-z0-9_.:-]+$/.test(name)) {
-        return failed(
-          "Not a valid name: use letters, digits and . _ : - only."
-        );
+        return failed(add.badName);
       }
       return {
         kind: "pick",
-        title: `Add ${name}: type`,
-        intro: ["How does the server run?"],
-        options: ["command (stdio)", "url (http)"],
+        title: add.typeTitle(name),
+        intro: [add.typeIntro],
+        options: add.typeOptions,
         onPick: (option) =>
-          option.startsWith("command")
+          option === add.typeOptions[0]
             ? {
                 kind: "name",
-                title: `Add ${name}: command`,
-                label: "Command and args",
-                intro: ["Space separated, e.g. npx -y @scope/server"],
+                title: add.commandTitle(name),
+                label: add.commandLabel,
+                intro: [add.commandIntro],
                 onSubmit: (text) =>
                   text
                     ? {
                         kind: "name",
-                        title: `Add ${name}: env`,
-                        label: "Env (KEY=VALUE ...)",
-                        intro: [
-                          "Space separated; values are hidden as you type. Blank for none.",
-                        ],
+                        title: add.envTitle(name),
+                        label: add.envLabel,
+                        intro: [add.envIntro],
                         display: hideValues,
                         onSubmit: (envText) => {
                           const [command, ...args] = words(text);
@@ -135,22 +132,20 @@ export const startMcpAdd = ({ api, dir, flow }: Ctx) => {
                           });
                         },
                       }
-                    : failed("A command is needed."),
+                    : failed(add.needCommand),
               }
             : {
                 kind: "name",
-                title: `Add ${name}: url`,
-                label: "URL",
-                intro: ["https://..."],
+                title: add.urlTitle(name),
+                label: add.urlLabel,
+                intro: [add.urlIntro],
                 onSubmit: (url) =>
                   /^https?:\/\/\S+$/.test(url)
                     ? {
                         kind: "name",
-                        title: `Add ${name}: headers`,
-                        label: "Headers (Name: value; ...)",
-                        intro: [
-                          "Separated by ';'; values are hidden as you type. Blank for none.",
-                        ],
+                        title: add.headersTitle(name),
+                        label: add.headersLabel,
+                        intro: [add.headersIntro],
                         display: hideValues,
                         onSubmit: (headerText) =>
                           scopeStep({
@@ -164,7 +159,7 @@ export const startMcpAdd = ({ api, dir, flow }: Ctx) => {
                             },
                           }),
                       }
-                    : failed("The URL must start with http:// or https://."),
+                    : failed(add.badUrl),
               },
       };
     },
@@ -177,19 +172,15 @@ export const startMcpSet = ({ api, dir, flow, row }: Ctx & { row: Row }) => {
   const name = row.mcp!;
   flow.begin({
     kind: "name",
-    title: `Edit ${name}: env`,
-    label: "Env changes",
-    intro: [
-      "KEY=VALUE sets, -KEY removes; space separated; values hidden as you type. Blank keeps env.",
-    ],
+    title: set.envTitle(name),
+    label: set.envLabel,
+    intro: [set.envIntro],
     display: hideValues,
     onSubmit: (envText) => ({
       kind: "name",
-      title: `Edit ${name}: args`,
-      label: "New args",
-      intro: [
-        "Replaces the whole args list, space separated. Blank keeps args.",
-      ],
+      title: set.argsTitle(name),
+      label: set.argsLabel,
+      intro: [set.argsIntro],
       onSubmit: async (argsText) => {
         const items = words(envText);
         const args = {
@@ -204,11 +195,11 @@ export const startMcpSet = ({ api, dir, flow, row }: Ctx & { row: Row }) => {
         const preview = await api.previewMcpSet(args);
         return {
           kind: "confirm",
-          title: `Edit ${name} (preview)`,
+          title: set.previewTitle(name),
           text: preview.text,
           appliable: preview.appliable,
           apply: () => api.applyMcpSet(args),
-          done: `${name} is updated. Applies to new sessions; undo with agentry fix --undo.`,
+          done: set.done(name),
         };
       },
     }),

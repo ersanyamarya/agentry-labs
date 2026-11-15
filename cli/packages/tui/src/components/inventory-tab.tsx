@@ -1,6 +1,7 @@
 // List tab (MCP, Hooks, Plugins): rows from lib data, `e` opens the row's source file in $EDITOR.
 // Plugin rows also toggle: space previews enabling or disabling the plugin, y applies (see tui/plugin-flow.ts).
 
+import { messages } from "@agentry/core/messages";
 import { useInput } from "ink";
 import React from "react";
 import { startBulk } from "../bulk-flow.js";
@@ -20,6 +21,8 @@ import type { Data, KeyHint, Row, TabProps } from "../types.js";
 import { useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
+
+const text = messages().flows.inventory;
 
 interface Action {
   apply: () =>
@@ -71,7 +74,7 @@ export const InventoryTab = ({
   const NOTHING: Action = {
     preview: () => ({
       appliable: false,
-      text: "Nothing to switch or remove on this row.",
+      text: text.nothing,
     }),
     apply: () => ({ ok: false, text: "" }),
   };
@@ -121,7 +124,7 @@ export const InventoryTab = ({
             ...NOTHING,
             preview: () => ({
               appliable: false,
-              text: "Not installed at exactly one scope here: uninstall it on its own.",
+              text: text.notOneScope,
             }),
           };
     }
@@ -137,13 +140,11 @@ export const InventoryTab = ({
   const bulk = (remove: boolean) =>
     startBulk({
       flow,
-      title: remove ? "Remove or uninstall" : "Switch",
+      title: remove ? text.removeOrUninstall : text.switch,
       items: list.marked,
       preview: (one) => actionFor(one, remove).preview(),
       apply: (one) => actionFor(one, remove).apply(),
-      done: remove
-        ? "Removed. Applies to new sessions; undo with agentry fix --undo"
-        : "Switched. Applies to new sessions; undo with agentry fix --undo",
+      done: remove ? text.removedDone : text.switchedDone,
     });
 
   useInput(
@@ -168,9 +169,7 @@ export const InventoryTab = ({
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         (row.pluginScopes ?? []).length > 0
           ? startPluginUninstall({ api, dir, flow, row })
-          : notify(
-              "Not installed for this project: nothing to uninstall here."
-            );
+          : notify(text.notInstalledHere);
       } else if (input === "a" && canAdd) {
         startMcpAdd({ api, dir, flow });
       } else if (input === "s" && row?.mcpUser) {

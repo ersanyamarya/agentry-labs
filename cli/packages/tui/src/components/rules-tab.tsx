@@ -1,6 +1,7 @@
 // Rules tab: the CLAUDE.md and rule files Claude Code loads every session, user and project, with their token cost.
 // e opens the selected file in $EDITOR; x removes it (previewed, y confirms; a copy is kept in the backups), X keeps no copy.
 
+import { messages } from "@agentry/core/messages";
 import { useInput } from "ink";
 import React from "react";
 import { startBulk } from "../bulk-flow.js";
@@ -10,6 +11,8 @@ import type { TabProps } from "../types.js";
 import { useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
+
+const text = messages().rules.notices;
 
 export const RulesTab = ({
   data,
@@ -54,7 +57,7 @@ export const RulesTab = ({
         const backup = input === "x";
         startBulk({
           flow,
-          title: "Remove files",
+          title: text.removeFiles,
           items: list.marked.filter((one) => one.ruleFile),
           preview: async (one) => {
             const result = await api.removeRule({
@@ -67,9 +70,7 @@ export const RulesTab = ({
           },
           apply: (one) =>
             api.removeRule({ dir, target: one.ruleFile ?? "", backup }),
-          done: backup
-            ? "Removed; copies are in ~/.claude/backups/agentry/removed/"
-            : "Removed; no copies were kept",
+          done: messages().flows.removedMany(backup),
         });
       } else if (input === "x" || input === "X") {
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
@@ -83,7 +84,7 @@ export const RulesTab = ({
               target: row.ruleFile,
               label: row.ruleTitle,
             })
-          : notify("Select a file first.");
+          : notify(text.selectFile);
       }
     },
     { isActive: active }

@@ -1,6 +1,7 @@
 // The UI shell: project, tabs, overlays (help, picker) and the key map. Tabs get data and actions as props, so the
 // whole tree runs on injected data in tests. Every action goes through the api (src/tui/data.ts), i.e. through lib/.
 
+import { messages } from "@agentry/core/messages";
 import { Box, useApp, useInput, useStdin, useStdout } from "ink";
 import React from "react";
 import type { CopyOptions } from "./clipboard.js";
@@ -181,7 +182,7 @@ export const App = ({
         setTab(Number(input) - 1);
         setMessage("");
       } else if (input === "r") {
-        setMessage("Refreshed.");
+        setMessage(messages().flows.refreshed);
         reload();
       } else if (input === "p") {
         openPicker();
@@ -331,14 +332,14 @@ export const App = ({
               ))}
             </Box>
           ) : (
-            <Busy text="Loading..." />
+            <Busy text={messages().flows.loading} />
           )}
           {errors.length > 0 ? (
             <Text
               color={theme.color ? "yellow" : undefined}
               wrap="truncate-end"
             >
-              {`warning: ${errors[0]?.message}`}
+              {messages().flows.warning(errors[0]?.message)}
             </Text>
           ) : null}
           {message?.endsWith("...") ? <Busy text={message} /> : null}
@@ -346,7 +347,7 @@ export const App = ({
             <Text
               color={
                 theme.color
-                  ? message.startsWith("Finished with errors")
+                  ? message.startsWith(messages().flows.finishedWithErrors)
                     ? "red"
                     : "green"
                   : undefined

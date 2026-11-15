@@ -1,8 +1,11 @@
 // Confirm step for deleting a skill (or, with call "removeRule", a CLAUDE.md or rule file): the preview is the lib's own dry run, and nothing is deleted until y. A copy of
 // the folder is kept under ~/.claude/backups/agentry/removed/ (Backups tab: u restores) unless backup is false (X key).
 
+import { messages } from "@agentry/core/messages";
 import type { Api } from "./types.js";
 import type { useFlow } from "./use-flow.js";
+
+const text = messages().flows.remove;
 
 interface RemoveArgs {
   api: Api;
@@ -34,12 +37,10 @@ export const startRemove = async ({
   });
   flow.begin({
     kind: "confirm",
-    title: `Remove ${label} (preview)`,
+    title: text.title(label),
     text: preview.text,
     appliable: preview.ok,
     apply: () => api[call]({ dir, target, project, backup }),
-    done: backup
-      ? `Removed ${label}; a copy is in ~/.claude/backups/agentry/removed/ (Backups tab restores it).`
-      : `Removed ${label}; no copy was kept.`,
+    done: text.done(label, backup),
   });
 };

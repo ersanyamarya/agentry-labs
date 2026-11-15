@@ -1,8 +1,11 @@
 // Starts the confirm step for enabling or disabling a plugin: the preview is src/lib/plugin-toggle.ts's own dry run
 // (diff, backup location, refusals), and nothing is written until y.
 
+import { messages } from "@agentry/core/messages";
 import type { Api, Row } from "./types.js";
 import type { Step, useFlow } from "./use-flow.js";
+
+const text = messages().flows.plugin;
 
 type Flow = ReturnType<typeof useFlow>;
 interface Ctx {
@@ -23,11 +26,11 @@ export const startPluginToggle = async ({
   const preview = await api.previewPlugin({ dir, id: plugin, enable });
   flow.begin({
     kind: "confirm",
-    title: `${enable ? "Enable" : "Disable"} ${plugin} (preview)`,
+    title: text.toggleTitle(enable, plugin),
     text: preview.text,
     appliable: preview.appliable,
     apply: () => api.applyPlugin({ dir, id: plugin, enable }),
-    done: `${plugin} ${enable ? "enabled" : "disabled"}. Applies to new sessions; undo with agentry fix --undo.`,
+    done: text.toggled(plugin, enable),
   });
 };
 
@@ -50,14 +53,14 @@ const confirmInstall = async ({
 }): Promise<Step> => {
   const args = { dir, action, name, scope };
   const preview = await api.previewPluginInstall(args);
-  const verb = action === "install" ? "Install" : "Uninstall";
+  const install = action === "install";
   return {
     kind: "confirm",
-    title: `${verb} ${name} at ${scope} scope (preview)`,
+    title: text.installTitle(install, name, scope),
     text: preview.text,
     appliable: preview.appliable,
     apply: () => api.applyPluginInstall(args),
-    done: `${name} is ${action}ed at ${scope} scope. Applies to new sessions.`,
+    done: text.installDone(name, install, scope),
   };
 };
 
@@ -65,17 +68,15 @@ const confirmInstall = async ({
 export const startPluginInstall = ({ api, dir, flow }: Ctx) =>
   flow.begin({
     kind: "name",
-    title: "Install plugin",
-    label: "Plugin (name@marketplace)",
-    intro: [
-      "The marketplace must already be added to claude (claude plugin marketplace add).",
-    ],
+    title: text.formTitle,
+    label: text.formLabel,
+    intro: [text.formIntro],
     onSubmit: (name) =>
       PLUGIN_ID.test(name)
         ? {
             kind: "pick",
-            title: `Install ${name}: scope`,
-            intro: ["Where should it be installed?"],
+            title: text.scopeTitle(name),
+            intro: [text.scopeIntro],
             options: ["user", "project", "local"],
             onPick: (scope) =>
               confirmInstall({ api, dir, action: "install", name, scope }),
@@ -83,7 +84,7 @@ export const startPluginInstall = ({ api, dir, flow }: Ctx) =>
         : {
             kind: "result",
             ok: false,
-            text: "Type it as name@marketplace, e.g. demo@market.",
+            text: text.badId,
           },
   });
 
@@ -109,8 +110,8 @@ export const startPluginUninstall = async ({
         })
       : {
           kind: "pick",
-          title: `Uninstall ${name}: scope`,
-          intro: ["Installed at several scopes here; which one?"],
+          title: text.uninstallScopeTitle(name),
+          intro: [text.uninstallScopeIntro],
           options: scopes,
           onPick: (scope) =>
             confirmInstall({ api, dir, action: "uninstall", name, scope }),

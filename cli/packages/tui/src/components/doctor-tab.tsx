@@ -1,6 +1,7 @@
 // Doctor tab: findings by severity. enter previews the fix (dry run, masked), y applies it through the fix engine
 // (backup, write, verify), n or esc cancels, u previews undoing the last fix set. Nothing is written without y.
 
+import { messages } from "@agentry/core/messages";
 import type { Finding } from "@agentry/core/types";
 import { Box, useInput } from "ink";
 import React from "react";
@@ -11,6 +12,8 @@ import { failedText, PREVIEW_NOTE } from "../use-flow.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
 import { Text } from "./text.js";
+
+const text = messages().doctor.flow;
 
 // null, or a preview waiting for y/n, or the result of applying it.
 type Step =
@@ -58,7 +61,7 @@ export const DoctorTab = ({
     if (!current || current.kind === "result") {
       return;
     }
-    setStep({ kind: "result", ok: true, text: "Working..." });
+    setStep({ kind: "result", ok: true, text: messages().flows.working });
     const result =
       current.kind === "undo"
         ? await api.applyUndo({ dir })
@@ -69,16 +72,18 @@ export const DoctorTab = ({
       text: result.ok
         ? result.text
         : failedText(
-            current.kind === "undo" ? "Undo" : `Fix [${current.finding.id}]`,
+            current.kind === "undo"
+              ? text.undoFailed
+              : text.fixFailed(current.finding.id),
             result.text
           ),
     });
     notify(
       result.ok
         ? current.kind === "undo"
-          ? "Undone."
-          : "Fix applied and verified."
-        : "Finished with errors; see the output on the right."
+          ? text.undone
+          : text.fixApplied
+        : messages().flows.finishedWithErrors
     );
     await reload();
   };
@@ -97,7 +102,7 @@ export const DoctorTab = ({
           confirm();
         } else if (input === "n" || key.escape) {
           setStep(null);
-          notify("Cancelled; nothing written.");
+          notify(text.cancelled);
         }
         return;
       }
@@ -122,29 +127,31 @@ export const DoctorTab = ({
           ...step.text.split("\n"),
           "",
           step.appliable
-            ? `${step.kind === "undo" ? "Restore" : "Apply"}?  y yes   n no   c copy`
-            : "Nothing can be applied here. n = close, c = copy",
+            ? step.kind === "undo"
+              ? messages().flows.restorePrompt
+              : messages().flows.applyPrompt
+            : messages().flows.nothingToApply,
         ]
     : undefined;
   const title = step
     ? step.kind === "result"
       ? step.ok
-        ? "Result (c = copy)"
-        : "Result (errors, c = copy)"
+        ? messages().flows.resultTitle
+        : messages().flows.resultErrorsTitle
       : step.kind === "undo"
-        ? "Undo preview"
-        : "Fix preview (dry run)"
-    : "Details";
+        ? text.undoTitle
+        : text.fixTitle
+    : text.details;
   const style = useStyle();
   const { error, warning, info } = data.doctor.summary;
   return (
     <Box flexDirection="column">
       <Text>
-        <Text {...style(SEVERITY.error.style)}>{`${error} errors`}</Text>
+        <Text {...style(SEVERITY.error.style)}>{text.errors(error)}</Text>
         {", "}
-        <Text {...style(SEVERITY.warning.style)}>{`${warning} warnings`}</Text>
+        <Text {...style(SEVERITY.warning.style)}>{text.warnings(warning)}</Text>
         {", "}
-        <Text {...style(SEVERITY.info.style)}>{`${info} info`}</Text>
+        <Text {...style(SEVERITY.info.style)}>{text.info(info)}</Text>
       </Text>
       <Panes
         cursor={cursor}

@@ -12,6 +12,8 @@ const terms = {
   added: "installed",
   notAdded: "not installed",
 };
+// Said after most changes; the preview already told the user what is written.
+const appliesUndo = "Applies to new sessions; undo with agentry fix --undo";
 const {
   library,
   bundle,
@@ -131,6 +133,41 @@ export const en = {
     legendNotes: `* marks a row. Skills > Token total: description tokens per ${allProjects}, this ${thisProject}, plugins. No colour: set NO_COLOR. Plugin changes apply to new sessions (undo: agentry fix --undo).`,
   },
   skills: {
+    notices: {
+      badGroupName: (name: string) =>
+        `Not a usable ${bundle} name: "${name}" (no slash, no leading dot, not "agents")`,
+      shelvePreviewTitle: "Shelve preview (dry run)",
+      shelved: (skill: string, name: string) =>
+        `Shelved ${skill} into ${name}; it is ${notLoaded}, toggle it with space.`,
+      newGroupTitle: (skill: string) => `Shelve ${skill}: new ${bundle}`,
+      newGroupLabel: "Group name",
+      newGroupIntro: `Type the name of the new ${library} ${bundle}.`,
+      chooseTitle: (skill: string) => `Shelve ${skill}: choose a ${bundle}`,
+      chooseIntro: (skill: string) =>
+        `Move ${skill} onto the ${library} in which ${bundle}?`,
+      unshelvePreviewTitle: "Unshelve preview (dry run)",
+      unshelved: (target: string) =>
+        `Unshelved ${target} into ~/.claude/skills.`,
+      agentsSwitch: `Agents switch with their ${bundle}: toggle the ${bundle} row.`,
+      markedNotSwitchable: `Marked rows are not ${library} ${bundle}s or skills: nothing to switch.`,
+      whereGlobal: "globally",
+      whereProject: `for this ${thisProject}`,
+      turnTitle: (on: boolean, where: string) =>
+        `Turn ${on ? loaded : notLoaded} ${where}`,
+      link: (on: boolean, target: string | undefined, where: string) =>
+        `${on ? "Link" : "Unlink"} ${target} ${where}.`,
+      turned: (on: boolean, where: string) =>
+        `Turned ${on ? loaded : notLoaded} ${where}`,
+      markedNotRemovable: `Marked rows cannot be removed here (shelved, ${allProjects} or ${thisProject}-only skills only).`,
+      alreadyShelved: `Already on the ${library}; press u to move it back to ~/.claude/skills.`,
+      shelveHint: `s shelves a ${allProjects} or ${thisProject}-only skill: select one under Global skills or This ${thisProject} only.`,
+      unshelveHint: `u unshelves a shelved skill: expand a ${bundle} and select one.`,
+      removeHint: `x removes a shelved, ${allProjects} or ${thisProject}-only skill folder (X keeps no copy): select one.`,
+      moveToAllHint: `a moves a ${thisProject}-only skill to ~/.claude/skills (all projects): select one under This ${thisProject} only.`,
+      moveToProjectHint: `o moves a ${allProjects} skill into this ${thisProject} only: select one under Global skills.`,
+      projectLabel: (skill: string | undefined) => `${skill} (${thisProject})`,
+      globalLabel: (skill: string | undefined) => `${skill} (${allProjects})`,
+    },
     headers: {
       shelf: "Shelf",
       skills: "Skills",
@@ -194,6 +231,40 @@ export const en = {
     },
   },
   catalog: {
+    notices: {
+      added: {
+        skill: `to the ${library}, ${notLoaded}. Turn it ${loaded} from the Skills tab`,
+        agent: "as an agent",
+        rule: "to ~/.claude/rules",
+        claudeMd: `as this ${thisProject}'s CLAUDE.md`,
+        mcp: "as an MCP server. It applies to sessions started after this",
+      },
+      outdatedCount: (n: number) => `${n} outdated (u updates)`,
+      fetching: "Fetching the catalog...",
+      addSkillTitle: (name: string) =>
+        `Add ${name} to the ${library} (preview)`,
+      addTitle: (item: string | undefined, project: boolean) =>
+        `Add ${item}${project ? ` to this ${thisProject}` : ""} (preview)`,
+      addDone: (name: string, where: string | undefined) =>
+        `Added ${name} ${where}.`,
+      updateTitle: (item: string | undefined) => `Update ${item} (preview)`,
+      updateDone: (item: string | undefined) =>
+        `Updated ${item}; the old copy is in ~/.claude/backups/agentry/updated/.`,
+      bulkTitle: (title: string, n: number) => `${title} ${n} (preview)`,
+      bulkAdd: "Add",
+      bulkUpdate: "Update",
+      bulkAddDone:
+        "Added the marked items (agents and MCP servers to all projects).",
+      bulkUpdateDone:
+        "Updated the marked items; the old copies are in ~/.claude/backups/agentry/updated/.",
+      removeUnsupported:
+        "x removes a skill, agent or rule here; remove an MCP server from the MCP tab, CLAUDE.md from the Rules tab.",
+      notInstalled: (item: string | undefined) => `${item} is ${notAdded}.`,
+      alreadyInstalled: (item: string | undefined, where: string) =>
+        `${item} is already ${added} (${where}).`,
+      projectOnlyHint: `o adds an agent or an MCP server to this ${thisProject} only; use i for this item.`,
+      upToDate: (item: string | undefined) => `${item} is up to date.`,
+    },
     toggle: {
       skillInstalled: "x removes it (a copy is kept in the backups)",
       skill: `i copies it onto the ${library}, ${notLoaded}; turn it ${loaded} from the Skills tab`,
@@ -298,6 +369,10 @@ export const en = {
     },
   },
   rules: {
+    notices: {
+      removeFiles: "Remove files",
+      selectFile: "Select a file first.",
+    },
     empty: "  (no CLAUDE.md or rule files)",
     emptyDetail:
       "No ~/.claude/CLAUDE.md, ~/.claude/rules/*.md, CLAUDE.md or .claude/rules/*.md was found.",
@@ -330,6 +405,21 @@ export const en = {
     },
   },
   backups: {
+    notices: {
+      restoreTitle: (label: string | undefined) => `Restore ${label}`,
+      restored: "Restored; it is back in its original folder.",
+      restore: "Restore",
+      restoredMany: "Restored; they are back in their original folders",
+      deleteMany: (n: number) => `Delete ${n} backup${n === 1 ? "" : "s"}`,
+      deletedMany: "Deleted those backups.",
+      restoreHint:
+        "u restores a removed skill: select one that has a known original folder.",
+      deleteOne: (label: string) => `Delete ${label}`,
+      deletedOne: "Deleted that backup.",
+      selectBackup: "Select a backup first.",
+      pruneTitle: (days: number) => `Delete backups ${days}+ days old`,
+      pruned: (days: number) => `Deleted the backups ${days}+ days old.`,
+    },
     empty: "  (no backups)",
     emptyDetail: "Nothing is kept under ~/.claude/backups/agentry yet.",
     emptyNote:
@@ -350,6 +440,19 @@ export const en = {
     },
   },
   doctor: {
+    flow: {
+      undone: "Undone.",
+      fixApplied: "Fix applied and verified.",
+      cancelled: "Cancelled; nothing written.",
+      undoFailed: "Undo",
+      fixFailed: (id: string) => `Fix [${id}]`,
+      undoTitle: "Undo preview",
+      fixTitle: "Fix preview (dry run)",
+      details: "Details",
+      errors: (n: number) => `${n} errors`,
+      warnings: (n: number) => `${n} warnings`,
+      info: (n: number) => `${n} info`,
+    },
     headings: { error: "Errors", warning: "Warnings", info: "Info" },
     detail: {
       finding: (severity: string, id: string) => `${severity}: [${id}]`,
@@ -368,7 +471,145 @@ export const en = {
     helpNarrow: "? help",
     err: " err",
   },
-  flows: {},
+  flows: {
+    previewNote: "Preview only; nothing is written until you press y.",
+    cancelled: "Cancelled; nothing changed.",
+    working: "Working...",
+    finishedWithErrors: "Finished with errors; see the output on the right.",
+    failed: (title: string) => `✖ ${title} failed`,
+    preview: (title: string) => `${title} (preview)`,
+    resultTitle: "Result (c = copy)",
+    resultErrorsTitle: "Result (errors, c = copy)",
+    pickKeysNew: `↑/↓ choose, enter select, n new ${bundle}, esc cancel`,
+    pickKeys: "↑/↓ choose, enter select, esc cancel",
+    nameKeys: "enter confirm, esc cancel",
+    applyPrompt: "Apply?  y yes   n no   c copy",
+    restorePrompt: "Restore?  y yes   n no   c copy",
+    nothingToApply: "Nothing can be applied here. n = close, c = copy",
+    refreshed: "Refreshed.",
+    loading: "Loading...",
+    warning: (message: string | undefined) => `warning: ${message}`,
+    pickerTitle: "Project (enter select, esc close)",
+    removeSkills: "Remove skills",
+    removedMany: (backup: boolean) =>
+      backup
+        ? "Removed; copies are in ~/.claude/backups/agentry/removed/"
+        : "Removed; no copies were kept",
+    bulk: {
+      title: (title: string, todo: number, total: number) =>
+        `${title}: ${todo} of ${total} (preview)`,
+      nothing: "(nothing to do)",
+      skipped: "\n(skipped: cannot be applied)",
+      done: (done: string, n: number) =>
+        `${done} (${n} item${n === 1 ? "" : "s"}).`,
+    },
+    move: {
+      title: (promote: boolean, skill: string) =>
+        `${promote ? "Move to all projects" : `Move to this ${thisProject} only`}: ${skill} (preview)`,
+      done: (promote: boolean, skill: string) =>
+        promote
+          ? `${skill} now lives in ~/.claude/skills and loads in every project.`
+          : `${skill} now lives in this ${thisProject}'s .claude/skills only.`,
+    },
+    remove: {
+      title: (label: string | undefined) => `Remove ${label} (preview)`,
+      done: (label: string | undefined, backup: boolean) =>
+        backup
+          ? `Removed ${label}; a copy is in ~/.claude/backups/agentry/removed/ (Backups tab restores it).`
+          : `Removed ${label}; no copy was kept.`,
+    },
+    hook: {
+      toggleTitle: (off: boolean, hook: string | undefined) =>
+        `${off ? `Turn ${loaded}` : `Turn ${notLoaded}`} hook ${hook}`,
+      toggled: (hook: string | undefined, off: boolean) =>
+        `Hook ${hook} is ${off ? `back ${loaded}` : `${notLoaded} (saved)`}. ${appliesUndo}.`,
+      removeTitle: (hook: string | undefined) => `Remove hook ${hook}`,
+      removed: (hook: string | undefined) =>
+        `Hook ${hook} is removed. ${appliesUndo}.`,
+    },
+    plugin: {
+      toggleTitle: (enable: boolean, plugin: string) =>
+        `${enable ? "Enable" : "Disable"} ${plugin} (preview)`,
+      toggled: (plugin: string, enable: boolean) =>
+        `${plugin} ${enable ? "enabled" : "disabled"}. ${appliesUndo}.`,
+      installTitle: (install: boolean, name: string, scope: string) =>
+        `${install ? "Install" : "Uninstall"} ${name} at ${scope} scope (preview)`,
+      installDone: (name: string, install: boolean, scope: string) =>
+        `${name} is ${install ? "installed" : "uninstalled"} at ${scope} scope. Applies to new sessions.`,
+      formTitle: "Install plugin",
+      formLabel: "Plugin (name@marketplace)",
+      formIntro:
+        "The marketplace must already be added to claude (claude plugin marketplace add).",
+      badId: "Type it as name@marketplace, e.g. demo@market.",
+      scopeTitle: (name: string) => `Install ${name}: scope`,
+      scopeIntro: "Where should it be installed?",
+      uninstallScopeTitle: (name: string) => `Uninstall ${name}: scope`,
+      uninstallScopeIntro: "Installed at several scopes here; which one?",
+    },
+    mcp: {
+      toggleTitle: (enable: boolean, name: string) =>
+        `${enable ? "Add back" : "Turn off"} ${name} (preview)`,
+      toggled: (name: string, enable: boolean) =>
+        `${name} ${enable ? "is back in user scope" : `is turned ${notLoaded}`}. ${appliesUndo}.`,
+      removeTitle: (name: string) => `Remove ${name} (preview)`,
+      removed: (name: string) => `${name} is removed. ${appliesUndo}.`,
+      add: {
+        nameTitle: "Add MCP server",
+        nameLabel: "Server name",
+        nameIntro: "Letters, digits, . _ : - only.",
+        badName: "Not a valid name: use letters, digits and . _ : - only.",
+        typeTitle: (name: string) => `Add ${name}: type`,
+        typeIntro: "How does the server run?",
+        typeOptions: ["command (stdio)", "url (http)"],
+        commandTitle: (name: string) => `Add ${name}: command`,
+        commandLabel: "Command and args",
+        commandIntro: "Space separated, e.g. npx -y @scope/server",
+        envTitle: (name: string) => `Add ${name}: env`,
+        envLabel: "Env (KEY=VALUE ...)",
+        envIntro:
+          "Space separated; values are hidden as you type. Blank for none.",
+        needCommand: "A command is needed.",
+        urlTitle: (name: string) => `Add ${name}: url`,
+        urlLabel: "URL",
+        urlIntro: "https://...",
+        headersTitle: (name: string) => `Add ${name}: headers`,
+        headersLabel: "Headers (Name: value; ...)",
+        headersIntro:
+          "Separated by ';'; values are hidden as you type. Blank for none.",
+        badUrl: "The URL must start with http:// or https://.",
+        scopeTitle: (name: string) => `Add ${name}: scope`,
+        scopeIntro: "Where should the server live?",
+        scopeOptions: [
+          "user (claude mcp add-json, every project)",
+          "project (this repo's .mcp.json)",
+        ],
+        previewTitle: (name: string) => `Add ${name} (preview)`,
+        done: (name: string) => `${name} is added. ${appliesUndo}.`,
+      },
+      set: {
+        envTitle: (name: string) => `Edit ${name}: env`,
+        envLabel: "Env changes",
+        envIntro:
+          "KEY=VALUE sets, -KEY removes; space separated; values hidden as you type. Blank keeps env.",
+        argsTitle: (name: string) => `Edit ${name}: args`,
+        argsLabel: "New args",
+        argsIntro:
+          "Replaces the whole args list, space separated. Blank keeps args.",
+        previewTitle: (name: string) => `Edit ${name} (preview)`,
+        done: (name: string) => `${name} is updated. ${appliesUndo}.`,
+      },
+    },
+    inventory: {
+      nothing: "Nothing to switch or remove on this row.",
+      notOneScope:
+        "Not installed at exactly one scope here: uninstall it on its own.",
+      removeOrUninstall: "Remove or uninstall",
+      switch: "Switch",
+      removedDone: `Removed. ${appliesUndo}`,
+      switchedDone: `Switched. ${appliesUndo}`,
+      notInstalledHere: `Not installed for this ${thisProject}: nothing to uninstall here.`,
+    },
+  },
   core: {
     scopeNames: { user: allProjects, desktop: "desktop" },
     scopeTitle: { user: "User", project: `This ${thisProject}` },

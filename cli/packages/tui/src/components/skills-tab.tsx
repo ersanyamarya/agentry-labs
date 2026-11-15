@@ -1,5 +1,6 @@
 // Skills tab: shelf groups (expand to skills, toggle on/off for this project or globally) and what else loads.
 
+import { messages } from "@agentry/core/messages";
 import { Box, useInput } from "ink";
 import React from "react";
 import { startBulk } from "../bulk-flow.js";
@@ -11,6 +12,9 @@ import type { Row, TabProps } from "../types.js";
 import { useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
+
+const { flows, skills } = messages();
+const text = skills.notices;
 
 export const SkillsTab = ({
   data,
@@ -46,7 +50,7 @@ export const SkillsTab = ({
     name.includes("/") ||
     name.startsWith(".") ||
     name === "agents"
-      ? `Not a usable group name: "${name}" (no slash, no leading dot, not "agents")`
+      ? text.badGroupName(name)
       : undefined;
 
   // shelve: choose a group (or type a new one), preview with the shelf's own dry run, move on y.
@@ -64,11 +68,11 @@ export const SkillsTab = ({
     });
     return {
       kind: "confirm" as const,
-      title: "Shelve preview (dry run)",
+      title: text.shelvePreviewTitle,
       text: preview.text,
       appliable: preview.ok,
       apply: () => api.shelveSkill({ dir, skill, group, project }),
-      done: `Shelved ${skill} into ${group}; it is off, toggle it with space.`,
+      done: text.shelved(skill, group),
     };
   };
   const startShelve = (project: boolean) => {
@@ -76,9 +80,9 @@ export const SkillsTab = ({
     const groups = data.groups.map((group) => group.name);
     const typeName = () => ({
       kind: "name" as const,
-      title: `Shelve ${skill}: new group`,
-      label: "Group name",
-      intro: ["Type the name of the new shelf group."],
+      title: text.newGroupTitle(skill),
+      label: text.newGroupLabel,
+      intro: [text.newGroupIntro],
       onSubmit: (name: string) =>
         badName(name)
           ? { kind: "result" as const, ok: false, text: badName(name) ?? "" }
@@ -89,8 +93,8 @@ export const SkillsTab = ({
         ? typeName()
         : {
             kind: "pick",
-            title: `Shelve ${skill}: choose a group`,
-            intro: [`Move ${skill} onto the shelf in which group?`],
+            title: text.chooseTitle(skill),
+            intro: [text.chooseIntro(skill)],
             options: groups,
             onPick: (group: string) => previewShelve(skill, group, project),
             onNew: typeName,
@@ -102,11 +106,11 @@ export const SkillsTab = ({
     const preview = await api.unshelveSkill({ dir, target, dryRun: true });
     flow.begin({
       kind: "confirm",
-      title: "Unshelve preview (dry run)",
+      title: text.unshelvePreviewTitle,
       text: preview.text,
       appliable: preview.ok,
       apply: () => api.unshelveSkill({ dir, target }),
-      done: `Unshelved ${target} into ~/.claude/skills.`,
+      done: text.unshelved(target),
     });
   };
 
@@ -121,7 +125,7 @@ export const SkillsTab = ({
       return;
     }
     if (row?.kind === "agent") {
-      notify("Agents switch with their group: toggle the group row.");
+      notify(text.agentsSwitch);
       return;
     }
     if (row?.kind !== "group" && row?.kind !== "skill") {
@@ -144,19 +148,17 @@ export const SkillsTab = ({
       (one) => one.kind === "group" || one.kind === "skill"
     );
     if (items.length === 0) {
-      return notify(
-        "Marked rows are not shelf groups or skills: nothing to switch."
-      );
+      return notify(text.markedNotSwitchable);
     }
     const on = !items.every((one) => (global ? one.globalOn : one.projectOn));
-    const where = global ? "globally" : "for this project";
+    const where = global ? text.whereGlobal : text.whereProject;
     return startBulk({
       flow,
-      title: `Turn ${on ? "on" : "off"} ${where}`,
+      title: text.turnTitle(on, where),
       items,
       preview: (one) => ({
         appliable: true,
-        text: `${on ? "Link" : "Unlink"} ${one.target} ${where}.`,
+        text: text.link(on, one.target, where),
       }),
       apply: async (one) => {
         const result = await api.toggleShelf({
@@ -167,7 +169,7 @@ export const SkillsTab = ({
         });
         return { ok: result.ok, text: result.message };
       },
-      done: `Turned ${on ? "on" : "off"} ${where}`,
+      done: text.turned(on, where),
     });
   };
   const removeArgs = (
@@ -183,12 +185,10 @@ export const SkillsTab = ({
   const bulkRemove = (backup: boolean) => {
     const items = list.marked.filter(removeArgs);
     return items.length === 0
-      ? notify(
-          "Marked rows cannot be removed here (shelved, global or project-only skills only)."
-        )
+      ? notify(text.markedNotRemovable)
       : startBulk({
           flow,
-          title: "Remove skills",
+          title: flows.removeSkills,
           items,
           preview: async (one) => {
             const result = await api.removeSkill({
@@ -202,9 +202,7 @@ export const SkillsTab = ({
           },
           // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
           apply: (one) => api.removeSkill({ dir, ...removeArgs(one)!, backup }),
-          done: backup
-            ? "Removed; copies are in ~/.claude/backups/agentry/removed/"
-            : "Removed; no copies were kept",
+          done: flows.removedMany(backup),
         });
   };
 
@@ -224,17 +222,13 @@ export const SkillsTab = ({
             row?.kind === "global"
               ? (row.why ?? "")
               : row?.kind === "skill"
-                ? "Already on the shelf; press u to move it back to ~/.claude/skills."
-                : "s shelves a global or project-only skill: select one under Global skills or This project only."
+                ? text.alreadyShelved
+                : text.shelveHint
           );
         }
       } else if (input === "u") {
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
-        row?.kind === "skill"
-          ? startUnshelve()
-          : notify(
-              "u unshelves a shelved skill: expand a group and select one."
-            );
+        row?.kind === "skill" ? startUnshelve() : notify(text.unshelveHint);
       } else if (key.return && row?.kind === "group") {
         setExpanded((open) => {
           const next = new Set(open);
@@ -271,7 +265,7 @@ export const SkillsTab = ({
                 backup,
                 target: row.skill ?? "",
                 project: true,
-                label: `${row.skill} (project)`,
+                label: text.projectLabel(row.skill),
               })
             : row?.shelvable
               ? startRemove({
@@ -280,21 +274,15 @@ export const SkillsTab = ({
                   flow,
                   backup,
                   target: row.skill ?? "",
-                  label: `${row.skill} (global)`,
+                  label: text.globalLabel(row.skill),
                 })
-              : notify(
-                  "x removes a shelved, global or project-only skill folder (X keeps no copy): select one."
-                );
+              : notify(text.removeHint);
       } else if (input === "a" || input === "o") {
         const promote = input === "a";
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         (promote ? row?.projectOnly : row?.shelvable)
           ? startScopeMove({ api, dir, flow, skill: row?.skill ?? "", promote })
-          : notify(
-              promote
-                ? "a moves a project-only skill to ~/.claude/skills (all projects): select one under This project only."
-                : "o moves a global skill into this project only: select one under Global skills."
-            );
+          : notify(promote ? text.moveToAllHint : text.moveToProjectHint);
       } else if (input === "e") {
         openFile(row?.file);
       }

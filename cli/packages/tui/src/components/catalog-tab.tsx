@@ -2,6 +2,7 @@
 // the cached clone, i installs the selected item (o: into this project, for agents and MCP servers), u overwrites an
 // outdated installed one with the catalog's copy (an MCP server: its args and missing env keys), x removes an installed skill, agent or rule. Each is previewed and waits for y.
 
+import { messages } from "@agentry/core/messages";
 import { useInput } from "ink";
 import React from "react";
 import { startBulk } from "../bulk-flow.js";
@@ -13,12 +14,16 @@ import { useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
 
+const { flows, catalog } = messages();
+const text = catalog.notices;
+
+const { added } = text;
 const DONE: Record<string, string> = {
-  skill: "to the shelf, off. Turn it on from the Skills tab",
-  agent: "as an agent",
-  rule: "to ~/.claude/rules",
-  "claude-md": "as this project's CLAUDE.md",
-  mcp: "as an MCP server. It applies to sessions started after this",
+  skill: added.skill,
+  agent: added.agent,
+  rule: added.rule,
+  "claude-md": added.claudeMd,
+  mcp: added.mcp,
 };
 
 export const CatalogTab = ({
@@ -39,7 +44,7 @@ export const CatalogTab = ({
   const outdated = data.catalog.entries.filter(
     (entry) => entry.outdated
   ).length;
-  const outdatedText = outdated > 0 ? `${outdated} outdated (u updates)` : "";
+  const outdatedText = outdated > 0 ? text.outdatedCount(outdated) : "";
   const list = useList({ rows: all, lock });
   const { rows, cursor, row, move } = list;
   const flow = useFlow({ lock, notify, reload, copy });
@@ -52,7 +57,7 @@ export const CatalogTab = ({
   }, [active, keys.join()]);
 
   const fetchCatalog = async () => {
-    notify("Fetching the catalog...");
+    notify(text.fetching);
     const result = await api.refreshCatalog({ dir });
     notify(result.ok ? result.text : "");
     flow.begin(
@@ -80,12 +85,12 @@ export const CatalogTab = ({
       kind: "confirm",
       title:
         current.itemKind === "skill"
-          ? `Add ${nameOf()} to the shelf (preview)`
-          : `Add ${current.item}${project ? " to this project" : ""} (preview)`,
+          ? text.addSkillTitle(nameOf())
+          : text.addTitle(current.item, project),
       text: preview.text,
       appliable: preview.ok,
       apply: () => api.addFromCatalog({ dir, names, project }),
-      done: `Added ${nameOf()} ${DONE[current.itemKind ?? ""]}.`,
+      done: text.addDone(nameOf(), DONE[current.itemKind ?? ""]),
     });
   };
 
@@ -96,12 +101,12 @@ export const CatalogTab = ({
     flow.begin({
       kind: "confirm",
       // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
-      title: `Update ${row!.item} (preview)`,
+      title: text.updateTitle(row!.item),
       text: preview.text,
       appliable: preview.ok,
       apply: () => api.updateFromCatalog({ dir, names }),
       // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
-      done: `Updated ${row!.item}; the old copy is in ~/.claude/backups/agentry/updated/.`,
+      done: text.updateDone(row!.item),
     });
   };
 
@@ -118,7 +123,7 @@ export const CatalogTab = ({
     const preview = await api[call]({ dir, names, dryRun: true });
     flow.begin({
       kind: "confirm",
-      title: `${title} ${names.length} (preview)`,
+      title: text.bulkTitle(title, names.length),
       text: preview.text,
       appliable: preview.ok,
       apply: () => api[call]({ dir, names }),
@@ -131,12 +136,10 @@ export const CatalogTab = ({
     // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
     const current = row!;
     if (!["skill", "agent", "rule"].includes(current.itemKind ?? "")) {
-      return notify(
-        "x removes a skill, agent or rule here; remove an MCP server from the MCP tab, CLAUDE.md from the Rules tab."
-      );
+      return notify(text.removeUnsupported);
     }
     if (!current.installed) {
-      return notify(`${current.item} is not installed.`);
+      return notify(text.notInstalled(current.item));
     }
     if (current.itemKind === "skill") {
       return startRemove({
@@ -190,8 +193,8 @@ export const CatalogTab = ({
         bulkCatalog(
           "addFromCatalog",
           catalogMarked((one) => !(one.itemKind === "skill" && one.installed)),
-          "Add",
-          "Added the marked items (agents and MCP servers to all projects)."
+          text.bulkAdd,
+          text.bulkAddDone
         );
       } else if (
         input === "u" &&
@@ -200,8 +203,8 @@ export const CatalogTab = ({
         bulkCatalog(
           "updateFromCatalog",
           catalogMarked((one) => Boolean(one.outdated)),
-          "Update",
-          "Updated the marked items; the old copies are in ~/.claude/backups/agentry/updated/."
+          text.bulkUpdate,
+          text.bulkUpdateDone
         );
       } else if (
         (input === "x" || input === "X") &&
@@ -212,7 +215,7 @@ export const CatalogTab = ({
         const backup = input === "x";
         startBulk({
           flow,
-          title: "Remove skills",
+          title: flows.removeSkills,
           items: catalogMarked(
             (one) => one.itemKind === "skill" && Boolean(one.installed)
           ),
@@ -227,30 +230,26 @@ export const CatalogTab = ({
           },
           apply: (one) =>
             api.removeSkill({ dir, target: one.target ?? "", backup }),
-          done: backup
-            ? "Removed; copies are in ~/.claude/backups/agentry/removed/"
-            : "Removed; no copies were kept",
+          done: flows.removedMany(backup),
         });
       } else if (input === "i" && row?.kind === "catalog") {
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row.itemKind === "skill" && row.installed
-          ? notify(`${row.item} is already installed (${row.installed}).`)
+          ? notify(text.alreadyInstalled(row.item, row.installed))
           : startAdd(false);
       } else if (input === "o" && row?.kind === "catalog") {
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row.itemKind === "agent" || row.itemKind === "mcp"
           ? startAdd(true)
-          : notify(
-              "o adds an agent or an MCP server to this project only; use i for this item."
-            );
+          : notify(text.projectOnlyHint);
       } else if (input === "u" && row?.kind === "catalog") {
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row.outdated
           ? startUpdate()
           : notify(
               row.installed
-                ? `${row.item} is up to date.`
-                : `${row.item} is not installed.`
+                ? text.upToDate(row.item)
+                : text.notInstalled(row.item)
             );
       } else if ((input === "x" || input === "X") && row?.kind === "catalog") {
         removeRow(input === "x");

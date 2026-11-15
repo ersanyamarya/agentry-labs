@@ -1,5 +1,6 @@
 // Project picker: the current repo, recent repos, then repos found under the scan roots.
 
+import { messages } from "@agentry/core/messages";
 import { Box, useInput } from "ink";
 import React from "react";
 import { stepCursor } from "../use-cursor.js";
@@ -63,7 +64,7 @@ export const Picker = ({
   });
   return (
     <Box borderStyle="round" flexDirection="column" paddingX={1}>
-      <Text bold>{"Project (enter select, esc close)"}</Text>
+      <Text bold>{messages().flows.pickerTitle}</Text>
       {rows.map((row, index) => (
         <Text inverse={index === cursor} key={row.id} wrap="truncate-start">
           {`${index === cursor ? ">" : " "} ${row.label}`}
