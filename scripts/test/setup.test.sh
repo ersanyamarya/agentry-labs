@@ -106,7 +106,7 @@ echo "usage errors"
 new_env x npm node git
 run --only bogus
 assert_eq "bogus part: exit 2" "$RC" 2
-assert_has "lists valid parts" "$OUT" "agentry trail context-mode config"
+assert_has "lists valid parts" "$OUT" "agentry trail context-mode config copilot"
 ENVX="SETUP_TTY=$T/none" run
 assert_eq "no tty no args: exit 2" "$RC" 2
 assert_has "bash -s hint" "$OUT" "bash -s -- install --all --yes"
@@ -351,6 +351,54 @@ ENVX="SETUP_TTY=$T/ans" run --source "$REPO" --yes
 assert_eq "exit 0" "$RC" 0
 assert_lacks "config removed" "$(snap)" "trail-autobuild.sh"
 assert_has "trail wiring remains" "$(snap)" "graft-hooks"
+done_env
+
+echo "copilot part"
+new_env x npm realnode git claude
+run --source "$REPO" install --only copilot
+assert_has "skipped without copilot" "$OUT" "Copilot not found"
+done_env
+new_env x npm realnode git claude copilot
+mkdir -p "$T/home/.copilot"
+run --source "$REPO" install --only copilot
+assert_eq "exit 0" "$RC" 0
+assert_has "co-author setting added" "$(cat "$T/home/.copilot/settings.json")" '"includeCoAuthoredBy": false'
+assert_has "context7 entry added" "$(cat "$T/home/.copilot/mcp-config.json")" "mcp.context7.com"
+assert_eq "trail hook added" "$(cmp -s "$T/home/.copilot/hooks/trail-autobuild.json" "$REPO/global/copilot/hooks/trail-autobuild.json" && echo same)" same
+assert_eq "context7 rule mirrored" "$(test -f "$T/home/.copilot/instructions/context7.instructions.md" && echo yes)" yes
+run --source "$REPO" install --only copilot
+assert_has "second run applied nothing" "$OUT" "already applied"
+run --source "$REPO" status --only copilot
+assert_has "status installed" "$OUT" "copilot: installed"
+run --source "$REPO" uninstall --only copilot --yes
+assert_eq "exit 0 on uninstall" "$RC" 0
+assert_eq "rule removed" "$(test -f "$T/home/.copilot/instructions/context7.instructions.md" && echo yes || echo no)" no
+assert_lacks "context7 entry removed" "$(cat "$T/home/.copilot/mcp-config.json")" "mcp.context7.com"
+assert_lacks "co-author setting removed" "$(cat "$T/home/.copilot/settings.json")" "includeCoAuthoredBy"
+run --source "$REPO" status --only copilot
+assert_has "status missing after uninstall" "$OUT" "copilot: missing"
+done_env
+
+echo "copilot trusted folders"
+new_env x npm realnode git claude copilot
+mkdir -p "$T/home/.copilot"
+printf '// managed automatically\n{\n  "host": "h"\n}\n' > "$T/home/.copilot/config.json"
+run --source "$REPO" install --only copilot --yes --trust "$T/my repo"
+assert_eq "exit 0" "$RC" 0
+assert_has "folder with a space trusted" "$(cat "$T/home/.copilot/config.json")" "my repo"
+assert_has "comment kept" "$(cat "$T/home/.copilot/config.json")" "// managed automatically"
+run --source "$REPO" uninstall --only copilot --yes
+assert_lacks "trust removed on uninstall" "$(cat "$T/home/.copilot/config.json")" "my repo"
+assert_has "comment kept after uninstall" "$(cat "$T/home/.copilot/config.json")" "// managed automatically"
+CFG_BEFORE="$(cat "$T/home/.copilot/config.json")"
+run --source "$REPO" install --only copilot --yes
+assert_eq "--yes without --trust adds nothing" "$(cat "$T/home/.copilot/config.json")" "$CFG_BEFORE"
+run --source "$REPO" uninstall --only copilot --yes
+printf '2\n5\n/tmp/typed one\n\n' > "$T/ans"
+ENVX="SETUP_TTY=$T/ans" run --source "$REPO"
+assert_has "menu answer adds typed folder" "$(cat "$T/home/.copilot/config.json")" "typed one"
+run --source "$REPO" install --only copilot --yes --trust relative
+assert_eq "relative --trust is a usage error" "$RC" 2
 done_env
 
 echo "---"

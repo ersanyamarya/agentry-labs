@@ -32,8 +32,8 @@ Remember, before writing any code:
 │   └── skill-architect/        # Create, improve, review, and validate skills
 ├── claude-md-files/     # Reusable Claude Code project guidance
 │   └── BASIC_CLAUDE.md
-├── rules/               # commit-attribution, context7, trail (setup installs each as a user-level rule)
-├── global/              # settings.fragment.json, mcp.json and helpers/, applied by the `config` part of setup.sh through scripts/apply-global.mjs (trail and context-mode wire themselves)
+├── rules/               # context7, trail (setup installs each as a user-level rule, and mirrors it to ~/.copilot/instructions)
+├── global/              # settings.fragment.json (env, hooks, status line, attribution), mcp.json and helpers/, applied by the `config` part of setup.sh through scripts/apply-global.mjs (trail and context-mode wire themselves); global/copilot/ holds the Copilot settings fragment, MCP entry and trail hook for the `copilot` part
 ├── bundles.tsv          # tags each component with one of five topic bundles: general, web, flutter, flutter-assets, mongodb
 ├── scripts/             # setup.sh, setup-manifest.mjs, check-bundles.mjs, utils.sh, apply-global.mjs, skill-drift.mjs, test/, image-gen-tools/ (README cover generator)
 ├── cli/                 # agentry CLI and Ink terminal UI, in TypeScript (src/bin; npm workspaces packages/core, packages/tui and packages/web; design docs in cli/docs). See cli/README.md and cli/CLAUDE.md
@@ -51,9 +51,13 @@ curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scrip
 curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- status
 curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- uninstall --all --yes
 
+# Wire GitHub Copilot (~/.copilot) too, optionally trusting a repo folder so its hooks run
+curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- install --only copilot --trust "$HOME/ws/my-repo"
+
 # Script tests (run the bash test under /bin/bash too: macOS has bash 3.2)
 node scripts/check-bundles.mjs && node --test scripts/test/
 bash scripts/test/setup.test.sh
+sh scripts/test/trail-autobuild.test.sh
 
 # Manual local install
 mkdir -p .claude/skills
@@ -137,7 +141,7 @@ The `bun run cover` log prints the counts it used; check they match the change, 
 ### MCP Configuration
 This repo has no project MCP servers (`.mcp.json` stays gitignored for local experiments). It relies on the global ones:
 - **context7**: library documentation lookup (`CONTEXT7_API_KEY` exported from your shell profile, since GUI-launched Claude does not read shell rc files)
-- **trail**: code graph; `trail init` writes its own hooks and skill into ~/.claude, and agents call the `trail` CLI (`ask`, `grep`, `skeleton`, `callers`, `map`). The fragment only sets `TRAIL_INVOKED_AS=trail`
+- **trail**: code graph (its SessionStart autobuild hook also runs in Copilot, installed to `~/.copilot/hooks` by the `copilot` part); `trail init` writes its own hooks and skill into ~/.claude, and agents call the `trail` CLI (`ask`, `grep`, `skeleton`, `callers`, `map`). The fragment only sets `TRAIL_INVOKED_AS=trail`
 - **context-mode**: installed from npm (`context-mode setup`), which registers it as a Claude Code plugin; sandboxed execution and indexing of large outputs
 
 `global/mcp.json` holds only these always-useful servers. Repo-specific ones (fallow, shadcn, chrome-devtools) go in that
@@ -150,7 +154,7 @@ repo's tracked `.mcp.json`, started with `npx -y <pkg>@latest` so they work with
 | --- | --- |
 | `CLAUDE.md` (this file) | A layer, convention or the skill list changes |
 | `README.md` | The installer, bundles or the component list changes; the one-liner and examples change with the commands or parts of `scripts/setup.sh` |
-| `global/` | The settings fragment or helpers change what the `config` part installs (update the README and this file) |
+| `global/` | The settings fragment or helpers change what the `config` or `copilot` part installs (update the README and this file) |
 | `cli/README.md`, `cli/CLAUDE.md` | The `agentry` commands, flags, env vars, layout, build or test steps change |
 | `bundles.tsv` | A skill, rule or agent is added, removed or moved to another bundle |
 

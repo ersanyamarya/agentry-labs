@@ -33,6 +33,7 @@ test("first run into an empty home adds everything", () => {
 	assert.equal(settings.statusLine.type, "command");
 	assert.equal(settings.subagentStatusLine.type, "command");
 	assert.equal(settings.env.TRAIL_INVOKED_AS, "trail");
+	assert.deepEqual(settings.attribution, { commit: "", pr: "", sessionUrl: false });
 	assert.ok(read(join(home, ".claude.json")).mcpServers.context7);
 	const helper = join(home, ".claude/helpers/trail-autobuild.sh");
 	assert.equal(statSync(helper).mode & 0o777, 0o755);
@@ -101,7 +102,7 @@ test("--report lists exactly what was added", () => {
 	run("--write", "--report", reportFile);
 	const report = read(reportFile);
 	assert.deepEqual(report.hooks, [{ event: "SessionStart", command: HOOK }]);
-	assert.deepEqual(report.settings.map((s) => s.key).sort(), ["env.TRAIL_INVOKED_AS", "statusLine", "subagentStatusLine"]);
+	assert.deepEqual(report.settings.map((s) => s.key).sort(), ["attribution", "env.TRAIL_INVOKED_AS", "statusLine", "subagentStatusLine"]);
 	assert.deepEqual(report.mcp, ["context7"]);
 	assert.ok(report.files.every((f) => /^[0-9a-f]{64}$/.test(f.sha256)));
 	assert.ok(report.files.some((f) => f.path.endsWith("helpers/trail-autobuild.sh")));

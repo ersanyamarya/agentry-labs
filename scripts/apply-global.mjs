@@ -17,12 +17,23 @@
 // and a folder left empty by a removed file are deleted. Before writing, every file it changes is
 // backed up to <config>/backups/agentry-setup/<stamp>/ (manifest.json plus files/<absolute path>). Preview by default;
 // --write applies. Exits 2 when the manifest is missing or has no config part.
+//
+// Copilot target (scripts/lib/copilot-global.mjs; <ch> is COPILOT_HOME, else <home>/.copilot, and --home ignores
+// COPILOT_HOME):
+//        node scripts/apply-global.mjs --copilot [--trust-file <file>] [--write] [--home <dir>] [--report <file>]
+//        node scripts/apply-global.mjs --remove <manifest> --part copilot [--write] [--home <dir>]
+// --copilot adds global/copilot/ (settings keys, MCP servers, hooks/*.json) and rules/*.md as
+// <ch>/instructions/<name>.instructions.md. --part picks the manifest part --remove undoes (default config).
+// --trust-file (one absolute folder per line) appends those folders to trustedFolders in <ch>/config.json, a JSONC
+// file Copilot manages: a text edit that keeps comments, backed up and written atomically; the report lists the
+// folders added and --remove takes them out again.
 
-import { createHash } from "node:crypto";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { applyCopilot, copilotDirFor, removeCopilot } from "./lib/copilot-global.mjs";
+import { loadManifestPart, readJson, sha256, stable, writeBackupSet } from "./lib/global-common.mjs";
 
 const args = process.argv.slice(2);
 const write = args.includes("--write");
@@ -35,10 +46,45 @@ const reportPath = valueOf("--report") ? resolve(valueOf("--report")) : undefine
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const configDir = process.env.CLAUDE_CONFIG_DIR ? resolve(process.env.CLAUDE_CONFIG_DIR) : join(home, ".claude");
 
-const stable = (value) => JSON.stringify(value, (_key, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v));
-const readJson = (path, fallback) => (existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : fallback);
 const expand = (text) => text.replaceAll("${HOME}", home);
-const sha256 = (data) => createHash("sha256").update(data).digest("hex");
+
+// The Copilot target runs on its own and never reads or writes the Claude files.
+const part = valueOf("--part") ?? "config";
+if (args.includes("--remove") && part !== "config" && part !== "copilot") {
+	console.error(`apply-global: --part must be config or copilot, not ${part}`);
+	process.exit(2);
+}
+// --trust-file: one absolute folder per line (blank lines skipped, each line trimmed). Any other line refuses the run.
+let trustFolders;
+if (args.includes("--trust-file")) {
+	const file = valueOf("--trust-file");
+	if (!args.includes("--copilot") || args.includes("--remove") || !file || file.startsWith("--")) {
+		console.error("apply-global: --trust-file <file> goes with --copilot");
+		console.error("usage: node scripts/apply-global.mjs --copilot [--trust-file <file>] [--write] [--home <dir>] [--report <file>]");
+		process.exit(2);
+	}
+	let text;
+	try {
+		text = readFileSync(resolve(file), "utf8");
+	} catch {
+		console.error(`apply-global: cannot read trust file ${resolve(file)}. Nothing was written.`);
+		process.exit(1);
+	}
+	const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+	const bad = lines.find((l) => !isAbsolute(l));
+	if (bad !== undefined) {
+		console.error(`apply-global: trust file lines must be absolute folders, not ${JSON.stringify(bad)}. Nothing was written.`);
+		process.exit(1);
+	}
+	trustFolders = [...new Set(lines)];
+}
+
+if (args.includes("--copilot") || (args.includes("--remove") && part === "copilot")) {
+	const copilotDir = copilotDirFor(home, valueOf("--home") !== undefined);
+	const ctx = { write, home, copilotDir, configDir, root, reportPath, trustFolders };
+	process.exit(args.includes("--remove") ? removeCopilot({ ...ctx, manifestFile: valueOf("--remove") }) : applyCopilot(ctx));
+}
+
 const fragment = JSON.parse(expand(readFileSync(join(root, "global/settings.fragment.json"), "utf8")));
 const mcp = JSON.parse(readFileSync(join(root, "global/mcp.json"), "utf8"));
 
@@ -55,22 +101,7 @@ if (args.includes("--remove")) {
 }
 
 function removeInstalled(manifestFile) {
-	const usage = (why) => {
-		console.error(`apply-global: ${why}`);
-		console.error("usage: node scripts/apply-global.mjs --remove <manifest> [--write] [--home <dir>]");
-		process.exit(2);
-	};
-	if (!manifestFile || manifestFile.startsWith("--")) usage("--remove needs a manifest path");
-	const manifestAbs = resolve(manifestFile);
-	if (!existsSync(manifestAbs)) usage(`manifest not found: ${manifestAbs}`);
-	let manifest;
-	try {
-		manifest = JSON.parse(readFileSync(manifestAbs, "utf8"));
-	} catch {
-		usage(`manifest is not valid JSON: ${manifestAbs}`);
-	}
-	const part = manifest?.parts?.config;
-	if (!part || typeof part !== "object") usage(`manifest has no config part: ${manifestAbs}`);
+	const part = loadManifestPart(manifestFile, "config", "usage: node scripts/apply-global.mjs --remove <manifest> [--write] [--home <dir>]");
 
 	const removed = [];
 	const kept = [];
@@ -168,18 +199,7 @@ function removeInstalled(manifestFile) {
 	}
 
 	// Back up every existing file this run changes, before any write.
-	const touched = [...(settingsChanged ? [settingsPath] : []), ...(mcpChanged ? [mcpPath] : []), ...filesToDelete].filter((p) => existsSync(p));
-	const createdAt = new Date().toISOString();
-	const backupDir = join(configDir, "backups", "agentry-setup", createdAt.replace(/[:.]/g, "-"));
-	const entries = [];
-	for (const path of touched) {
-		const backup = join(backupDir, "files", path.replace(/^\/+/, ""));
-		mkdirSync(dirname(backup), { recursive: true });
-		copyFileSync(path, backup);
-		entries.push({ path, realPath: realpathSync(path), kind: "file", backup, sha256: sha256(readFileSync(path)) });
-	}
-	mkdirSync(backupDir, { recursive: true });
-	writeFileSync(join(backupDir, "manifest.json"), `${JSON.stringify({ version: 1, tool: "agentry-labs-setup", createdAt, cwd: process.cwd(), status: "applied", files: entries }, null, 2)}\n`);
+	const backupDir = writeBackupSet(configDir, [...(settingsChanged ? [settingsPath] : []), ...(mcpChanged ? [mcpPath] : []), ...filesToDelete]);
 
 	// A JSON file left as {} and a folder left empty are deleted too (both are in the backup or hold nothing).
 	const save = (path, value) => (Object.keys(value).length === 0 ? unlinkSync(path) : writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`));
@@ -217,7 +237,7 @@ for (const key of ["enabledPlugins", "env", "extraKnownMarketplaces"]) {
 	}
 }
 
-for (const key of ["statusLine", "subagentStatusLine"]) {
+for (const key of ["statusLine", "subagentStatusLine", "attribution"]) {
 	if (!fragment[key] || key in settings) continue;
 	settings[key] = fragment[key];
 	actions.push(`settings.json: add ${key}`);

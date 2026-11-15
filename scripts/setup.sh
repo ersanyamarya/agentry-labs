@@ -7,7 +7,7 @@ set -euo pipefail
 REPO_URL="${AGENTRY_LABS_REPO_URL:-https://github.com/ersanyamarya/agentry-labs.git}"
 UTILS_URL="${AGENTRY_LABS_UTILS_URL:-https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/utils.sh}"
 SETUP_URL="https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh"
-ALL_PARTS="agentry trail context-mode config"
+ALL_PARTS="agentry trail context-mode config copilot"
 MIN_NODE="24.15.0"
 
 usage() {
@@ -29,6 +29,7 @@ Parts (--only, repeatable):
   trail          the trail code-map CLI (npm: @trailhq/trail-code)
   context-mode   the context-mode plugin CLI (npm: context-mode)
   config         user-level rules, settings, hooks, status line and MCP entry
+  copilot        GitHub Copilot: settings, trail hook, context7 entry and the rules, in ~/.copilot (needs the copilot CLI)
 
 Options:
   --all            all four parts
@@ -38,6 +39,7 @@ Options:
   --no-color       plain output (NO_COLOR is honored too)
   --remove-tools   uninstall also removes the CLIs
   --source <dir>   use this checkout instead of cloning (config part)
+  --trust <dir>    copilot part: add this folder to Copilot trusted folders so its repo hooks run; repeat for several
   -h, --help       this text
 
 With no arguments on a terminal, a menu opens. Tools install at @latest through mise if it is on PATH, else npm.
@@ -53,6 +55,7 @@ YES=false
 DRY_RUN=false
 REMOVE_TOOLS=false
 SOURCE_DIR=""
+TRUST_DIRS="" # newline separated
 
 die_usage() {
   printf '%s\n' "setup.sh: $*" >&2
@@ -86,6 +89,11 @@ while [ $# -gt 0 ]; do
     --source)
       [ $# -ge 2 ] || die_usage "--source needs a directory"
       SOURCE_DIR="$2"; shift ;;
+    --trust)
+      [ $# -ge 2 ] || die_usage "--trust needs a directory"
+      case "$2" in /*) ;; *) die_usage "--trust needs an absolute path" ;; esac
+      TRUST_DIRS="${TRUST_DIRS:+$TRUST_DIRS
+}$2"; shift ;;
     -h | --help) usage; exit 0 ;;
     *) die_usage "unknown argument '$1'" ;;
   esac
@@ -162,6 +170,7 @@ CM_RAN=false
 TRAIL_KEPT=false
 TRAIL_RAN=false
 CONFIG_RAN=false
+COPILOT_RAN=false
 
 add_step() { # title, changes text, function
   STEP_TITLE[${#STEP_TITLE[@]}]="$1"
@@ -359,6 +368,33 @@ step_apply_config() {
   return 0
 }
 
+# Copilot home: $COPILOT_HOME, else ~/.copilot
+copilot_dir() { echo "${COPILOT_HOME:-$HOME/.copilot}"; }
+
+step_apply_copilot() {
+  has_part copilot || { STEP_REASON="not selected"; return 3; }
+  if [ -z "$SOURCE_DIR" ]; then STEP_REASON="dry run: repo not cloned"; return 3; fi
+  if ! command -v copilot >/dev/null 2>&1 || [ ! -d "$(copilot_dir)" ]; then STEP_REASON="Copilot not found"; return 3; fi
+  command -v node >/dev/null 2>&1 || { say "    ${RED}node is required.${NC}"; return 1; }
+  make_tmp
+  local out rc=0 flag="--write"
+  [ "$DRY_RUN" = true ] && flag=""
+  local trust=""
+  if [ -n "$TRUST_DIRS" ]; then
+    printf '%s\n' "$TRUST_DIRS" > "$TMP_ROOT/trust.txt"
+    trust="$TMP_ROOT/trust.txt"
+  fi
+  show_cmd node "$SOURCE_DIR/scripts/apply-global.mjs" --copilot "${flag:-(preview)}" ${trust:+--trust-file "$trust"} --report "$TMP_ROOT/copilot-report.json"
+  # shellcheck disable=SC2086
+  out="$(node "$SOURCE_DIR/scripts/apply-global.mjs" --copilot $flag ${trust:+--trust-file "$trust"} --report "$TMP_ROOT/copilot-report.json" </dev/null 2>&1)" || rc=$?
+  printf '%s\n' "$out" | sed 's/^/    /'
+  [ "$rc" -eq 0 ] || return 1
+  case "$out" in *"Nothing to add."*) STEP_REASON="already applied"; return 3 ;; esac
+  [ "$DRY_RUN" = true ] && { STEP_REASON="dry run"; return 3; }
+  COPILOT_RAN=true
+  return 0
+}
+
 # ---------- manifest ----------
 mf() { node "$SOURCE_DIR/scripts/setup-manifest.mjs" --config "$(config_dir)" "$@"; }
 manifest_file() { echo "$(config_dir)/agentry/install-manifest.json"; }
@@ -386,6 +422,10 @@ step_manifest() {
   if [ "$CONFIG_RAN" = true ] && [ -f "$TMP_ROOT/apply-report.json" ]; then
     mf record config "$TMP_ROOT/apply-report.json" || return 1
     say "    recorded config"; changed=true
+  fi
+  if [ "$COPILOT_RAN" = true ] && [ -f "$TMP_ROOT/copilot-report.json" ]; then
+    mf record copilot "$TMP_ROOT/copilot-report.json" || return 1
+    say "    recorded copilot"; changed=true
   fi
   if [ "$TRAIL_RAN" = true ] && [ -f "$TMP_ROOT/settings.before.json" ]; then
     mf diff-settings "$TMP_ROOT/settings.before.json" "$HOME/.claude/settings.json" > "$TMP_ROOT/trail-diff.json" || return 1
@@ -441,6 +481,7 @@ build_install_steps() {
   add_step "Wire context-mode" "Claude Code plugin registration" step_wire_context_mode
   add_step "Wire trail" "<config>/ hooks and skill" step_wire_trail
   add_step "Apply config" "<config>/ rules, settings, helpers, MCP entry" step_apply_config
+  add_step "Apply Copilot config" "<copilot>/ settings, hook, MCP entry, instructions" step_apply_copilot
   add_step "Write manifest" "<config>/agentry/install-manifest.json" step_manifest
   add_step "Verify" "nothing" step_verify
 }
@@ -458,8 +499,25 @@ next_steps() {
   done
 }
 
+# ask_trust: in the menu, when copilot is selected and no --trust was given, ask for folders (one per line, empty line ends)
+ask_trust() {
+  has_part copilot || return 0
+  [ -n "${MENU_FD:-}" ] && [ -z "$TRUST_DIRS" ] && [ "$YES" != true ] || return 0
+  say "Folders Copilot should trust so repo hooks run (absolute paths, one per line, empty line to finish; none by default):"
+  while :; do
+    ask "  folder: "
+    [ -n "$ANSWER" ] || break
+    case "$ANSWER" in
+      /*) TRUST_DIRS="${TRUST_DIRS:+$TRUST_DIRS
+}$ANSWER" ;;
+      *) say "  ${RED}not an absolute path, stopping${NC}"; break ;;
+    esac
+  done
+}
+
 do_install() {
   [ -n "$SEL" ] || die_usage "choose parts with --all or --only <part>"
+  ask_trust
   build_install_steps
   print_plan
   run_steps || return 1
@@ -489,6 +547,28 @@ part_status() {
         if ! cm_wired; then status_line "${YELLOW}~${NC}" "$p" "partial" "$detail; not wired: run setup install --only context-mode"; return 0; fi
       fi
       status_line "${GREEN}${G_OK}${NC}" "$p" "installed" "$detail" ;;
+    copilot)
+      local cjs
+      if [ -n "$SOURCE_DIR" ] && cjs="$(mf config-status copilot 2>/dev/null)" && [ -n "$cjs" ]; then
+        node -e 'const s = JSON.parse(process.argv[1]);
+          if (!s.recorded) process.exit(3);
+          const bad = s.missing.length + s.changed.length;
+          console.log((bad === 0 ? "installed" : s.present === 0 ? "missing" : "partial") + "|" + s.present + "/" + s.total + " entries present" +
+            (s.missing.length ? "; missing: " + s.missing.join(", ") : "") + (s.changed.length ? "; changed since install: " + s.changed.join(", ") : ""));' "$cjs" > "$TMP_ROOT/cop.status" 2>/dev/null && {
+          local cst det2
+          cst="$(cut -d'|' -f1 "$TMP_ROOT/cop.status")"; det2="$(cut -d'|' -f2- "$TMP_ROOT/cop.status")"
+          case "$cst" in
+            installed) status_line "${GREEN}${G_OK}${NC}" copilot installed "$det2" ;;
+            missing) status_line "${YELLOW}${G_SKIP}${NC}" copilot missing "$det2" ;;
+            *) status_line "${YELLOW}~${NC}" copilot partial "$det2" ;;
+          esac
+          return 0; }
+      fi
+      if [ -d "$(copilot_dir)" ]; then
+        status_line "${YELLOW}${G_SKIP}${NC}" copilot missing "nothing recorded; run setup install --only copilot"
+      else
+        status_line "${YELLOW}${G_SKIP}${NC}" copilot missing "Copilot not found"
+      fi ;;
     config)
       local js
       if [ -n "$SOURCE_DIR" ] && js="$(mf config-status 2>/dev/null)" && [ -n "$js" ]; then
@@ -551,6 +631,21 @@ step_remove_config() {
   [ "$rc" -eq 0 ] || return 1
   if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
   mf forget config || return 1
+}
+
+step_remove_copilot() {
+  has_part copilot || { STEP_REASON="not selected"; return 3; }
+  if ! manifest_has copilot; then STEP_REASON="not installed (nothing recorded by setup)"; return 3; fi
+  ensure_source || return 1
+  local flag="--write" out rc=0
+  [ "$DRY_RUN" = true ] && flag=""
+  show_cmd node "$SOURCE_DIR/scripts/apply-global.mjs" --remove "$(manifest_file)" --part copilot "${flag:-(preview)}"
+  # shellcheck disable=SC2086
+  out="$(node "$SOURCE_DIR/scripts/apply-global.mjs" --remove "$(manifest_file)" --part copilot $flag </dev/null 2>&1)" || rc=$?
+  printf '%s\n' "$out" | sed 's/^/    /'
+  [ "$rc" -eq 0 ] || return 1
+  if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
+  mf forget copilot || return 1
 }
 
 step_remove_trail() {
@@ -660,6 +755,7 @@ do_uninstall() {
   make_tmp
   if [ "$DRY_RUN" != true ]; then ensure_source || return 1; fi
   add_step "Remove config entries" "only what the manifest lists and that still matches" step_remove_config
+  add_step "Remove Copilot config" "only what the manifest lists and that still matches" step_remove_copilot
   add_step "Remove trail wiring" "<config>/ hooks and skill of trail" step_remove_trail
   add_step "Remove context-mode wiring" "plugin registration" step_remove_context_mode
   add_step "Remove tools" "global CLIs, only with --remove-tools or a yes" step_remove_tools

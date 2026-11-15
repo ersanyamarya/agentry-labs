@@ -25,16 +25,23 @@ curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scrip
 curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- install --only trail --dry-run
 ```
 
-It installs four parts, each one optional (`--only <part>`):
+It installs five parts, each one optional (`--only <part>`):
 
 | Part | What it does |
 |---|---|
 | `agentry` | The agentry CLI (npm `@ersanyamarya/agentry-cli`) |
 | `trail` | The trail code-map CLI (npm `@trailhq/trail-code`), wired into Claude Code by its own `trail init` |
 | `context-mode` | The context-mode CLI (npm `context-mode`), wired as a Claude Code plugin by its own `setup` |
-| `config` | User-level rules, the settings fragment, the trail autobuild hook and status line, and the context7 MCP entry |
+| `copilot` | GitHub Copilot (CLI and VS Code), kept apart from Claude: `includeCoAuthoredBy: false`, the trail autobuild hook, the context7 MCP entry and the rules, all in `~/.copilot` (or `$COPILOT_HOME`). Runs only when the `copilot` CLI is on PATH and that folder exists |
+| `config` | User-level rules, the settings fragment (trail env and hooks, and `attribution` so Claude adds no AI lines to commits or PRs), the trail autobuild hook and status line, and the context7 MCP entry |
 
 Requirements: Node.js 24.15 or newer, plus Claude Code. Tools install at `@latest` with mise if it is on your PATH, else with `npm install -g`. Setup never installs mise or Node. It clones this repo into a temp folder and deletes it afterwards, records what it added in `<config>/agentry/install-manifest.json`, and backs up every file it changes. `uninstall` removes only what it recorded and keeps anything you edited. Use `--dry-run` to preview any command.
+
+`--trust <dir>` (repeatable) adds a folder to Copilot's trusted folders, so the hooks in that repo's `.github/hooks` and `.claude/settings.json` run in Copilot. Setup never sets `COPILOT_ALLOW_ALL`, and adds no folder unless you name it.
+
+### GitHub Copilot
+
+Copilot reads, per repo, the project `CLAUDE.md`, `.claude/rules`, `.claude/skills`, `.claude/agents`, `.mcp.json` and the hooks in `.claude/settings.json`. It does not read anything under `~/.claude`. The `copilot` part therefore mirrors the user-level pieces into `~/.copilot`: each rule in `rules/` becomes `instructions/<name>.instructions.md`, the trail hook goes to `hooks/`, and the context7 entry goes into `mcp-config.json`. The Claude files stay the source. Everything setup adds is recorded and backed up, and `uninstall` removes only what is still unchanged. The facts behind this are in [`cli/docs/copilot-config-sources.md`](cli/docs/copilot-config-sources.md). `agentry status` shows what Copilot loads for a folder, and `agentry doctor` flags Copilot problems (a hook that runs twice, a literal key in an MCP entry, the Co-authored-by trailer still on).
 
 Skills are not installed by setup. When it finishes, pick bundles with `agentry tui` (terminal UI) or `agentry ui` (web UI), or use `agentry catalog list`, `agentry catalog add <item>` and `agentry shelf on <group> [--global]`.
 
@@ -85,7 +92,7 @@ Build steps, scripts, the catalog source and every command are in [cli/README.md
 ## Project layout
 
 - `skills/`: Claude Code skills, one folder each
-- `rules/`: commit-attribution, context7 and trail rules (setup installs each as a user-level rule)
+- `rules/`: context7 and trail rules (setup installs each as a user-level rule)
 - `claude-md-files/`: reusable CLAUDE.md templates
 - `global/`: the settings fragment, MCP config and `helpers/` that the `config` part of `scripts/setup.sh` applies through `scripts/apply-global.mjs`
 - `scripts/`: `setup.sh` and its helpers, the bundle check, the skill drift check and the README cover generator
@@ -140,7 +147,6 @@ Skills tied to gentlemans-stack layers, generators and libs (Nx workspace and pa
 ### Rules (`.claude/rules/`)
 | Rule | Description |
 |------|-------------|
-| `commit-attribution` | No AI attribution lines in commits or pull requests |
 | `context7` | When and how to fetch current library docs with the Context7 MCP |
 | `trail` | Use the trail CLI before grep or reading whole files in indexed repos |
 

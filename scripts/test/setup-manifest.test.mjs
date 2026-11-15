@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -86,6 +86,24 @@ test("configStatus reports missing and changed entries", () => {
 	assert.equal(st.total, 5);
 	assert.deepEqual(st.changed.sort(), [file, "statusLine"].sort());
 	assert.deepEqual(st.missing.sort(), [join(dir, "gone"), "Stop hook", "env.A"].sort());
+});
+
+test("configStatus reads the copilot part from <home>/.copilot", () => {
+	const dir = cfg();
+	const home = cfg();
+	mkdirSync(join(home, ".copilot"));
+	writeFileSync(join(home, ".copilot", "settings.json"), JSON.stringify({ includeCoAuthoredBy: true }));
+	writeFileSync(join(home, ".copilot", "mcp-config.json"), JSON.stringify({ mcpServers: { context7: { type: "http" } } }));
+	assert.equal(configStatus(dir, home, "copilot").recorded, false);
+	record(dir, "copilot", {
+		settings: [{ key: "includeCoAuthoredBy", value: false }],
+		mcp: ["context7", "other"],
+	});
+	const st = configStatus(dir, home, "copilot");
+	assert.equal(st.total, 3);
+	assert.deepEqual(st.changed, ["includeCoAuthoredBy"]);
+	assert.deepEqual(st.missing, ["mcp other"]);
+	assert.equal(configStatus(dir, home).recorded, false);
 });
 
 test("forgetting the last part deletes the manifest and its empty folder", () => {

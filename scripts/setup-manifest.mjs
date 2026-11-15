@@ -10,7 +10,7 @@
 //   diff-settings <before> <after>  print the hook entries and top-level keys added between two settings.json files
 //   show                          print the manifest
 //   forget <part> [key...]        drop a part, or only those keys of it (after its uninstall)
-//   config-status                 print which recorded config entries are present, missing or changed (JSON)
+//   config-status [part]         print which recorded entries of part config (default) or copilot are present, missing or changed (JSON)
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
@@ -86,13 +86,18 @@ export function diffSettings(before, after) {
 	return { hooks, keys };
 }
 
-// Which entries recorded for the config part are still in place: files (and whether they changed), hooks, settings keys, MCP servers.
-export function configStatus(configDir, home = homedir()) {
-	const entries = load(configDir).parts.config;
+// Which entries recorded for the config (default) or copilot part are still in place: files (and whether they changed),
+// hooks, settings keys, MCP servers. The copilot part reads <home>/.copilot/settings.json and mcp-config.json.
+export function configStatus(configDir, home = homedir(), part = "config") {
+	const entries = load(configDir).parts[part];
 	if (!entries) return { recorded: false, total: 0, present: 0, missing: [], changed: [] };
 	const readJson = (p) => (existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : {});
-	const settings = readJson(join(configDir, "settings.json"));
-	const userConfig = readJson(process.env.CLAUDE_CONFIG_DIR ? join(configDir, ".claude.json") : join(home, ".claude.json"));
+	const copilot = part === "copilot";
+	const copilotDir = process.env.COPILOT_HOME ? resolve(process.env.COPILOT_HOME) : join(home, ".copilot");
+	const settings = readJson(copilot ? join(copilotDir, "settings.json") : join(configDir, "settings.json"));
+	const userConfig = readJson(
+		copilot ? join(copilotDir, "mcp-config.json") : process.env.CLAUDE_CONFIG_DIR ? join(configDir, ".claude.json") : join(home, ".claude.json"),
+	);
 	const missing = [];
 	const changed = [];
 	let total = 0;
@@ -141,7 +146,7 @@ function main(argv) {
 			console.log(JSON.stringify(load(configDir), null, 2));
 			return;
 		case "config-status":
-			console.log(JSON.stringify(configStatus(configDir)));
+			console.log(JSON.stringify(configStatus(configDir, homedir(), a ?? "config")));
 			return;
 		case "forget":
 			forget(configDir, a, args.slice(2));
