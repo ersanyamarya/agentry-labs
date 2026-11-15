@@ -1,5 +1,5 @@
 // Catalog tab: the agentry-labs skills (by bundle), agents, rules, CLAUDE.md files and MCP servers. f fetches (or updates)
-// the cached clone, i installs the selected item (o: into this project, for agents and MCP servers), u overwrites an
+// the cached clone, a adds the selected item (an agent or MCP server asks: all projects or this project), u overwrites an
 // outdated installed one with the catalog's copy (an MCP server: its args and missing env keys), x removes an installed skill, agent or rule. Each is previewed and waits for y.
 
 import { messages } from "@agentry/core/messages";
@@ -10,7 +10,7 @@ import { startRemove } from "../remove-flow.js";
 import { catalogKeys, catalogRows } from "../rows.js";
 import { useIcons } from "../theme.js";
 import type { Row, TabProps } from "../types.js";
-import { useFlow } from "../use-flow.js";
+import { type Step, useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
 import { Panes } from "./list.js";
 
@@ -71,7 +71,7 @@ export const CatalogTab = ({
   // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
   const nameOf = () => itemOf(row!).slice(itemOf(row!).indexOf("/") + 1);
 
-  const startAdd = async (project: boolean) => {
+  const addStep = async (project: boolean): Promise<Step> => {
     // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
     const current = row!;
     const names = [itemOf(current)];
@@ -81,7 +81,7 @@ export const CatalogTab = ({
       project,
       dryRun: true,
     });
-    flow.begin({
+    return {
       kind: "confirm",
       title:
         current.itemKind === "skill"
@@ -91,6 +91,23 @@ export const CatalogTab = ({
       appliable: preview.ok,
       apply: () => api.addFromCatalog({ dir, names, project }),
       done: text.addDone(nameOf(), DONE[current.itemKind ?? ""]),
+    };
+  };
+
+  // a: skills, rules and CLAUDE.md add in one step (the preview says where); agents and MCP servers ask where first.
+  const startAdd = async () => {
+    // biome-ignore lint/style/noNonNullAssertion: the caller only reaches this path when the field is set
+    const current = row!;
+    if (current.itemKind !== "agent" && current.itemKind !== "mcp") {
+      flow.begin(await addStep(false));
+      return;
+    }
+    flow.begin({
+      kind: "pick",
+      title: text.addTitleMenu(current.item),
+      intro: [text.addIntro(current.item)],
+      options: [text.addAllProjects, text.addThisProject],
+      onPick: (label: string) => addStep(label === text.addThisProject),
     });
   };
 
@@ -110,7 +127,7 @@ export const CatalogTab = ({
     });
   };
 
-  // Marked rows (m): i adds, u updates, x removes all of them (the ones it applies to) after one preview and one y.
+  // Marked rows (*): a adds, u updates, x removes all of them (the ones it applies to) after one preview and one y.
   const catalogMarked = (keep: (one: Row) => boolean) =>
     list.marked.filter((one) => one.kind === "catalog" && keep(one));
   const bulkCatalog = async (
@@ -186,7 +203,7 @@ export const CatalogTab = ({
       } else if (input === "f") {
         fetchCatalog();
       } else if (
-        input === "i" &&
+        input === "a" &&
         catalogMarked((one) => !(one.itemKind === "skill" && one.installed))
           .length > 0
       ) {
@@ -232,16 +249,13 @@ export const CatalogTab = ({
             api.removeSkill({ dir, target: one.target ?? "", backup }),
           done: flows.removedMany(backup),
         });
-      } else if (input === "i" && row?.kind === "catalog") {
+      } else if (input === "a" && row?.kind === "catalog") {
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row.itemKind === "skill" && row.installed
           ? notify(text.alreadyInstalled(row.item, row.installed))
-          : startAdd(false);
-      } else if (input === "o" && row?.kind === "catalog") {
-        // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
-        row.itemKind === "agent" || row.itemKind === "mcp"
-          ? startAdd(true)
-          : notify(text.projectOnlyHint);
+          : startAdd();
+      } else if ((input === "i" || input === "o") && row?.kind === "catalog") {
+        notify(text.nowPressA);
       } else if (input === "u" && row?.kind === "catalog") {
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row.outdated

@@ -52,11 +52,11 @@ describe("Catalog tab", () => {
     assert.match(ui.rail(), /Catalog\s+2/);
   });
 
-  test("i previews and y adds the skill to the library, not loaded; it then shows where it is", async () => {
+  test("a previews and y adds the skill to the library, not loaded; it then shows where it is", async () => {
     await ui.press("7", "f");
     await ui.until(/web bundle/);
     await ui.moveTo(/^>\s+\S\s+alpha/);
-    await ui.press("i");
+    await ui.press("a");
     await ui.until(/Add alpha to the library \(preview\)/);
     assert.match(ui.frame()!, /would add alpha to library bundle web/);
     assert.ok(
@@ -71,11 +71,23 @@ describe("Catalog tab", () => {
     await ui.until(/alpha\s+~\d+\s+● library\/web/);
   });
 
+  test("the retired keys i and o show one notice naming a, and the footer offers a", async () => {
+    await ui.press("7", "f");
+    await ui.until(/web bundle/);
+    await ui.moveTo(/^>\s+\S\s+alpha/);
+    await ui.until(/\ba add/);
+    await ui.press("i");
+    await ui.until(/Adding now uses a/);
+    await ui.press("o");
+    await ui.until(/Adding now uses a/);
+    assert.ok(!existsSync(join(ui.fx.configDir, "skill-shelf/web")));
+  });
+
   test("x on an installed skill previews, y deletes it and keeps a copy", async () => {
     await ui.press("7", "f");
     await ui.until(/web bundle/);
     await ui.moveTo(/^>\s+\S\s+alpha/);
-    await ui.press("i");
+    await ui.press("a");
     await ui.until(/Add alpha/);
     await ui.press("y");
     await ui.until(/alpha\s+~\d+\s+● library\/web/);

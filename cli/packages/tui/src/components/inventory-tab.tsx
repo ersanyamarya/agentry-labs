@@ -163,8 +163,10 @@ export const InventoryTab = ({
         openFile(row?.file);
       } else if (input === " " && row?.plugin) {
         startPluginToggle({ api, dir, flow, row });
-      } else if (input === "i" && canInstall) {
+      } else if (input === "a" && canInstall) {
         startPluginInstall({ api, dir, flow });
+      } else if (input === "i" && canInstall) {
+        notify(text.nowPressA);
       } else if (input === "x" && row?.plugin) {
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         (row.pluginScopes ?? []).length > 0

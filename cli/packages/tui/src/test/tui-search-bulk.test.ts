@@ -134,7 +134,7 @@ describe("* marks and bulk actions", () => {
     ui = createUi({ personal: ["notes", "todo"] });
     await ui.ready();
     await ui.moveTo(/^>\s+notes/);
-    await ui.press("*", KEYS.down, "*", "x");
+    await ui.press("*", KEYS.down, "*", "X");
     await ui.until(/Remove skills: 2 of 2/);
     await ui.press("n");
     await ui.until(/Cancelled; nothing changed/);
@@ -156,7 +156,7 @@ describe("* marks and bulk actions", () => {
     );
   });
 
-  test("x on marked Backups rows previews and deletes only the marked ones", async () => {
+  test("X on marked Backups rows previews and deletes only the marked ones", async () => {
     ui = createUi({ personal: ["notes", "todo", "keep"] });
     await ui.ready();
     for (const name of ["notes", "todo", "keep"]) {
@@ -171,8 +171,8 @@ describe("* marks and bulk actions", () => {
     const backups = join(ui.fx.configDir, "backups/agentry/removed");
     assert.equal(readdirSync(backups).length, 3);
     await ui.press("9");
-    await ui.until(/d (delete 30\+ days old|prune)/);
-    await ui.press("*", KEYS.down, "*", "x");
+    await ui.until(/d (delete 30\+ days old|delete old)/);
+    await ui.press("*", KEYS.down, "*", "X");
     await ui.until(/Delete 2 backups \(preview\)/);
     await ui.press("y");
     await ui.until(/Deleted those backups/);

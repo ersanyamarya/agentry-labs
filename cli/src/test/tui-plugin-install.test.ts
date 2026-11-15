@@ -30,8 +30,10 @@ const enabled = () =>
     .enabledPlugins;
 
 describe("Plugins tab: install and uninstall", () => {
-  test("the footer offers i install and x uninstall", () => {
-    assert.match(ui.frame()!, /i install/);
+  test("the footer offers a install and x uninstall; the retired i names a", async () => {
+    assert.match(ui.frame()!, /a install/);
+    await ui.press("i");
+    await ui.until(/Installing a plugin now uses a/);
     assert.match(ui.frame()!, /x uninstall/);
   });
 
@@ -57,14 +59,14 @@ describe("Plugins tab: install and uninstall", () => {
     assert.equal(enabled()["demo@mkt"], undefined);
   });
 
-  test("i asks for name@marketplace, rejects a bare name, then previews per scope and y installs", async () => {
-    await ui.press("i");
+  test("a asks for name@marketplace, rejects a bare name, then previews per scope and y installs", async () => {
+    await ui.press("a");
     await ui.until(/Plugin \(name@marketplace\): _/);
     await ui.press("q", "x", KEYS.enter);
     await ui.until(/Type it as name@marketplace/);
     assert.deepEqual(fake.argv(), []);
 
-    await ui.press("i");
+    await ui.press("a");
     await ui.until(/Plugin \(name@marketplace\): _/);
     await ui.press(..."other@mkt".split(""), KEYS.enter);
     await ui.until(/Where should it be installed/);
@@ -85,7 +87,7 @@ describe("Plugins tab: install and uninstall", () => {
   });
 
   test("installing something already installed shows the refusal and cannot be applied", async () => {
-    await ui.press("i");
+    await ui.press("a");
     await ui.press(..."demo@mkt".split(""), KEYS.enter, KEYS.enter);
     await ui.until(/already installed at user scope/);
     await ui.press("y");

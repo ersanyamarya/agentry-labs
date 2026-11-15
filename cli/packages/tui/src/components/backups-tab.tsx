@@ -1,5 +1,5 @@
 // Backups tab: the fix sets and removed-skill copies under ~/.claude/backups/agentry. u moves a removed skill back,
-// x deletes the selected backup, d deletes everything 30+ days old. Each is previewed (lib/backups.ts's own dry run)
+// X deletes the selected backup, d deletes everything 30+ days old. Each is previewed (lib/backups.ts's own dry run)
 // and waits for y; c copies the preview.
 
 import { messages } from "@agentry/core/messages";
@@ -97,7 +97,7 @@ export const BackupsTab = ({
           apply: (one) => api.restoreBackup({ dir, id: one.backup ?? "" }),
           done: text.restoredMany,
         });
-      } else if (input === "x" && list.marked.some((one) => one.backup)) {
+      } else if (input === "X" && list.marked.some((one) => one.backup)) {
         confirmDelete(
           {
             ids: list.marked.flatMap((one) => (one.backup ? [one.backup] : [])),
@@ -109,6 +109,8 @@ export const BackupsTab = ({
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row?.restorable ? startRestore() : notify(text.restoreHint);
       } else if (input === "x") {
+        notify(text.nowPressX);
+      } else if (input === "X") {
         // biome-ignore lint/suspicious/noUnusedExpressions: short-circuit or ternary used as a statement, kept as written
         row?.backup
           ? confirmDelete(

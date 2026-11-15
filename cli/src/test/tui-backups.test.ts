@@ -34,7 +34,7 @@ describe("remove with and without a copy", () => {
 
   test("x keeps the copy and the footer offers X", async () => {
     await ui.moveTo(/^>\s+notes/);
-    assert.match(ui.frame()!, /X (remove, no copy|no copy)/);
+    assert.match(ui.frame()!, /X delete \(no copy\)/);
     await removeNotes();
     assert.match(ui.frame()!, /copy kept in/);
     await ui.press("y");
@@ -61,7 +61,7 @@ describe("Backups tab", () => {
     await ui.until(/notes \(global\)\s+removed\s+\d+ B\s+today/);
     assert.match(ui.rail(), /Backups\s+1/);
     assert.match(ui.frame()!, /BACKUP\s+KIND\s+SIZE\s+AGE/);
-    await ui.until(/u restore {3}x delete/);
+    await ui.until(/u restore {3}X delete \(no copy\)/);
   });
 
   test("u previews, n cancels, y moves the skill back and the row goes", async () => {
@@ -84,7 +84,7 @@ describe("Backups tab", () => {
     await ui.until(/\(no backups\)/);
   });
 
-  test("x previews the delete of a fix set with the undo warning; y deletes it", async () => {
+  test("X previews the delete of a fix set with the undo warning; y deletes it; the retired x shows a notice naming X", async () => {
     put(
       join(backupsDir(), "2026-10-01T00-00-00-000Z/manifest.json"),
       JSON.stringify({
@@ -98,6 +98,9 @@ describe("Backups tab", () => {
     await ui.until(/fix set/);
     assert.doesNotMatch(ui.frame()!, /u restore/);
     await ui.press("x");
+    await ui.until(/Deleting a backup now uses X/);
+    assert.ok(existsSync(join(backupsDir(), "2026-10-01T00-00-00-000Z")));
+    await ui.press("X");
     await ui.until(/Delete 2026-10-01T00-00-00-000Z \(preview\)/);
     assert.match(ui.frame()!, /fix --undo can no longer restore it/);
     assert.ok(

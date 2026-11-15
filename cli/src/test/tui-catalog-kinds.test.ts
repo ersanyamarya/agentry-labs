@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "vitest";
 import {
   createUi,
+  KEYS,
   stripAnsi,
 } from "../../packages/tui/src/test/helpers/tui.js";
 
@@ -80,8 +81,8 @@ describe("Catalog tab beyond skills", () => {
     const frame = stripAnsi(ui.frame()!);
     assert.match(frame, /Agents/);
     assert.match(ui.rail(), /Catalog\s+6/);
-    assert.match(ui.frame()!, /\bi add/);
-    assert.match(ui.frame()!, /\bo (add to )?this project/);
+    assert.match(ui.frame()!, /\ba add/);
+    assert.doesNotMatch(ui.frame()!, /\bo (add to )?this project/);
     await ui.moveTo(/^>\s+\S\s+style/);
     await ui.moveTo(/^>\s+\S\s+BASIC_CLAUDE/);
     await ui.moveTo(/^>\s+\S\s+docs/);
@@ -89,9 +90,11 @@ describe("Catalog tab beyond skills", () => {
     assert.match(ui.frame()!, /item: mcp\/docs/);
   });
 
-  test("i on an agent previews, c copies, y adds it to ~/.claude/agents and the row shows where", async () => {
+  test("a on an agent asks all projects or this project; all projects previews, c copies, y adds it to ~/.claude/agents and the row shows where", async () => {
     await ui.moveTo(/^>\s+\S\s+helper/);
-    await ui.press("i");
+    await ui.press("a");
+    await ui.until(/Where should agent\/helper go\?/);
+    await ui.press(KEYS.enter);
     await ui.until(/Add agent\/helper \(preview\)/);
     await ui.until(/would add agent\/helper to ~\/.claude\/agents/);
     assert.equal(
@@ -108,9 +111,11 @@ describe("Catalog tab beyond skills", () => {
     await ui.until(/helper\s+~\d+\s+● all projects/);
   });
 
-  test("o adds an agent to this project only", async () => {
+  test("a then the second choice adds an agent to this project only", async () => {
     await ui.moveTo(/^>\s+\S\s+helper/);
-    await ui.press("o");
+    await ui.press("a");
+    await ui.until(/Add to this project/);
+    await ui.press(KEYS.down, KEYS.enter);
     await ui.until(/Add agent\/helper to this project \(preview\)/);
     await ui.press("y");
     await ui.until(/Added helper as an agent/);
@@ -122,11 +127,14 @@ describe("Catalog tab beyond skills", () => {
     await ui.until(/helper\s+~\d+\s+● this project/);
   });
 
-  test("a rule goes to ~/.claude/rules; o explains it is for agents and MCP servers", async () => {
+  test("a rule goes to ~/.claude/rules in one step; the retired o and i show a notice naming a", async () => {
     await ui.moveTo(/^>\s+\S\s+style/);
+    assert.match(ui.frame()!, /\ba add/);
     await ui.press("o");
-    await ui.until(/o adds an agent or an MCP server to this project only/);
+    await ui.until(/Adding now uses a/);
     await ui.press("i");
+    await ui.until(/Adding now uses a/);
+    await ui.press("a");
     await ui.until(/Add rule\/style \(preview\)/);
     await ui.press("y");
     await ui.until(/Added style to ~\/.claude\/rules/);
@@ -136,7 +144,7 @@ describe("Catalog tab beyond skills", () => {
   test("a CLAUDE.md file is refused when the project has one, added when it has none", async () => {
     await ui.moveTo(/^>\s+\S\s+BASIC_CLAUDE/);
     write(join(ui.fx.repo, "CLAUDE.md"), "mine\n");
-    await ui.press("i");
+    await ui.press("a");
     await ui.until(/Add claude-md\/BASIC_CLAUDE \(preview\)/);
     await ui.until(/already has .*CLAUDE.md; not overwriting/);
     await ui.until(/Nothing can be applied here/);
@@ -145,7 +153,7 @@ describe("Catalog tab beyond skills", () => {
     await ui.press("n");
     writeFileSync(join(ui.fx.repo, "CLAUDE.md"), "");
     execFileSync("rm", [join(ui.fx.repo, "CLAUDE.md")]);
-    await ui.press("i");
+    await ui.press("a");
     await ui.until(
       /would add claude-md\/BASIC_CLAUDE to this project as CLAUDE.md/
     );
@@ -157,9 +165,11 @@ describe("Catalog tab beyond skills", () => {
     );
   });
 
-  test("o on an MCP server previews with the secret masked, y writes .mcp.json", async () => {
+  test("a on an MCP server, then this project, previews with the secret masked, y writes .mcp.json", async () => {
     await ui.moveTo(/^>\s+\S\s+docs/);
-    await ui.press("o");
+    await ui.press("a");
+    await ui.until(/Where should mcp\/docs go\?/);
+    await ui.press(KEYS.down, KEYS.enter);
     await ui.until(/Add mcp\/docs to this project \(preview\)/);
     await ui.until(/Add project MCP server docs/);
     assert.ok(!ui.frame()!.includes!(SECRET), "the secret never shows");
@@ -176,7 +186,7 @@ describe("Catalog tab beyond skills", () => {
 
   test("an outdated item shows it; u previews the files, y overwrites and saves the old copy", async () => {
     await ui.moveTo(/^>\s+\S\s+helper/);
-    await ui.press("i");
+    await ui.press("a", KEYS.enter);
     await ui.until(/Add agent/);
     await ui.press("y");
     await ui.until(/helper\s+~\d+\s+● all projects\s*$/m);
@@ -243,7 +253,7 @@ describe("Catalog tab beyond skills", () => {
     await ui.moveTo(/^>\s+\S\s+helper/);
     await ui.press("x");
     await ui.until(/helper is not added/);
-    await ui.press("i");
+    await ui.press("a", KEYS.enter);
     await ui.until(/Add agent/);
     await ui.press("y");
     await ui.until(/helper\s+~\d+\s+● all projects\s*$/m);
@@ -262,7 +272,7 @@ describe("Catalog tab beyond skills", () => {
     assert.equal(existsSync(configFile("backups/agentry/removed")), true);
 
     await ui.moveTo(/^>\s+\S\s+style/);
-    await ui.press("i");
+    await ui.press("a");
     await ui.until(/Add rule/);
     await ui.press("y");
     await ui.until(/style\s+~\d+\s+● all projects/);

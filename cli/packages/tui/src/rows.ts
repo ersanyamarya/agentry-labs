@@ -108,8 +108,8 @@ export const skillKeys = (row: Row | undefined): KeyHint[] => {
     return [
       ...both,
       ["m", K.skills.move],
-      ["x", K.removeCopyKept, K.removeCopyKeptShort],
-      ["X", K.removeNoCopy, K.removeNoCopyShort],
+      ["x", K.removeCopyKept],
+      ["X", K.removeNoCopy],
       ["e", K.openFile, K.openFileShort],
     ];
   }
@@ -119,16 +119,16 @@ export const skillKeys = (row: Row | undefined): KeyHint[] => {
   if (row?.projectOnly) {
     return [
       ["m", K.skills.move],
-      ["x", K.removeCopyKept, K.removeCopyKeptShort],
-      ["X", K.removeNoCopy, K.removeNoCopyShort],
+      ["x", K.removeCopyKept],
+      ["X", K.removeNoCopy],
       ["e", K.openFile, K.openFileShort],
     ];
   }
   if (row?.shelvable) {
     return [
       ["m", K.skills.move],
-      ["x", K.removeCopyKept, K.removeCopyKeptShort],
-      ["X", K.removeNoCopy, K.removeNoCopyShort],
+      ["x", K.removeCopyKept],
+      ["X", K.removeNoCopy],
       ["e", K.openFile, K.openFileShort],
     ];
   }
@@ -369,7 +369,7 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
   return rows;
 };
 
-// Agents and MCP servers also install to this project (o); an outdated skill, agent or rule can be updated (u).
+// Agents and MCP servers ask where to add (a: all projects or this project); an outdated skill, agent or rule can be updated (u).
 export const catalogKeys = (row: Row | undefined): KeyHint[] => {
   if (row?.kind !== "catalog") {
     return [["f", K.catalog.fetch, K.catalog.fetchShort]];
@@ -377,25 +377,24 @@ export const catalogKeys = (row: Row | undefined): KeyHint[] => {
   const where = row.itemKind === "agent" || row.itemKind === "mcp";
   return [
     [
-      "i",
+      "a",
       row.itemKind === "skill"
         ? K.catalog.addToLibrary
         : where
-          ? K.catalog.addAllProjects
-          : K.catalog.add,
+          ? K.catalog.addMenu
+          : row.itemKind === "rule"
+            ? K.catalog.addRule
+            : K.catalog.addClaudeMd,
       K.catalog.add,
     ],
-    ...(where
-      ? [["o", K.catalog.addToProject, K.catalog.addToProjectShort] as KeyHint]
-      : []),
     ...(row.outdated ? [["u", K.update] as KeyHint] : []),
     ...((row.itemKind === "skill" ||
       row.itemKind === "agent" ||
       row.itemKind === "rule") &&
     row.installed
       ? ([
-          ["x", K.removeCopyKept, K.removeCopyKeptShort],
-          ["X", K.removeNoCopy, K.removeNoCopyShort],
+          ["x", K.removeCopyKept],
+          ["X", K.removeNoCopy],
         ] as KeyHint[])
       : []),
     ["f", K.catalog.updateCatalog, K.catalog.fetchShort],
@@ -527,8 +526,8 @@ export const catalogRows = (data: Data, icons: Icons = iconsFor({})): Row[] => {
 export const ruleKeys = (row: Row | undefined): KeyHint[] =>
   row?.ruleFile
     ? [
-        ["x", K.removeCopyKept, K.removeCopyKeptShort],
-        ["X", K.removeNoCopy, K.removeNoCopyShort],
+        ["x", K.removeCopyKept],
+        ["X", K.removeNoCopy],
         ["e", K.openFile, K.openFileShort],
       ]
     : [];
@@ -658,7 +657,7 @@ export const backupKeys = (row: Row | undefined): KeyHint[] => [
   ...(row?.backup
     ? [
         ...(row.restorable ? [["u", K.backups.restore] as KeyHint] : []),
-        ["x", K.backups.delete] as KeyHint,
+        ["X", K.removeNoCopy] as KeyHint,
       ]
     : []),
   ...BACKUPS_KEYS,
@@ -907,7 +906,7 @@ export const hookRows = (data: Data): Row[] => [
 
 export const pluginKeys = (row: Row | undefined): KeyHint[] => [
   ["space", K.plugins.toggle, K.plugins.toggleShort],
-  ["i", K.plugins.install, K.plugins.installShort],
+  ["a", K.plugins.install, K.plugins.installShort],
   ...((row?.pluginScopes?.length ?? 0) > 0
     ? [["x", K.plugins.uninstall] as KeyHint]
     : []),

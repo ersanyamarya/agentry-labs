@@ -75,7 +75,7 @@ test("the footer lists only the keys of the current tab", async () => {
   await ui.press("4");
   await ui.until(/space on\/off/);
   await ui.press("8");
-  await ui.until(/enter fix {3}u undo {3}e edit/);
+  await ui.until(/enter preview {3}u undo {3}e edit/);
   assert.doesNotMatch(ui.frame()!, /space on\/off/);
 });
 
@@ -100,7 +100,7 @@ test("the footer follows the selected row: a skill for all projects offers move 
   await ui.moveTo(/^>\s+notes/);
   assert.match(
     ui.frame()!,
-    /m move {3}x remove {3}X (remove, no copy|no copy) {3}e (open file|edit)/
+    /m move {3}x remove \(copy kept\) {3}X delete \(no copy\) {3}e (open file|edit)/
   );
   assert.doesNotMatch(ui.frame()!, /space project/);
 });
@@ -128,7 +128,7 @@ test("the footer ends in `tab sidebar   ? help`, right-aligned, and has no rule 
   const last = stripAnsi(ui.frame()!).trimEnd().split("\n").at(-1) ?? "";
   assert.match(
     last,
-    /^space on\/off {3}i install.* {3}tab sidebar {3}\? help$/
+    /^space on\/off {3}a install.* {3}tab sidebar {3}\? help$/
   );
   assert.doesNotMatch(last, /│/);
   assert.equal([...last].length, 102);
