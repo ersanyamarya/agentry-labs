@@ -1,4 +1,4 @@
-// Share a Claude user item with Copilot, or turn "Copilot in this repo" on or off (docs/agentry-copilot-share-plan.md). Same
+// Share a Claude user item with Copilot, or turn "Copilot in this repo" on or off (docs/decisions.md). Same
 // shape as mcp-flow.tsx: the data facade's previewCopilot, a confirm step, then applyCopilot on y. Sharing applies to all
 // projects, and the preview says so. `agentry fix --undo` restores what changed.
 

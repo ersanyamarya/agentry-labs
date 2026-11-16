@@ -1,5 +1,5 @@
 // Translate a Claude user MCP server (top-level `mcpServers` in ~/.claude.json) into a Copilot entry for
-// <ch>/mcp-config.json that holds no literal value. Plan: docs/agentry-copilot-share-plan.md (Phase 1, MCP translation).
+// <ch>/mcp-config.json that holds no literal value. Decisions: docs/decisions.md.
 // Copilot facts: cli/docs/copilot-config-sources.md ("MCP", "${VAR} expansion").
 //
 //   local   { type: "local", command, args?, env?, tools: ["*"] }       (Claude: stdio or no type)

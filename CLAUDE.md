@@ -34,6 +34,7 @@ Remember, before writing any code:
 │   └── BASIC_CLAUDE.md
 ├── rules/               # context7, trail (setup installs each as a user-level rule, and mirrors it to ~/.copilot/instructions)
 ├── global/              # settings.fragment.json (env, hooks, status line, attribution), mcp.json and helpers/, applied by the `config` part of setup.sh through scripts/apply-global.mjs (trail and context-mode wire themselves); global/copilot/ holds the Copilot settings fragment, MCP entry and trail hook for the `copilot` part
+├── docs/decisions.md    # One decision log kept from implemented plans (the plans themselves are deleted; see git history)
 ├── bundles.tsv          # tags each component with one of five topic bundles: general, web, flutter, flutter-assets, mongodb
 ├── scripts/             # setup.sh (context-mode needs Node 24.15+; the copilot part also wires context-mode for copilot-cli), setup-manifest.mjs, check-bundles.mjs, utils.sh, apply-global.mjs, skill-drift.mjs, test/, image-gen-tools/ (README cover generator)
 ├── cli/                 # agentry CLI and Ink terminal UI, in TypeScript (src/bin; npm workspaces packages/core, packages/tui and packages/web; design docs in cli/docs; `agentry copilot` shares Claude user items with Copilot, by choice). See cli/README.md and cli/CLAUDE.md

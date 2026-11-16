@@ -1,5 +1,5 @@
 // Share Claude user items with GitHub Copilot, and take them back. Sharing is global (Copilot's user folder <ch>), so it
-// applies to all projects. Plan: docs/agentry-copilot-share-plan.md (Phase 1). Copilot facts: cli/docs/copilot-config-sources.md.
+// applies to all projects. Decisions: docs/decisions.md. Copilot facts: cli/docs/copilot-config-sources.md.
 //
 // A share is one of:
 //   link   <ch>/skills/<name> or <ch>/agents/<file>.md, a symlink to the Claude item (a skill: its realpath, Decision 3)

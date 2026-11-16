@@ -1,4 +1,4 @@
-// Sharing Claude user items with Copilot, and "Copilot in this repo" (docs/agentry-copilot-share-plan.md). One hook per screen:
+// Sharing Claude user items with Copilot, and "Copilot in this repo" (docs/decisions.md). One hook per screen:
 // the Copilot column (a checkbox per row), the C and T keys, and the preview dialog both open. Nothing shows unless Copilot's
 // folder exists and it is signed in. Sharing applies to all projects, and the preview says so; `agentry fix --undo` reverts.
 
