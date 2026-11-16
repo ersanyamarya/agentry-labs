@@ -15,6 +15,9 @@ const terms = {
   // MCP servers, hooks and plugins are really on or off.
   on: "on",
   off: "off",
+  // Claude user items given to GitHub Copilot: shared or not shared (always for all projects).
+  shared: "shared",
+  notShared: "not shared",
 };
 // Claude Code plugins are really installed, unlike catalog items.
 const installed = "installed";
@@ -36,6 +39,8 @@ const {
   notAdded,
   on,
   off,
+  shared,
+  notShared,
 } = terms;
 const skillsForAll = `Skills for ${allProjects}`;
 const skillsForProject = `Skills for ${thisProject} only`;
@@ -1466,5 +1471,53 @@ export const en = {
       deleted: (count: number) =>
         `deleted ${count} backup${count === 1 ? "" : "s"}`,
     },
+  },
+  // Sharing Claude user items with GitHub Copilot (copilot-share.ts). Sharing is global: it applies to all projects.
+  copilot: {
+    states: {
+      shared: capital(shared),
+      notShared: capital(notShared),
+      other: "Something else is there",
+      setup: "Added by setup",
+      repoWins: "This repo's own wins",
+    },
+    kinds: { skill: "skill", agent: "agent", rule: "rule", mcp: "MCP server" },
+    forAllProjects: `${capital(shared)} with Copilot for ${allProjects}`,
+    describeShare: (kind: string, name: string, path: string) =>
+      `share the ${kind} ${name} with Copilot for ${allProjects}: ${path}`,
+    describeUnshare: (kind: string, name: string, path: string) =>
+      `stop sharing the ${kind} ${name} with Copilot: ${path}`,
+    describeRecord: (file: string) => `record what agentry shared in ${file}`,
+    sharedDone: (kind: string, name: string) =>
+      `${capital(shared)} the ${kind} ${name} with Copilot for ${allProjects}. Undo with agentry fix --undo.`,
+    unsharedDone: (kind: string, name: string) =>
+      `The ${kind} ${name} is no longer ${shared} with Copilot. Undo with agentry fix --undo.`,
+    alreadyShared: (kind: string, name: string) =>
+      `The ${kind} ${name} is already ${shared} with Copilot; nothing to do.`,
+    alreadyNotShared: (kind: string, name: string) =>
+      `The ${kind} ${name} is ${notShared} with Copilot; nothing to do.`,
+    noCopilot: (dir: string) =>
+      `Copilot not found (${dir} does not exist); nothing written.`,
+    badName: (name: string) => `"${name}" is not a valid name.`,
+    noUserSkill: (name: string, dir: string) =>
+      `No skill ${name} in ${dir} (or its link is broken).`,
+    kindNotYet: (kind: string) =>
+      `Sharing a ${kind} with Copilot is not available yet.`,
+    taken: (path: string) =>
+      `${path} already exists and agentry did not create it; not touching it.`,
+    sharedElsewhere: (path: string, target: string) =>
+      `${path} is agentry's link to ${target}; unshare it first.`,
+    changed: (path: string) =>
+      `${path} changed since agentry shared it; not touching it.`,
+    setupOwned: (path: string) =>
+      `${path} was added by setup; remove it with setup.sh uninstall --only copilot.`,
+    insideClaude: (path: string) =>
+      `${path} resolves into Claude's own folder; not touching it.`,
+    outsideCopilot: (path: string) =>
+      `${path} is outside Copilot's folder; not touching it.`,
+    missingSource: (path: string) =>
+      `${path} does not exist; nothing to share.`,
+    repoWins: (kind: string, name: string) =>
+      `This repo has its own ${kind} ${name}; Copilot uses that one in this repo.`,
   },
 };

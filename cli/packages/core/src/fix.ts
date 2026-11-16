@@ -32,12 +32,19 @@
 //     linkTarget,    // kind "symlink" only: readlink of `path`, so undo can recreate the link
 //     mtimeMs, mode, sha256,   // of the original (sha256 null unless kind "file")
 //     writtenSha256,           // result "written" only: sha256 of the text the fix wrote (undo's conflict check)
+//     writtenLink,   // a link fix created `path` (kind "missing"): its target. Undo unlinks `path` only while lstat
+//                    // shows that same link; it never follows it.
+//     removed,       // true when a path fix removed `path` (kind "symlink" or "file"); undo puts it back
 //     gitTracked,    // true when `git ls-files` tracks the file (undo may prefer git), false otherwise
 //     ruleIds,       // fixes that touched it
 //     result,        // "pending" | "written" | "skipped" (changed on disk before write) | "failed" | "command"
 //   }],
 //   commands: [{ ruleId, command: [masked argv], cwd, exitCode }],
 // }
+//
+// Path fixes ({ ruleId, file, change: { link } | { unlink } | { remove }, describe }, see PathFix in types.ts) act on
+// `file` itself: it is looked at with lstat only (never realpath), so a link is created or removed, never followed.
+// They run before the text writes.
 //
 // Writes are atomic (temp file in the same folder, fsync, chmod to the old mode, rename). Every file is re-checked
 // (mtime + sha256) after confirm and right before its rename; a change since the preview means plan and preview again.
@@ -63,6 +70,8 @@ import {
   renameSync,
   rmSync,
   statSync,
+  symlinkSync,
+  unlinkSync,
   writeFileSync,
   writeSync,
 } from "node:fs";
@@ -84,6 +93,7 @@ import type {
   Fix,
   FixOptions,
   FixRunArgs,
+  PathFix,
   ReadError,
   RunCommand,
   TextFix,
@@ -98,9 +108,10 @@ const STRING_TOKEN = /"(?:[^"\\\n]|\\.)*"/g;
 
 export type SnapKind = "missing" | "file" | "directory" | "symlink" | "other";
 
-/** What a file looked like when planned. `text` is set for kind "file". */
+/** What a file looked like when planned. `text` is set for kind "file", `linkTarget` for a path snapshot of a link. */
 export interface Snapshot {
   kind: SnapKind;
+  linkTarget?: string;
   mode: number | null;
   mtimeMs: number | null;
   path: string;
@@ -119,9 +130,11 @@ export interface ManifestFile {
   mtimeMs: number | null;
   path: string;
   realPath: string;
+  removed?: boolean;
   result: "pending" | "written" | "skipped" | "failed" | "command";
   ruleIds: string[];
   sha256: string | null;
+  writtenLink?: string;
   writtenSha256?: string;
 }
 
@@ -172,6 +185,13 @@ interface PlanStep {
   snap?: Snapshot;
 }
 
+interface PlanPath {
+  done?: boolean;
+  entry?: ManifestFile;
+  item: { finding: Finding; fix: PathFix };
+  snap: Snapshot;
+}
+
 /** What `plan` found for one folder. A finding with no automatic fix carries the fix's reason when it gave one. */
 export interface Planned {
   commands: PlanStep[];
@@ -179,11 +199,14 @@ export interface Planned {
   errors: ReadError[];
   failures: { finding: Finding; reason: string }[];
   findings: Finding[];
+  /** Path fixes (create or remove a link, remove a file); absent when none was planned. */
+  links?: PlanPath[];
   unfixable: (Finding & { reason?: string })[];
 }
 
 const isUnfixable = (fix: Fix): fix is UnfixableFix =>
   typeof (fix as UnfixableFix).unfixable === "string";
+const isPathFix = (fix: Fix): fix is PathFix => "change" in fix;
 
 export const findingKey = (
   finding: Pick<Finding, "id" | "file" | "message">
@@ -248,6 +271,71 @@ const unchanged = (before: Snapshot): boolean => {
     now.mtimeMs === before.mtimeMs &&
     now.sha256 === before.sha256
   );
+};
+
+// What is at `file` itself, with lstat only: a link is reported as kind "symlink" with its target and never followed.
+// realPath is always `file`, so a backup entry, a write or a delete made from this snapshot stays on the path.
+export const pathSnapshot = (file: string): Snapshot => {
+  let stat: Stats;
+  try {
+    stat = lstatSync(file);
+  } catch {
+    return {
+      path: file,
+      realPath: file,
+      kind: "missing",
+      mtimeMs: null,
+      mode: null,
+      sha256: null,
+    };
+  }
+  const base = {
+    path: file,
+    realPath: file,
+    mtimeMs: stat.mtimeMs,
+    // biome-ignore lint/suspicious/noBitwiseOperators: masks the permission bits of a file mode
+    mode: stat.mode & 0o7777,
+    sha256: null,
+  };
+  if (stat.isSymbolicLink()) {
+    return { ...base, kind: "symlink", linkTarget: readlinkSync(file) };
+  }
+  if (stat.isFile()) {
+    const data = readFileSync(file);
+    return {
+      ...base,
+      kind: "file",
+      text: data.toString("utf8"),
+      sha256: sha256(data),
+    };
+  }
+  return { ...base, kind: stat.isDirectory() ? "directory" : "other" };
+};
+
+const pathUnchanged = (before: Snapshot): boolean => {
+  const now = pathSnapshot(before.path);
+  return (
+    now.kind === before.kind &&
+    now.mtimeMs === before.mtimeMs &&
+    now.sha256 === before.sha256 &&
+    now.linkTarget === before.linkTarget
+  );
+};
+
+// Why a path fix cannot run on what is there now (an errno-like code), or undefined when it can.
+const pathRefusal = (fix: PathFix, snap: Snapshot): string | undefined => {
+  const { change } = fix;
+  if ("link" in change) {
+    return snap.kind === "missing" ? undefined : "EEXIST";
+  }
+  if ("unlink" in change) {
+    return snap.kind === "symlink" && snap.linkTarget === change.unlink
+      ? undefined
+      : "ECHANGED";
+  }
+  return snap.kind === "file" && snap.sha256 === change.remove
+    ? undefined
+    : "ECHANGED";
 };
 
 // ---- diff ----
@@ -645,6 +733,7 @@ export const createFix = (
     };
     const edits = new Map<string, PlanEdit>();
     const commands: PlanStep[] = [];
+    const links: PlanPath[] = [];
     const unfixable: Planned["unfixable"] = [];
     const failures: Planned["failures"] = [];
     for (const finding of data.findings) {
@@ -668,6 +757,23 @@ export const createFix = (
       for (const fix of made) {
         if (isUnfixable(fix)) {
           unfixable.push({ ...finding, reason: fix.unfixable });
+          continue;
+        }
+        if (isPathFix(fix)) {
+          const snap = pathSnapshot(resolve(fix.file));
+          const refusal =
+            links.some((step) => step.snap.path === snap.path) ||
+            edits.has(snap.path)
+              ? "ETWICE"
+              : pathRefusal(fix, snap);
+          if (refusal) {
+            failures.push({
+              finding,
+              reason: `${fix.describe?.() ?? fix.ruleId}: could not plan (${refusal})`,
+            });
+          } else {
+            links.push({ item: { finding, fix }, snap });
+          }
           continue;
         }
         const item: PlanItem = { finding, fix };
@@ -718,18 +824,37 @@ export const createFix = (
       findings: data.findings,
       edits: [...edits.values()],
       commands,
+      ...(links.length > 0 ? { links } : {}),
       unfixable,
       failures,
       errors: data.errors,
     };
   };
 
-  const label = (item: PlanItem): string =>
+  const label = (item: {
+    finding: Finding;
+    fix: { describe?: () => string };
+  }): string =>
     `[${item.finding.id}] ${item.fix.describe?.() ?? item.finding.message}`;
+  const pathLine = ({ item, snap }: PlanPath): string => {
+    const { change } = item.fix;
+    const shown = tilde(snap.path);
+    if ("link" in change) {
+      return `  link:   ${shown} -> ${tilde(change.link)}`;
+    }
+    if ("unlink" in change) {
+      return `  unlink: ${shown} (-> ${tilde(change.unlink)}; the target is kept)`;
+    }
+    return `  delete: ${shown}`;
+  };
   const commandLine = (command: string[]): string =>
     maskArgs(command).join(" ");
 
   const preview = (planned: Planned): void => {
+    for (const step of planned.links ?? []) {
+      out(label(step.item));
+      out(pathLine(step));
+    }
     for (const edit of planned.edits) {
       for (const item of edit.items) {
         out(label(item));
@@ -784,8 +909,48 @@ export const createFix = (
           ? set.add(step.snap, [step.item.finding.id])
           : undefined;
     }
+    for (const step of planned.links ?? []) {
+      step.entry = set.add(step.snap, [step.item.finding.id]);
+    }
     set.save();
     out(`\nBackup: ${tilde(set.dir)}`);
+    for (const step of planned.links ?? []) {
+      const entry = step.entry as ManifestFile; // set above
+      const { change } = step.item.fix;
+      const shown = tilde(step.snap.path);
+      if (!pathUnchanged(step.snap)) {
+        entry.result = "skipped";
+        err(
+          `error  ${shown} changed on disk after the preview; not changed. Run agentry fix again.`
+        );
+        ok = false;
+        continue;
+      }
+      try {
+        if ("link" in change) {
+          mkdirSync(dirname(step.snap.path), { recursive: true });
+          symlinkSync(change.link, step.snap.path);
+          entry.writtenLink = change.link;
+          out(`linked ${shown} -> ${tilde(change.link)}`);
+        } else {
+          // Checked again right before: only that link, or that file, is removed; a link is never followed.
+          if (pathRefusal(step.item.fix, pathSnapshot(step.snap.path))) {
+            // biome-ignore lint/suspicious/useErrorMessage: only the code is read; a message would change the error text
+            throw Object.assign(new Error(), { code: "ECHANGED" });
+          }
+          unlinkSync(step.snap.path);
+          entry.removed = true;
+          out(`${"unlink" in change ? "unlinked" : "deleted"} ${shown}`);
+        }
+        entry.result = "written";
+        step.done = true;
+      } catch (error) {
+        // symlink and unlink change all or nothing, so a failure left the path as it was: undo leaves it alone.
+        entry.result = "skipped";
+        err(`error  could not change ${shown} (${failure(error)})`);
+        ok = false;
+      }
+    }
     for (const edit of planned.edits) {
       const entry = edit.entry as ManifestFile; // set above
       if (!unchanged(edit.snap)) {
@@ -797,6 +962,12 @@ export const createFix = (
         continue;
       }
       try {
+        if (
+          edit.snap.kind === "missing" &&
+          edit.items.some((item) => item.fix.createParents)
+        ) {
+          mkdirSync(dirname(edit.snap.realPath), { recursive: true });
+        }
         atomicWrite(edit.snap.realPath, edit.after, edit.snap.mode ?? 0o600);
         entry.result = "written";
         entry.writtenSha256 = sha256(edit.after);
@@ -848,6 +1019,9 @@ export const createFix = (
         .filter((edit) => edit.written)
         .flatMap((edit) => edit.items),
       ...planned.commands.filter((step) => step.done).map((step) => step.item),
+      ...(planned.links ?? [])
+        .filter((step) => step.done)
+        .map((step) => step.item),
     ];
     const seen = new Set();
     let ok = true;
@@ -883,10 +1057,12 @@ export const createFix = (
     const previewOnly = dryRun || !(yes || isTTY());
     for (let attempt = 1; ; attempt += 1) {
       const planned = plan(cwd, { include });
+      const pathSteps = planned.links ?? [];
       if (
         heading &&
         planned.edits.length +
           planned.commands.length +
+          pathSteps.length +
           planned.failures.length >
           0
       ) {
@@ -894,7 +1070,8 @@ export const createFix = (
       }
       preview(planned);
       const failed = planned.failures.length > 0;
-      const steps = planned.edits.length + planned.commands.length;
+      const steps =
+        planned.edits.length + planned.commands.length + pathSteps.length;
       if (steps === 0) {
         out(
           planned.findings.length === 0
@@ -920,11 +1097,16 @@ export const createFix = (
         out("Nothing written.");
         return 0;
       }
-      const moved = [...planned.edits, ...planned.commands]
-        .map((step) => step.snap)
-        .filter(
-          (snap): snap is Snapshot => snap !== undefined && !unchanged(snap)
-        );
+      const moved = [
+        ...[...planned.edits, ...planned.commands]
+          .map((step) => step.snap)
+          .filter(
+            (snap): snap is Snapshot => snap !== undefined && !unchanged(snap)
+          ),
+        ...pathSteps
+          .map((step) => step.snap)
+          .filter((snap) => !pathUnchanged(snap)),
+      ];
       if (moved.length > 0) {
         const names = [...new Set(moved.map((snap) => tilde(snap.path)))].join(
           ", "

@@ -98,6 +98,10 @@ export const createPaths = ({
     parkedMcp: join(configDir, "agentry", "parked-mcp.json"),
     // Hooks turned off with agentry hook disable: the raw hook entries, mode 0600. See src/lib/hook-toggle.ts.
     parkedHooks: join(configDir, "agentry", "parked-hooks.json"),
+    // What agentry shared with Copilot (links, generated files, MCP entries), so it removes only its own. See copilot-share.ts.
+    copilotShares: join(configDir, "agentry", "copilot-shares.json"),
+    // setup.sh's record of what it installed (scripts/setup-manifest.mjs); agentry only reads it.
+    installManifest: join(configDir, "agentry", "install-manifest.json"),
     backupsDir: join(configDir, "backups", "agentry"),
     // With CLAUDE_CONFIG_DIR set, Claude Code keeps .claude.json inside it rather than in the home directory.
     claudeJson: env.CLAUDE_CONFIG_DIR

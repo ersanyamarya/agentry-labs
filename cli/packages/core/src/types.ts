@@ -246,6 +246,8 @@ export type ApplyResult =
 /** `file` is absent for a command fix that edits nothing; `apply` gets "" for a missing file and undefined for a non-regular one. */
 export interface TextFix {
   apply: (text: string | undefined) => ApplyResult;
+  /** Create the missing parent folders when the file is written (off: a missing folder fails the write). */
+  createParents?: boolean;
   describe?: () => string;
   file?: string;
   ruleId: string;
@@ -257,7 +259,20 @@ export interface UnfixableFix {
   unfixable: string;
 }
 
-export type Fix = TextFix | UnfixableFix;
+/**
+ * A fix on the path itself, which is never resolved through a link (lstat only):
+ * - `{ link: target }` creates `file` as a symlink to `target` (nothing may be there; parent folders are created);
+ * - `{ unlink: target }` removes the symlink at `file`, only while it still reads `target`;
+ * - `{ remove: sha256 }` deletes the regular file at `file`, only while its bytes still hash to `sha256`.
+ */
+export interface PathFix {
+  change: { link: string } | { unlink: string } | { remove: string };
+  describe?: () => string;
+  file: string;
+  ruleId: string;
+}
+
+export type Fix = TextFix | UnfixableFix | PathFix;
 
 export interface FixContext {
   cwd: string;

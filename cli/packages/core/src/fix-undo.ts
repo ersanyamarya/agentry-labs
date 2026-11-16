@@ -6,6 +6,9 @@
 //   command   file/directory/symlink: restored from the backup or link target. The command's own effect is not
 //             checked, and command fixes are never replayed: they are listed after the run.
 //   skipped, pending: never changed, left alone.
+// Path fixes: a created link (kind missing + writtenLink) is unlinked only while lstat shows that same link (never
+// followed, never recursed into, not even with --force); a removed link (kind symlink) is linked again; a removed file
+// (kind file + removed) is restored from the backup while nothing is there.
 // A file that differs from what the fix wrote (or, for a missing file, from what it created) is a conflict: skipped
 // and exit 1, unless --force. A set is marked `undoneAt` once every file is restored, and cannot be undone twice.
 // Exit codes: 0 restored, nothing to restore, list, or preview only; 1 a conflict (without --force), a failed restore
@@ -20,6 +23,7 @@ import {
   readlinkSync,
   rmSync,
   symlinkSync,
+  unlinkSync,
 } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -41,7 +45,7 @@ interface BackupSet {
   name: string;
 }
 
-type Action = "none" | "restore" | "delete" | "link";
+type Action = "none" | "restore" | "delete" | "link" | "unlink";
 
 export interface PlannedEntry {
   action: Action;
@@ -126,6 +130,34 @@ export const planEntry = (entry: ManifestFile): PlannedEntry => {
   if (entry.result === "skipped" || entry.result === "pending") {
     return plan("none");
   }
+  // A link the fix created: lstat and readlink only (snapshot would follow it to the folder it points at).
+  if (entry.writtenLink !== undefined) {
+    const state = linkState(entry.path);
+    if (state === null) {
+      return plan("none");
+    }
+    if (state === entry.writtenLink) {
+      return plan("unlink");
+    }
+    return plan(
+      "unlink",
+      state === "other"
+        ? "a file or folder is there now"
+        : "a different link is there now"
+    );
+  }
+  if (entry.kind === "file" && entry.removed) {
+    const now = linkState(entry.path);
+    if (now === null) {
+      return plan("restore");
+    }
+    const file = snapshot(entry.path);
+    return now === "other" &&
+      file.kind === "file" &&
+      file.sha256 === entry.sha256
+      ? plan("none")
+      : plan("restore", "something else is there now");
+  }
   if (entry.kind === "symlink") {
     const state = linkState(entry.path);
     if (state === entry.linkTarget) {
@@ -175,6 +207,15 @@ export const planEntry = (entry: ManifestFile): PlannedEntry => {
 
 // Makes the change for one planned entry; returns what it did, for the output.
 const restore = ({ entry, action }: PlannedEntry, dir: string): string => {
+  if (action === "unlink") {
+    // Checked again right before, also under --force: only the link the fix made is removed, never what it points at.
+    if (linkState(entry.path) !== entry.writtenLink) {
+      // biome-ignore lint/suspicious/useErrorMessage: only the code is read; a message would change the error text
+      throw Object.assign(new Error(), { code: "ECHANGED" });
+    }
+    unlinkSync(entry.path);
+    return `unlinked ${entry.path}`;
+  }
   if (action === "delete") {
     rmSync(entry.realPath, { force: true });
     return `deleted ${entry.path}`;
@@ -223,6 +264,9 @@ export const createFixUndo = (
     }
     if (action === "delete") {
       return `delete    ${shown}`;
+    }
+    if (action === "unlink") {
+      return `unlink    ${shown} (the link only)`;
     }
     if (action === "link") {
       return `link      ${shown} -> ${tilde(entry.linkTarget)}`;

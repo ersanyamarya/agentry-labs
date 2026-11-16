@@ -37,6 +37,24 @@ describe("messages", () => {
       "notAdded",
       "on",
       "off",
+      "shared",
+      "notShared",
     ]);
+  });
+  test("copilot: share states use the glossary and sharing says all projects", () => {
+    const { copilot, terms } = messages();
+    expect(copilot.states.shared).toBe("Shared");
+    expect(copilot.states.notShared).toBe("Not shared");
+    expect(terms.shared).toBe("shared");
+    expect(terms.notShared).toBe("not shared");
+    expect(copilot.forAllProjects).toContain(terms.allProjects);
+    expect(
+      copilot.describeShare("skill", "demo", "~/.copilot/skills/demo")
+    ).toBe(
+      "share the skill demo with Copilot for all projects: ~/.copilot/skills/demo"
+    );
+    expect(copilot.setupOwned("x")).toContain(
+      "setup.sh uninstall --only copilot"
+    );
   });
 });
