@@ -699,10 +699,7 @@ describe("copilot rules", () => {
       assert.equal(rest.length, 0);
       assert.equal(found?.severity, "warning");
       assert.equal(found?.file, hookFile());
-      assert.equal(
-        found?.fix,
-        `bash scripts/setup.sh install --only copilot --trust "${repo}"`
-      );
+      assert.equal(found?.fix, "agentry copilot trust");
       assert.ok(!JSON.stringify(found).includes("COPILOT_ALLOW_ALL"));
     });
 
@@ -803,11 +800,9 @@ describe("copilot rules", () => {
       assert.ok(found.every((item) => item.severity === "info"));
       const [rulesFinding] = found;
       assert.match(rulesFinding?.message ?? "", /2 Claude user rules: a, b$/);
-      assert.match(
-        rulesFinding?.fix ?? "",
-        /scripts\/setup\.sh install --only copilot/
-      );
+      assert.match(rulesFinding?.fix ?? "", /agentry copilot share <name>/);
       assert.match(found[1]?.message ?? "", /1 Claude user skill: one$/);
+      assert.match(found[1]?.fix ?? "", /agentry copilot share <name>/);
       assert.doesNotMatch(found[1]?.fix ?? "", /setup\.sh/);
       assert.match(found[2]?.message ?? "", /user CLAUDE\.md/);
     });

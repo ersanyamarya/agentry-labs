@@ -1041,7 +1041,7 @@ const copilotUntrustedHooks: Rule = {
         `Copilot skips ${hooks.length} hook${hooks.length === 1 ? "" : "s"} from this repo (${sources.join(", ")}) because ${project.root} is not in trustedFolders`,
         first.source,
         {
-          fix: `bash scripts/setup.sh install --only copilot --trust "${project.root}"`,
+          fix: "agentry copilot trust",
         }
       ),
     ];
@@ -1190,7 +1190,7 @@ const copilotCannotSee: Rule = {
           `Copilot cannot see ${rulesMissing.length} Claude user rule${rulesMissing.length === 1 ? "" : "s"}: ${names(rulesMissing)}`,
           join(ch, "instructions"),
           {
-            fix: "bash scripts/setup.sh install --only copilot (writes each rule as <name>.instructions.md)",
+            fix: "agentry copilot share <name> --kind rule (writes it as <name>.instructions.md for all projects)",
           }
         )
       );
@@ -1214,7 +1214,7 @@ const copilotCannotSee: Rule = {
           `Copilot cannot see ${skillsMissing.length} Claude user skill${skillsMissing.length === 1 ? "" : "s"}: ${names(skillsMissing)}`,
           join(ch, "skills"),
           {
-            fix: `Copilot ignores ~/.claude/skills; copy or link the ones you want into ${join(ch, "skills")}`,
+            fix: "Copilot ignores ~/.claude/skills; share the ones you want with agentry copilot share <name> (for all projects)",
           }
         )
       );
