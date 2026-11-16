@@ -43,6 +43,8 @@ Requirements: Node.js (24.15 or newer when the `context-mode` part is selected),
 
 Copilot reads, per repo, the project `CLAUDE.md`, `.claude/rules`, `.claude/skills`, `.claude/agents`, `.mcp.json` and the hooks in `.claude/settings.json`. It does not read anything under `~/.claude`. The `copilot` part therefore mirrors the user-level pieces into `~/.copilot`: each rule in `rules/` becomes `instructions/<name>.instructions.md`, the trail hook goes to `hooks/`, and the context7 entry goes into `mcp-config.json`. The Claude files stay the source. Everything setup adds is recorded and backed up, and `uninstall` removes only what is still unchanged. The facts behind this are in [`cli/docs/copilot-config-sources.md`](cli/docs/copilot-config-sources.md). `agentry status` shows what Copilot loads for a folder, and `agentry doctor` flags Copilot problems (a hook that runs twice, a literal key in an MCP entry, the Co-authored-by trailer still on).
 
+Claude user skills, agents, rules and MCP servers can also be shared with Copilot, by choice: `agentry copilot share <name>` (or `C` in `agentry tui` and `agentry ui`) shares one for all projects, and `agentry copilot unshare` stops it. Nothing is shared until you pick it.
+
 Skills are not added by setup. When it finishes, pick bundles with `agentry tui` (terminal UI) or `agentry ui` (web UI), or use `agentry catalog list`, `agentry catalog add <item>` and `agentry shelf on <bundle> [--global]`.
 
 ### Bundles

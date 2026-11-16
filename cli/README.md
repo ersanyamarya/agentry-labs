@@ -135,6 +135,28 @@ agentry ui                     # web UI on 127.0.0.1 (see agentry ui below)
 
 `agentry --help` loads no UI code, so it works even before `npm install`. Run tests with `npm test`.
 
+### agentry copilot
+
+GitHub Copilot CLI loads its own folder, `~/.copilot` (or `$COPILOT_HOME`), and does not read `~/.claude`. `agentry copilot` shares Claude user items with it, by choice: a skill, agent, rule or MCP server you pick is written into `~/.copilot`, and Copilot then loads it for all projects. Nothing is shared or trusted automatically. Setup, `status` and `doctor` only report.
+
+```bash
+agentry copilot status                                   # signed in, this folder trusted, what is shared (--json)
+agentry copilot share <name> [--kind skill|agent|rule|mcp]    # share with Copilot, for all projects
+agentry copilot unshare <name> [--kind skill|agent|rule|mcp]  # stop sharing
+agentry copilot trust [path]                             # trust a repo (default: its root) so Copilot runs its hooks and MCP servers
+agentry copilot untrust [path]                           # take that trust back
+```
+
+Flags: `--dry-run` prints the preview and writes nothing; `--yes` applies without asking; `--json` prints the result as JSON (a write needs `--yes` or `--dry-run`); `--kind` picks the kind when a name is in more than one. `share` and `unshare` without `--kind` pick the one kind the action can change; if the name is still ambiguous they list the kinds and stop.
+
+Exit codes: `0` done, previewed, declined or already so; `1` refused or failed (also "Copilot not found"); `2` usage (an ambiguous name, or a JSON write without `--yes` or `--dry-run`).
+
+Every write goes through the fix path: a preview first, a backup, then a check. `agentry fix --undo` reverts the newest set. It targets the newest set even when that one is already undone, so to reach an older change pass its timestamp (`agentry fix --undo --list` shows them). Sharing applies to all projects. Trust is per repo and lets Copilot run that repo's hooks and MCP servers. A secret in an MCP server's env, headers or args is written as a `${...}` reference, never as a literal, so the variable must be set in Copilot's own environment. A server whose command or url holds a secret is refused.
+
+`agentry status --json` adds `copilot.signedIn` (true when Copilot has a logged-in user) and `copilot.shared` (the names agentry shared, per kind).
+
+The terminal UI and the web UI show the Copilot column and the trust switch only when Copilot is signed in (see the keys below).
+
 ### agentry ui
 
 `agentry ui` serves a local web UI for the same things the terminal UI does: Skills, MCP, Hooks, Plugins, Rules, Agents, Catalog, Doctor and Backups, in a sidebar with the same three sections. Run it from the project folder:
@@ -146,7 +168,7 @@ agentry ui --no-open --port 4200 # print the URL only, on a port you choose
 
 It is a local tool and stays one. The server listens on `127.0.0.1` only. The printed URL carries a random token that is swapped for an `HttpOnly`, `SameSite=Strict` cookie on the first visit (and removed from the address bar); every other request needs that cookie, a wrong `Host` is refused, and a write from another origin is refused. Stop it with Ctrl-C.
 
-Every change goes through the same backup-first functions as the terminal UI. A change that has a preview shows it first and writes nothing until you press Apply (`y`; `n` cancels). Removals keep a copy that Backups can restore. Secrets in MCP servers and hook commands are masked before they reach the browser. The keys match the terminal UI: `↑ ↓` move, `space` loads or unloads the selected skill for this project, `g` for all projects, `m` move, `*` mark, `esc` clears the marks, `x` remove, `X` delete, `/` search, `?` help.
+Every change goes through the same backup-first functions as the terminal UI. A change that has a preview shows it first and writes nothing until you press Apply (`y`; `n` cancels). Removals keep a copy that Backups can restore. Secrets in MCP servers and hook commands are masked before they reach the browser. The keys match the terminal UI: `↑ ↓` move, `space` loads or unloads the selected skill for this project, `g` for all projects, `m` move, `*` mark, `esc` clears the marks, `x` remove, `X` delete, `/` search, `?` help. When Copilot is signed in, a Copilot column with a checkbox on Skills, MCP, Agents and Rules shares or unshares that row for all projects (the same as `C` in the terminal UI), and a sidebar switch, "Copilot in this repo", turns trust on or off for this folder (the same as `T`).
 
 ### agentry tui
 
@@ -196,17 +218,19 @@ Per tab (the footer shows the keys that apply to the selected row):
 
 | Tab | Keys |
 |---|---|
-| Skills | `space` load or unload here · `g` load or unload for all projects · `m` move (all projects, this project only, or the Library) · `x` remove (copy kept) · `X` delete (no copy) · `enter` expand a bundle, show details |
-| MCP | `a` add a server (all projects or this project) · `space` turn off (saved) or add back · `s` edit env and args of a server for all projects · `x` remove (undo: `agentry fix --undo`) |
+| Skills | `space` load or unload here · `g` load or unload for all projects · `m` move (all projects, this project only, or the Library) · `x` remove (copy kept) · `X` delete (no copy) · `enter` expand a bundle, show details · `C` share with Copilot or unshare (Copilot signed in) · `T` Copilot in this repo on or off |
+| MCP | `a` add a server (all projects or this project) · `space` turn off (saved) or add back · `s` edit env and args of a server for all projects · `x` remove (undo: `agentry fix --undo`) · `C` share with Copilot or unshare · `T` Copilot in this repo on or off |
 | Hooks | `space` turn off (saved) or on again · `x` remove (undo: `agentry fix --undo`) |
 | Plugins | `a` install · `space` on or off (new sessions) · `x` uninstall |
-| Rules | `e` open · `x` remove the file (copy kept) · `X` delete (no copy) |
-| Agents | `e` open the file (read only) |
+| Rules | `e` open · `x` remove the file (copy kept) · `X` delete (no copy) · `C` share with Copilot or unshare · `T` Copilot in this repo on or off |
+| Agents | `e` open the file (read only) · `C` share with Copilot or unshare · `T` Copilot in this repo on or off |
 | Catalog | `f` fetch the catalog · `a` add (agents and MCP servers ask all projects or this project) · `u` update an outdated item · `x` remove an added item (copy kept) · `X` delete (no copy) |
 | Doctor | `enter` preview a fix · `u` undo the last fix set |
 | Backups | `u` restore a removed skill or updated copy · `X` delete a backup (no copy kept) · `d` delete backups 30+ days old |
 
 Retired keys (`s`, `a`, `o`, `u` on Skills; `i`, `o` on Catalog; `x` on Backups) show a one-line notice that names the new key.
+
+`C` and `T` appear only when Copilot is signed in. The footer lists `C` only on a row agentry can share or unshare; on any other row `C` says why in the status line and writes nothing. `T` is always listed on those four tabs and in the sidebar.
 
 Press `?` to see the current tab's keys, then the shared keys. The web UI uses the same letters on Skills (`space`, `g`, `m`, `*`, `esc`, `x`, `X`) and `u` on Doctor. Layout: from 110 columns of list (132 with the sidebar) the details sit in a box beside the list; below that they go under the list so the list keeps the whole width and its Project/Global badges are never cut (a long name is shortened with `…` in the middle instead). The path in the sidebar is cut in the middle to fit, a list taller than its box ends in `↓ N more`, and the footer is one line that drops `tab sidebar`, then trailing row keys, before it drops `? help`. `/` filters the rows of any tab; `*` marks rows (counted under the list) so one key (`space`, `g`, `x`, `X` or `u`) previews and applies to all of them at once. The last Skills row, Token total, breaks the description tokens down into all projects, this project and plugins. Sketch below shows the Skills section at about 122 columns, hand-updated to the current labels (not a capture), with two bundles marked (colours are lost in text; not an image), with the home folder shown as `~`:
 

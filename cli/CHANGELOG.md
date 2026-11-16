@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+- Copilot sharing: `agentry copilot` shares Claude user skills, agents, rules and MCP servers with GitHub Copilot CLI, one item at a time, for all projects. `status`, `share`, `unshare`, `trust` and `untrust` take `--dry-run`, `--yes`, `--json` and `--kind`. Every write shows a preview first and a backup is kept; `agentry fix --undo` reverts it. Exit codes: 0 done, 1 refused or failed, 2 usage.
+- Trust per repo: `agentry copilot trust` (and `untrust`) marks a repo as trusted in Copilot, so Copilot runs that repo's hooks and MCP servers. It changes only Copilot's `trustedFolders`.
+- Terminal UI and web UI: when Copilot is signed in, a Copilot column on Skills, MCP, Agents and Rules shares or unshares a row (`C` in the terminal UI, the checkbox on the web), and `T` ("Copilot in this repo") turns trust on or off. The web sidebar has the same switch. Without a signed-in Copilot, none of this shows.
+- Status: `agentry status --json` adds `copilot.signedIn` and `copilot.shared`. `agentry copilot status --json` reports `signedIn`, `trusted` and each item's state.
+- Doctor: the Copilot fix hints name `agentry copilot share <name>` and `agentry copilot trust`. The finding messages are unchanged.
+- Setup: the `copilot` part also wires context-mode for copilot-cli when both CLIs exist. Node 24.15 or newer is required only for context-mode.
+- Nothing changes unless you pick it: setup, status and doctor never share or trust anything. No breaking change: existing commands, flags and JSON fields are unchanged, and the new fields are additive.
+
 ## 0.6.0
 
 - Words: the terminal UI, the web UI and the command help say the same thing the same way. **Library** (was shelf), **Bundle** (was group, and the catalog's bundle is the same thing), **this project** and **all projects** (was project, global and user scope), **loaded** and **not loaded** for skills (MCP servers, hooks and plugins keep on and off), **added** in the Catalog (plugins stay installed), and "move to the library" and "move out of the library" (was shelve and unshelve). The sidebar section that held Skills, MCP, Hooks, Plugins, Rules and Agents is now **Setup**.

@@ -116,6 +116,8 @@ Every file holds a top-level `mcpServers` object. [help: mcp] Shapes:
 - `copilot mcp get` shows the unexpanded text (`${FAKE_ARG}`) and masks headers and env; it is display only. [probe]
 - The GitHub docs' `${VAR}` rules with `COPILOT_MCP_` names are for the cloud coding agent, not the CLI. [docs:
   docs.github.com/en/copilot, MCP for coding agent]
+- `command` and `url`: not probed, so no expansion is assumed. `copilot-mcp.ts` refuses a secret in either field
+  instead of writing it. **unconfirmed**
 - So setup can install context7 as `type: http` with a `CONTEXT7_API_KEY: "${CONTEXT7_API_KEY}"` header, as
   `global/mcp.json` does, without a literal key. Not probed: an unset variable (Claude Code leaves the text as is);
   Copilot needs the variable in its own environment, and GUI-launched VS Code does not read shell rc files.
@@ -214,6 +216,7 @@ reader's `errors` join the top-level list).
 | Field | Meaning |
 |---|---|
 | `present` | `<ch>` exists. Repo files are read either way. |
+| `signedIn` | `true` when `<ch>/config.json` has a non-empty `loggedInUsers` list or a `lastLoggedInUser` value (read as JSONC; only the key names were checked, never the values). [file] Other keys seen there: `firstLaunchAt`, `host`, `installedPlugins`, `kind`, `login`, `reasoningSummariesCleanupDone`, `trustedFolders`. [file] The sign-in check is agentry's rule, not a Copilot API: unconfirmed whether a token that has expired still counts. |
 | `skills[]` | `name`, `scope` (`user`: `<ch>/skills`, `~/.agents/skills`; `repo`: `.github/skills`, `.claude/skills`), `source` (the skill folder), `state` (`ok`, or `broken` for a dead link or a folder without `SKILL.md`), `target` (link target), `shadowed` (a same-named skill from an earlier folder wins; order is `.github` > `.claude` > `<ch>` > `~/.agents`). `~/.agents/skills` is skipped when `COPILOT_HOME` is not `~/.copilot`. |
 | `instructions[]` | `file`, `scope`, `applyTo`: the comma-joined `applyTo` of `<ch>/instructions` and `.github/instructions` files, or `paths` of `.claude/rules/*.md`; `null` when none. |
 | `hooks[]` | `event`, `scope`, `source` file, `id` (`hookId`, same as Claude hooks), `command` (masked). From `<ch>/hooks/*.json`, `<ch>/settings.json`, `.github/hooks/*.json`, `.github/copilot/settings.json`, `.claude/settings.json`. |
