@@ -496,10 +496,18 @@ describe("status", () => {
       ["cop-skill"]
     );
     assert.equal(data.copilot.mcp[0].url, "https://h/mcp?key=<masked>");
+    assert.equal(data.copilot.signedIn, false);
+    assert.deepEqual(data.copilot.shared, {
+      skills: [],
+      agents: [],
+      rules: [],
+      mcp: [],
+    });
     lines.length = 0;
     assert.equal(status.run({ path: repo }), 0);
     const text = lines.join("\n");
     assert.match(text, /Copilot: /);
+    assert.match(text, /Not signed in to Copilot/);
     assert.match(text, /MCP servers: 1 \(remote\)/);
     assert.ok(!text.includes(secret));
   });
@@ -520,6 +528,13 @@ describe("status", () => {
       const withCopilot = JSON.parse(fixture.run(["status", "--json"]).stdout);
       assert.equal(withCopilot.copilot.present, true);
       assert.equal(withCopilot.copilot.includeCoAuthoredBy, true);
+      assert.equal(withCopilot.copilot.signedIn, false);
+      assert.deepEqual(Object.keys(withCopilot.copilot.shared), [
+        "skills",
+        "agents",
+        "rules",
+        "mcp",
+      ]);
       assert.equal(
         fixture.run(["status", fixture.repo, "--json"], { cwd: fixture.root })
           .status,

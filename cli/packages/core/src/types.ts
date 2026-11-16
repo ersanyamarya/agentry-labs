@@ -420,4 +420,11 @@ export interface CopilotShareState {
 /** The `copilot` block of `agentry status --json`: the inventory without errors (those join the top-level list). */
 export interface CopilotStatus extends Omit<CopilotInventory, "errors"> {
   home: string;
+  /** Names of the Claude user items agentry shared with Copilot (state "shared"), per kind. */
+  shared: {
+    skills: string[];
+    agents: string[];
+    rules: string[];
+    mcp: string[];
+  };
 }

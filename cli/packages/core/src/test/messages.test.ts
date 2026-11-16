@@ -77,4 +77,14 @@ describe("messages", () => {
     expect(copilot.preview.unshare("skill", "demo")).toContain("demo");
     expect(copilot.trust.explain).toContain("hooks and MCP servers");
   });
+  test("copilot: command words name the kinds, the flag and the counts", () => {
+    const { cli } = messages().copilot;
+    expect(cli.ambiguous("x", "skill, agent")).toContain("--kind");
+    expect(cli.ambiguous("x", "skill, agent")).toContain("skill, agent");
+    expect(cli.noItem("x")).toContain("x");
+    expect(cli.jsonNeedsYes).toContain("--yes");
+    expect(cli.sharedLine({ skills: 1, agents: 0, rules: 2, mcp: 1 })).toBe(
+      "Shared with Copilot: 1 skill, 0 agents, 2 rules, 1 MCP server"
+    );
+  });
 });

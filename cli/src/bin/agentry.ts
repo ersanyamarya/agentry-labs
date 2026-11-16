@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import { createAgents } from "@agentry/core/agents";
 import { createBackups } from "@agentry/core/backups";
 import { createCatalog } from "@agentry/core/catalog";
+import { createCopilotCommand } from "@agentry/core/copilot-command";
 import { createDoctor } from "@agentry/core/doctor";
 import { createFix } from "@agentry/core/fix";
 import { createFixUndo } from "@agentry/core/fix-undo";
@@ -80,6 +81,15 @@ Commands:
                                       Turn a settings hook off (parked in <config>/agentry/parked-hooks.json, 0600) and
                                       back on, or delete it. Previewed as a diff, backed up, undoable with fix --undo.
                                       Plugin hooks are refused: they belong to the plugin
+  copilot status [--json]             Show whether GitHub Copilot is set up and signed in, whether this repo is trusted, and
+                                      which Claude user skills, agents, rules and MCP servers it gets (Copilot not found: exit 1)
+  copilot share|unshare <name> [--kind skill|agent|rule|mcp] [--dry-run] [--yes] [--json]
+                                      Give Copilot a Claude user skill, agent, rule or MCP server (or take it back). Sharing
+                                      applies to all projects, not just this one. MCP secrets become \${VAR} placeholders.
+                                      Previewed, backed up, undo with fix --undo. A name found in two kinds needs --kind
+  copilot trust|untrust [path] [--dry-run] [--yes] [--json]
+                                      Turn "Copilot in this repo" on or off (trustedFolders in Copilot's config.json), so
+                                      Copilot runs the repo's hooks and MCP servers. --json needs --yes or --dry-run
   tui                                 Open the terminal UI (needs a terminal); a bare agentry in a terminal opens it too
   ui [--port <n>] [--no-open]         Serve the web UI on 127.0.0.1 behind a one-time token and open it in the browser
   shelf list                          List the library's bundles, their token cost and whether each is on
@@ -183,6 +193,10 @@ Examples:
   agentry mcp add files --command npx --arg=-y --arg @scope/files-server --env FILES_TOKEN=abc --dry-run
   agentry mcp add docs --url https://example.com/mcp --header "Authorization: Bearer abc" --scope project --yes
   agentry mcp set files --env FILES_TOKEN=new --dry-run
+  agentry copilot status
+  agentry copilot share my-skill --dry-run
+  agentry copilot unshare my-skill --kind skill --yes
+  agentry copilot trust --dry-run
   agentry hook list
   agentry hook disable 1a2b3c4d --dry-run
   agentry hook enable 1a2b3c4d --yes
@@ -199,6 +213,17 @@ Examples:
 
 const SHELF_USAGE =
   "Usage: agentry shelf list | status [--json] | on <target>... [--global] [--dry-run] | off <target>... [--global] [--dry-run] | off --all [--global] [--dry-run] | shelve <skill> <group> [--dry-run] | unshelve <skill> [--dry-run] | promote <skill> [--dry-run] | demote <skill> [--dry-run] | remove <skill> [--project] [--no-backup] [--dry-run]";
+
+const COPILOT_USAGE =
+  "Usage: agentry copilot status [--json] | share <name> [--kind skill|agent|rule|mcp] [--dry-run] [--yes] [--json] | unshare <name> [--kind ...] [--dry-run] [--yes] [--json] | trust [path] [--dry-run] [--yes] [--json] | untrust [path] [--dry-run] [--yes] [--json]\nSharing applies to all projects; trust is for one repo. Nothing is written without a preview and a confirmation (or --yes).";
+
+const COPILOT_ACTIONS = [
+  "status",
+  "share",
+  "unshare",
+  "trust",
+  "untrust",
+] as const;
 
 const parseCli = (argv: string[]) =>
   parseArgs({
@@ -287,6 +312,36 @@ const runShelf = (
   }
   console.error(SHELF_USAGE);
   return 2;
+};
+
+const helpFor = (command?: string): string =>
+  command === "copilot" ? COPILOT_USAGE : USAGE;
+
+const runCopilot = (
+  args: string[],
+  { json, kind, yes, "dry-run": dryRun }: Values
+): number | Promise<number> => {
+  const [action, name, ...extra] = args;
+  const known = COPILOT_ACTIONS.find((item) => item === action);
+  const needsName = known === "share" || known === "unshare";
+  if (
+    !known ||
+    extra.length > 0 ||
+    (known === "status" && name !== undefined) ||
+    (needsName && !name) ||
+    (kind !== undefined && !needsName)
+  ) {
+    console.error(COPILOT_USAGE);
+    return 2;
+  }
+  return createCopilotCommand(createPaths()).run({
+    action: known,
+    name,
+    kind,
+    json,
+    yes,
+    dryRun,
+  });
 };
 
 const runBackups = async (
@@ -476,7 +531,7 @@ const main = (argv: string[]): number | Promise<number> => {
     return runUi();
   }
   if (values.help || !command || command === "help") {
-    console.log(USAGE);
+    console.log(helpFor(command));
     return 0;
   }
   const ui = UI_COMMANDS.get(String(command));
@@ -734,7 +789,11 @@ const main = (argv: string[]): number | Promise<number> => {
   if (command === "catalog") {
     return runCatalog(rest, values);
   }
-  const listing = { rules: runRules, agents: runAgents }[command];
+  const listing = {
+    rules: runRules,
+    agents: runAgents,
+    copilot: runCopilot,
+  }[command];
   if (listing) {
     return listing(rest, values);
   }

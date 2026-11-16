@@ -4,12 +4,14 @@
 
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { shareState } from "./copilot-share.js";
 import { uniqueErrors } from "./inventory/common.js";
 import { createCopilotReader } from "./inventory/copilot.js";
 import { createHooksReader } from "./inventory/hooks.js";
 import { createMcpReader } from "./inventory/mcp.js";
 import { createPluginsReader } from "./inventory/plugins.js";
 import { createSkillsReader } from "./inventory/skills.js";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import type {
   CopilotInventory,
@@ -32,6 +34,13 @@ const withoutErrors = ({
   errors: _errors,
   ...rest
 }: CopilotInventory): Omit<CopilotInventory, "errors"> => rest;
+
+const KIND_KEYS = {
+  skill: "skills",
+  agent: "agents",
+  rule: "rules",
+  mcp: "mcp",
+} as const;
 
 const loads = (skill: SkillItem): boolean => skill.state === "active";
 
@@ -71,6 +80,21 @@ export const createStatus = (
   const hooksReader = createHooksReader(paths);
   const pluginsReader = createPluginsReader(paths);
   const copilotReader = createCopilotReader(paths);
+
+  const sharedNames = (cwd: string): CopilotStatus["shared"] => {
+    const shared: CopilotStatus["shared"] = {
+      skills: [],
+      agents: [],
+      rules: [],
+      mcp: [],
+    };
+    for (const item of shareState(paths, cwd)) {
+      if (item.state === "shared") {
+        shared[KIND_KEYS[item.kind]].push(item.name);
+      }
+    }
+    return shared;
+  };
 
   const collect = (cwd: string = process.cwd()): StatusData => {
     const start = resolve(cwd);
@@ -124,7 +148,11 @@ export const createStatus = (
       },
       errors,
       copilot: copilotResult.present
-        ? { home: paths.copilotDir, ...withoutErrors(copilotResult) }
+        ? {
+            home: paths.copilotDir,
+            ...withoutErrors(copilotResult),
+            shared: sharedNames(start),
+          }
         : null,
     };
   };
@@ -246,6 +274,18 @@ export const createStatus = (
       }
       out(
         `  Agents: ${copilot.agents.length}${copilot.agents.length > 0 ? ` (${names(copilot.agents)})` : ""}`
+      );
+      out(
+        `  ${
+          copilot.signedIn
+            ? messages().copilot.cli.sharedLine({
+                skills: copilot.shared.skills.length,
+                agents: copilot.shared.agents.length,
+                rules: copilot.shared.rules.length,
+                mcp: copilot.shared.mcp.length,
+              })
+            : messages().copilot.signedOut
+        }`
       );
       out(
         `  Co-authored-by trailer: ${copilot.includeCoAuthoredBy ? "on" : "off"}`

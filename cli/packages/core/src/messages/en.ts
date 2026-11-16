@@ -1607,6 +1607,28 @@ export const en = {
       whatArg: (index: number, masked: string) =>
         `argument ${index}: ${masked}`,
     },
+    // `agentry copilot ...` and the Copilot lines of `agentry status`.
+    cli: {
+      noItem: (name: string) =>
+        `No skill, agent, rule or MCP server named ${name} among your Claude user items.`,
+      ambiguous: (name: string, kinds: string) =>
+        `${name} is more than one kind of item (${kinds}); add --kind <kind>.`,
+      badKind: (kind: string) =>
+        `--kind takes skill, agent, rule or mcp, not ${kind}.`,
+      notFolder: (dir: string) => `Not a folder: ${dir}`,
+      jsonNeedsYes: "--json needs --yes or --dry-run with this subcommand.",
+      yesAndDryRun: "--yes and --dry-run cannot be used together",
+      home: (dir: string, signedIn: boolean) =>
+        `Copilot: ${dir} (${signedIn ? "signed in" : "not signed in"})`,
+      sharedLine: (counts: {
+        agents: number;
+        mcp: number;
+        rules: number;
+        skills: number;
+      }) =>
+        `Shared with Copilot: ${counts.skills} skill${counts.skills === 1 ? "" : "s"}, ${counts.agents} agent${counts.agents === 1 ? "" : "s"}, ${counts.rules} rule${counts.rules === 1 ? "" : "s"}, ${counts.mcp} MCP server${counts.mcp === 1 ? "" : "s"}`,
+      noItems: "No Claude user skills, agents, rules or MCP servers found.",
+    },
     trust: {
       explain: "Lets Copilot run this repo's hooks and MCP servers.",
       title: "Trust this folder",
