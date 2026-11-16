@@ -75,6 +75,26 @@ assert_eq "exit 1" "$RC" 1
 assert_eq "nothing installed" "$(logged)" ""
 done_env
 
+echo "node versions with context-mode"
+new_env x npm node git claude
+ENVX="FAKE_NODE_VERSION=v24.14.9" run --source "$REPO" install --only context-mode
+assert_eq "old node: exit 1" "$RC" 1
+assert_has "names found version" "$OUT" "Node 24.14.9 is too old"
+assert_has "names the need" "$OUT" "24.15.0 or newer"
+assert_has "names the fix" "$OUT" "mise use -g node@24"
+assert_eq "old node: nothing installed" "$(logged)" ""
+ENVX="FAKE_NODE_VERSION=v8.0.0" run --source "$REPO" install --only context-mode
+assert_eq "node 8 refused" "$RC" 1
+ENVX="FAKE_NODE_VERSION=v24.15.0" run --source "$REPO" install --only context-mode --dry-run
+assert_eq "exactly 24.15.0 accepted" "$RC" 0
+ENVX="FAKE_NODE_VERSION=v24.22.3" run --source "$REPO" install --only context-mode --dry-run
+assert_eq "24.22.3 accepted (numeric compare)" "$RC" 0
+ENVX="FAKE_NODE_VERSION=v25.0.0-nightly" run --source "$REPO" install --only context-mode --dry-run
+assert_eq "newer major with suffix accepted" "$RC" 0
+ENVX="FAKE_NODE_VERSION=v24.14.0" run --source "$REPO" install --only agentry --dry-run
+assert_eq "old node fine without context-mode" "$RC" 0
+done_env
+
 echo "dry run"
 new_env x mise npm realnode git claude
 BEFORE="$(find "$T/home" | sort)"
@@ -377,6 +397,59 @@ assert_lacks "context7 entry removed" "$(cat "$T/home/.copilot/mcp-config.json")
 assert_lacks "co-author setting removed" "$(cat "$T/home/.copilot/settings.json")" "includeCoAuthoredBy"
 run --source "$REPO" status --only copilot
 assert_has "status missing after uninstall" "$OUT" "copilot: missing"
+done_env
+
+echo "copilot: context-mode for Copilot"
+new_env x npm realnode git claude copilot
+mkdir -p "$T/home/.copilot"
+run --source "$REPO" install --all
+assert_eq "exit 0" "$RC" 0
+assert_has "context-mode setup for copilot-cli ran" "$(logged)" "context-mode setup --yes --no-input --agents copilot-cli"
+assert_has "recorded in manifest" "$(cat "$T/home/.claude/agentry/install-manifest.json")" '"copilot": true'
+run --source "$REPO" status --only copilot
+assert_has "status reports copilot-cli wired" "$OUT" "context-mode (copilot-cli): wired"
+: > "$T/log"
+run --source "$REPO" install --all
+assert_has "second run: already wired" "$OUT" "already wired"
+assert_lacks "second run: no second copilot-cli setup" "$(logged)" "context-mode setup"
+run --source "$REPO" uninstall --only copilot --yes
+assert_eq "copilot uninstall exit 0" "$RC" 0
+assert_lacks "copilot uninstall leaves other agents alone" "$(logged)" "setup --remove"
+assert_has "copilot uninstall explains" "$OUT" "Copilot wiring is kept"
+run --source "$REPO" uninstall --only context-mode --yes
+assert_eq "context-mode uninstall exit 0" "$RC" 0
+assert_has "context-mode uninstall ran remove" "$(logged)" "setup --remove"
+run --source "$REPO" status --only copilot
+assert_has "status: not wired after remove" "$OUT" "context-mode (copilot-cli): not wired"
+done_env
+echo "copilot: context-mode for Copilot skipped"
+new_env x npm realnode git claude copilot
+mkdir -p "$T/home/.copilot"
+run --source "$REPO" install --only copilot
+assert_eq "no context-mode: exit 0" "$RC" 0
+assert_has "skip reason names context-mode" "$OUT" "context-mode CLI not on PATH"
+assert_lacks "nothing run" "$(logged)" "context-mode setup"
+run --source "$REPO" status --only copilot
+assert_has "status says skipped" "$OUT" "context-mode (copilot-cli): skipped"
+done_env
+new_env x npm realnode git claude
+run --source "$REPO" install --all
+assert_has "no copilot: skip reason" "$OUT" "Copilot not found (copilot CLI not on PATH)"
+assert_lacks "no copilot-cli setup" "$(logged)" "setup --yes --no-input --agents copilot-cli"
+done_env
+echo "copilot: context-mode for Copilot dry run and failure"
+new_env x npm realnode git claude copilot
+mkdir -p "$T/home/.copilot"
+run --source "$REPO" install --all
+: > "$T/log"; rm -f "$T/bin/.cm-copilot-wired"
+BEFORE="$(find "$T/home" | sort)"
+run --source "$REPO" install --all --dry-run
+assert_has "dry run prints the command" "$OUT" "context-mode setup --yes --no-input --agents copilot-cli"
+assert_lacks "dry run runs no setup" "$(logged)" "setup"
+assert_eq "dry run leaves HOME alone" "$(find "$T/home" | sort)" "$BEFORE"
+ENVX="FAKE_CM_COPILOT_FAIL=1" run --source "$REPO" install --all
+assert_eq "failing setup: exit 1" "$RC" 1
+assert_has "names the step" "$OUT" "Wire context-mode for Copilot"
 done_env
 
 echo "copilot trusted folders"

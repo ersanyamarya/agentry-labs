@@ -35,7 +35,7 @@ Remember, before writing any code:
 ├── rules/               # context7, trail (setup installs each as a user-level rule, and mirrors it to ~/.copilot/instructions)
 ├── global/              # settings.fragment.json (env, hooks, status line, attribution), mcp.json and helpers/, applied by the `config` part of setup.sh through scripts/apply-global.mjs (trail and context-mode wire themselves); global/copilot/ holds the Copilot settings fragment, MCP entry and trail hook for the `copilot` part
 ├── bundles.tsv          # tags each component with one of five topic bundles: general, web, flutter, flutter-assets, mongodb
-├── scripts/             # setup.sh, setup-manifest.mjs, check-bundles.mjs, utils.sh, apply-global.mjs, skill-drift.mjs, test/, image-gen-tools/ (README cover generator)
+├── scripts/             # setup.sh (context-mode needs Node 24.15+; the copilot part also wires context-mode for copilot-cli), setup-manifest.mjs, check-bundles.mjs, utils.sh, apply-global.mjs, skill-drift.mjs, test/, image-gen-tools/ (README cover generator)
 ├── cli/                 # agentry CLI and Ink terminal UI, in TypeScript (src/bin; npm workspaces packages/core, packages/tui and packages/web; design docs in cli/docs). See cli/README.md and cli/CLAUDE.md
 └── .github/             # CI (validates every skill) and assets/cover.jpg
 ```
@@ -51,11 +51,11 @@ curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scrip
 curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- status
 curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- uninstall --all --yes
 
-# Wire GitHub Copilot (~/.copilot) too, optionally trusting a repo folder so its hooks run
+# Wire GitHub Copilot (~/.copilot) too (also context-mode for copilot-cli when both CLIs exist), optionally trusting a repo folder so its hooks run
 curl -sSL https://raw.githubusercontent.com/ersanyamarya/agentry-labs/main/scripts/setup.sh | bash -s -- install --only copilot --trust "$HOME/ws/my-repo"
 
 # Script tests (run the bash test under /bin/bash too: macOS has bash 3.2)
-node scripts/check-bundles.mjs && node --test scripts/test/
+node scripts/check-bundles.mjs && node --test scripts/test/*.mjs
 bash scripts/test/setup.test.sh
 sh scripts/test/trail-autobuild.test.sh
 

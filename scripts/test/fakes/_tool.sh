@@ -33,15 +33,18 @@ case "$name" in
   context-mode)
     case "$1" in
       doctor)
-        if [ -f "$FAKE_BIN/.cm-wired" ] && [ -z "${FAKE_CM_DOCTOR_FAIL:-}" ]; then
-          echo '{"command":"doctor","exitCode":0,"agents":[{"id":"claude-code","status":"PASS"}]}'
+        agent=claude-code; marker=.cm-wired
+        case " $* " in *" copilot-cli "*) agent=copilot-cli; marker=.cm-copilot-wired ;; esac
+        if [ -f "$FAKE_BIN/$marker" ] && [ -z "${FAKE_CM_DOCTOR_FAIL:-}" ]; then
+          echo "{\"command\":\"doctor\",\"exitCode\":0,\"agents\":[{\"id\":\"$agent\",\"status\":\"PASS\"}]}"
         else
-          echo '{"command":"doctor","exitCode":0,"agents":[{"id":"claude-code","status":"FAIL"}]}'
+          echo "{\"command\":\"doctor\",\"exitCode\":0,\"agents\":[{\"id\":\"$agent\",\"status\":\"FAIL\"}]}"
         fi ;;
       setup)
         case " $* " in
           *" --dry-run "*) echo "would remove context-mode wiring" ;;
-          *" --remove "*) rm -f "$FAKE_BIN/.cm-wired" ;;
+          *" --remove "*) rm -f "$FAKE_BIN/.cm-wired" "$FAKE_BIN/.cm-copilot-wired" ;;
+          *" copilot-cli "*) [ -z "${FAKE_CM_COPILOT_FAIL:-}" ] || exit 1; touch "$FAKE_BIN/.cm-copilot-wired" ;;
           *) touch "$FAKE_BIN/.cm-wired" ;;
         esac ;;
     esac ;;

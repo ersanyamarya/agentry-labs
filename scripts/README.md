@@ -11,4 +11,4 @@ Repository maintenance and installation scripts.
 | [`skill-drift.mjs`](skill-drift.mjs) | Compare every skill across repos after normalising project names. | `node scripts/skill-drift.mjs` |
 | [`utils.sh`](utils.sh) | Shared colorized logging helpers sourced by executable scripts. | Source from another script; do not run directly. |
 
-Tests: `node --test scripts/test/` and `bash scripts/test/setup.test.sh` (also run it with `/bin/bash`, which is 3.2 on macOS) and `sh scripts/test/trail-autobuild.test.sh`.
+Tests: `node --test scripts/test/*.mjs` and `bash scripts/test/setup.test.sh` (also run it with `/bin/bash`, which is 3.2 on macOS) and `sh scripts/test/trail-autobuild.test.sh`.

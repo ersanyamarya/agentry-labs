@@ -29,7 +29,8 @@ Parts (--only, repeatable):
   trail          the trail code-map CLI (npm: @trailhq/trail-code)
   context-mode   the context-mode plugin CLI (npm: context-mode)
   config         user-level rules, settings, hooks, status line and MCP entry
-  copilot        GitHub Copilot: settings, trail hook, context7 entry and the rules, in ~/.copilot (needs the copilot CLI)
+  copilot        GitHub Copilot: settings, trail hook, context7 entry and the rules, in ~/.copilot, plus context-mode
+                 for Copilot (context-mode setup --agents copilot-cli) when both CLIs are on PATH (needs the copilot CLI)
 
 Options:
   --all            all four parts
@@ -43,6 +44,7 @@ Options:
   -h, --help       this text
 
 With no arguments on a terminal, a menu opens. Tools install at @latest through mise if it is on PATH, else npm.
+The context-mode part needs Node 24.15.0 or newer (install fails early when it is older).
 Test hook: SETUP_TTY=<file> answers the menu from a file instead of /dev/tty.
 EOF
 }
@@ -171,6 +173,7 @@ TRAIL_KEPT=false
 TRAIL_RAN=false
 CONFIG_RAN=false
 COPILOT_RAN=false
+CM_COPILOT_RAN=false
 
 add_step() { # title, changes text, function
   STEP_TITLE[${#STEP_TITLE[@]}]="$1"
@@ -234,9 +237,10 @@ step_prereqs() {
     say "    Install Node $MIN_NODE or newer (or mise), then run this again."
     return 1
   fi
-  v="$(node --version </dev/null)"; v="${v#v}"
-  if ! ver_ge "$v" "$MIN_NODE"; then
-    say "    ${RED}Node $v is too old.${NC} Install Node $MIN_NODE or newer (or mise), then run this again."
+  v="$(node --version </dev/null)"; v="${v#v}"; v="${v%%-*}"
+  if has_part context-mode && ! ver_ge "$v" "$MIN_NODE"; then
+    say "    ${RED}Node $v is too old.${NC} context-mode needs Node $MIN_NODE or newer."
+    say "    Fix: mise use -g node@24 (or nvm install 24), open a new shell, then run this again."
     return 1
   fi
   say "    node $v, npm $(command -v mise >/dev/null 2>&1 && echo "(mise found: will use it)" || echo "(no mise: will use npm)")"
@@ -300,14 +304,16 @@ stub() { STEP_REASON="not implemented yet"; return 3; }
 
 config_dir() { echo "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; }
 
-# True when context-mode's own doctor reports PASS for claude-code (its exit code is 0 even when claude is missing).
-cm_wired() {
-  context-mode doctor --json --no-input --agents claude-code </dev/null 2>/dev/null | node -e '
+# True when context-mode's own doctor reports PASS for the agent (its exit code is 0 even when the agent is missing).
+cm_agent_wired() { # <agent id>
+  context-mode doctor --json --no-input --agents "$1" </dev/null 2>/dev/null | node -e '
     let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
-      try { process.exit(JSON.parse(s).agents.some((a) => a.id === "claude-code" && a.status === "PASS") ? 0 : 1); }
+      try { process.exit(JSON.parse(s).agents.some((a) => a.id === process.argv[1] && a.status === "PASS") ? 0 : 1); }
       catch { process.exit(1); }
-    });'
+    });' "$1"
 }
+cm_wired() { cm_agent_wired claude-code; }
+cm_copilot_wired() { cm_agent_wired copilot-cli; }
 
 # True when trail's user-level files exist and its recorded dist folder is still there (the statusline needs it).
 trail_wired() {
@@ -395,6 +401,26 @@ step_apply_copilot() {
   return 0
 }
 
+# Why the context-mode wiring for Copilot cannot run, or nothing when it can. Needs both CLIs on PATH.
+cm_copilot_blocker() {
+  command -v context-mode >/dev/null 2>&1 || { echo "context-mode CLI not on PATH"; return 0; }
+  command -v copilot >/dev/null 2>&1 || { echo "Copilot not found (copilot CLI not on PATH)"; return 0; }
+  return 0
+}
+
+# context-mode writes an MCP entry with the absolute node path of the node running now, so a repo .nvmrc cannot change it.
+step_wire_context_mode_copilot() {
+  has_part copilot || { STEP_REASON="not selected"; return 3; }
+  local why
+  why="$(cm_copilot_blocker)"
+  if [ -n "$why" ]; then STEP_REASON="$why"; return 3; fi
+  if [ "$DRY_RUN" != true ] && cm_copilot_wired; then STEP_REASON="already wired"; return 3; fi
+  exec_cmd context-mode setup --yes --no-input --agents copilot-cli || return 1
+  [ "$DRY_RUN" = true ] && { STEP_REASON="dry run"; return 3; }
+  CM_COPILOT_RAN=true
+  return 0
+}
+
 # ---------- manifest ----------
 mf() { node "$SOURCE_DIR/scripts/setup-manifest.mjs" --config "$(config_dir)" "$@"; }
 manifest_file() { echo "$(config_dir)/agentry/install-manifest.json"; }
@@ -441,6 +467,11 @@ step_manifest() {
     mf record context-mode "$f" || return 1
     say "    recorded context-mode wiring"; changed=true
   fi
+  if [ "$CM_COPILOT_RAN" = true ]; then
+    echo '{"copilot":true}' > "$f"
+    mf record context-mode "$f" || return 1
+    say "    recorded context-mode Copilot wiring"; changed=true
+  fi
   if [ "$changed" = false ]; then STEP_REASON="nothing new"; return 3; fi
   return 0
 }
@@ -466,6 +497,7 @@ step_verify() {
     fi
   fi
   if has_part context-mode; then rc=0; cm_wired || rc=$?; check_line "context-mode doctor (claude-code PASS)" "$rc"; fi
+  if has_part copilot && [ -z "$(cm_copilot_blocker)" ]; then rc=0; cm_copilot_wired || rc=$?; check_line "context-mode doctor (copilot-cli PASS)" "$rc"; fi
   if has_part trail; then rc=0; command -v trail >/dev/null 2>&1 || rc=$?; check_line "trail on PATH" "$rc"; fi
   if [ -n "$VERIFY_FAILED" ]; then
     say "    ${RED}Failed checks:${NC}$VERIFY_FAILED"
@@ -482,6 +514,7 @@ build_install_steps() {
   add_step "Wire trail" "<config>/ hooks and skill" step_wire_trail
   add_step "Apply config" "<config>/ rules, settings, helpers, MCP entry" step_apply_config
   add_step "Apply Copilot config" "<copilot>/ settings, hook, MCP entry, instructions" step_apply_copilot
+  add_step "Wire context-mode for Copilot" "<copilot>/ MCP entry, hook and ctx-* skills (context-mode setup)" step_wire_context_mode_copilot
   add_step "Write manifest" "<config>/agentry/install-manifest.json" step_manifest
   add_step "Verify" "nothing" step_verify
 }
@@ -594,13 +627,22 @@ part_status() {
   esac
 }
 
+# one more line under copilot: context-mode's doctor for copilot-cli
+copilot_cm_status() {
+  local why
+  why="$(cm_copilot_blocker)"
+  if [ -n "$why" ]; then status_line "${YELLOW}${G_SKIP}${NC}" "  context-mode (copilot-cli)" "skipped" "$why"; return 0; fi
+  if cm_copilot_wired; then status_line "${GREEN}${G_OK}${NC}" "  context-mode (copilot-cli)" "wired"
+  else status_line "${YELLOW}~${NC}" "  context-mode (copilot-cli)" "not wired" "run setup install --only copilot"; fi
+}
+
 do_status() {
   make_tmp
   ensure_source 2>/dev/null || true
   say "${BOLD}Status${NC}"
   local p parts="$SEL"
   [ -n "$parts" ] || parts="$ALL_PARTS"
-  for p in $parts; do part_status "$p"; done
+  for p in $parts; do part_status "$p"; [ "$p" != copilot ] || copilot_cm_status; done
 }
 
 # ---------- uninstall ----------
@@ -646,6 +688,9 @@ step_remove_copilot() {
   [ "$rc" -eq 0 ] || return 1
   if [ "$DRY_RUN" = true ]; then STEP_REASON="dry run"; return 3; fi
   mf forget copilot || return 1
+  if manifest_has context-mode copilot; then
+    say "    ${YELLOW}note:${NC} context-mode's Copilot wiring is kept: its undo (context-mode setup --remove) also unwires Claude Code. Remove it with: setup uninstall --only context-mode"
+  fi
 }
 
 step_remove_trail() {
@@ -705,7 +750,7 @@ clean_cm_marketplace() {
 step_remove_context_mode() {
   has_part context-mode || { STEP_REASON="not selected"; return 3; }
   if ! command -v context-mode >/dev/null 2>&1; then STEP_REASON="not installed"; return 3; fi
-  if ! cm_wired && ! manifest_has context-mode wired; then STEP_REASON="not installed (not wired)"; return 3; fi
+  if ! cm_wired && ! manifest_has context-mode wired && ! manifest_has context-mode copilot; then STEP_REASON="not installed (not wired)"; return 3; fi
   say "    ${YELLOW}note:${NC} context-mode setup --remove undoes every agent it was set up for, not only Claude Code."
   if [ "$DRY_RUN" = true ]; then
     show_cmd context-mode setup --remove --dry-run --yes --no-input --agents claude-code
@@ -715,7 +760,7 @@ step_remove_context_mode() {
   backup_files context-mode-remove "$(config_dir)/settings.json" "$(config_dir)/.claude.json"
   exec_cmd context-mode setup --remove --yes --no-input --agents claude-code || return 1
   clean_cm_marketplace
-  ensure_source && mf forget context-mode wired
+  ensure_source && mf forget context-mode wired copilot
   return 0
 }
 
