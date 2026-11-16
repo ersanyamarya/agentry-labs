@@ -136,6 +136,9 @@ export const createCopilotReader = (
     const root = paths.projectRoot(resolve(cwd));
 
     const configJson = object(readJsonc(join(ch, "config.json"), errors));
+    const signedIn =
+      list(configJson.loggedInUsers).length > 0 ||
+      Boolean(configJson.lastLoggedInUser);
     const trustedFolders = list(configJson.trustedFolders).filter(
       (item): item is string => typeof item === "string"
     );
@@ -312,6 +315,7 @@ export const createCopilotReader = (
 
     return {
       present: existsSync(ch),
+      signedIn,
       skills,
       instructions,
       hooks,

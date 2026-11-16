@@ -376,6 +376,8 @@ export interface CopilotInventory {
   mcp: CopilotMcpServer[];
   /** The Copilot home exists. */
   present: boolean;
+  /** config.json lists a logged-in user (names are never copied). */
+  signedIn: boolean;
   skills: CopilotSkill[];
   /** The repo root or a parent is in trustedFolders of <copilot home>/config.json. */
   trusted: boolean;

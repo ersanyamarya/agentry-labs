@@ -203,6 +203,23 @@ describe("copilot reader", () => {
     assert.deepEqual(inv.errors, []);
   });
 
+  test("signedIn: false without the file, empty, or no user; true with a user, comments allowed", () => {
+    assert.equal(read().signedIn, false);
+    writeJson(join(ch, "config.json"), { loggedInUsers: [] });
+    assert.equal(read().signedIn, false);
+    writeJson(join(ch, "config.json"), { host: "https://github.com" });
+    assert.equal(read().signedIn, false);
+    write(
+      join(ch, "config.json"),
+      `// header\n{"loggedInUsers": [{"login": "${SECRET}"},], /* x */}\n`
+    );
+    const inv = read();
+    assert.equal(inv.signedIn, true);
+    assert.ok(!JSON.stringify(inv).includes(SECRET), "login is never copied");
+    writeJson(join(ch, "config.json"), { lastLoggedInUser: { login: "x" } });
+    assert.equal(read().signedIn, true);
+  });
+
   test("not trusted without the key, or when only a sibling is listed", () => {
     write(join(ch, "config.json"), '// h\n{"firstLaunchAt": "x"}');
     assert.equal(read().trusted, false);

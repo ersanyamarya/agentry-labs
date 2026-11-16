@@ -103,6 +103,7 @@ const noCopilot: CopilotInventory = {
   instructions: [],
   mcp: [],
   present: false,
+  signedIn: false,
   skills: [],
   trusted: false,
 };
