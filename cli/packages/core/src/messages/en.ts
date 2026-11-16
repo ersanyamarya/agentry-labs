@@ -1482,6 +1482,30 @@ export const en = {
       repoWins: "This repo's own wins",
     },
     kinds: { skill: "skill", agent: "agent", rule: "rule", mcp: "MCP server" },
+    // What the UIs show around the share state: column, per-repo switch, signed-out note, why a row cannot be shared, preview titles.
+    column: "Copilot",
+    repoLabel: "Copilot in this repo",
+    repoState: { on: capital(on), off: capital(off) },
+    signedOut: "Not signed in to Copilot",
+    whyNot: {
+      projectOnly:
+        "A project item: Copilot already loads this repo's own folder.",
+      plugin: "A plugin item: plugin items are not shared.",
+      libraryOnly: "In the library only: turn it on first.",
+      setup:
+        "Added by setup: remove it with setup.sh uninstall --only copilot.",
+      other: "Something else is already there; agentry will not touch it.",
+      repoWins:
+        "This repo has its own item of that name; Copilot uses it here.",
+    },
+    preview: {
+      share: (kind: string, name: string) =>
+        `Share the ${kind} ${name} with Copilot for ${allProjects}`,
+      unshare: (kind: string, name: string) =>
+        `Stop sharing the ${kind} ${name} with Copilot`,
+      trust: "Trust this folder in Copilot",
+      untrust: "Stop trusting this folder in Copilot",
+    },
     forAllProjects: `${capital(shared)} with Copilot for ${allProjects}`,
     describeShare: (kind: string, name: string, path: string) =>
       `share the ${kind} ${name} with Copilot for ${allProjects}: ${path}`,
@@ -1584,6 +1608,9 @@ export const en = {
         `argument ${index}: ${masked}`,
     },
     trust: {
+      explain: "Lets Copilot run this repo's hooks and MCP servers.",
+      title: "Trust this folder",
+      untrustTitle: "Stop trusting this folder",
       describe: (dir: string, file: string) =>
         `trust the folder ${dir} in ${file}`,
       describeUntrust: (dir: string, file: string) =>

@@ -8,7 +8,12 @@ import { expect, test } from "vitest";
 import { contract } from "../contract/index.js";
 
 // Not procedures on purpose.
-const LEFT_OUT: Record<string, string> = {};
+const LEFT_OUT: Record<string, string> = {
+  copilotState:
+    "Copilot sharing reaches the web through the contract in a later phase; load() already carries it.",
+  previewCopilot: "Web contract for Copilot sharing comes in a later phase.",
+  applyCopilot: "Web contract for Copilot sharing comes in a later phase.",
+};
 
 // `load` sits at the top of the contract; every other procedure is nested under its section.
 const procedures = () => {

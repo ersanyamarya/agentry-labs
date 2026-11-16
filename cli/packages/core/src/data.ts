@@ -4,13 +4,22 @@
 import { createAgents } from "./agents.js";
 import { createBackups } from "./backups.js";
 import { type CatalogOptions, createCatalog } from "./catalog.js";
+import {
+  createCopilotShare,
+  RULE as SHARE_RULE,
+  type ShareKind,
+  shareState,
+} from "./copilot-share.js";
+import { createCopilotTrust, RULE as TRUST_RULE } from "./copilot-trust.js";
 import { createDoctor, type DoctorOptions } from "./doctor.js";
 import { createFix, findingKey } from "./fix.js";
 import { createFixUndo } from "./fix-undo.js";
 import { createHookToggle, type HookAction } from "./hook-toggle.js";
+import { createCopilotReader } from "./inventory/copilot.js";
 import type { AddArgs, SetArgs } from "./mcp-edit.js";
 import { createMcpEdit } from "./mcp-edit.js";
 import { createMcpToggle } from "./mcp-toggle.js";
+import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import type { PluginInstallArgs } from "./plugin-install.js";
 import { createPluginInstall } from "./plugin-install.js";
@@ -18,7 +27,7 @@ import { createPluginToggle } from "./plugin-toggle.js";
 import { createRules } from "./rules.js";
 import { createShelf } from "./shelf.js";
 import { createStatus } from "./status.js";
-import type { Finding, FixOptions } from "./types.js";
+import type { CopilotShareState, Finding, FixOptions } from "./types.js";
 
 const failure = (error: unknown) =>
   `failed (${(error as { code?: string; name?: string } | undefined)?.code ?? (error as { name?: string } | undefined)?.name ?? "error"})`;
@@ -48,6 +57,12 @@ interface HookCall {
   scope?: string;
   selector: string;
 }
+interface CopilotCall {
+  action: "share" | "unshare" | "trust" | "untrust";
+  dir: string;
+  kind?: ShareKind;
+  name?: string;
+}
 type McpAddCall = Omit<AddArgs, "path" | "dryRun" | "yes"> & {
   dir: string;
   dryRun?: boolean;
@@ -71,6 +86,8 @@ export interface DataOptions {
   catalogOptions?: CatalogOptions;
   doctorOptions?: DoctorOptions;
   fixOptions?: FixOptions;
+  /** Whether a Copilot process is running (default: `pgrep -x copilot`); trusting waits for it to quit. */
+  isCopilotRunning?: () => boolean;
   makePaths: (dir: string) => Paths;
   now?: () => Date;
 }
@@ -80,6 +97,7 @@ export const createData = ({
   doctorOptions = {},
   fixOptions = {},
   catalogOptions = {},
+  isCopilotRunning,
   now = () => new Date(),
 }: DataOptions) => {
   const doctorFor = (paths: Paths) =>
@@ -95,6 +113,82 @@ export const createData = ({
       now,
       ...fixOptions,
     });
+
+  // Sharing Claude user items with Copilot, and trusting a folder in it (copilot-share.ts, copilot-trust.ts).
+  const copilotWords = messages().copilot;
+  const copilotState = (dir: string): CopilotShareState | undefined => {
+    const paths = makePaths(dir);
+    const copilot = createCopilotReader(paths).read({ cwd: dir });
+    if (!copilot.present) {
+      return;
+    }
+    const why: Partial<Record<string, string>> = {
+      other: copilotWords.whyNot.other,
+      setup: copilotWords.whyNot.setup,
+      repoWins: copilotWords.whyNot.repoWins,
+    };
+    return {
+      signedIn: copilot.signedIn,
+      trusted: copilot.trusted,
+      items: shareState(paths, dir).map(({ kind, name, state, repoWins }) => ({
+        kind,
+        name,
+        state,
+        repoWins,
+        ...(why[state] === undefined ? {} : { why: why[state] }),
+      })),
+    };
+  };
+  const copilotRun = async (
+    { dir, action, kind, name }: CopilotCall,
+    dryRun: boolean
+  ) => {
+    const paths = makePaths(dir);
+    const { code, lines } = await capture(
+      (io) => {
+        const options = {
+          ...io,
+          now,
+          isTTY: fixOptions.isTTY,
+          confirm: fixOptions.confirm,
+          runCommand: fixOptions.runCommand,
+        };
+        return action === "trust" || action === "untrust"
+          ? createCopilotTrust(paths, { ...options, isCopilotRunning })
+          : createCopilotShare(paths, options);
+      },
+      (engine) => {
+        const args = { dryRun, yes: !dryRun, path: dir };
+        if ("trust" in engine) {
+          return engine[action === "trust" ? "trust" : "untrust"](dir, args);
+        }
+        if (kind === undefined || name === undefined) {
+          return 2;
+        }
+        return engine[action as "share" | "unshare"]({ kind, name, ...args });
+      }
+    );
+    return { code, lines };
+  };
+  const previewCopilot = async (call: CopilotCall): Promise<Preview> => {
+    const { code, lines } = await copilotRun(call, true);
+    const tag =
+      call.action === "trust" || call.action === "untrust"
+        ? TRUST_RULE
+        : SHARE_RULE;
+    return {
+      appliable:
+        code === 0 && lines.some((line) => line.startsWith(`[${tag}]`)),
+      text: lines
+        .join("\n")
+        .replace(/\n?Dry run: nothing written\./, "")
+        .trim(),
+    };
+  };
+  const applyCopilot = async (call: CopilotCall): Promise<Outcome> => {
+    const { code, lines } = await copilotRun(call, false);
+    return { ok: code === 0, text: lines.join("\n").trim() };
+  };
 
   // Collects everything a tab shows; a failed part is reported, never thrown, so one bad file cannot blank the UI.
   const load = (dir: string) => {
@@ -118,9 +212,16 @@ export const createData = ({
       err: () => undefined,
       warn: () => undefined,
     };
+    // Only when ~/.copilot exists; a failed read keeps the field with a loadError note.
+    const copilot = attempt("copilot", () => copilotState(dir) ?? {}, {
+      signedIn: false,
+      trusted: false,
+      items: [],
+    });
     return {
       dir,
       paths,
+      ...(Object.keys(copilot).length > 0 ? { copilot } : {}),
       status: attempt(
         "status",
         () =>
@@ -798,5 +899,8 @@ export const createData = ({
     applyFix,
     previewUndo,
     applyUndo,
+    copilotState,
+    previewCopilot,
+    applyCopilot,
   };
 };

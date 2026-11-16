@@ -57,4 +57,24 @@ describe("messages", () => {
       "setup.sh uninstall --only copilot"
     );
   });
+  test("copilot: UI words come from the glossary", () => {
+    const { copilot, terms } = messages();
+    expect(copilot.column).toBe("Copilot");
+    expect(copilot.repoLabel).toBe("Copilot in this repo");
+    expect(copilot.repoState).toEqual({ on: "On", off: "Off" });
+    expect(copilot.forAllProjects).toBe(
+      `Shared with Copilot for ${terms.allProjects}`
+    );
+    expect(Object.keys(copilot.whyNot)).toEqual([
+      "projectOnly",
+      "plugin",
+      "libraryOnly",
+      "setup",
+      "other",
+      "repoWins",
+    ]);
+    expect(copilot.preview.share("skill", "demo")).toContain(terms.allProjects);
+    expect(copilot.preview.unshare("skill", "demo")).toContain("demo");
+    expect(copilot.trust.explain).toContain("hooks and MCP servers");
+  });
 });

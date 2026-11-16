@@ -398,6 +398,25 @@ export interface CopilotInventory {
   trusted: boolean;
 }
 
+/** One Claude user item and whether Copilot gets it (the facade's `copilotState`). */
+export interface CopilotShareItem {
+  kind: "skill" | "agent" | "rule" | "mcp";
+  name: string;
+  /** A repo item of the same name wins in this folder (a shared item stays "shared"). */
+  repoWins: boolean;
+  state: "shared" | "notShared" | "other" | "setup" | "repoWins";
+  /** Why the item cannot be shared (text from the messages), for the states other, setup and repoWins. */
+  why?: string;
+}
+
+/** What the UIs show about sharing with Copilot; only present when ~/.copilot exists. */
+export interface CopilotShareState {
+  items: CopilotShareItem[];
+  signedIn: boolean;
+  /** The repo root or a parent is in Copilot's trustedFolders. */
+  trusted: boolean;
+}
+
 /** The `copilot` block of `agentry status --json`: the inventory without errors (those join the top-level list). */
 export interface CopilotStatus extends Omit<CopilotInventory, "errors"> {
   home: string;
