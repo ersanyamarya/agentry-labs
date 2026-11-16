@@ -1486,6 +1486,33 @@ export const en = {
     column: "Copilot",
     repoLabel: "Copilot in this repo",
     repoState: { on: capital(on), off: capital(off) },
+    repoLabelShort: "Copilot here",
+    // The terminal UI: short words for the list cell (the full states are in `states`), the detail line, footer keys and help.
+    cell: {
+      other: "Other",
+      setup: "By setup",
+      repoWins: "Repo wins",
+      none: "-",
+    },
+    // A row with no reason of its own (CLAUDE.md, a nested rule, a broken link) that C cannot share.
+    cannot: "agentry cannot share this item with Copilot.",
+    detail: (text: string) => `Copilot: ${text}`,
+    detailShared: `Shared for ${allProjects}`,
+    detailNotShared: `Not shared; C shares it for ${allProjects}`,
+    keys: {
+      share: "share with Copilot",
+      shareShort: "share",
+      unshare: "stop sharing",
+      unshareShort: "unshare",
+      trustOn: "turn Copilot on here",
+      trustOnShort: "Copilot on",
+      trustOff: "turn Copilot off here",
+      trustOffShort: "Copilot off",
+    },
+    help: [
+      ["C", `share or stop sharing with Copilot, for ${allProjects}`],
+      ["T", "turn Copilot on or off in this repo"],
+    ] as [string, string][],
     signedOut: "Not signed in to Copilot",
     whyNot: {
       projectOnly:

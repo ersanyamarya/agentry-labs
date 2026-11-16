@@ -441,7 +441,7 @@ export const Panes = ({
       height={height}
       marked={marked}
       rows={rows}
-      status={[status, row?.why].filter(Boolean).join("  ·  ")}
+      status={[status, row?.why, row?.copilotWhy].filter(Boolean).join("  ·  ")}
       width={layout.listWidth}
     />
     <DetailsPane

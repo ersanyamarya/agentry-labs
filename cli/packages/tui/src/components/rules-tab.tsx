@@ -5,8 +5,9 @@ import { messages } from "@agentry/core/messages";
 import { useInput } from "ink";
 import React from "react";
 import { startBulk } from "../bulk-flow.js";
+import { copilotKey } from "../copilot-flow.js";
 import { startRemove } from "../remove-flow.js";
-import { ruleKeys, ruleRows } from "../rows.js";
+import { copilotOf, ruleKeys, ruleRows } from "../rows.js";
 import type { TabProps } from "../types.js";
 import { useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
@@ -32,7 +33,7 @@ export const RulesTab = ({
   const list = useList({ rows: all, lock });
   const { rows, cursor, row, move } = list;
   const flow = useFlow({ lock, notify, reload, copy });
-  const keys = ruleKeys(row);
+  const keys = ruleKeys(row, copilotOf(data));
   // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(() => {
     if (active) {
@@ -48,6 +49,8 @@ export const RulesTab = ({
       if (key.upArrow || key.downArrow) {
         flow.clear();
         move(key.upArrow ? -1 : 1);
+      } else if (copilotKey(input, { api, data, dir, flow, notify, row })) {
+        // C shares or stops sharing the row with Copilot, T turns Copilot on or off in this repo
       } else if (input === "e") {
         openFile(row?.file);
       } else if (

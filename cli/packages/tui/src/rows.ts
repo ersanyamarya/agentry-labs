@@ -6,7 +6,7 @@
 import { formatAge, formatBytes } from "@agentry/core/backups";
 import type { CatalogEntry } from "@agentry/core/catalog";
 import { messages } from "@agentry/core/messages";
-import type { SkillItem } from "@agentry/core/types";
+import type { CopilotShareState, SkillItem } from "@agentry/core/types";
 import { type Icons, iconsFor } from "./icons.js";
 import {
   badgeText,
@@ -33,6 +33,7 @@ const {
   hooks: H,
   plugins: P,
   doctor: Dr,
+  copilot: CP,
   core: { detail: D, columns: COL, scopeTitle },
 } = messages();
 
@@ -81,22 +82,118 @@ const withCells = (cells: Cell[]) => ({
 // Wide enough for "all projects" (the scope badge) and the "This project" / "All projects" headers.
 const STATE_WIDTH = 12;
 const SCOPE_WIDTH = 12;
+// Wide enough for "Not shared".
+const COPILOT_WIDTH = 11;
+const INFO_WIDTH = 9;
+
+// What the UI shows about Copilot: only when ~/.copilot exists and Copilot is signed in (nothing changes on screen otherwise).
+export const copilotOf = (data: Data): CopilotShareState | undefined => {
+  const state = (data as { copilot?: Partial<CopilotShareState> }).copilot;
+  return state?.signedIn && Array.isArray(state.items)
+    ? (state as CopilotShareState)
+    : undefined;
+};
+
+interface Share {
+  cell: Seg[];
+  detail: string;
+  fields: Pick<
+    Row,
+    "copilotKind" | "copilotName" | "copilotShared" | "copilotWhy"
+  >;
+}
+// The Copilot cell, detail line and row fields of one Claude item. An item agentry can share or unshare sets kind and name;
+// anything else sets why (the item's own reason, else `fallback`). Undefined when Copilot is not shown.
+const shareOf = (
+  state: CopilotShareState | undefined,
+  kind: "skill" | "agent" | "rule" | "mcp",
+  name: string | undefined,
+  fallback: string = CP.cannot
+): Share | undefined => {
+  if (!state) {
+    return;
+  }
+  const item =
+    name === undefined
+      ? undefined
+      : state.items.find((one) => one.kind === kind && one.name === name);
+  if (item && (item.state === "shared" || item.state === "notShared")) {
+    const shared = item.state === "shared";
+    return {
+      cell: [
+        shared
+          ? seg(CP.states.shared, stateStyle("on"))
+          : seg(CP.states.notShared, DIM),
+      ],
+      detail: CP.detail(shared ? CP.detailShared : CP.detailNotShared),
+      fields: {
+        copilotKind: kind,
+        copilotName: item.name,
+        copilotShared: shared,
+      },
+    };
+  }
+  const why = item?.why ?? fallback;
+  return {
+    cell: [
+      seg(
+        item && item.state !== "shared" && item.state !== "notShared"
+          ? CP.cell[item.state]
+          : CP.cell.none,
+        DIM
+      ),
+    ],
+    detail: CP.detail(why),
+    fields: { copilotWhy: why },
+  };
+};
+// The footer keys for Copilot: C on a row agentry can share or unshare, T for the repo switch (works on any row).
+export const copilotKeys = (
+  row: Row | undefined,
+  state: Pick<CopilotShareState, "trusted"> | undefined
+): KeyHint[] =>
+  state
+    ? [
+        ...(row?.copilotKind
+          ? [
+              row.copilotShared
+                ? (["C", CP.keys.unshare, CP.keys.unshareShort] as KeyHint)
+                : (["C", CP.keys.share, CP.keys.shareShort] as KeyHint),
+            ]
+          : []),
+        state.trusted
+          ? (["T", CP.keys.trustOff, CP.keys.trustOffShort] as KeyHint)
+          : (["T", CP.keys.trustOn, CP.keys.trustOnShort] as KeyHint),
+      ]
+    : [];
+// A header cell for the Copilot column.
+const copilotHeader = (state: CopilotShareState | undefined): Cell[] =>
+  state ? [cell(seg(CP.column, DIM), COPILOT_WIDTH)] : [];
+
 // Skills tab: count, cost, then two state columns (P and G for shelf rows; scope and state for plugin skills).
 const skillCells = (
-  info: string | Seg,
+  info: string | Seg | Seg[],
   count: number | null | undefined,
   first?: Seg | Seg[],
-  second?: Seg | Seg[]
+  second?: Seg | Seg[],
+  infoWidth = INFO_WIDTH
 ) =>
   withCells([
-    cell(typeof info === "string" ? (info ? seg(info, DIM) : []) : info, 9),
+    cell(
+      typeof info === "string" ? (info ? seg(info, DIM) : []) : info,
+      infoWidth
+    ),
     cell(cost(count), 5, "right"),
     cell(first ?? [], STATE_WIDTH, "right"),
     cell(second ?? [], STATE_WIDTH, "right"),
   ]);
 
 // The footer keys of the selected Skills row: only what works on it. [key, text, short text].
-export const skillKeys = (row: Row | undefined): KeyHint[] => {
+export const skillKeys = (
+  row: Row | undefined,
+  copilot?: Pick<CopilotShareState, "trusted">
+): KeyHint[] => [...baseSkillKeys(row), ...copilotKeys(row, copilot)];
+const baseSkillKeys = (row: Row | undefined): KeyHint[] => {
   const both: KeyHint[] = [
     ["space", K.skills.projectToggle, K.skills.projectToggleShort],
     ["g", K.skills.globalToggle, K.skills.globalToggleShort],
@@ -202,12 +299,20 @@ const spacer = (id: string): Row => ({
 
 // Shelf groups (expandable), then what loads from global, project and plugin folders.
 export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
+  const copilot = copilotOf(data);
+  const infoWidth = copilot ? COPILOT_WIDTH : INFO_WIDTH;
+  const cells = (
+    info: string | Seg | Seg[],
+    count: number | null | undefined,
+    first?: Seg | Seg[],
+    second?: Seg | Seg[]
+  ) => skillCells(info, count, first, second, infoWidth);
   const rows: Row[] = [
     header(
       "h:shelf",
       S.headers.shelf,
       withCells([
-        cell(seg(S.headers.skills, DIM), 9),
+        cell(seg(S.headers.skills, DIM), infoWidth),
         cell(seg(S.headers.cost, DIM), 5, "right"),
         cell(seg(S.headers.project, DIM), STATE_WIDTH, "right"),
         cell(seg(S.headers.global, DIM), STATE_WIDTH, "right"),
@@ -235,7 +340,7 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
       group: group.name,
       target: group.name,
       label: `${open ? "▾" : "▸"} ${group.name}`,
-      ...skillCells(
+      ...cells(
         S.count(skills.length),
         group.tokens,
         markSeg(pState),
@@ -255,14 +360,25 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
     if (open) {
       for (const item of group.items) {
         const isSkill = item.kind === "skills";
+        // A library skill is shared once it is linked in for all projects; before that only the library has it.
+        const share = isSkill
+          ? shareOf(
+              copilot,
+              "skill",
+              item.global ? item.name : undefined,
+              CP.whyNot.libraryOnly
+            )
+          : undefined;
         rows.push({
           id: `item:${group.name}/${item.kind}/${item.name}`,
           kind: isSkill ? "skill" : "agent",
           group: group.name,
           target: isSkill ? `${group.name}/${item.name}` : undefined,
           label: `    ${item.name}${isSkill ? "" : S.agentSuffix}`,
-          ...skillCells(
-            isSkill ? scopeBadge("shelf") : seg(S.agentWord, DIM),
+          ...share?.fields,
+          ...cells(
+            share?.cell ??
+              (isSkill ? scopeBadge("shelf") : seg(S.agentWord, DIM)),
             item.tokens,
             markSeg(itemState(item, "project")),
             markSeg(itemState(item, "global"))
@@ -279,6 +395,7 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
             D.tokens(tokens(item.tokens)),
             D.source(item.source),
             D.toggle(isSkill ? S.item.toggleSkill : S.item.toggleAgent),
+            ...(share ? [share.detail] : []),
           ],
           file: isSkill ? `${item.source}/SKILL.md` : item.source,
         });
@@ -295,31 +412,42 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
   };
   const own = (scope: string) =>
     loaded.filter((skill) => skill.scope === scope);
-  const skillRow = (skill: Skill): Row => ({
-    id: `skill:${skill.scope}:${skill.source}`,
-    kind: skill.scope === "user" ? "global" : "loaded",
-    shelvable: skill.kind === "file" && skill.scope === "user",
-    projectOnly: skill.kind === "file" && skill.scope === "project",
-    skill: skill.source.split("/").at(-1),
-    why: whyFixed(skill),
-    label: `  ${skill.name}`,
-    ...withCells([
-      cell([], 9),
-      cell(cost(skill.tokens), 5, "right"),
-      cell(
-        skill.scope === "project" ? markSeg(skill.state) : [],
-        STATE_WIDTH,
-        "right"
-      ),
-      cell(
-        skill.scope === "project" ? [] : markSeg(skill.state),
-        STATE_WIDTH,
-        "right"
-      ),
-    ]),
-    details: [whyFixed(skill), ...skillDetails(skill)],
-    file: skill.kind === "broken" ? undefined : `${skill.source}/SKILL.md`,
-  });
+  const skillRow = (skill: Skill): Row => {
+    const share =
+      skill.scope === "user"
+        ? shareOf(copilot, "skill", skill.source.split("/").at(-1))
+        : shareOf(copilot, "skill", undefined, CP.whyNot.projectOnly);
+    return {
+      ...share?.fields,
+      id: `skill:${skill.scope}:${skill.source}`,
+      kind: skill.scope === "user" ? "global" : "loaded",
+      shelvable: skill.kind === "file" && skill.scope === "user",
+      projectOnly: skill.kind === "file" && skill.scope === "project",
+      skill: skill.source.split("/").at(-1),
+      why: whyFixed(skill),
+      label: `  ${skill.name}`,
+      ...withCells([
+        cell(share?.cell ?? [], infoWidth),
+        cell(cost(skill.tokens), 5, "right"),
+        cell(
+          skill.scope === "project" ? markSeg(skill.state) : [],
+          STATE_WIDTH,
+          "right"
+        ),
+        cell(
+          skill.scope === "project" ? [] : markSeg(skill.state),
+          STATE_WIDTH,
+          "right"
+        ),
+      ]),
+      details: [
+        whyFixed(skill),
+        ...skillDetails(skill),
+        ...(share ? [share.detail] : []),
+      ],
+      file: skill.kind === "broken" ? undefined : `${skill.source}/SKILL.md`,
+    };
+  };
   section(S.sections.global, own("user"), skillRow);
   section(S.sections.project, own("project"), skillRow);
   const plugins = data.status.plugins.items.filter((plugin) =>
@@ -327,13 +455,15 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
   );
   section(S.sections.plugins, plugins, (plugin) => {
     const mine = loaded.filter((skill) => skill.plugin === plugin.id);
+    const share = shareOf(copilot, "skill", undefined, CP.whyNot.plugin);
     return {
+      ...share?.fields,
       id: `plugin-skills:${plugin.id}`,
       kind: "loaded",
       plugin: plugin.id,
       enabled: plugin.state === "active",
       label: `  ${plugin.name}:*`,
-      ...skillCells(
+      ...cells(
         S.count(mine.length),
         plugin.skillTokens,
         scopeBadge("plugin"),
@@ -349,6 +479,7 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
         D.source(String(plugin.installPath)),
         D.toggle(S.plugin.toggle),
         D.note(PLUGIN_NOTE),
+        ...(share ? [share.detail] : []),
       ],
     };
   });
@@ -357,7 +488,7 @@ export const skillRows = (data: Data, expanded: Set<string> = new Set()) => {
     id: "total:tokens",
     kind: "total",
     label: S.total.label,
-    ...skillCells("", sum.total, [], []),
+    ...cells("", sum.total, [], []),
     details: [
       S.total.total(sum.total),
       S.total.global(sum.global),
@@ -523,14 +654,23 @@ export const catalogRows = (data: Data, icons: Icons = iconsFor({})): Row[] => {
   return rows;
 };
 
-export const ruleKeys = (row: Row | undefined): KeyHint[] =>
-  row?.ruleFile
-    ? [
+export const ruleKeys = (
+  row: Row | undefined,
+  copilot?: Pick<CopilotShareState, "trusted">
+): KeyHint[] => [
+  ...(row?.ruleFile
+    ? ([
         ["x", K.removeCopyKept],
         ["X", K.removeNoCopy],
         ["e", K.openFile, K.openFileShort],
-      ]
-    : [];
+      ] as KeyHint[])
+    : []),
+  ...copilotKeys(row, copilot),
+];
+
+// The top-level file name (without .md) of a user rule or agent that agentry can share; anything nested is not.
+const userName = (id: string, folder: string) =>
+  new RegExp(`^user:${folder}([^/]+)\\.md$`).exec(id)?.[1];
 
 // CLAUDE.md and rule files Claude Code loads every session (src/lib/rules.ts), user then project, with their whole-file cost.
 export const ruleRows = (data: Data): Row[] => {
@@ -543,6 +683,7 @@ export const ruleRows = (data: Data): Row[] => {
       },
     ];
   }
+  const copilot = copilotOf(data);
   const rows = [
     header(
       "h:rules",
@@ -550,6 +691,7 @@ export const ruleRows = (data: Data): Row[] => {
       withCells([
         cell(seg(R.headers.cost, DIM), 5, "right"),
         cell(seg(R.headers.kind, DIM), 9),
+        ...copilotHeader(copilot),
       ])
     ),
   ];
@@ -561,37 +703,59 @@ export const ruleRows = (data: Data): Row[] => {
     if (list.length > 0) {
       rows.push(spacer(scope), header(`h:${scope}`, title));
       rows.push(
-        ...list.map((entry) => ({
-          id: `rule:${entry.id}`,
-          ruleFile: entry.path,
-          ruleTitle: entry.title,
-          label: `  ${entry.label}`,
-          ...withCells([
-            cell(cost(entry.tokens), 5, "right"),
-            cell(
-              seg(entry.kind === "rule" ? R.kindRule : R.kindClaudeMd, DIM),
-              9
-            ),
-          ]),
-          details: [
-            R.detail.file(entry.label),
-            D.scope(title),
-            R.detail.kind(entry.kind === "rule" ? R.kindRule : R.kindClaudeMd),
-            D.tokens(R.detail.tokens(tokens(entry.tokens))),
-            D.path(entry.path),
-            D.note(R.detail.note),
-            D.toggle(R.detail.toggle),
-          ],
-          file: entry.path,
-        }))
+        ...list.map((entry) => {
+          const share =
+            entry.scope === "user"
+              ? shareOf(
+                  copilot,
+                  "rule",
+                  entry.kind === "rule"
+                    ? userName(entry.id, "rules/")
+                    : undefined
+                )
+              : shareOf(copilot, "rule", undefined, CP.whyNot.projectOnly);
+          return {
+            ...share?.fields,
+            id: `rule:${entry.id}`,
+            ruleFile: entry.path,
+            ruleTitle: entry.title,
+            label: `  ${entry.label}`,
+            ...withCells([
+              cell(cost(entry.tokens), 5, "right"),
+              cell(
+                seg(entry.kind === "rule" ? R.kindRule : R.kindClaudeMd, DIM),
+                9
+              ),
+              ...(share ? [cell(share.cell, COPILOT_WIDTH)] : []),
+            ]),
+            details: [
+              R.detail.file(entry.label),
+              D.scope(title),
+              R.detail.kind(
+                entry.kind === "rule" ? R.kindRule : R.kindClaudeMd
+              ),
+              D.tokens(R.detail.tokens(tokens(entry.tokens))),
+              D.path(entry.path),
+              D.note(R.detail.note),
+              D.toggle(R.detail.toggle),
+              ...(share ? [share.detail] : []),
+            ],
+            file: entry.path,
+          };
+        })
       );
     }
   }
   return rows;
 };
 
-export const agentKeys = (row: Row | undefined): KeyHint[] =>
-  row?.file ? [["e", K.openFile, K.openFileShort]] : [];
+export const agentKeys = (
+  row: Row | undefined,
+  copilot?: Pick<CopilotShareState, "trusted">
+): KeyHint[] => [
+  ...(row?.file ? ([["e", K.openFile, K.openFileShort]] as KeyHint[]) : []),
+  ...copilotKeys(row, copilot),
+];
 
 // The subagents Claude Code can start (core/agents.ts), user then project. Cost is the name and description Claude lists.
 export const agentRows = (data: Data): Row[] => {
@@ -604,6 +768,7 @@ export const agentRows = (data: Data): Row[] => {
       },
     ];
   }
+  const copilot = copilotOf(data);
   const rows = [
     header(
       "h:agents",
@@ -611,6 +776,7 @@ export const agentRows = (data: Data): Row[] => {
       withCells([
         cell(seg(A.headers.cost, DIM), 5, "right"),
         cell(seg(A.headers.model, DIM), 8),
+        ...copilotHeader(copilot),
       ])
     ),
   ];
@@ -622,27 +788,36 @@ export const agentRows = (data: Data): Row[] => {
     if (list.length > 0) {
       rows.push(spacer(`agents-${scope}`), header(`h:agents-${scope}`, title));
       rows.push(
-        ...list.map((entry) => ({
-          id: `agent:${entry.id}`,
-          label: `  ${entry.name}`,
-          ...withCells([
-            cell(cost(entry.tokens), 5, "right"),
-            cell(seg(entry.model ?? "-", DIM), 8),
-          ]),
-          details: [
-            A.detail.agent(entry.name),
-            D.scope(title),
-            ...(entry.description
-              ? [A.detail.description(entry.description)]
-              : []),
-            ...(entry.model ? [A.detail.model(entry.model)] : []),
-            ...(entry.tools ? [A.detail.tools(entry.tools)] : []),
-            D.tokens(`${tokens(entry.tokens)} ${A.detail.tokens}`),
-            D.path(entry.path),
-            D.note(A.detail.note),
-          ],
-          file: entry.path,
-        }))
+        ...list.map((entry) => {
+          const share =
+            entry.scope === "user"
+              ? shareOf(copilot, "agent", userName(entry.id, ""))
+              : shareOf(copilot, "agent", undefined, CP.whyNot.projectOnly);
+          return {
+            ...share?.fields,
+            id: `agent:${entry.id}`,
+            label: `  ${entry.name}`,
+            ...withCells([
+              cell(cost(entry.tokens), 5, "right"),
+              cell(seg(entry.model ?? "-", DIM), 8),
+              ...(share ? [cell(share.cell, COPILOT_WIDTH)] : []),
+            ]),
+            details: [
+              A.detail.agent(entry.name),
+              D.scope(title),
+              ...(entry.description
+                ? [A.detail.description(entry.description)]
+                : []),
+              ...(entry.model ? [A.detail.model(entry.model)] : []),
+              ...(entry.tools ? [A.detail.tools(entry.tools)] : []),
+              D.tokens(`${tokens(entry.tokens)} ${A.detail.tokens}`),
+              D.path(entry.path),
+              D.note(A.detail.note),
+              ...(share ? [share.detail] : []),
+            ],
+            file: entry.path,
+          };
+        })
       );
     }
   }
@@ -715,7 +890,11 @@ export const backupRows = (data: Data): Row[] =>
 
 export const PLUGIN_NOTE = P.note;
 
-export const mcpKeys = (row: Row | undefined): KeyHint[] => [
+export const mcpKeys = (
+  row: Row | undefined,
+  copilot?: Pick<CopilotShareState, "trusted">
+): KeyHint[] => [...baseMcpKeys(row), ...copilotKeys(row, copilot)];
+const baseMcpKeys = (row: Row | undefined): KeyHint[] => [
   ["a", K.mcp.add, K.mcp.addShort],
   ...(row?.mcp
     ? [
@@ -760,90 +939,110 @@ const MCP_WHY: Record<string, string> = {
   "desktop-extension": X.why.desktopExtension,
 };
 
-export const mcpRows = (data: Data): Row[] => [
-  ...(data.status.mcp.servers.length > 0 || data.parked?.length
-    ? [
-        columns("h:cols", X.columns.server, [
-          [COL.scope, SCOPE_WIDTH],
-          [X.columns.transport, 9],
-          ["", 16],
-        ]),
-      ]
-    : []),
-  ...data.status.mcp.servers.map((server) => {
-    const target =
-      server.url ?? [server.command, ...(server.args ?? [])].join(" ");
-    const env = Object.entries(server.env ?? {}).map(([key, value]) =>
-      X.detail.env(key, value)
-    );
-    const headers = Object.entries(server.headers ?? {}).map(([key, value]) =>
-      X.detail.header(key, value)
-    );
-    const mine =
-      server.scope === "user" ||
-      ["plugin", "project", "local"].includes(server.scope);
-    return {
-      id: `mcp:${server.scope}:${server.name}:${server.source}`,
-      label: server.name,
-      ...(mine
-        ? {
-            mcp: server.name,
-            mcpUser: server.scope === "user",
-            mcpEnable: server.scope !== "user" && server.state === "disabled",
-            mcpProject: server.scope !== "user",
-          }
-        : { why: MCP_WHY[server.scope] }),
-      state: server.state,
-      ...withCells([
-        cell(scopeBadge(server.scope), SCOPE_WIDTH),
-        cell(seg(server.transport, DIM), 9),
-        cell(unmarked(server.state), 16),
-      ]),
-      file: server.source,
-      details: [
-        ...(mine ? [] : [MCP_WHY[server.scope] ?? X.detail.notManaged]),
-        X.detail.server(server.name),
-        D.scope(server.scope),
-        D.state(badgeText(server.state)),
-        X.detail.transport(server.transport),
-        X.detail.target(Boolean(server.url), target),
-        ...env,
-        ...headers,
-        X.detail.tokens,
-        D.source(server.source),
+export const mcpRows = (data: Data): Row[] => {
+  const copilot = copilotOf(data);
+  return [
+    ...(data.status.mcp.servers.length > 0 || data.parked?.length
+      ? [
+          columns("h:cols", X.columns.server, [
+            [COL.scope, SCOPE_WIDTH],
+            [X.columns.transport, 9],
+            [copilot ? CP.column : "", 16],
+          ]),
+        ]
+      : []),
+    ...data.status.mcp.servers.map((server) => {
+      const target =
+        server.url ?? [server.command, ...(server.args ?? [])].join(" ");
+      const env = Object.entries(server.env ?? {}).map(([key, value]) =>
+        X.detail.env(key, value)
+      );
+      const headers = Object.entries(server.headers ?? {}).map(([key, value]) =>
+        X.detail.header(key, value)
+      );
+      const mine =
+        server.scope === "user" ||
+        ["plugin", "project", "local"].includes(server.scope);
+      const share =
+        server.scope === "user"
+          ? shareOf(copilot, "mcp", server.name)
+          : server.scope === "plugin"
+            ? shareOf(copilot, "mcp", undefined, CP.whyNot.plugin)
+            : server.scope === "project" || server.scope === "local"
+              ? shareOf(copilot, "mcp", undefined, CP.whyNot.projectOnly)
+              : shareOf(copilot, "mcp", undefined);
+      const mark = unmarked(server.state);
+      return {
+        ...share?.fields,
+        id: `mcp:${server.scope}:${server.name}:${server.source}`,
+        label: server.name,
         ...(mine
-          ? [
-              D.toggle(
-                server.scope === "user"
-                  ? X.detail.toggleUser
-                  : X.detail.toggleOther
-              ),
-            ]
-          : []),
-      ],
-    };
-  }),
-  ...(Array.isArray(data.parked) ? data.parked : []).map((entry) => ({
-    id: `parked:${entry.name}`,
-    label: entry.name,
-    mcp: entry.name,
-    mcpEnable: true,
-    state: "off",
-    ...withCells([
-      cell(scopeBadge("user"), SCOPE_WIDTH),
-      cell(seg("-", DIM), 9),
-      cell([], 16),
-    ]),
-    details: [
-      X.detail.server(entry.name),
-      D.scope("user"),
-      X.detail.parkedState(badgeText("off")),
-      X.detail.config(entry.summary),
-      X.detail.turnedOff(entry.parkedAt ?? "-"),
-      D.toggle(X.detail.parkedToggle),
-    ],
-  })),
-];
+          ? {
+              mcp: server.name,
+              mcpUser: server.scope === "user",
+              mcpEnable: server.scope !== "user" && server.state === "disabled",
+              mcpProject: server.scope !== "user",
+            }
+          : { why: MCP_WHY[server.scope] }),
+        state: server.state,
+        ...withCells([
+          cell(scopeBadge(server.scope), SCOPE_WIDTH),
+          cell(seg(server.transport, DIM), 9),
+          // The state word wins the last cell on the rare row that has one (pending-approval, rejected...).
+          cell(Array.isArray(mark) && share ? share.cell : mark, 16),
+        ]),
+        file: server.source,
+        details: [
+          ...(mine ? [] : [MCP_WHY[server.scope] ?? X.detail.notManaged]),
+          X.detail.server(server.name),
+          D.scope(server.scope),
+          D.state(badgeText(server.state)),
+          X.detail.transport(server.transport),
+          X.detail.target(Boolean(server.url), target),
+          ...env,
+          ...headers,
+          X.detail.tokens,
+          D.source(server.source),
+          ...(mine
+            ? [
+                D.toggle(
+                  server.scope === "user"
+                    ? X.detail.toggleUser
+                    : X.detail.toggleOther
+                ),
+              ]
+            : []),
+          ...(share ? [share.detail] : []),
+        ],
+      };
+    }),
+    ...(Array.isArray(data.parked) ? data.parked : []).map((entry) => {
+      const share = shareOf(copilot, "mcp", undefined, CP.whyNot.libraryOnly);
+      return {
+        ...share?.fields,
+        id: `parked:${entry.name}`,
+        label: entry.name,
+        mcp: entry.name,
+        mcpEnable: true,
+        state: "off",
+        ...withCells([
+          cell(scopeBadge("user"), SCOPE_WIDTH),
+          cell(seg("-", DIM), 9),
+          cell(share?.cell ?? [], 16),
+        ]),
+        details: [
+          X.detail.server(entry.name),
+          D.scope("user"),
+          X.detail.parkedState(badgeText("off")),
+          X.detail.config(entry.summary),
+          X.detail.turnedOff(entry.parkedAt ?? "-"),
+          D.toggle(X.detail.parkedToggle),
+          ...(share ? [share.detail] : []),
+        ],
+      };
+    }),
+  ];
+};
 
 const HOOK_WHY = H.why;
 

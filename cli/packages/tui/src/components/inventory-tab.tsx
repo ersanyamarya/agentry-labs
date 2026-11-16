@@ -5,6 +5,7 @@ import { messages } from "@agentry/core/messages";
 import { useInput } from "ink";
 import React from "react";
 import { startBulk } from "../bulk-flow.js";
+import { copilotKey } from "../copilot-flow.js";
 import { startHookRemove, startHookToggle } from "../hook-flow.js";
 import {
   startMcpAdd,
@@ -17,6 +18,7 @@ import {
   startPluginToggle,
   startPluginUninstall,
 } from "../plugin-flow.js";
+import { copilotOf } from "../rows.js";
 import type { Data, KeyHint, Row, TabProps } from "../types.js";
 import { useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
@@ -36,8 +38,10 @@ interface Action {
 interface InventoryTabProps extends Omit<TabProps, "setKeys"> {
   canAdd?: boolean;
   canInstall?: boolean;
+  // MCP only: rows can be shared with Copilot (C) and the repo switch (T) works.
+  canShare?: boolean;
   makeRows: (data: Data) => Row[];
-  rowKeys?: (row: Row | undefined) => KeyHint[];
+  rowKeys?: (row: Row | undefined, copilot?: { trusted: boolean }) => KeyHint[];
   setKeys?: TabProps["setKeys"];
 }
 
@@ -57,13 +61,15 @@ export const InventoryTab = ({
   rowKeys,
   canAdd,
   canInstall,
+  canShare,
   copy,
 }: InventoryTabProps) => {
   const all = React.useMemo(() => makeRows(data), [data, makeRows]);
   const list = useList({ rows: all, lock });
   const { rows, cursor, row, move } = list;
   const flow = useFlow({ lock, notify, reload, copy });
-  const keys = rowKeys ? rowKeys(row) : [];
+  const copilot = canShare ? copilotOf(data) : undefined;
+  const keys = rowKeys ? rowKeys(row, copilot) : [];
   // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(() => {
     if (active && setKeys) {
@@ -159,6 +165,11 @@ export const InventoryTab = ({
       if (key.upArrow || key.downArrow) {
         flow.clear();
         move(key.upArrow ? -1 : 1);
+      } else if (
+        canShare &&
+        copilotKey(input, { api, data, dir, flow, notify, row })
+      ) {
+        // C shares or stops sharing the server with Copilot, T turns Copilot on or off in this repo
       } else if (input === "e") {
         openFile(row?.file);
       } else if (input === " " && row?.plugin) {

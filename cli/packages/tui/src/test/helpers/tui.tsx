@@ -66,6 +66,8 @@ export interface UiOptions {
   fit?: boolean;
   personal?: string[];
   plugin?: Parameters<typeof addPlugin>[1];
+  // Runs on the fixture before the first render, e.g. to create <home>/.copilot or user rules and agents.
+  setup?: (fx: ReturnType<typeof createFixture>) => void;
   size?: { cols: number; rows: number };
   spawn?: AppProps["spawn"];
 }
@@ -79,6 +81,7 @@ export const createUi = ({
   fit = false,
   catalogRepo,
   clipboard,
+  setup,
 }: UiOptions = {}) => {
   const fx = createFixture({
     shelf: {
@@ -107,6 +110,7 @@ export const createUi = ({
     join(fx.repo, ".claude/skills/proj/SKILL.md"),
     "---\nname: proj\ndescription: p\n---\n"
   );
+  setup?.(fx);
   const pluginInfo = plugin ? addPlugin(fx, plugin) : undefined;
 
   const target = join(fx.repo, "target.json");
@@ -176,6 +180,7 @@ export const createUi = ({
           AGENTRY_HOME: fx.home,
           CLAUDE_CONFIG_DIR: fx.configDir,
           AGENTRY_MANAGED_DIR: fx.managedDir,
+          COPILOT_HOME: "",
         },
         cwd: dir,
         memoize: true,
@@ -190,6 +195,7 @@ export const createUi = ({
       makePaths,
       doctorOptions,
       fixOptions: { fixes },
+      isCopilotRunning: () => false,
       ...(catalogRepo ? { catalogOptions: { repo: catalogRepo } } : {}),
     }),
     startDir: fx.repo,

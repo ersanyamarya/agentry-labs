@@ -10,7 +10,7 @@ import { compactTokens, middle, pad } from "../layout.js";
 import { ROLE, ThemeContext, useStyle } from "../theme.js";
 import { Text } from "./text.js";
 
-const { sidebar: T } = messages();
+const { sidebar: T, copilot: CP } = messages();
 
 export const SIDEBAR_GROUPS = [
   {
@@ -65,7 +65,10 @@ export const Sidebar = ({
   summary,
   width = WIDE_RAIL,
   focused = false,
+  copilot,
 }: {
+  // "Copilot in this repo", shown only when Copilot is (see copilotOf in rows.ts).
+  copilot?: { trusted: boolean };
   tab: number;
   project: string;
   counts?: Record<string, number>;
@@ -104,6 +107,16 @@ export const Sidebar = ({
         <Text dimColor wrap="truncate-end">
           {T.tokens(compactTokens(summary.tokens))}
         </Text>
+      ) : null}
+      {copilot ? (
+        <Box flexDirection="column">
+          <Text dimColor wrap="truncate-end">
+            {inner >= CP.repoLabel.length ? CP.repoLabel : CP.repoLabelShort}
+          </Text>
+          <Text wrap="truncate-end">
+            {`  ${copilot.trusted ? CP.repoState.on : CP.repoState.off}`}
+          </Text>
+        </Box>
       ) : null}
       {SIDEBAR_GROUPS.map((group) => (
         <Box flexDirection="column" key={group.label} marginTop={1}>

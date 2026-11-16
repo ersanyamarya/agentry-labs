@@ -31,6 +31,7 @@ import { iconMode, iconsFor } from "./icons.js";
 import { layoutFor, STACKED_DETAILS_LINES } from "./layout.js";
 import type { createRecents } from "./recents.js";
 import {
+  copilotOf,
   DOCTOR_KEYS,
   hookKeys,
   hookRows,
@@ -216,6 +217,8 @@ export const App = ({
         Backups: data.backups.length,
       }
     : {};
+  // "Copilot in this repo" and its keys show only when Copilot is there and signed in.
+  const copilot = data ? copilotOf(data) : undefined;
   const shared = data && {
     data,
     api,
@@ -246,6 +249,7 @@ export const App = ({
           {...shared}
           active={isActive(1)}
           canAdd={true}
+          canShare={true}
           makeRows={mcpRows}
           rowKeys={mcpKeys}
           setKeys={keysFor(1)}
@@ -298,6 +302,7 @@ export const App = ({
       <Box>
         {railWidth > 0 ? (
           <Sidebar
+            copilot={copilot}
             counts={counts}
             focused={focus === "rail"}
             project={dir}
@@ -310,7 +315,9 @@ export const App = ({
           {railWidth === 0 ? (
             <SectionLine counts={counts} summary={summary} tab={tab} />
           ) : null}
-          {overlay === "help" ? <Help tab={tab} /> : null}
+          {overlay === "help" ? (
+            <Help copilot={Boolean(copilot)} tab={tab} />
+          ) : null}
           {overlay === "picker" ? (
             <Picker
               // biome-ignore lint/performance/noJsxPropsBind: a one-line handler on a rarely re-rendered overlay

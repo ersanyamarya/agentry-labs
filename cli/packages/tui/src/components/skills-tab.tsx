@@ -4,10 +4,11 @@ import { messages } from "@agentry/core/messages";
 import { Box, useInput } from "ink";
 import React from "react";
 import { startBulk } from "../bulk-flow.js";
+import { copilotKey } from "../copilot-flow.js";
 import { scopeMoveStep } from "../move-flow.js";
 import { startPluginToggle } from "../plugin-flow.js";
 import { startRemove } from "../remove-flow.js";
-import { skillKeys, skillRows } from "../rows.js";
+import { copilotOf, skillKeys, skillRows } from "../rows.js";
 import type { Row, TabProps } from "../types.js";
 import { type Step, useFlow } from "../use-flow.js";
 import { useList } from "../use-list.js";
@@ -37,7 +38,7 @@ export const SkillsTab = ({
 
   const flow = useFlow({ lock, notify, reload, copy });
   // The footer follows the selected row.
-  const keys = skillKeys(row);
+  const keys = skillKeys(row, copilotOf(data));
   // biome-ignore lint/correctness/useExhaustiveDependencies: the effect is meant to run only when the listed value changes
   React.useEffect(() => {
     if (active) {
@@ -244,6 +245,8 @@ export const SkillsTab = ({
       if (key.upArrow || key.downArrow) {
         flow.clear();
         move(key.upArrow ? -1 : 1);
+      } else if (copilotKey(input, { api, data, dir, flow, notify, row })) {
+        // C shares or stops sharing the row with Copilot, T turns Copilot on or off in this repo
       } else if (input === "m") {
         startMove();
       } else if (

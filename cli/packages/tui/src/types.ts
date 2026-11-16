@@ -33,6 +33,12 @@ export interface Row {
   backup?: string;
   blank?: boolean;
   cells?: Cell[];
+  // Copilot (only when it is shown): what the C key does on this row. kind and name are set when the row can be shared or
+  // unshared; why when it cannot.
+  copilotKind?: "skill" | "agent" | "rule" | "mcp";
+  copilotName?: string;
+  copilotShared?: boolean;
+  copilotWhy?: string;
   details?: string[];
   enabled?: boolean;
   file?: string;
