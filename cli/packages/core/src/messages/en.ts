@@ -1528,6 +1528,61 @@ export const en = {
       `The agent ${name} is not a user agent. Copilot already loads this repo's .claude/agents; plugin agents are not shared.`,
     repoAgent: (name: string) =>
       `This repo has its own agent ${name}; not sharing a user agent of the same name.`,
+    // MCP servers (copilot-mcp.ts). Values are never quoted: only names of servers, keys, headers and variables.
+    mcp: {
+      noUserServer: (name: string, file: string) =>
+        `No MCP server ${name} in the user servers (mcpServers) of ${file}.`,
+      notUserServer: (name: string) =>
+        `The MCP server ${name} is not a user server. Copilot already loads this repo's .mcp.json; project and plugin servers are not shared.`,
+      notObject: (name: string) =>
+        `The MCP server ${name} is not an object; nothing to share.`,
+      badType: (name: string, type: string) =>
+        `The MCP server ${name} has type ${type}; Copilot takes stdio (local), http and sse.`,
+      noCommand: (name: string) =>
+        `The MCP server ${name} has no command; nothing to share.`,
+      noUrl: (name: string) =>
+        `The MCP server ${name} has no url; nothing to share.`,
+      badField: (name: string, field: string) =>
+        `The ${field} of the MCP server ${name} is not in a shape Copilot takes; not sharing it.`,
+      badKey: (name: string, key: string) =>
+        `The env key ${key} of the MCP server ${name} is not a variable name, so it cannot become \${${key}}; not sharing it.`,
+      withDefault: (name: string, field: string) =>
+        `The ${field} of the MCP server ${name} uses \${VAR:-default}, which Copilot is not known to expand; use a plain \${VAR} first.`,
+      refNotExpanded: (name: string, field: string) =>
+        `The ${field} of the MCP server ${name} uses \${VAR}, which Copilot is not known to expand there; not sharing it.`,
+      secretInCommand: (name: string) =>
+        `The command of the MCP server ${name} looks like it holds a secret; move it to env or an argument first.`,
+      secretInUrl: (name: string, part: string) =>
+        `The url of the MCP server ${name} holds a secret in its ${part}; Copilot does not expand \${VAR} in a url, so it would be written as is. Move it to a header first.`,
+      urlUserinfo: "user info (user:password@)",
+      urlQuery: (key: string) => `query value (${key})`,
+      urlPath: "path",
+      urlOther: "text",
+      notRegular: (file: string) =>
+        `${file} is not a regular file (a link?); not touching it.`,
+      notJson: (file: string) =>
+        `${file} is not strict JSON with an mcpServers object; not touching it.`,
+      taken: (name: string, file: string) =>
+        `The MCP server ${name} already exists in ${file} and agentry did not add it; not touching it.`,
+      sharedDiffers: (name: string) =>
+        `agentry already shared the MCP server ${name} with other settings; unshare it first.`,
+      changed: (name: string, file: string) =>
+        `The MCP server ${name} in ${file} changed since agentry shared it; not touching it.`,
+      setupOwned: (name: string) =>
+        `The MCP server ${name} was added by setup; remove it with setup.sh uninstall --only copilot.`,
+      dropped: (keys: string) =>
+        `Not copied (Copilot does not take them): ${keys}.`,
+      exportTitle:
+        "Copilot reads these variables from its own environment; export them before you start it:",
+      exportVar: (variable: string, what: string) => `  ${variable}  (${what})`,
+      noVars: "No variables to export: the entry holds no values.",
+      guiNote:
+        "VS Code started from the Dock or Finder does not read shell rc files (~/.zshrc, ~/.bashrc); set the variables where it sees them (launchctl setenv on macOS) or start it from a terminal.",
+      whatEnv: (key: string) => `env ${key}`,
+      whatHeader: (header: string) => `header ${header}`,
+      whatArg: (index: number, masked: string) =>
+        `argument ${index}: ${masked}`,
+    },
     trust: {
       describe: (dir: string, file: string) =>
         `trust the folder ${dir} in ${file}`,

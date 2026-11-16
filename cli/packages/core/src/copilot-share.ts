@@ -4,7 +4,10 @@
 // A share is one of:
 //   link   <ch>/skills/<name> or <ch>/agents/<file>.md, a symlink to the Claude item (a skill: its realpath, Decision 3)
 //   write  a generated file, e.g. <ch>/instructions/<name>.instructions.md for a rule
-// and is taken back with `unlink` or `delete`. MCP entries (copilot-mcp.ts) add their own kinds of change.
+// and is taken back with `unlink` or `delete`. An MCP server is one more:
+//   mcpAdd  the entry mcpServers[<name>] in <ch>/mcp-config.json, translated by copilot-mcp.ts (only ${VAR} values)
+// taken back with `mcpRemove`. It is a strict JSON text fix on that regular file (json-edit.ts: every other byte stays;
+// a link or non-strict file is refused), and the store records sha256 of the parsed entry, not the entry.
 //
 // Every change goes through the fix engine (fix.ts) with an injected DoctorLike, as mcp-edit.ts does: masked preview,
 // confirm or --yes, a backup set, verify, and `agentry fix --undo`. A link is created and removed with path fixes (lstat
@@ -27,6 +30,17 @@ import {
   statSync,
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import {
+  addEntryText,
+  type CopilotMcpEntry,
+  claudeUserServers,
+  entryHash,
+  mcpConfigPath,
+  mcpNotes,
+  readMcpServers,
+  removeEntryText,
+  translateMcp,
+} from "./copilot-mcp.js";
 import { toInstructions } from "./copilot-rules.js";
 import { createFix, pathSnapshot } from "./fix.js";
 import { isObject, list } from "./inventory/common.js";
@@ -48,6 +62,7 @@ import type {
 
 export const RULE = "copilot-share";
 const { copilot: words, core } = messages();
+const mcpWords = words.mcp;
 
 export type ShareKind = "skill" | "agent" | "rule" | "mcp";
 export type ShareState =
@@ -92,6 +107,8 @@ export type ShareChange = { kind: ShareKind; name: string; path: string } & (
   | { op: "write"; text: string }
   | { op: "unlink" }
   | { op: "delete" }
+  | { op: "mcpAdd"; entry: CopilotMcpEntry }
+  | { op: "mcpRemove" }
 );
 
 export interface ShareRunArgs {
@@ -111,7 +128,10 @@ export interface ShareStateOptions {
   extra?: (paths: Paths, cwd: string) => ShareItemState[];
 }
 
-type Made = { change: ShareChange; error?: undefined } | { error: string };
+/** A change to make, with lines the preview prints first (MCP: the variables to export), or why not. */
+type Made =
+  | { change: ShareChange; error?: undefined; notes?: string[] }
+  | { error: string };
 
 export const shareKey = (kind: ShareKind, name: string): string =>
   `${kind}:${name}`;
@@ -164,15 +184,17 @@ export const readShareStore = (
 // What setup.sh recorded in its install manifest (read only): file paths (resolved) and MCP server names it added.
 export const readSetupOwned = (
   paths: Pick<Paths, "installManifest">
-): { files: Set<string>; mcp: Set<string> } => {
+): { files: Set<string>; mcp: Set<string>; copilotMcp: Set<string> } => {
   const files = new Set<string>();
   const mcp = new Set<string>();
+  // Only setup's copilot part writes <ch>/mcp-config.json; its other parts' names are Claude servers.
+  const copilotMcp = new Set<string>();
   try {
     const json: unknown = JSON.parse(
       readFileSync(paths.installManifest, "utf8")
     );
     const parts = isObject(json) && isObject(json.parts) ? json.parts : {};
-    for (const part of Object.values(parts)) {
+    for (const [partName, part] of Object.entries(parts)) {
       if (!isObject(part)) {
         continue;
       }
@@ -184,13 +206,16 @@ export const readSetupOwned = (
       for (const name of list(part.mcp)) {
         if (typeof name === "string") {
           mcp.add(name);
+          if (partName === "copilot") {
+            copilotMcp.add(name);
+          }
         }
       }
     }
   } catch {
     // no manifest (setup never ran) or not JSON: nothing is setup's
   }
-  return { files, mcp };
+  return { files, mcp, copilotMcp };
 };
 
 // <ch>/... for a kind and name; the share's location whether or not it exists. MCP has no file of its own.
@@ -288,7 +313,56 @@ export const diskState = (
 };
 
 /**
- * Per Claude user item (skills, agents, rules, plus `extra`): shared, notShared, other (something agentry did not
+ * Per Claude user MCP server (top-level mcpServers of ~/.claude.json): its entry in <ch>/mcp-config.json is shared
+ * (agentry's, same sha256 as recorded), setup (setup's copilot part added that name), other (anything else there, or a
+ * file agentry cannot read safely) or notShared. `repoMcp`: workspace servers Copilot loads in this folder (they win).
+ */
+export const mcpShareState = (
+  paths: Paths,
+  {
+    store = readShareStore(paths),
+    setupMcp = readSetupOwned(paths).copilotMcp,
+    repoMcp,
+  }: { store?: ShareStore; setupMcp?: Set<string>; repoMcp: Set<string> }
+): ShareItemState[] => {
+  const file = mcpConfigPath(paths);
+  const copilot = readMcpServers(file);
+  return Object.keys(claudeUserServers(paths))
+    .sort()
+    .map((name): ShareItemState => {
+      const repoWins = repoMcp.has(name);
+      const entry =
+        copilot.error === undefined ? copilot.servers[name] : undefined;
+      const record = store.items[shareKey("mcp", name)];
+      let state: ShareState;
+      if (copilot.error !== undefined) {
+        state = "other";
+      } else if (entry === undefined) {
+        state = repoWins ? "repoWins" : "notShared";
+      } else if (setupMcp.has(name)) {
+        state = "setup";
+      } else if (
+        record?.path === file &&
+        record.sha256 !== undefined &&
+        entryHash(entry) === record.sha256
+      ) {
+        state = "shared";
+      } else {
+        state = "other";
+      }
+      return {
+        kind: "mcp",
+        name,
+        path: file,
+        source: paths.claudeJson,
+        state,
+        repoWins,
+      };
+    });
+};
+
+/**
+ * Per Claude user item (skills, agents, rules, MCP servers, plus `extra`): shared, notShared, other (something agentry did not
  * write is there), setup (setup's install manifest owns it) or repoWins (not shared, and a repo item of the same name
  * would hide it anyway). A shared item keeps "shared" and says repoWins: true when the repo's own wins.
  */
@@ -298,7 +372,7 @@ export const shareState = (
   { extra }: ShareStateOptions = {}
 ): ShareItemState[] => {
   const store = readShareStore(paths);
-  const { files } = readSetupOwned(paths);
+  const { files, copilotMcp } = readSetupOwned(paths);
   const copilot = createCopilotReader(paths).read({ cwd });
   const repoNames = {
     skill: new Set(
@@ -310,6 +384,11 @@ export const shareState = (
       copilot.agents
         .filter((agent) => agent.scope === "repo")
         .map((agent) => agent.name)
+    ),
+    mcp: new Set(
+      copilot.mcp
+        .filter((server) => server.scope === "workspace")
+        .map((server) => server.name)
     ),
   };
   const states = claudeShareItems(paths).map((item): ShareItemState => {
@@ -323,7 +402,12 @@ export const shareState = (
       repoWins,
     };
   });
-  return [...states, ...(extra?.(paths, cwd) ?? [])];
+  const servers = mcpShareState(paths, {
+    store,
+    setupMcp: copilotMcp,
+    repoMcp: repoNames.mcp,
+  });
+  return [...states, ...servers, ...(extra?.(paths, cwd) ?? [])];
 };
 
 // Where `path` really is, resolving the folders that exist (the last part may be missing).
@@ -377,13 +461,46 @@ export const createCopilotShare = (
         sharedAt: now().toISOString(),
       };
     }
+    if (change.op === "mcpAdd") {
+      return {
+        path: change.path,
+        sha256: entryHash(change.entry),
+        sharedAt: now().toISOString(),
+      };
+    }
     return undefined;
+  };
+
+  // The entry mcpServers[name] in the change's mcp-config.json (undefined: none), or { error } when unreadable.
+  const mcpEntry = (
+    change: ShareChange
+  ): { entry?: unknown; error?: "notRegular" | "notJson" } => {
+    const read = readMcpServers(change.path);
+    return read.error === undefined
+      ? { entry: read.servers[change.name] }
+      : { error: read.error };
   };
 
   // True once the change is on disk and in the store (the doctor stand-in reports the finding until then).
   const reached = (change: ShareChange): boolean => {
     const record =
       readShareStore(paths).items[shareKey(change.kind, change.name)];
+    if (change.op === "mcpAdd" || change.op === "mcpRemove") {
+      const { entry, error } = mcpEntry(change);
+      if (error !== undefined) {
+        return false;
+      }
+      if (change.op === "mcpRemove") {
+        return entry === undefined && record === undefined;
+      }
+      const want = entryHash(change.entry);
+      return (
+        entry !== undefined &&
+        entryHash(entry) === want &&
+        record?.path === change.path &&
+        record.sha256 === want
+      );
+    }
     const snap = pathSnapshot(change.path);
     if (change.op === "link") {
       return (
@@ -403,6 +520,54 @@ export const createCopilotShare = (
       );
     }
     return snap.kind === "missing" && record === undefined;
+  };
+
+  // check() for an MCP entry: the file must be a regular strict JSON file (or missing, for an add); an add needs the name
+  // free (or already ours and the same), a remove needs agentry's record and the entry unchanged since.
+  const checkMcp = (
+    change: ShareChange & { op: "mcpAdd" | "mcpRemove" },
+    record: ShareRecord | undefined
+  ): { refused?: string; already?: string; record?: ShareRecord } => {
+    const shown = tilde(change.path);
+    const kind = kindWord(change.kind);
+    const { entry, error } = mcpEntry(change);
+    if (error !== undefined) {
+      return { refused: mcpWords[error](shown) };
+    }
+    const ours =
+      entry !== undefined &&
+      record?.path === change.path &&
+      record.sha256 !== undefined &&
+      entryHash(entry) === record.sha256;
+    const setup = readSetupOwned(paths).copilotMcp.has(change.name);
+    if (change.op === "mcpAdd") {
+      if (reached(change)) {
+        return { already: words.alreadyShared(kind, change.name) };
+      }
+      if (entry === undefined) {
+        return {};
+      }
+      if (setup) {
+        return { refused: mcpWords.setupOwned(change.name) };
+      }
+      return {
+        refused: ours
+          ? mcpWords.sharedDiffers(change.name)
+          : mcpWords.taken(change.name, shown),
+      };
+    }
+    if (entry === undefined) {
+      return { already: words.alreadyNotShared(kind, change.name) };
+    }
+    if (setup) {
+      return { refused: mcpWords.setupOwned(change.name) };
+    }
+    if (record?.path !== change.path || record.sha256 === undefined) {
+      return { refused: mcpWords.taken(change.name, shown) };
+    }
+    return ours
+      ? { record }
+      : { refused: mcpWords.changed(change.name, shown) };
   };
 
   /**
@@ -429,6 +594,9 @@ export const createCopilotShare = (
     }
     const record =
       readShareStore(paths).items[shareKey(change.kind, change.name)];
+    if (change.op === "mcpAdd" || change.op === "mcpRemove") {
+      return checkMcp(change, record);
+    }
     const snap = pathSnapshot(change.path);
     const kind = kindWord(change.kind);
     if (change.op === "link" || change.op === "write") {
@@ -485,7 +653,8 @@ export const createCopilotShare = (
       out(checked.already);
       return 0;
     }
-    const adding = change.op === "link" || change.op === "write";
+    const adding =
+      change.op === "link" || change.op === "write" || change.op === "mcpAdd";
     const shown = tilde(change.path);
     const finding: Finding = {
       id: RULE,
@@ -529,13 +698,34 @@ export const createCopilotShare = (
             describe,
             change: { unlink: record?.target as string },
           };
-        default:
+        case "delete":
           return {
             ruleId: RULE,
             file: change.path,
             describe,
             change: { remove: record?.sha256 as string },
           };
+        // A strict JSON text fix on the regular file <ch>/mcp-config.json (check() refused a link or bad JSON).
+        case "mcpAdd":
+          return {
+            ruleId: RULE,
+            file: change.path,
+            createParents: true,
+            describe,
+            apply: (text) => addEntryText(text, change.name, change.entry),
+          };
+        case "mcpRemove":
+          return {
+            ruleId: RULE,
+            file: change.path,
+            describe,
+            apply: (text) =>
+              removeEntryText(text, change.name, record?.sha256 as string),
+          };
+        default: {
+          const never: never = change;
+          throw new Error(`unknown share change ${String(never)}`);
+        }
       }
     };
     const storeFix: Fix = {
@@ -661,6 +851,38 @@ export const createCopilotShare = (
     };
   };
 
+  // A Claude user MCP server's share: its Copilot entry with ${VAR} values only (copilot-mcp.ts), plus the variables to
+  // export. A project or plugin server is refused (Copilot already loads the repo's .mcp.json).
+  const mcpChange = (name: string, cwd: string): Made => {
+    const servers = claudeUserServers(paths);
+    if (!Object.hasOwn(servers, name)) {
+      const repo = createCopilotReader(paths)
+        .read({ cwd })
+        .mcp.some(
+          (server) => server.scope === "workspace" && server.name === name
+        );
+      return {
+        error: repo
+          ? mcpWords.notUserServer(name)
+          : mcpWords.noUserServer(name, tilde(paths.claudeJson)),
+      };
+    }
+    const made = translateMcp(name, servers[name]);
+    if ("error" in made) {
+      return { error: made.error };
+    }
+    return {
+      change: {
+        kind: "mcp",
+        name,
+        path: mcpConfigPath(paths),
+        op: "mcpAdd",
+        entry: made.entry,
+      },
+      notes: mcpNotes(made),
+    };
+  };
+
   // The change that shares kind:name, or { error } (MCP servers come with copilot-mcp.ts).
   const shareChange = (
     kind: ShareKind,
@@ -674,6 +896,8 @@ export const createCopilotShare = (
         return agentChange(name, cwd);
       case "rule":
         return ruleChange(name);
+      case "mcp":
+        return mcpChange(name, cwd);
       default:
         return { error: words.kindNotYet(kindWord(kind)) };
     }
@@ -698,6 +922,15 @@ export const createCopilotShare = (
     ) {
       out(words.repoWins(kindWord(kind), name));
     }
+    // The notes (variables to export: names only) only when the change will be previewed or made.
+    if (made.notes) {
+      const checked = check(made.change);
+      if (checked.refused === undefined && checked.already === undefined) {
+        for (const line of made.notes) {
+          out(line);
+        }
+      }
+    }
     return run(made.change, args);
   };
 
@@ -707,11 +940,18 @@ export const createCopilotShare = (
       err(words.badName(name));
       return Promise.resolve(2);
     }
-    if (kind === "mcp") {
-      err(core.refused(words.kindNotYet(kindWord(kind))));
-      return Promise.resolve(1);
-    }
     const record = readShareStore(paths).items[shareKey(kind, name)];
+    if (kind === "mcp") {
+      return run(
+        {
+          kind,
+          name,
+          path: record?.path ?? mcpConfigPath(paths),
+          op: "mcpRemove",
+        },
+        args
+      );
+    }
     const path = record?.path ?? sharePath(paths, kind, name);
     return run(
       {

@@ -8,7 +8,7 @@ export const SECRET_NAME =
   /(token|secret|passw(or)?d|api[-_]?key|apikey|auth|authorization|bearer|credentials?|cookie|key)$/i;
 const SECRET_PREFIX =
   /^(sk-|sk_|pk_|rk_|ghp_|gho_|ghs_|github_pat_|glpat-|xox[abprs]-|AIza|ctx7sk|eyJ)/;
-const AUTH_SCHEME = /^(Bearer|Basic|Token|Bot)\s+/i;
+export const AUTH_SCHEME = /^(Bearer|Basic|Token|Bot)\s+/i;
 
 const keepRef = (name: string, fallback?: string): string =>
   fallback ? `\${${name}:-${MASK}}` : `\${${name}}`;
