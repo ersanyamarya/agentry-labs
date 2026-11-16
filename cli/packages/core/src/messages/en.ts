@@ -1519,5 +1519,37 @@ export const en = {
       `${path} does not exist; nothing to share.`,
     repoWins: (kind: string, name: string) =>
       `This repo has its own ${kind} ${name}; Copilot uses that one in this repo.`,
+    noUserAgent: (name: string, dir: string) => `No agent ${name} in ${dir}.`,
+    noUserRule: (name: string, dir: string) => `No rule ${name} in ${dir}.`,
+    // A plugin or project item is not user-level: Copilot loads the repo's own folder already.
+    notUserSkill: (name: string) =>
+      `The skill ${name} is not a user skill. Copilot already loads this repo's .claude/skills; plugin skills are not shared.`,
+    notUserAgent: (name: string) =>
+      `The agent ${name} is not a user agent. Copilot already loads this repo's .claude/agents; plugin agents are not shared.`,
+    repoAgent: (name: string) =>
+      `This repo has its own agent ${name}; not sharing a user agent of the same name.`,
+    trust: {
+      describe: (dir: string, file: string) =>
+        `trust the folder ${dir} in ${file}`,
+      describeUntrust: (dir: string, file: string) =>
+        `stop trusting the folder ${dir} in ${file}`,
+      done: (dir: string) =>
+        `Copilot now trusts ${dir}. Undo with agentry fix --undo.`,
+      undone: (dir: string) =>
+        `Copilot no longer trusts ${dir}. Undo with agentry fix --undo.`,
+      already: (dir: string) => `Copilot already trusts ${dir}; nothing to do.`,
+      alreadyNot: (dir: string) =>
+        `${dir} is not in Copilot's trusted folders; nothing to do.`,
+      noConfig: (file: string) =>
+        `${file} does not exist; start Copilot once, then try again.`,
+      running:
+        "Copilot is running; quit it first so it does not overwrite the change.",
+      parentTrusted: (dir: string, parent: string) =>
+        `${dir} stays trusted: its parent ${parent} is trusted too.`,
+      parentAlready: (dir: string, parent: string) =>
+        `${parent} already trusts ${dir}; nothing to do.`,
+      unreadable: (file: string, why: string) =>
+        `${file} could not be edited safely (${why}); not touching it.`,
+    },
   },
 };

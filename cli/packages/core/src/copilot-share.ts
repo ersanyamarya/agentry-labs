@@ -19,12 +19,23 @@
 // Exit codes (as mcp-toggle.ts): 0 done, previewed, declined or already so; 1 refused or failed; 2 usage.
 
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { toInstructions } from "./copilot-rules.js";
 import { createFix, pathSnapshot } from "./fix.js";
 import { isObject, list } from "./inventory/common.js";
 import { createCopilotReader } from "./inventory/copilot.js";
-import { inspectSkillFolder, subdirs } from "./inventory/skills.js";
+import {
+  createSkillsReader,
+  inspectSkillFolder,
+  subdirs,
+} from "./inventory/skills.js";
 import { messages } from "./messages.js";
 import type { Paths } from "./paths.js";
 import type {
@@ -99,6 +110,8 @@ export interface ShareStateOptions {
   /** More items with their state (the MCP module adds its servers here). */
   extra?: (paths: Paths, cwd: string) => ShareItemState[];
 }
+
+type Made = { change: ShareChange; error?: undefined } | { error: string };
 
 export const shareKey = (kind: ShareKind, name: string): string =>
   `${kind}:${name}`;
@@ -560,34 +573,110 @@ export const createCopilotShare = (
     return code;
   };
 
-  // The change that shares kind:name, or { error } (only user skills so far; agents, rules and MCP come next).
-  const shareChange = (
-    kind: ShareKind,
-    name: string
-  ): { change: ShareChange; error?: undefined } | { error: string } => {
-    if (kind !== "skill") {
-      return { error: words.kindNotYet(kindWord(kind)) };
-    }
+  // The user skill's share: a link to its realpath (Decision 3, so a library skill stays shared when Claude's link is off).
+  const skillChange = (name: string, cwd: string): Made => {
     const dir = join(paths.configDir, "skills");
     const source = join(dir, name);
     const info = inspectSkillFolder(source, paths.shelfDir);
     if (!info || info.kind === "broken") {
-      return { error: words.noUserSkill(name, tilde(dir)) };
+      const other = createSkillsReader(paths)
+        .read({ cwd })
+        .skills.some((skill) => skill.name === name && skill.scope !== "user");
+      return {
+        error: other
+          ? words.notUserSkill(name)
+          : words.noUserSkill(name, tilde(dir)),
+      };
     }
-    // Decision 3: the realpath, so a library skill stays shared when Claude's own link is turned off.
     const target = realpathSync(source);
     if (!isAbsolute(target)) {
       return { error: words.missingSource(tilde(source)) };
     }
     return {
       change: {
-        kind,
+        kind: "skill",
         name,
-        path: sharePath(paths, kind, name),
+        path: sharePath(paths, "skill", name),
         op: "link",
         target,
       },
     };
+  };
+
+  const isFile = (path: string): boolean => {
+    try {
+      return statSync(path).isFile();
+    } catch {
+      return false;
+    }
+  };
+
+  // A user agent's share: a link to the file; refused when the repo has an agent of that name.
+  const agentChange = (name: string, cwd: string): Made => {
+    const dir = join(paths.configDir, "agents");
+    const source = join(dir, `${name}.md`);
+    if (!isFile(source)) {
+      const root = paths.projectRoot(cwd);
+      const other = [join(root, ".claude", "agents", `${name}.md`)].some(
+        isFile
+      );
+      return {
+        error: other
+          ? words.notUserAgent(name)
+          : words.noUserAgent(name, tilde(dir)),
+      };
+    }
+    const repoAgent = createCopilotReader(paths)
+      .read({ cwd })
+      .agents.some((agent) => agent.scope === "repo" && agent.name === name);
+    if (repoAgent) {
+      return { error: words.repoAgent(name) };
+    }
+    return {
+      change: {
+        kind: "agent",
+        name,
+        path: sharePath(paths, "agent", name),
+        op: "link",
+        target: realpathSync(source),
+      },
+    };
+  };
+
+  // A user rule's share: <ch>/instructions/<name>.instructions.md written from the rule.
+  const ruleChange = (name: string): Made => {
+    const dir = join(paths.configDir, "rules");
+    const source = join(dir, `${name}.md`);
+    if (!isFile(source)) {
+      return { error: words.noUserRule(name, tilde(dir)) };
+    }
+    return {
+      change: {
+        kind: "rule",
+        name,
+        path: sharePath(paths, "rule", name),
+        op: "write",
+        text: toInstructions(readFileSync(source, "utf8")),
+      },
+    };
+  };
+
+  // The change that shares kind:name, or { error } (MCP servers come with copilot-mcp.ts).
+  const shareChange = (
+    kind: ShareKind,
+    name: string,
+    cwd: string = process.cwd()
+  ): Made => {
+    switch (kind) {
+      case "skill":
+        return skillChange(name, cwd);
+      case "agent":
+        return agentChange(name, cwd);
+      case "rule":
+        return ruleChange(name);
+      default:
+        return { error: words.kindNotYet(kindWord(kind)) };
+    }
   };
 
   /** Share a Claude user item with Copilot for all projects. */
@@ -596,12 +685,12 @@ export const createCopilotShare = (
       err(words.badName(name));
       return Promise.resolve(2);
     }
-    const made = shareChange(kind, name);
+    const cwd = resolve(args.path ?? process.cwd());
+    const made = shareChange(kind, name, cwd);
     if (made.error !== undefined) {
       err(core.refused(made.error));
       return Promise.resolve(1);
     }
-    const cwd = resolve(args.path ?? process.cwd());
     if (
       shareState(paths, cwd).some(
         (item) => item.kind === kind && item.name === name && item.repoWins
