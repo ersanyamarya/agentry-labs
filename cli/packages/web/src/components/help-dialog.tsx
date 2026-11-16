@@ -10,11 +10,20 @@ import {
 } from "./ui/dialog.js";
 import { Kbd } from "./ui/kbd.js";
 
-const { help: t, sidebar } = messages().web;
+const m = messages();
+const { help: t, sidebar } = m.web;
+
+// The four screens that list Claude user items Copilot can get.
+const COPILOT_SCREENS = new Set(["skills", "mcp", "agents", "rules"]);
 
 // The keys for one screen (its own, then the ones every screen shares); `screen` is the route name ("skills", "doctor").
-export const keysFor = (screen: string | undefined): [string, string][] => [
+// `copilot` adds the share and repo keys on the four screens that have them.
+export const keysFor = (
+  screen: string | undefined,
+  copilot = false
+): [string, string][] => [
   ...(screen ? (t.screens[screen] ?? []) : []),
+  ...(copilot && screen && COPILOT_SCREENS.has(screen) ? m.copilot.help : []),
   ...t.shared,
 ];
 
@@ -22,10 +31,12 @@ export const HelpDialog = ({
   open,
   onOpenChange,
   screen,
+  copilot = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   screen?: string;
+  copilot?: boolean;
 }) => (
   <Dialog onOpenChange={onOpenChange} open={open}>
     <DialogContent>
@@ -39,7 +50,7 @@ export const HelpDialog = ({
         </DialogDescription>
       </DialogHeader>
       <dl className="grid grid-cols-[5rem_1fr] items-center gap-x-4 gap-y-3 text-sm">
-        {keysFor(screen).map(([key, what]) => (
+        {keysFor(screen, copilot).map(([key, what]) => (
           <div className="contents" key={`${key}-${what}`}>
             <dt>
               <Kbd>{key}</Kbd>

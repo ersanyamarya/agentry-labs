@@ -442,6 +442,14 @@ const web = {
     cancel: "Cancel",
     apply: "Apply",
   },
+  // The Copilot column, its checkbox and the key hint; the shared words (states, why-not, previews) are in `copilot`.
+  copilot: {
+    checkboxAria: (kind: string, name: string, isShared: boolean) =>
+      `${isShared ? "Stop sharing" : "Share"} the ${kind} ${name} with Copilot`,
+    shareTip: `Tick to share with Copilot for ${allProjects}`,
+    sharedTip: `Shared with Copilot for ${allProjects}; untick to stop sharing`,
+    hint: "C share with Copilot · T Copilot in this repo",
+  },
   // WEB-INSERT
 };
 

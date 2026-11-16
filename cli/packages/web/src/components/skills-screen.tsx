@@ -8,6 +8,7 @@ import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useShortcuts } from "../hooks/use-shortcuts.js";
 import { useAppData, useReload } from "../lib/app-data.js";
+import { skillFolder } from "../lib/copilot.js";
 import { client, orpc } from "../lib/orpc.js";
 import { useScope } from "../lib/scope.js";
 import {
@@ -20,6 +21,7 @@ import {
   scopeLabel,
   skillRows,
 } from "../lib/skill-rows.js";
+import { SHARE_KEY, TRUST_KEY, useCopilot } from "./copilot.js";
 import { ListScreen } from "./list-screen.js";
 import {
   AlertDialog,
@@ -47,6 +49,7 @@ import { Switch } from "./ui/switch.js";
 
 const m = messages();
 const t = m.web.skills;
+const CP = m.copilot;
 
 const SCOPE_BADGE: Record<string, string> = {
   [t.scope.global]: "bg-on-bg text-on",
@@ -261,6 +264,22 @@ export const SkillsScreen = () => {
     }
   };
   const deleteSelected = () => askRemove(false);
+  const copilot = useCopilot();
+  // A library skill is shared once it is linked in for all projects; before that only the library has it.
+  const shareFor = (row: SkillRow) =>
+    row.kind === "global"
+      ? copilot.shareOf("skill", skillFolder(row.source))
+      : row.kind === "shelf"
+        ? copilot.shareOf(
+            "skill",
+            row.global ? row.name : undefined,
+            CP.whyNot.libraryOnly
+          )
+        : copilot.shareOf(
+            "skill",
+            undefined,
+            row.kind === "plugin" ? CP.whyNot.plugin : CP.whyNot.projectOnly
+          );
   const busy = shelving || removing || moving;
   useShortcuts(
     {
@@ -292,6 +311,12 @@ export const SkillsScreen = () => {
       u: () => toast.message(m.skills.notices.nowPressM),
       a: () => toast.message(t.nowPressStar),
       esc: () => setChecked(new Set()),
+      ...(copilot.state
+        ? {
+            [SHARE_KEY]: () => selected && copilot.share(shareFor(selected)),
+            [TRUST_KEY]: copilot.trust,
+          }
+        : {}),
     },
     !busy
   );
@@ -415,6 +440,7 @@ export const SkillsScreen = () => {
             className: "w-56",
             cell: (row) => <ScopeBadge row={row} />,
           },
+          ...copilot.column(shareFor),
         ]}
         details={details}
         detailsLabel={t.detailsLabel}
@@ -437,7 +463,7 @@ export const SkillsScreen = () => {
             },
           ],
         }}
-        hint={t.hint}
+        hint={copilot.hint(t.hint)}
         onSelect={setSelectedId}
         rowId={(row) => row.id}
         rows={rows}
@@ -696,6 +722,7 @@ export const SkillsScreen = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {copilot.dialog}
     </>
   );
 };

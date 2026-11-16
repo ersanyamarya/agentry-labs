@@ -5,6 +5,7 @@ import { statSync } from "node:fs";
 import { createData } from "@agentry/core/data";
 import { maskHeader, maskMap } from "@agentry/core/mask";
 import { createPaths } from "@agentry/core/paths";
+import type { CopilotShareState } from "@agentry/core/types";
 import { packageVersion } from "@agentry/core/version";
 import { implement, ORPCError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
@@ -47,6 +48,10 @@ const remask = (server: Loaded["status"]["mcp"]["servers"][number]) => ({
 
 const toJson = (loaded: Loaded) => ({
   dir: loaded.dir,
+  // Only when Copilot's folder exists (core's load leaves the field out otherwise); core types it loosely.
+  ...(loaded.copilot
+    ? { copilot: loaded.copilot as CopilotShareState & { loadError?: string } }
+    : {}),
   paths: {
     home: loaded.paths.home,
     configDir: loaded.paths.configDir,
@@ -135,6 +140,15 @@ export const createRouter = (data: Api) => {
       applyFix: os.doctor.applyFix.handler(call(data.applyFix)),
       previewUndo: os.doctor.previewUndo.handler(call(data.previewUndo)),
       applyUndo: os.doctor.applyUndo.handler(call(data.applyUndo)),
+    },
+    copilot: {
+      copilotState: os.copilot.copilotState.handler(
+        call(({ dir }) => data.copilotState(dir) ?? null)
+      ),
+      previewCopilot: os.copilot.previewCopilot.handler(
+        call(data.previewCopilot)
+      ),
+      applyCopilot: os.copilot.applyCopilot.handler(call(data.applyCopilot)),
     },
     backups: {
       restoreBackup: os.backups.restoreBackup.handler(call(data.restoreBackup)),

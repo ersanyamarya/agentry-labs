@@ -4,6 +4,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { useShortcuts } from "../hooks/use-shortcuts.js";
 import { useAppData } from "../lib/app-data.js";
+import { copilotOf } from "../lib/copilot.js";
 import { ScopeProvider } from "../lib/scope.js";
 import { AppSidebar } from "./app-sidebar.js";
 import { HelpDialog } from "./help-dialog.js";
@@ -31,7 +32,12 @@ export const AppShell = ({ children }: { children: React.ReactNode }) => {
           />
           <SidebarInset className="min-w-0">{children}</SidebarInset>
         </SidebarProvider>
-        <HelpDialog onOpenChange={setHelp} open={help} screen={screen} />
+        <HelpDialog
+          copilot={copilotOf(data) !== undefined}
+          onOpenChange={setHelp}
+          open={help}
+          screen={screen}
+        />
         <Toaster />
       </TooltipProvider>
     </ScopeProvider>

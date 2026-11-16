@@ -9,6 +9,7 @@ import { useListState } from "../hooks/use-list-state.js";
 import { useAppData } from "../lib/app-data.js";
 import { client } from "../lib/orpc.js";
 import { ActionButton } from "./action-button.js";
+import { useCopilot } from "./copilot.js";
 import { DetailsPanel, NoSelection } from "./details-panel.js";
 import { ListScreen } from "./list-screen.js";
 import { Pill, stateTone } from "./pill.js";
@@ -29,6 +30,7 @@ import { Textarea } from "./ui/textarea.js";
 
 const m = messages();
 const t = m.web.mcp;
+const CP = m.copilot;
 
 interface McpRow {
   detail: string;
@@ -36,6 +38,8 @@ interface McpRow {
   id: string;
   name: string;
   parked: boolean;
+  // core's scope for a server ("user", "plugin"...), or "parked" for one turned off in agentry's folder.
+  rawScope: string;
   scope: string;
   source: string;
   state: string;
@@ -59,6 +63,7 @@ export const mcpRows = (load: LoadData): McpRow[] => [
     env: Object.entries(server.env ?? {}),
     source: server.source,
     parked: false,
+    rawScope: server.scope,
     userScope: server.scope === "user",
   })),
   ...load.parked.items.map((item) => ({
@@ -71,6 +76,7 @@ export const mcpRows = (load: LoadData): McpRow[] => [
     env: [],
     source: t.parkedSource,
     parked: true,
+    rawScope: "parked",
     userScope: true,
   })),
 ];
@@ -142,6 +148,22 @@ export const McpScreen = () => {
     }
   };
 
+  const copilot = useCopilot();
+  const shareFor = (item: McpRow) =>
+    item.rawScope === "user"
+      ? copilot.shareOf("mcp", item.name)
+      : copilot.shareOf(
+          "mcp",
+          undefined,
+          item.rawScope === "plugin"
+            ? CP.whyNot.plugin
+            : item.rawScope === "parked"
+              ? CP.whyNot.libraryOnly
+              : item.rawScope === "project" || item.rawScope === "local"
+                ? CP.whyNot.projectOnly
+                : undefined
+        );
+
   const list = useListState(rows, {
     id: (item) => item.id,
     text: (item) => `${item.name} ${item.detail}`,
@@ -155,6 +177,7 @@ export const McpScreen = () => {
       x: remove,
       a: () => setForm("add"),
       s: (item) => edit(item),
+      ...copilot.keys(shareFor),
     },
   });
   const row = list.selected;
@@ -286,6 +309,7 @@ export const McpScreen = () => {
               <Pill tone={stateTone(item.state)}>{item.state}</Pill>
             ),
           },
+          ...copilot.column(shareFor),
         ]}
         details={
           row ? (
@@ -367,7 +391,7 @@ export const McpScreen = () => {
             },
           ],
         }}
-        hint={t.hint}
+        hint={copilot.hint(t.hint)}
         onSelect={list.setSelectedId}
         rowId={(item) => item.id}
         rows={list.shown}
@@ -420,6 +444,7 @@ export const McpScreen = () => {
         </DialogContent>
       </Dialog>
       {flow.dialog}
+      {copilot.dialog}
     </>
   );
 };

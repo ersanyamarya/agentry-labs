@@ -17,6 +17,7 @@ import {
 import type { ComponentType } from "react";
 import type { LoadData } from "../contract/index.js";
 import { type Scope, useScope } from "../lib/scope.js";
+import { useCopilot } from "./copilot.js";
 import { Kbd } from "./ui/kbd.js";
 import {
   Sidebar,
@@ -31,6 +32,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "./ui/sidebar.js";
+import { Switch } from "./ui/switch.js";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group.js";
 
 const m = messages();
@@ -128,6 +130,7 @@ export const AppSidebar = ({
     select: (state) => state.location.pathname,
   });
   const { scope, setScope } = useScope();
+  const copilot = useCopilot();
   const counts = sectionCounts(data);
   const errors = data?.doctor.summary.error ?? 0;
   const problems = errors + (data?.doctor.summary.warning ?? 0);
@@ -165,6 +168,19 @@ export const AppSidebar = ({
               : (data?.dir ?? "")}
           </span>
         </div>
+        {copilot.state ? (
+          <div
+            className="flex items-center gap-2 px-2"
+            title={m.copilot.trust.explain}
+          >
+            <span className="flex-1 text-sm">{m.copilot.repoLabel}</span>
+            <Switch
+              aria-label={m.copilot.repoLabel}
+              checked={copilot.state.trusted}
+              onCheckedChange={copilot.trust}
+            />
+          </div>
+        ) : null}
       </SidebarHeader>
       <SidebarContent className="px-1">
         {SIDEBAR_GROUPS.map((group) => (
@@ -231,6 +247,7 @@ export const AppSidebar = ({
           </button>
         </div>
       </SidebarFooter>
+      {copilot.dialog}
     </Sidebar>
   );
 };

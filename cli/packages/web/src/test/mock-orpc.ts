@@ -48,6 +48,11 @@ export const mockClient = {
     previewUndo: preview(),
     applyUndo: write(),
   },
+  copilot: {
+    copilotState: vi.fn(async () => null),
+    previewCopilot: preview(),
+    applyCopilot: write(),
+  },
   backups: { restoreBackup: write(), pruneBackups: write() },
 };
 

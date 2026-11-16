@@ -5,6 +5,7 @@
 import type { ContractRouterClient } from "@orpc/contract";
 import { backupsContract } from "./backups.js";
 import { catalogContract } from "./catalog.js";
+import { copilotContract } from "./copilot.js";
 import { doctorContract } from "./doctor.js";
 import { hooksContract } from "./hooks.js";
 import { info } from "./info.js";
@@ -25,6 +26,7 @@ export const contract = {
   catalog: catalogContract,
   doctor: doctorContract,
   backups: backupsContract,
+  copilot: copilotContract,
 };
 
 export type Contract = typeof contract;

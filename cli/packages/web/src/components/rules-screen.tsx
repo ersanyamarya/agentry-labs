@@ -5,9 +5,11 @@ import { useMemo } from "react";
 import type { LoadData } from "../contract/index.js";
 import { useListState } from "../hooks/use-list-state.js";
 import { useAppData } from "../lib/app-data.js";
+import { userName } from "../lib/copilot.js";
 import { formatBytes } from "../lib/format.js";
 import { client } from "../lib/orpc.js";
 import { ActionButton } from "./action-button.js";
+import { useCopilot } from "./copilot.js";
 import { DetailsPanel, NoSelection } from "./details-panel.js";
 import { ListScreen } from "./list-screen.js";
 import { Pill } from "./pill.js";
@@ -15,6 +17,7 @@ import { usePreviewFlow } from "./preview-flow.js";
 
 const m = messages();
 const t = m.web.rules;
+const CP = m.copilot;
 
 type RuleRow = LoadData["rules"]["items"][number];
 
@@ -53,12 +56,24 @@ export const RulesScreen = () => {
   };
 
   const deleteRule = (target: RuleRow | undefined) => remove(target, false);
+  const copilot = useCopilot();
+  const shareFor = (row: RuleRow) =>
+    row.scope === "user"
+      ? copilot.shareOf(
+          "rule",
+          row.kind === "rule" ? userName(row.id, "rules/") : undefined
+        )
+      : copilot.shareOf("rule", undefined, CP.whyNot.projectOnly);
 
   const list = useListState(rows, {
     id: (item) => item.id,
     text: (item) => `${item.label} ${item.title}`,
     filters: FILTERS,
-    keys: { x: (item) => remove(item), X: deleteRule },
+    keys: {
+      x: (item) => remove(item),
+      X: deleteRule,
+      ...copilot.keys(shareFor),
+    },
   });
   const current = list.selected;
 
@@ -108,6 +123,7 @@ export const RulesScreen = () => {
               </span>
             ),
           },
+          ...copilot.column(shareFor),
         ]}
         details={
           current ? (
@@ -177,7 +193,7 @@ export const RulesScreen = () => {
             },
           ],
         }}
-        hint={t.hint}
+        hint={copilot.hint(t.hint)}
         onSelect={list.setSelectedId}
         rowId={(item) => item.id}
         rows={list.shown}
@@ -194,6 +210,7 @@ export const RulesScreen = () => {
         title={t.heading}
       />
       {flow.dialog}
+      {copilot.dialog}
     </>
   );
 };

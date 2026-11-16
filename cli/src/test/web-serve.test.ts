@@ -75,6 +75,28 @@ describe("agentry ui end to end", () => {
     expect((await fetch(`${base}/rpc/load`)).status).toBe(401);
   });
 
+  test("the Copilot procedures sit behind the same cookie and origin checks", async () => {
+    const body = JSON.stringify({ json: { dir: fx.repo, action: "trust" } });
+    for (const name of ["copilotState", "previewCopilot", "applyCopilot"]) {
+      const url = `${base}/rpc/copilot/${name}`;
+      const post = (headers: Record<string, string>) =>
+        fetch(url, { method: "POST", headers, body });
+      expect(
+        (await post({ origin: base, "sec-fetch-site": "same-origin" })).status
+      ).toBe(401);
+      // The cookie alone is not enough for a write from another origin.
+      expect(
+        (
+          await post({
+            cookie,
+            origin: "http://evil.example",
+            "sec-fetch-site": "cross-site",
+          })
+        ).status
+      ).toBe(403);
+    }
+  });
+
   test("the Skills page renders with the sidebar once the cookie is held", async () => {
     const page = await fetch(`${base}/skills`, { headers: { cookie } });
     expect(page.status).toBe(200);

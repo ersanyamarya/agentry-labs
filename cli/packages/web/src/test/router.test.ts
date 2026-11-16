@@ -55,6 +55,7 @@ const dataFor = (fixture: Fixture): Api =>
       launchctlGetenv: () => "",
       renames: {},
     },
+    isCopilotRunning: () => false,
   });
 
 // User MCP servers, a hook and a parked server, each holding a secret in a different place.
@@ -400,5 +401,136 @@ describe("input the browser must not control", () => {
       data
     );
     expect(response.status).toBe(404);
+  });
+});
+
+// Sharing with Copilot over the router, on a throwaway <home>/.copilot (never the real one).
+describe("copilot", () => {
+  const copilotHome = () => join(fx.home, ".copilot");
+  const signIn = () => {
+    mkdirSync(copilotHome(), { recursive: true });
+    writeFileSync(
+      join(copilotHome(), "config.json"),
+      '{ "loggedInUsers": [{ "login": "a" }] }\n'
+    );
+  };
+  const userSkill = () => {
+    mkdirSync(join(fx.configDir, "skills", "mine"), { recursive: true });
+    writeFileSync(
+      join(fx.configDir, "skills", "mine", "SKILL.md"),
+      "---\nname: mine\ndescription: mine\n---\nBody\n"
+    );
+  };
+
+  test("without ~/.copilot the state is null and load has no copilot field", async () => {
+    expect(await client.copilot.copilotState({ dir: fx.repo })).toBeNull();
+    expect("copilot" in (await client.load({ dir: fx.repo }))).toBe(false);
+  });
+
+  test("load and copilotState carry the share state; a preview writes nothing, apply links the skill", async () => {
+    signIn();
+    userSkill();
+    const state = await client.copilot.copilotState({ dir: fx.repo });
+    expect(state?.signedIn).toBe(true);
+    expect(state?.trusted).toBe(false);
+    expect(
+      state?.items.find((item) => item.kind === "skill" && item.name === "mine")
+        ?.state
+    ).toBe("notShared");
+    expect((await client.load({ dir: fx.repo })).copilot).toEqual(state);
+
+    const input = {
+      dir: fx.repo,
+      action: "share",
+      kind: "skill",
+      name: "mine",
+    } as const;
+    const before = snapshot();
+    const preview = await client.copilot.previewCopilot(input);
+    expect(preview.appliable).toBe(true);
+    expect(preview.text).toContain("all projects");
+    expect(snapshot()).toEqual(before);
+
+    expect((await client.copilot.applyCopilot(input)).ok).toBe(true);
+    expect(
+      lstatSync(join(copilotHome(), "skills", "mine")).isSymbolicLink()
+    ).toBe(true);
+    const after = await client.copilot.copilotState({ dir: fx.repo });
+    expect(
+      after?.items.find((item) => item.kind === "skill" && item.name === "mine")
+        ?.state
+    ).toBe("shared");
+  });
+
+  test("trust and untrust edit only Copilot's config.json", async () => {
+    signIn();
+    const trust = { dir: fx.repo, action: "trust" } as const;
+    expect((await client.copilot.previewCopilot(trust)).appliable).toBe(true);
+    expect((await client.copilot.applyCopilot(trust)).ok).toBe(true);
+    expect(readFileSync(join(copilotHome(), "config.json"), "utf8")).toContain(
+      "trustedFolders"
+    );
+    expect((await client.copilot.copilotState({ dir: fx.repo }))?.trusted).toBe(
+      true
+    );
+    const untrust = { dir: fx.repo, action: "untrust" } as const;
+    expect((await client.copilot.applyCopilot(untrust)).ok).toBe(true);
+    expect((await client.copilot.copilotState({ dir: fx.repo }))?.trusted).toBe(
+      false
+    );
+  });
+
+  test("no secret reaches the browser or Copilot's mcp-config.json when an MCP server is shared", async () => {
+    signIn();
+    writeSecrets();
+    const api = {
+      dir: fx.repo,
+      action: "share",
+      kind: "mcp",
+      name: "api",
+    } as const;
+    const preview = await client.copilot.previewCopilot(api);
+    expect(preview.appliable).toBe(true);
+    expect((await client.copilot.applyCopilot(api)).ok).toBe(true);
+    const written = readFileSync(
+      join(copilotHome(), "mcp-config.json"),
+      "utf8"
+    );
+    // A server with a secret in its URL is refused, so only `api` was written.
+    const web = { ...api, name: "web" } as const;
+    const refused = await client.copilot.previewCopilot(web);
+    expect(refused.appliable).toBe(false);
+    for (const secret of SECRETS) {
+      expect(preview.text).not.toContain(secret);
+      expect(refused.text).not.toContain(secret);
+      expect(written).not.toContain(secret);
+    }
+  });
+
+  test.each([
+    ["share without a kind or name", { action: "share" }],
+    ["unshare without a name", { action: "unshare", kind: "skill" }],
+    [
+      "a name that climbs out of a folder",
+      { action: "share", kind: "skill", name: ".." },
+    ],
+    ["a name with a slash", { action: "share", kind: "skill", name: "a/b" }],
+    ["an unknown kind", { action: "share", kind: "hook", name: "x" }],
+    ["an unknown action", { action: "delete" }],
+  ])("refuses %s", async (_what, extra) => {
+    signIn();
+    await expect(
+      client.copilot.previewCopilot({ dir: fx.repo, ...extra } as never)
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      client.copilot.applyCopilot({ dir: fx.repo, ...extra } as never)
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(existsSync(join(copilotHome(), "skills"))).toBe(false);
+  });
+
+  test("a dir that is not a folder is refused", async () => {
+    await expect(
+      client.copilot.copilotState({ dir: "/no/such/agentry/folder" })
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });

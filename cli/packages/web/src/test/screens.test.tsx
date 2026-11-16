@@ -1,6 +1,7 @@
 // The other seven screens, against a fake client: what each lists, and that every write shows its preview first and only
 // calls the apply procedure after Apply.
 
+import { messages } from "@agentry/core/messages";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -230,6 +231,24 @@ describe("Rules delete", () => {
       dryRun: true,
     });
   });
+});
+
+describe("Copilot column", () => {
+  test.each([
+    ["MCP", <McpScreen key="m" />, "demo"],
+    ["Agents", <AgentsScreen key="a" />, "reviewer"],
+    ["Rules", <RulesScreen key="r" />, "context7"],
+  ])(
+    "%s has no Copilot column or checkbox while load carries no Copilot",
+    async (_name, ui, row) => {
+      mount(ui);
+      await inTable().findByText(row);
+      expect(screen.queryByText(messages().copilot.column)).toBeNull();
+      expect(
+        screen.queryAllByRole("checkbox", { name: /with Copilot/ })
+      ).toEqual([]);
+    }
+  );
 });
 
 describe("Backups", () => {

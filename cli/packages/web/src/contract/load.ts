@@ -6,6 +6,7 @@
 // List parts are always { items, loadError? } (core's fallback for a failed list is a bare object, not an array).
 
 import { z } from "zod";
+import { copilotStateSchema } from "./copilot.js";
 import { base, dirInput } from "./shared.js";
 
 const loadError = z.string().optional();
@@ -94,8 +95,16 @@ export const pluginItemSchema = z.object({
   version: z.string().optional(),
 });
 
+// The inventory block of `agentry status` (what Copilot loads here): only these fields reach the browser.
+const copilotStatusSchema = z.object({
+  home: z.string().optional(),
+  present: z.boolean(),
+  signedIn: z.boolean().optional(),
+  trusted: z.boolean().optional(),
+});
+
 const statusSchema = z.object({
-  copilot: z.unknown().nullable().optional(),
+  copilot: copilotStatusSchema.nullable().optional(),
   errors: z.array(readError),
   hooks: z.object({
     items: z.array(hookItemSchema),
@@ -253,6 +262,8 @@ const listOf = <T extends z.ZodType>(item: T) =>
 
 export const loadSchema = z.object({
   dir: z.string(),
+  // Sharing with Copilot; only present when Copilot's folder exists (the screens also need signedIn before they show it).
+  copilot: copilotStateSchema.optional(),
   // The folders screens name in their text (where backups go, the shelf); core's path helpers stay on the server.
   paths: z.object({
     home: z.string(),
