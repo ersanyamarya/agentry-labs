@@ -1062,14 +1062,17 @@ const copilotDupHook: Rule = {
       return [];
     }
     const where = { home: paths.home, projectRoot: project.root };
-    const handlers = copilotHookFiles(paths.copilotDir, project.root).flatMap(
-      ([source, scope, nested]) =>
-        copilotHookEntries(readJson(source, []), nested).flatMap((entry) => {
-          const run = entry.raw ? hookRunKey(entry.raw, where) : undefined;
-          return run && entry.raw
-            ? [{ ...entry, raw: entry.raw, run, scope, source }]
-            : [];
-        })
+    const handlers = copilotHookFiles(
+      paths.copilotDir,
+      project.root,
+      paths.configDir
+    ).flatMap(([source, scope, nested]) =>
+      copilotHookEntries(readJson(source, []), nested).flatMap((entry) => {
+        const run = entry.raw ? hookRunKey(entry.raw, where) : undefined;
+        return run && entry.raw
+          ? [{ ...entry, raw: entry.raw, run, scope, source }]
+          : [];
+      })
     );
     const user = handlers.filter((handler) => handler.scope === "user");
     const hooksDir = join(project.root, ".github", "hooks");

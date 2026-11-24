@@ -95,10 +95,20 @@ export const readJsonc = <T = unknown>(
 
 // The folders a session started in `cwd` reads project settings from: the working-tree root and `cwd` itself.
 // Which of the two Claude Code really uses for hooks and enabledPlugins is unverified; both are read.
+// A folder whose .claude is the user's own config folder (the home folder) has no project settings of its own:
+// reading it as a project would count every user skill, hook and server twice.
+export const isUserClaudeDir = (
+  paths: Pick<Paths, "configDir">,
+  dir: string
+): boolean => join(dir, ".claude") === paths.configDir;
+
 export const projectDirs = (
-  paths: Pick<Paths, "projectRoot">,
+  paths: Pick<Paths, "configDir" | "projectRoot">,
   cwd: string
-): string[] => [...new Set([paths.projectRoot(resolve(cwd)), resolve(cwd)])];
+): string[] =>
+  [...new Set([paths.projectRoot(resolve(cwd)), resolve(cwd)])].filter(
+    (dir) => !isUserClaudeDir(paths, dir)
+  );
 
 // Settings files that exist, lowest precedence first: user, project, local (later wins for scalars and per-key maps).
 export const settingsLayers = (

@@ -61,7 +61,8 @@ const object = (value: unknown): Record<string, unknown> =>
 /** The files Copilot reads hooks from, in order: [file, scope, nested] (nested: the events sit under a `hooks` key). */
 export const copilotHookFiles = (
   ch: string,
-  root: string
+  root: string,
+  claudeDir?: string
 ): [string, Scope, boolean][] => [
   ...filesWith(join(ch, "hooks"), ".json").map(
     (f): [string, Scope, boolean] => [f, "user", false]
@@ -71,7 +72,16 @@ export const copilotHookFiles = (
     (f): [string, Scope, boolean] => [f, "repo", false]
   ),
   [join(root, ".github", "copilot", "settings.json"), "repo", true],
-  [join(root, ".claude", "settings.json"), "repo", true],
+  // The home folder's .claude is the user's own config, not a repo's.
+  ...(join(root, ".claude") === claudeDir
+    ? []
+    : [
+        [join(root, ".claude", "settings.json"), "repo", true] as [
+          string,
+          Scope,
+          boolean,
+        ],
+      ]),
 ];
 
 /**
@@ -120,6 +130,7 @@ export const createCopilotReader = (
   paths: Pick<
     Paths,
     | "agentsSkillsDir"
+    | "configDir"
     | "copilotDefaultHome"
     | "copilotDir"
     | "projectRoot"
@@ -191,7 +202,10 @@ export const createCopilotReader = (
       }
     };
     addSkills(join(root, ".github", "skills"), "repo");
-    addSkills(join(root, ".claude", "skills"), "repo");
+    const repoClaude = join(root, ".claude") !== paths.configDir;
+    if (repoClaude) {
+      addSkills(join(root, ".claude", "skills"), "repo");
+    }
     addSkills(join(ch, "skills"), "user");
     if (paths.copilotDefaultHome) {
       addSkills(paths.agentsSkillsDir, "user");
@@ -224,10 +238,16 @@ export const createCopilotReader = (
       "applyTo",
       "repo"
     );
-    addInstructions(join(root, ".claude", "rules"), ".md", "paths", "repo");
+    if (repoClaude) {
+      addInstructions(join(root, ".claude", "rules"), ".md", "paths", "repo");
+    }
 
     const hooks: CopilotHook[] = [];
-    for (const [source, scope, nested] of copilotHookFiles(ch, root)) {
+    for (const [source, scope, nested] of copilotHookFiles(
+      ch,
+      root,
+      paths.configDir
+    )) {
       const json = readJson(source, errors);
       if (json === undefined) {
         continue;

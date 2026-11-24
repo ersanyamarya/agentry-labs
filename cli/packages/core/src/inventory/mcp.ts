@@ -22,7 +22,7 @@ import type {
   ReadError,
   SettingsJson,
 } from "../types.js";
-import { isObject, list, readJson } from "./common.js";
+import { isObject, isUserClaudeDir, list, readJson } from "./common.js";
 import { createPluginsReader } from "./plugins.js";
 
 // `{ mcpServers: {...} }`. Claude Code ignores a bare `{ name: entry }` .mcp.json; plugin files may be bare (unverified).
@@ -91,7 +91,9 @@ export const createMcpReader = (
     ) as ClaudeProject;
     const trusted = project.hasTrustDialogAccepted === true;
 
-    const projectDirs = [...new Set([top, start])];
+    const projectDirs = [...new Set([top, start])].filter(
+      (dir) => !isUserClaudeDir(paths, dir)
+    );
     const userSettings =
       readJson<SettingsJson>(join(paths.configDir, "settings.json"), errors) ??
       {};
