@@ -16,6 +16,11 @@ export interface Share {
   kind?: CopilotKind;
   name?: string;
   shared: boolean;
+  // The row's other state (setup, other, repoWins) when core has one: the cell names it instead of a bare dash.
+  state?: Exclude<
+    CopilotLoad["items"][number]["state"],
+    "shared" | "notShared"
+  >;
   why?: string;
 }
 
@@ -43,7 +48,14 @@ export const shareOf = (
   if (item && (item.state === "shared" || item.state === "notShared")) {
     return { kind, name: item.name, shared: item.state === "shared" };
   }
-  return { shared: false, why: item?.why ?? fallback };
+  return {
+    shared: false,
+    state:
+      item && item.state !== "shared" && item.state !== "notShared"
+        ? item.state
+        : undefined,
+    why: item?.why ?? fallback,
+  };
 };
 
 // `user:<folder><name>.md` ids of core's agent and rule entries, as the terminal UI reads them.

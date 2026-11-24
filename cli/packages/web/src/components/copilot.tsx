@@ -76,7 +76,7 @@ export const useCopilot = () => {
                 ? cell?.shared
                   ? CP.states.shared
                   : CP.states.notShared
-                : CP.cell.none;
+                : CP.cell[cell?.state ?? "none"];
               return (
                 <span
                   className="flex items-center gap-2"

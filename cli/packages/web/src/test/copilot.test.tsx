@@ -295,6 +295,8 @@ describe("MCP, Agents and Rules", () => {
     await userEvent.keyboard("n");
     const setup = within(await screen.findByTitle(CP.whyNot.setup));
     expect(setup.getByRole("checkbox").hasAttribute("disabled")).toBe(true);
+    // The cell names the state, as the terminal UI does, instead of a bare dash.
+    expect(setup.getByText(CP.cell.setup)).toBeDefined();
     const project = within(await screen.findByTitle(CP.whyNot.projectOnly));
     expect(project.getByRole("checkbox").hasAttribute("disabled")).toBe(true);
   });

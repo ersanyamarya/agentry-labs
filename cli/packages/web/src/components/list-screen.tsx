@@ -147,7 +147,7 @@ export const ListScreen = <T,>({
       {toolbar}
       <div className="flex items-start gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 {selection ? (
