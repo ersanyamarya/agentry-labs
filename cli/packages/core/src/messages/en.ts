@@ -1513,9 +1513,9 @@ export const en = {
       unshare: "stop sharing",
       unshareShort: "unshare",
       trustOn: "turn Copilot on here",
-      trustOnShort: "Copilot on",
+      trustOnShort: "use Copilot",
       trustOff: "turn Copilot off here",
-      trustOffShort: "Copilot off",
+      trustOffShort: "stop Copilot",
     },
     help: [
       ["C", `share or stop sharing with Copilot, for ${allProjects}`],

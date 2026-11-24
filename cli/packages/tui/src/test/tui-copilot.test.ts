@@ -294,7 +294,7 @@ describe("Copilot shown", () => {
         .trustedFolders ?? [];
     assert.deepEqual(trusted(), [ui.fx.repo]);
     await ui.untilRail(/Copilot in this repo[\s│]+On/);
-    await ui.until(/T Copilot off/);
+    await ui.until(/T stop Copilot/);
     await ui.press("T");
     await ui.until(/Stop trusting this folder in Copilot \(preview\)/);
     await ui.press("y");

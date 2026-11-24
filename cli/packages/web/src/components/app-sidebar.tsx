@@ -130,6 +130,7 @@ export const AppSidebar = ({
     select: (state) => state.location.pathname,
   });
   const { scope, setScope } = useScope();
+  const onSkills = pathname === "/" || pathname.startsWith("/skills");
   const copilot = useCopilot();
   const counts = sectionCounts(data);
   const errors = data?.doctor.summary.error ?? 0;
@@ -146,24 +147,28 @@ export const AppSidebar = ({
           </span>
         </div>
         <div className="flex flex-col gap-1.5 px-2">
-          <span className="text-muted-foreground text-xs">{t.scope}</span>
-          <ToggleGroup
-            aria-label={t.scopeAria}
-            className="w-full"
-            onValueChange={(value) => value && setScope(value as Scope)}
-            type="single"
-            value={scope}
-            variant="outline"
-          >
-            <ToggleGroupItem className="h-10 flex-1" value="global">
-              {t.scopeGlobal}
-            </ToggleGroupItem>
-            <ToggleGroupItem className="h-10 flex-1" value="project">
-              {t.scopeProject}
-            </ToggleGroupItem>
-          </ToggleGroup>
+          {onSkills ? (
+            <>
+              <span className="text-muted-foreground text-xs">{t.scope}</span>
+              <ToggleGroup
+                aria-label={t.scopeAria}
+                className="w-full"
+                onValueChange={(value) => value && setScope(value as Scope)}
+                type="single"
+                value={scope}
+                variant="outline"
+              >
+                <ToggleGroupItem className="h-10 flex-1" value="global">
+                  {t.scopeGlobal}
+                </ToggleGroupItem>
+                <ToggleGroupItem className="h-10 flex-1" value="project">
+                  {t.scopeProject}
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </>
+          ) : null}
           <span className="text-muted-foreground truncate font-mono text-xs">
-            {scope === "global"
+            {onSkills && scope === "global"
               ? (data?.paths.configDir ?? "~/.claude")
               : (data?.dir ?? "")}
           </span>
