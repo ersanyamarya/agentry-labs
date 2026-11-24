@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+- Web UI: the "All projects / This project" switch shows only on Skills, the one screen it changes. The Hooks scope column says "All projects" and "This project" like the other screens. MCP and other list tables stay inside their box, so Scope, State and Copilot are no longer hidden. A row Copilot cannot share names its state ("By setup", "Repo wins") instead of "-".
+- Terminal UI: the footer hint for Copilot in this repo reads "T stop Copilot" or "T use Copilot", an action instead of a state.
+- No command, flag or JSON change.
+
 ## 0.7.0
 
 - Copilot sharing: `agentry copilot` shares Claude user skills, agents, rules and MCP servers with GitHub Copilot CLI, one item at a time, for all projects. `status`, `share`, `unshare`, `trust` and `untrust` take `--dry-run`, `--yes`, `--json` and `--kind`. Every write shows a preview first and a backup is kept; `agentry fix --undo` reverts it. Exit codes: 0 done, 1 refused or failed, 2 usage.
