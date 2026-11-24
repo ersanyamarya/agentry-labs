@@ -59,6 +59,13 @@ const FILTERS = {
   off: (row: HookRow) => row.parked,
 };
 
+// Words for the scopes the other screens already use; plugin and local keep their own names.
+const scopeWord = (scope: string) =>
+  ({
+    user: m.web.common.scopeGlobal,
+    project: m.web.common.scopeProject,
+  })[scope] ?? scope;
+
 const editable = (row: HookRow) =>
   ["user", "project", "local"].includes(row.scope);
 
@@ -158,7 +165,7 @@ export const HooksScreen = () => {
           {
             header: m.web.common.scope,
             className: "w-28",
-            cell: (item) => <Pill tone="muted">{item.scope}</Pill>,
+            cell: (item) => <Pill tone="muted">{scopeWord(item.scope)}</Pill>,
           },
           {
             header: m.web.common.state,
