@@ -94,7 +94,11 @@ test("a long path in the details is cut in the middle with an ellipsis, keeping 
   const saved = process.env.TMPDIR;
   process.env.TMPDIR = long;
   const longUi = createUi({ personal: ["notes"], plugin: {} });
-  process.env.TMPDIR = saved;
+  if (saved === undefined) {
+    delete process.env.TMPDIR;
+  } else {
+    process.env.TMPDIR = saved;
+  }
   try {
     await longUi.ready();
     await longUi.moveTo(/^>\s+notes/);
