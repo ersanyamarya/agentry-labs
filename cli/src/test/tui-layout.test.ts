@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, test } from "vitest";
 import { compactTokens } from "../../packages/tui/src/layout.js";
 import { skillRows } from "../../packages/tui/src/rows.js";
@@ -80,8 +83,26 @@ test("the footer lists only the keys of the current tab", async () => {
 });
 
 test("a long path in the details is cut in the middle with an ellipsis, keeping both ends", async () => {
-  await ui.moveTo(/^>\s+notes/);
-  assert.match(ui.frame()!, /source: .*…\S*\/skills\/notes/);
+  // The cut only happens when the path is long; a CI temp folder (/tmp/...) is short, so build a long one here.
+  const outer = mkdtempSync(join(tmpdir(), "agentry-long-"));
+  const long = join(
+    outer,
+    "a-deliberately-long-folder-name",
+    "and-another-one-below-it"
+  );
+  mkdirSync(long, { recursive: true });
+  const saved = process.env.TMPDIR;
+  process.env.TMPDIR = long;
+  const longUi = createUi({ personal: ["notes"], plugin: {} });
+  process.env.TMPDIR = saved;
+  try {
+    await longUi.ready();
+    await longUi.moveTo(/^>\s+notes/);
+    assert.match(longUi.frame()!, /source: .*…\S*\/skills\/notes/);
+  } finally {
+    longUi.stop();
+    rmSync(outer, { recursive: true, force: true });
+  }
 });
 
 test("the help overlay lists the new keys and the colour legend", async () => {
